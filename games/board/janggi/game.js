@@ -167,9 +167,11 @@
   const COLOR = [{ fill: '#F6EEDB', ink: '#1E7A4F', rim: '#1E7A4F' }, { fill: '#F6EEDB', ink: '#C9343A', rim: '#C9343A' }];
   function drawPiece(ctx, p, cx, cy, labels, sel) {
     const r = p.t === 'K' ? 21 : p.t === 'S' ? 15 : 18, k = COLOR[p.s];
+    if (labels !== 'ko') { B.janggiPiece(ctx, cx, cy, r * 0.98, NAME_HJ[p.t][p.s], p.s === 0 ? '#11603A' : '#B21F2A', sel); return; }
     B.disc(ctx, cx, cy, r + 2, k.rim, { shine: false, px: 2 });
-    B.disc(ctx, cx, cy, r, sel ? '#FFE9A0' : k.fill, { rim: '#C8B994', px: 2 });
-    B.label(ctx, (labels === 'hanja' ? NAME_HJ : NAME_KO)[p.t][p.s], cx, cy, p.t === 'K' ? 20 : p.t === 'S' ? 14 : 17, k.ink, 700);
+    B.disc(ctx, cx, cy, r, sel ? '#FFE9A0' : k.fill, { rim: '#C8B994', px: 2, light: '#FFFCF2' });
+    const hj = labels !== 'ko';
+    B.label(ctx, (hj ? NAME_HJ : NAME_KO)[p.t][p.s], cx, cy + (hj ? 1 : 0), Math.round((p.t === 'K' ? 20 : p.t === 'S' ? 14 : 17) * (hj ? 1.22 : 1)), k.ink, hj ? 900 : 700, hj ? 'hanja' : null);
   }
   function drawBoard(ctx, st, labels) {
     B.wood(ctx, 0, 0, W, H);
@@ -188,14 +190,14 @@
     id: 'janggi', size: [W, H], initial, legalFrom, allLegal, inCheck, applyMove, aiMove, material, pseudo,
     thumb(ctx, w, h) {
       B.wood(ctx, 0, 0, w, h);
-      for (let y = 0; y < 5; y++) B.line(ctx, 16, 15 + y * 30, w - 16, 15 + y * 30, B.LINE, 2);
-      for (let x = 0; x < 9; x++) B.line(ctx, 16 + x * 26, 15, 16 + x * 26, 135, B.LINE, 2);
-      B.line(ctx, 16 + 3 * 26, 75, 16 + 5 * 26, 135, B.LINE, 2); B.line(ctx, 16 + 5 * 26, 75, 16 + 3 * 26, 135, B.LINE, 2);
-      [[4, 4, 'K', 0], [0, 4, 'C', 0], [2, 2, 'P', 0], [6, 3, 'H', 0], [3, 1, 'S', 1], [5, 0, 'C', 1], [7, 1, 'P', 1]].forEach(([x, y, t, s]) => drawPiece(ctx, { t, s }, 16 + x * 26, 15 + y * 30, 'ko'));
+      for (let y = 0; y < 5; y++) B.line(ctx, 16, 15 + y * 30, w - 16, 15 + y * 30, B.INK, 2);
+      for (let x = 0; x < 9; x++) B.line(ctx, 16 + x * 26, 15, 16 + x * 26, 135, B.INK, 2);
+      B.line(ctx, 16 + 3 * 26, 75, 16 + 5 * 26, 135, B.INK, 2); B.line(ctx, 16 + 5 * 26, 75, 16 + 3 * 26, 135, B.INK, 2);
+      [[4, 4, 'K', 0], [0, 4, 'C', 0], [2, 2, 'P', 0], [6, 3, 'H', 0], [3, 1, 'S', 1], [5, 0, 'C', 1], [7, 1, 'P', 1]].forEach(([x, y, t, s]) => drawPiece(ctx, { t, s }, 16 + x * 26, 15 + y * 30, 'hanja'));
     },
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
-      const labels = (window.GoSettings.get('janggi') || {}).labels || 'ko';
+      const labels = (window.GoSettings.get('janggi') || {}).labels || 'hanja';
       let st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0 }, mode = 'ai', level = 'normal', busy = false, over = false, timer = 0;
       const name = s => (s === CHO ? '초' : '한');
       const human = () => mode === 'local' || st.turn === CHO;
@@ -241,7 +243,7 @@
         else { st.sel = null; st.targets = []; }
         draw();
       });
-      draw();
+      draw(); B.whenHanja(draw);
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {

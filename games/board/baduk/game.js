@@ -149,8 +149,9 @@
   const px = k => M + k * C;
   function drawBoard(ctx, g, hover, showTerr) {
     B.wood(ctx, 0, 0, W, H);
-    for (let k = 0; k < N; k++) { B.line(ctx, px(0), px(k), px(N - 1), px(k), B.LINE, 2); B.line(ctx, px(k), px(0), px(k), px(N - 1), B.LINE, 2); }
-    ctx.fillStyle = B.LINE; [[2, 2], [6, 2], [4, 4], [2, 6], [6, 6]].forEach(([x, y]) => ctx.fillRect(px(x) - 4, px(y) - 4, 9, 9));
+    for (let k = 0; k < N; k++) { B.line(ctx, px(0), px(k), px(N - 1), px(k), B.INK, 2); B.line(ctx, px(k), px(0), px(k), px(N - 1), B.INK, 2); }
+    ctx.strokeStyle = 'rgba(52,28,8,.6)'; ctx.lineWidth = 3; ctx.strokeRect(px(0) - 1, px(0) - 1, px(N - 1) - px(0) + 2, px(N - 1) - px(0) + 2);
+    [[2, 2], [6, 2], [4, 4], [2, 6], [6, 6]].forEach(([x, y]) => B.star(ctx, px(x), px(y), 4));
     const sc = showTerr ? g.score() : null;
     for (let i = 0; i < N * N; i++) {
       const x = i % N, y = (i / N) | 0;
@@ -165,8 +166,8 @@
     id: 'baduk', size: [W, H], Rules, aiMove, N,
     thumb(ctx, w, h) {
       B.wood(ctx, 0, 0, w, h);
-      for (let k = 0; k < 7; k++) { B.line(ctx, 30 + k * 30, 15, 30 + k * 30, h - 15, B.LINE, 2); }
-      for (let k = 0; k < 5; k++) B.line(ctx, 30, 15 + k * 30, 210, 15 + k * 30, B.LINE, 2);
+      for (let k = 0; k < 7; k++) { B.line(ctx, 30 + k * 30, 15, 30 + k * 30, h - 15, B.INK, 2); }
+      for (let k = 0; k < 5; k++) B.line(ctx, 30, 15 + k * 30, 210, 15 + k * 30, B.INK, 2);
       [[1, 1], [2, 1], [3, 2], [2, 3], [5, 3]].forEach(([x, y]) => B.stone(ctx, 30 + x * 30, 15 + y * 30, 13, true));
       [[3, 1], [4, 2], [3, 3], [4, 3], [1, 2]].forEach(([x, y]) => B.stone(ctx, 30 + x * 30, 15 + y * 30, 13, false));
     },

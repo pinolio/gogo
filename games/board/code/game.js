@@ -104,13 +104,28 @@
   function aiPile(g) { return g.piles.b.length > g.piles.w.length ? 'b' : g.piles.w.length > g.piles.b.length ? 'w' : Math.random() < 0.5 ? 'b' : 'w'; }
 
   /* ---------- 화면 ---------- */
+  // 타일: 두께·모서리 깎임·빛 그라데이션이 있는 도트 블록
+  const TPAL = { b: ['#07080D', '#141824', '#202638', '#2D3550', '#3E4870', '#5A6694'], w: ['#7E7766', '#ABA390', '#CFC8B5', '#E6E0D0', '#F6F2E8', '#FFFFFF'] };
+  function tileSprite(c) {
+    return Bd.sprite('codeTile' + c + TW + 'x' + TH, TW + 4, TH + 6, (put) => {
+      const pal = TPAL[c], D = 4;
+      for (let y = 0; y < TH + D; y++) for (let x = 0; x < TW; x++) {
+        const cut = (x < 2 && (y < 2 || y > TH + D - 3)) || (x > TW - 3 && (y < 2 || y > TH + D - 3)) || ((x < 1 || x > TW - 2) && (y < 3 || y > TH + D - 4));
+        if (cut) continue;
+        if (y >= TH - 1) { put(x, y, y === TH + D - 1 ? '#000000' : pal[1]); continue; }       // 옆면(두께)
+        const edge = x === 0 || y === 0 || x === TW - 1;
+        let v = 0.62 + (1 - y / TH) * 0.22 - x / TW * 0.12 + (Bd.noise(x / 3, y / 3) - 0.5) * 0.1;
+        if (x < 3 || y < 3) v += 0.18;
+        if (x > TW - 4) v -= 0.14;
+        put(x, y, edge ? pal[c === 'b' ? 0 : 1] : Bd.ramp(pal, v, x, y));
+      }
+      for (let y = 6; y < TH + D + 2; y++) for (let x = 3; x < TW + 3; x++) if (x >= TW || y >= TH + D) put(x, y, '#000000', 60);
+    });
+  }
   function tile(ctx, t, x, y, faceUp, opt) {
     opt = opt || {};
     const dark = t.c === 'b';
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x + 3, y + 4, TW, TH);
-    ctx.fillStyle = dark ? '#262A3A' : '#F4F1E8'; ctx.fillRect(x, y, TW, TH);
-    ctx.fillStyle = dark ? '#3A4058' : '#FFFFFF'; ctx.fillRect(x, y, TW, 3); ctx.fillRect(x, y, 3, TH);
-    ctx.fillStyle = dark ? '#14161F' : '#B9B2A0'; ctx.fillRect(x, y + TH - 3, TW, 3); ctx.fillRect(x + TW - 3, y, 3, TH);
+    Bd.blit(ctx, tileSprite(t.c), x, y);
     if (faceUp) Bd.label(ctx, String(t.n), x + TW / 2, y + TH / 2, 20, dark ? '#F4F1E8' : '#262A3A', 700);
     else { ctx.fillStyle = dark ? '#3A4058' : '#D9D3C2'; for (let k = 0; k < 3; k++) ctx.fillRect(x + 8 + k * 6, y + TH / 2 - 2, 4, 4); }
     if (t.open && opt.mineOpen) { ctx.fillStyle = '#FF5A5F'; ctx.fillRect(x, y - 6, TW, 3); }
@@ -122,7 +137,7 @@
   window.GoGames.code = {
     id: 'code', size: [W, H], newGame, draw, guess, stop, penalty, possibilities, aiPick, aiContinue, insert, key,
     thumb(ctx, w, h) {
-      ctx.fillStyle = '#1E5A46'; ctx.fillRect(0, 0, w, h);
+      Bd.blit(ctx, Bd.feltTex(w, h), 0, 0);
       const top = [{ n: 1, c: 'b' }, { n: 4, c: 'w' }, { n: 7, c: 'b', open: true }, { n: 9, c: 'w' }];
       const bot = [{ n: 0, c: 'w' }, { n: 3, c: 'b' }, { n: 6, c: 'w' }, { n: 10, c: 'b' }];
       top.forEach((t, i) => tile(ctx, t, 50 + i * 38, 12, !!t.open));
@@ -148,8 +163,8 @@
       }
       function render() {
         const me = view(), op = 1 - me, Ly = layout();
-        ctx.fillStyle = '#1E5A46'; ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#18493A'; for (let y = 0; y < H; y += 8) ctx.fillRect(0, y, W, 2);
+        Bd.blit(ctx, Bd.feltTex(W, H), 0, 0);
+        ctx.fillStyle = 'rgba(255,230,160,.18)'; ctx.fillRect(10, 10, W - 20, 2); ctx.fillRect(10, H - 12, W - 20, 2); ctx.fillRect(10, 10, 2, H - 20); ctx.fillRect(W - 12, 10, 2, H - 20);
         Bd.label(ctx, name(op) + ' 타일 (숨은 ' + hidden(g.rows[op]).length + '장)', W / 2, 20, 14, '#CFE8DC', 700);
         Bd.label(ctx, name(me) + ' 타일 (숨은 ' + hidden(g.rows[me]).length + '장)', W / 2, 456, 14, '#CFE8DC', 700);
         if (cover) {

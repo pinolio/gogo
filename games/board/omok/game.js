@@ -79,8 +79,9 @@
   const px = i => M + i * C;
   function drawBoard(ctx, g, hover, lastAi) {
     B.wood(ctx, 0, 0, W, H);
-    for (let i = 0; i < N; i++) { B.line(ctx, px(0), px(i), px(N - 1), px(i), B.LINE, 1); B.line(ctx, px(i), px(0), px(i), px(N - 1), B.LINE, 1); }
-    ctx.fillStyle = B.LINE; [[3, 3], [11, 3], [7, 7], [3, 11], [11, 11]].forEach(([x, y]) => ctx.fillRect(px(x) - 3, px(y) - 3, 7, 7));
+    for (let i = 0; i < N; i++) { B.line(ctx, px(0), px(i), px(N - 1), px(i), B.INK, 1); B.line(ctx, px(i), px(0), px(i), px(N - 1), B.INK, 1); }
+    ctx.strokeStyle = 'rgba(52,28,8,.6)'; ctx.lineWidth = 2; ctx.strokeRect(px(0) - 1, px(0) - 1, px(N - 1) - px(0) + 2, px(N - 1) - px(0) + 2);
+    [[3, 3], [11, 3], [7, 7], [3, 11], [11, 11]].forEach(([x, y]) => B.star(ctx, px(x), px(y), 3));
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = g.at(x, y); if (v) B.stone(ctx, px(x), px(y), 13, v === 1); }
     const last = g.moves[g.moves.length - 1];
     if (last) { ctx.fillStyle = '#FF5A5F'; ctx.fillRect(px(last[0]) - 3, px(last[1]) - 3, 6, 6); }
@@ -92,8 +93,8 @@
     id: 'omok', size: [W, H], Rules, aiMove,
     thumb(ctx, w, h) {
       B.wood(ctx, 0, 0, w, h);
-      for (let i = 0; i < 9; i++) { B.line(ctx, 20 + i * 25, 12, 20 + i * 25, h - 12, B.LINE, 1); }
-      for (let j = 0; j < 6; j++) B.line(ctx, 20, 12 + j * 25, 220, 12 + j * 25, B.LINE, 1);
+      for (let i = 0; i < 9; i++) { B.line(ctx, 20 + i * 25, 12, 20 + i * 25, h - 12, B.INK, 1); }
+      for (let j = 0; j < 6; j++) B.line(ctx, 20, 12 + j * 25, 220, 12 + j * 25, B.INK, 1);
       [[2, 1], [3, 2], [4, 3], [5, 4]].forEach(([x, y]) => B.stone(ctx, 20 + x * 25, 12 + y * 25, 10, true));
       [[3, 1], [4, 2], [6, 2], [2, 3], [5, 3]].forEach(([x, y]) => B.stone(ctx, 20 + x * 25, 12 + y * 25, 10, false));
       B.stone(ctx, 20 + 6 * 25, 12 + 5 * 25, 10, true, 0.5);

@@ -183,7 +183,7 @@
     const show = g => homeCat === '전체' || g.cat === homeCat;
     const live = GAMES.filter(show), soon = SOON.filter(([, c]) => homeCat === '전체' || c === homeCat);
     grid.innerHTML = live.map(g => `
-      <a class="card" href="#${g.id}">
+      <a class="card" data-cat="${g.cat}" href="#${g.id}">
         <canvas class="thumb" data-thumb="${g.id}" aria-hidden="true"></canvas>
         <div class="card-body">
           <span class="cat">${g.cat}</span>

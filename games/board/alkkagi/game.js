@@ -10,7 +10,7 @@
   const W = 420, H = 500, L = 18, T = 18, R = W - 18, BOT = H - 18;   // 판 테두리
   const FRICTION = 0.976, STOP = 0.04, MAXV = 14, E = 0.88;   // 마찰·최대 힘 (밸런스 조정 가능)
   const RAD = { K: 18, C: 15, P: 15, H: 15, E: 15, A: 13, S: 12 };
-  const KO = { K: ['초', '한'], C: ['차', '차'], P: ['포', '포'], H: ['마', '마'], E: ['상', '상'], A: ['사', '사'], S: ['졸', '병'] };
+  const KO = { K: ['楚', '漢'], C: ['車', '車'], P: ['包', '包'], H: ['馬', '馬'], E: ['象', '象'], A: ['士', '士'], S: ['卒', '兵'] };   // 장기알 정식 한자
   const MAX_SHOTS = 60;
 
   function initial() {
@@ -85,15 +85,21 @@
   function drawPiece(ctx, p, sel) {
     const k = COLOR[p.s], scale = p.fall ? Math.max(0.1, 1 - p.fall / 18) : 1, r = p.r * scale;
     ctx.globalAlpha = p.fall ? Math.max(0, 1 - p.fall / 18) : 1;
+    if (r > 4) {
+      ctx.globalAlpha = p.fall ? Math.max(0, 1 - p.fall / 18) : 1;
+      Bd.janggiPiece(ctx, p.x, p.y, Math.max(5, r * 0.98), KO[p.t][p.s], p.s === 0 ? '#11603A' : '#B21F2A', sel);
+      ctx.globalAlpha = 1; return;
+    }
     Bd.disc(ctx, p.x + 2, p.y + 3, r + 1, 'rgba(0,0,0,.25)', { shine: false, px: 2 });
     Bd.disc(ctx, p.x, p.y, r + 2, k.rim, { shine: false, px: 2 });
-    Bd.disc(ctx, p.x, p.y, r, sel ? '#FFE9A0' : '#F6EEDB', { rim: '#C8B994', px: 2 });
-    if (r > 6) Bd.label(ctx, KO[p.t][p.s], p.x, p.y, Math.round(r * 1.05), k.ink, 700);
+    Bd.disc(ctx, p.x, p.y, r, sel ? '#FFE9A0' : '#F6EEDB', { rim: '#C8B994', px: 2, light: '#FFFCF2' });
+    if (r > 6) Bd.label(ctx, KO[p.t][p.s], p.x, p.y + 1, Math.round(r * 1.22), k.ink, 900, 'hanja');
     ctx.globalAlpha = 1;
   }
   function drawScene(ctx, ps, aim) {
     ctx.fillStyle = '#1A2144'; ctx.fillRect(0, 0, W, H);
     Bd.wood(ctx, L, T, R - L, BOT - T);
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(L + 4, BOT, R - L, 4); ctx.fillRect(R, T + 4, 4, BOT - T);
     for (let j = 0; j < 10; j++) Bd.line(ctx, 40, 40 + j * 46.7, 380, 40 + j * 46.7, 'rgba(90,58,26,.45)', 1);
     for (let i = 0; i < 9; i++) Bd.line(ctx, 40 + i * 42.5, 40, 40 + i * 42.5, 460, 'rgba(90,58,26,.45)', 1);
     ps.filter(p => p.alive).forEach(p => drawPiece(ctx, p, aim && aim.p === p));
@@ -160,7 +166,7 @@
           else draw();
         }
       });
-      draw();
+      draw(); Bd.whenHanja(draw);
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {

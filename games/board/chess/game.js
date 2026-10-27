@@ -150,7 +150,43 @@
     q: ['............', '..#..##..#..', '..##.##.##..', '..########..', '...######...', '....####....', '....####....', '...######...', '....####....', '...######...', '..########..', '............'],
     k: ['.....##.....', '....####....', '.....##.....', '...######...', '..########..', '..########..', '...######...', '....####....', '....####....', '...######...', '..########..', '............']
   };
+  // 고급 도트 말: 12칸 그림을 2배로 매끈하게 키운 뒤(EPX) 빛·그림자·외곽선을 입힘
+  const PAL = {
+    w: { o: '#2A2014', r: ['#8E8270', '#B5AA96', '#D3CAB7', '#E9E2D2', '#F7F3EA', '#FFFFFF'] },
+    b: { o: '#04050A', r: ['#0B0D14', '#161A26', '#242a3C', '#343C56', '#4D577A', '#7984AE'] }
+  };
+  function pieceSprite(p) {
+    const B = window.GoBoard;
+    return B.sprite('chess:' + p, 30, 30, (put, W, H) => {
+      const s = SPR[p.toLowerCase()], pal = isW(p) ? PAL.w : PAL.b, N = 24, O = 3;
+      const m0 = (i, j) => i >= 0 && j >= 0 && i < 12 && j < 12 && s[j][i] === '#';
+      const m = [];
+      for (let j = 0; j < 12; j++) for (let i = 0; i < 12; i++) {           // EPX(Scale2x)
+        const P = m0(i, j), A = m0(i, j - 1), Bq = m0(i + 1, j), C = m0(i - 1, j), D = m0(i, j + 1);
+        const e = [P, P, P, P];
+        if (C === A && C !== D && A !== Bq) e[0] = A;
+        if (A === Bq && A !== C && Bq !== D) e[1] = Bq;
+        if (D === C && D !== Bq && C !== A) e[2] = C;
+        if (Bq === D && Bq !== A && D !== C) e[3] = D;
+        m[(j * 2) * N + i * 2] = e[0]; m[(j * 2) * N + i * 2 + 1] = e[1]; m[(j * 2 + 1) * N + i * 2] = e[2]; m[(j * 2 + 1) * N + i * 2 + 1] = e[3];
+      }
+      const on = (x, y) => x >= 0 && y >= 0 && x < N && y < N && !!m[y * N + x];
+      const bl = (x, y) => { let t = 0; for (let b = -2; b <= 2; b++) for (let a = -2; a <= 2; a++) t += on(x + a, y + b) ? 1 : 0; return t / 25; };
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const X = x - O, Y = y - O;
+        if (on(X, Y)) {
+          const edge = !on(X - 1, Y) || !on(X + 1, Y) || !on(X, Y - 1) || !on(X, Y + 1);
+          if (edge) { put(x, y, pal.o); continue; }
+          const nx = bl(X - 1, Y) - bl(X + 1, Y), ny = bl(X, Y - 1) - bl(X, Y + 1);
+          const v = 0.52 - nx * 1.4 - ny * 1.1 + (1 - Y / N) * 0.18;
+          put(x, y, B.ramp(pal.r, v, x, y));
+        } else if (on(X - 2, Y - 2) && !on(X, Y)) put(x, y, '#000000', 70);   // 그림자
+      }
+    });
+  }
   function drawPiece(ctx, p, x, y, size) {
+    const B = window.GoBoard;
+    if (B && B.sprite) { const k = size / 24; B.drawScaled(ctx, pieceSprite(p), x - 3 * k, y - 3 * k, 30 * k, 30 * k); return; }
     const s = SPR[p.toLowerCase()], u = size / 12, w = isW(p);
     const fill = w ? '#F7F3E8' : '#2A2E3D', edge = '#14161F', hi = w ? '#FFFFFF' : '#4A5070';
     const on = (i, j) => i >= 0 && j >= 0 && i < 12 && j < 12 && s[j][i] === '#';
@@ -160,9 +196,9 @@
     }
   }
   function drawBoard(ctx, st, ui) {
-    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
-      ctx.fillStyle = (x + y) % 2 ? '#B9824A' : '#F0D6A8'; ctx.fillRect(x * S, y * S, S, S);
-    }
+    window.GoBoard.wood(ctx, 0, 0, W, H);
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) { ctx.fillStyle = 'rgba(92,46,12,.62)'; ctx.fillRect(x * S, y * S, S, S); }
+    ctx.fillStyle = 'rgba(255,240,200,.18)'; for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (!((x + y) % 2)) ctx.fillRect(x * S, y * S, S, 2);
     if (ui.last) { ctx.fillStyle = 'rgba(255,210,63,.5)'; [ui.last.from, ui.last.to].forEach(i => ctx.fillRect(X(i) * S, Y(i) * S, S, S)); }
     if (ui.check >= 0) { ctx.fillStyle = 'rgba(255,90,95,.6)'; ctx.fillRect(X(ui.check) * S, Y(ui.check) * S, S, S); }
     if (ui.sel >= 0) { ctx.fillStyle = 'rgba(76,125,255,.45)'; ctx.fillRect(X(ui.sel) * S, Y(ui.sel) * S, S, S); }
@@ -174,8 +210,8 @@
     });
     ctx.font = '700 11px "Press Start 2P", monospace'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
     for (let k = 0; k < 8; k++) {
-      ctx.fillStyle = k % 2 ? '#F0D6A8' : '#B9824A'; ctx.fillText(8 - k, 3, k * S + 3);
-      ctx.fillStyle = k % 2 ? '#B9824A' : '#F0D6A8'; ctx.fillText('abcdefgh'[k], k * S + S - 12, H - 13);
+      ctx.fillStyle = k % 2 ? '#F3DDAE' : '#6B3A12'; ctx.fillText(8 - k, 3, k * S + 3);
+      ctx.fillStyle = k % 2 ? '#6B3A12' : '#F3DDAE'; ctx.fillText('abcdefgh'[k], k * S + S - 12, H - 13);
     }
   }
 
@@ -183,7 +219,7 @@
     id: 'chess', size: [W, H], initial, legal, make, status, aiMove, inCheck,
     thumb(ctx, w, h) {
       const s = 30;
-      for (let y = 0; y < 5; y++) for (let x = 0; x < 8; x++) { ctx.fillStyle = (x + y) % 2 ? '#B9824A' : '#F0D6A8'; ctx.fillRect(x * s, y * s, s, s); }
+      window.GoBoard.wood(ctx, 0, 0, w, h); for (let y = 0; y < 5; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) { ctx.fillStyle = 'rgba(92,46,12,.62)'; ctx.fillRect(x * s, y * s, s, s); }
       [['k', 4, 0], ['q', 2, 1], ['n', 6, 1], ['p', 3, 2], ['P', 4, 3], ['B', 5, 3], ['K', 6, 4], ['R', 1, 4]].forEach(([p, x, y]) => drawPiece(ctx, p, x * s + 3, y * s + 3, s - 6));
     },
     create(canvas, hooks) {

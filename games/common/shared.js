@@ -9,7 +9,9 @@
     PIECE: { I: '#3BC8F5', O: '#FFD23F', T: '#A66BFF', S: '#3DDC84', Z: '#FF5A5F', J: '#4C7DFF', L: '#FF9A3D' },
 
     setup(canvas, w, h) {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // 화면에 크게 표시될수록 해상도도 올려서 선명하게 (최대 3배)
+      const shown = canvas.clientWidth || w;
+      const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1) * Math.max(1, shown / w));
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       const ctx = canvas.getContext('2d');

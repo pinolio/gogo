@@ -611,5 +611,130 @@ html.is-app .play { -webkit-user-select: none; user-select: none; }
 .mode-btns .btn { flex: 1; min-width: 0; padding-left: 8px; padding-right: 8px; border-color: #05081A; box-shadow: 3px 3px 0 #05081A; }
 @media (max-width: 560px) { .mode-row { grid-template-columns: 1fr; text-align: center; } }
 
+/* 보드게임: 판을 크게 (옆 패널은 조금 좁게, 화면 높이를 더 넉넉히 사용) */
+.board-play .play-grid { grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; }
+.board-play .cabinet { max-width: min(calc(var(--cw, 720px) + 32px), max(300px, calc((100svh - 210px) * var(--ar, 1) + 32px))); padding: 14px; }
+.board-play .play-head { margin-bottom: 10px; }
+@media (max-width: 960px) { .board-play .play-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .board-play .cabinet { padding: 6px; max-width: 100%; } .board-play .wrap, .board-play { margin-inline: -6px; } }
+
 /* 아주 작은 휴대폰 */
 @media (max-width: 380px) { .logo { font-size: 21px; } .nav a { padding: 6px 8px; } }
+
+
+/* =====================================================================
+   고급 도트 디자인 레이어 (2026-10)
+   - 제목·메뉴·버튼: Galmuri11 (도트 한글), 본문: Pretendard
+   - 게임 카드 = 게임팩(카트리지): 장르별 플라스틱 색 + 라벨 스티커
+   - 나머지는 조용하게: 2px 테두리, 짧은 그림자, 작은 모서리
+   ===================================================================== */
+:root {
+  --ink: #1A1F3D; --border: #1A1F3D; --shadow: #1A1F3D;
+  --bg: #E6EEFA; --surface: #FFFFFF; --surface-2: #F2F6FD; --chip: #DCE6F8;
+  --f-display: 'Galmuri11', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --f-body: 'Pretendard', 'Pretendard Variable', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --lift: 0 4px 0 var(--shadow); --lift-sm: 0 3px 0 var(--shadow);
+  --r: 4px;
+}
+:root[data-theme="dark"] { --bg: #0F1328; --border: #39427A; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0F1328; --border: #39427A; } }
+
+body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(26,31,61,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26,31,61,.045) 1px, transparent 1px);
+  background-size: 8px 8px;
+  letter-spacing: -0.005em;
+}
+h1, h2, h3 { font-family: var(--f-display); font-weight: 700; letter-spacing: 0; }
+
+/* 머리말 */
+.top { border-bottom: 2px solid var(--border); box-shadow: 0 2px 0 rgba(26,31,61,.08); }
+.logo { font-family: var(--f-display); font-weight: 700; font-size: 26px; }
+.logo .g { border-radius: 3px; border-width: 2px; box-shadow: 0 3px 0 var(--shadow); }
+.nav a { font-family: var(--f-display); font-size: 16px; border-radius: 3px; padding: 7px 12px 5px; }
+.nav a[aria-current="page"] { background: var(--ink); color: var(--bg); }
+
+/* 버튼: 눌리는 게임기 버튼 */
+.btn {
+  border-radius: 4px; font-family: var(--f-display); font-weight: 700; letter-spacing: 0;
+  box-shadow: 0 3px 0 var(--shadow), inset 0 2px 0 rgba(255,255,255,.35);
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--shadow), inset 0 2px 0 rgba(255,255,255,.35); }
+.btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--shadow), inset 0 2px 0 rgba(0,0,0,.15); }
+
+/* 히어로: CRT 화면 */
+.hero {
+  border-radius: 6px; border: 3px solid #0B0E22; box-shadow: 0 5px 0 #0B0E22, inset 0 0 0 6px #232A55;
+}
+.hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.45) 100%);
+}
+.hero-copy, .hero-nav { z-index: 2; }
+.hero h1 { line-height: 1.2; text-shadow: 0 3px 0 rgba(0,0,0,.45); }
+.hero-copy .eyebrow { font-family: var(--f-display); font-size: 12px; letter-spacing: 0; }
+
+/* 분류 버튼 */
+.sec-head h2 { font-size: 22px; }
+.cats button { border-radius: 3px; font-family: var(--f-display); font-weight: 400; padding: 4px 10px 3px; }
+
+/* ---------- 게임팩(카트리지) 카드 ---------- */
+.card { --cart: #3B4FB8; --cart-d: #26357F; }
+.card[data-cat="퍼즐"] { --cart: #4B5FD0; --cart-d: #2C3A8C; }
+.card[data-cat="아케이드"] { --cart: #D24A45; --cart-d: #8E2A2A; }
+.card[data-cat="보드게임"] { --cart: #2E8A5C; --cart-d: #1B5A3B; }
+.card[data-cat="액션"] { --cart: #D9822B; --cart-d: #94521A; }
+.card[data-cat="슈팅"] { --cart: #7A55D0; --cart-d: #4C3290; }
+a.card {
+  position: relative; border-radius: 6px 6px 4px 4px; padding: 16px 10px 0;
+  background: linear-gradient(180deg, var(--cart) 0 70%, var(--cart-d) 100%);
+  border: 3px solid var(--shadow);
+  box-shadow: 0 5px 0 var(--shadow), inset 0 3px 0 rgba(255,255,255,.28), inset 3px 0 0 rgba(255,255,255,.12), inset -3px 0 0 rgba(0,0,0,.18);
+}
+a.card::before {                    /* 위쪽 손잡이 홈 */
+  content: ""; position: absolute; top: 4px; left: 50%; width: 46%; height: 6px; transform: translateX(-50%);
+  background: repeating-linear-gradient(90deg, rgba(0,0,0,.35) 0 3px, transparent 3px 7px);
+}
+a.card:hover { transform: translateY(-4px); box-shadow: 0 9px 0 var(--shadow), inset 0 3px 0 rgba(255,255,255,.28), inset 3px 0 0 rgba(255,255,255,.12), inset -3px 0 0 rgba(0,0,0,.18); }
+a.card:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--shadow); }
+a.card:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; }
+a.card .thumb { border: 3px solid #0B0E22; border-radius: 3px; box-shadow: 0 0 0 2px rgba(255,255,255,.2); }
+a.card .card-body {                 /* 라벨 스티커 */
+  margin-top: 10px; background: #FFFDF6; color: #1A1F3D; border: 2px solid var(--shadow); border-bottom: 0;
+  border-radius: 3px 3px 0 0; padding: 10px 12px 12px;
+  background-image: linear-gradient(180deg, var(--cart) 0 4px, transparent 4px);
+}
+a.card .card-body h3 { font-size: 19px; color: #1A1F3D; }
+a.card .card-body p { color: #4A5378; }
+a.card .cat { color: var(--cart-d); font-family: var(--f-display); font-size: 11px; font-weight: 400; margin-top: 2px; }
+a.card .card-foot { border-top: 2px dotted #D5DCEC; color: #4A5378; }
+a.card .card-foot b { color: #1A1F3D; }
+.tag { border-radius: 2px; }
+.card.soon { border-radius: 6px; border-width: 2px; }
+.card.soon .soon-thumb { font-family: var(--f-display); font-size: 12px; }
+
+/* 패널 */
+.panel { border-radius: 6px; border-width: 2px; box-shadow: 0 4px 0 var(--shadow); }
+.panel h3 { font-size: 17px; }
+.form input { border-radius: 3px; }
+.mini-tabs button { border-radius: 3px; }
+.rank .rk { border-radius: 2px; }
+
+/* 게임 화면 캐비닛 */
+.cabinet { border-radius: 8px; }
+.play-head h1 { letter-spacing: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  a.card, a.card:hover, .btn, .btn:hover { transition: none; transform: none; }
+}
+@media (max-width: 560px) {
+  .hero-copy { padding-bottom: 78px; }
+  .hero h1 { font-size: 26px; }
+  a.card { padding: 13px 6px 0; }
+  a.card .card-body { padding: 8px 9px 10px; }
+  a.card .card-body h3 { font-size: 16px; }
+}
