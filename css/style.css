@@ -841,3 +841,11 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 .g-detail > td { background: var(--surface-2); padding: 10px 12px 14px; }
 .g-detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .g-detail-head .btn { margin-left: auto; }
+
+/* 휴대폰·태블릿 홈: 로그인 칸을 게임 목록 위로 (로그인 후 내 정보 칸은 게임 목록 아래) */
+@media (max-width: 960px) {
+  .home .side { display: contents; }
+  .home #accountBox { order: 2; }
+  .home #accountBox:has(#sideLogin) { order: -1; }
+  .home .side > .panel:not(#accountBox) { order: 3; }
+}
