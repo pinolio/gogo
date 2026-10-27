@@ -56,6 +56,7 @@
   /* ---------- 헤더 ---------- */
   function renderUserChip() {
     const u = Hub.user, el = $('#userChip');
+    const na = $('#navAdmin'); if (na) na.hidden = !Hub.isAdmin();
     if (u) {
       el.innerHTML = `<a class="who" href="#my">${avCanvas(u.avatar, 2, 'bust', 'chip-av')}<span class="who-n">${esc(u.nickname)}</span><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="pt num">${fmt(u.points)}P</span></a>`;
       AV.paintAll(el);
@@ -342,6 +343,14 @@
     cleanups.push(() => { cancelAnimationFrame(raf); ro.disconnect(); });
   }
 
+  /* ---------- 게임 화면: 채팅 · 댓글 ---------- */
+  const SOC = window.GoSocial;
+  function mountSocial(id) {
+    const ui = { toast, esc, openAuth, avCanvas, ago };
+    cleanups.push(SOC.mountChat(id, ui));
+    cleanups.push(SOC.mountComments(id, ui));
+  }
+
   /* ---------- 게임 화면 ---------- */
   let session = null;
   function renderPlay(id) {
@@ -367,13 +376,16 @@
               <button class="btn btn-sm btn-ghost music-btn" type="button" id="btnMusic" hidden></button>
               ${Hub.user ? `<div class="reset-line">${resetHTML(id, '내 ' + g.name + ' 전적 초기화')}</div>` : ''}
             </div>
+            ${SOC.chatHTML()}
             <div class="panel player-card" id="playerCard"></div>
             <div class="panel"><h3>조작법</h3><dl class="keys">${g.keys.map(([k, d]) => `<dt><kbd>${k}</kbd></dt><dd>${d}</dd>`).join('')}</dl></div>
             <div class="panel"><h3>${g.name} 랭킹 <small>TOP 10</small></h3><ol class="rank" id="gameRank"><li class="empty">불러오는 중…</li></ol></div>
           </aside>
         </div>
+        ${SOC.commentsHTML(g.name)}
       </div>`;
     if (!Hub.user) $('#myBest').style.fontSize = '9px';
+    mountSocial(id);
 
     const hooks = {
       onScore: s => { const el = $('#curScore'); if (el) el.textContent = fmt(s); },
@@ -447,11 +459,13 @@
               <button class="btn btn-sm btn-ghost music-btn" type="button" id="btnMusic" hidden></button>
               ${Hub.user ? `<div class="reset-line">${resetHTML(id, '내 ' + g.name + ' 전적 초기화')}</div>` : ''}
             </div>
+            ${SOC.chatHTML()}
             <div class="panel player-card" id="playerCard"></div>
             <div class="panel"><h3>조작법</h3><dl class="keys">${g.keys.map(([k, d]) => `<dt><kbd>${k}</kbd></dt><dd>${d}</dd>`).join('')}</dl></div>
             <div class="panel"><h3>${g.name} 랭킹 <small>이긴 난이도 TOP 10</small></h3><ol class="rank" id="gameRank"><li class="empty">불러오는 중…</li></ol></div>
           </aside>
         </div>
+        ${SOC.commentsHTML(g.name)}
       </div>`;
     const hooks = {
       onTurn: t => {
@@ -471,8 +485,10 @@
       onOver: res => finishBoard(res),
       onToast: m => toast(m)
     };
+    mountSocial(id);
     session = { id, board: true, state: 'ready', mode: 'ai', level: 'normal', result: null, save: null };
     try { const last = JSON.parse(localStorage.getItem('gogo_board_pick') || '{}'); if (last.mode) { session.mode = last.mode; session.level = last.level || 'normal'; } } catch (e) { /* noop */ }
+    if (cfg.players) { session.players = 2; try { const n = +localStorage.getItem('gogo_players_' + id); if (cfg.players.includes(n)) session.players = n; } catch (e) { /* noop */ } }
     session.inst = window.GoGames[id].create($('#gameCanvas'), hooks);
     renderOverlay(); refreshGameRank(); renderBoardCard();
     const musicBtn = $('#btnMusic');
@@ -505,9 +521,9 @@
       <div class="pc-top">${avCanvas(u ? u.avatar : {}, 3, 'full', 'pc-av')}
         <div class="pc-info"><b>${u ? esc(u.nickname) : '손님'}</b>${u ? `<span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="num pc-pt">${fmt(u.points)}P</span>` : '<span class="small">로그인하면 포인트를 모아요</span>'}</div></div>
       <dl class="rules">
-        <dt>포인트</dt><dd>컴퓨터에게 승리 <b class="plus">+${pts.win}P</b> · 패배 <b class="minus">${pts.lose}P</b> · 무승부 0P</dd>
+        <dt>포인트</dt><dd>${(session.players || 2) > 2 && cfg.pointsByRank ? rankPointText(cfg, session.players) : `컴퓨터에게 승리 <b class="plus">+${pts.win}P</b> · 패배 <b class="minus">${pts.lose}P</b> · 무승부 0P`}</dd>
         <dt>랭킹 점수</dt><dd>이긴 난이도 · 쉬움 ${ls.easy || 100} / 보통 ${ls.normal || 200} / 어려움 ${ls.hard || 300}</dd>
-        <dt>둘이서</dt><dd>한 기기로 번갈아 두기 · 포인트 없음</dd>
+        <dt>${cfg.players ? '친구와' : '둘이서'}</dt><dd>한 기기로 번갈아 두기 · 포인트 없음</dd>
       </dl>`;
     AV.paintAll(el);
   }
@@ -515,16 +531,18 @@
     const ov = $('#ov'); if (!ov || !session) return;
     const g = gameById(session.id), cfg = SET.get(session.id), st = session.state;
     ov.hidden = st === 'playing';
+    const np = session.players || 2;
     if (st === 'ready') {
       const lv = ['easy', 'normal', 'hard'].map(l => `<button class="btn ${session.mode === 'ai' && session.level === l ? 'btn-sun' : ''}" type="button" data-pick="ai:${l}">${LEVEL_NAME[l]}</button>`).join('');
       ov.innerHTML = `<div class="ov-box ov-board"><div class="ov-title">${g.name}</div>
         <p class="ov-goal">${esc(g.blurb)}</p>
         <div class="mode-pick">
           <div class="mode-row"><span class="mode-lbl">컴퓨터와</span><div class="mode-btns">${lv}</div></div>
-          <div class="mode-row"><span class="mode-lbl">친구와</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">둘이서 한 기기</button></div></div>
+          <div class="mode-row"><span class="mode-lbl">친구와</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">${np > 2 ? np + '명이' : '둘이서'} 한 기기</button></div></div>
+          ${cfg.players ? `<div class="mode-row"><span class="mode-lbl">인원</span><div class="mode-btns">${cfg.players.map(n => `<button class="btn ${np === n ? 'btn-sun' : ''}" type="button" data-players="${n}">${n}명</button>`).join('')}</div></div>` : ''}
         </div>
-        <button class="btn btn-primary" type="button" data-ov="start">${session.mode === 'local' ? '둘이서' : LEVEL_NAME[session.level]} 시작 ▶</button>
-        <p class="ov-note">${session.mode === 'local' ? '포인트 없이 기록만 남아요' : `내가 먼저 둬요 · 승리 +${cfg.points.win}P / 패배 ${cfg.points.lose}P`}${Hub.user ? '' : ' · 손님 플레이'}</p></div>`;
+        <button class="btn btn-primary" type="button" data-ov="start">${session.mode === 'local' ? (np > 2 ? np + '명' : '둘이서') : LEVEL_NAME[session.level] + (np > 2 ? ' · ' + np + '명' : '')} 시작 ▶</button>
+        <p class="ov-note">${session.mode === 'local' ? '포인트 없이 기록만 남아요' : rankPointText(cfg, np)}${Hub.user ? '' : ' · 손님 플레이'}</p></div>`;
     } else if (st === 'over') {
       const r = session.result || {}, s = session.save || {};
       let note = '';
@@ -535,16 +553,22 @@
         else if (s.status === 'error') note = `<p class="ov-note bad">${esc(s.msg)}</p>`;
         else if (s.status === 'guest') note = `<p class="ov-note">로그인하면 이 기록과 포인트(${r.points_delta > 0 ? '+' : ''}${r.points_delta || 0}P)가 남아요.</p><button class="btn btn-primary" type="button" data-ov="save">로그인하고 기록 저장</button>`;
       } else if (s.status === 'saved') note = '<p class="ov-note">둘이서 둔 판 · 전적에 기록했어요</p>';
-      const title = session.mode === 'local' ? '대국 끝!' : r.result === 'win' ? '승리!' : r.result === 'lose' ? '아쉬워요!' : '무승부';
+      const ex = r.extra || {}, multi = (ex.players || 2) > 2;
+      const title = session.mode === 'local' ? '대국 끝!' : multi ? (ex.rank === 1 ? '1등!' : ex.rank + '등') : r.result === 'win' ? '승리!' : r.result === 'lose' ? '아쉬워요!' : '무승부';
       ov.innerHTML = `<div class="ov-box">
         ${avCanvas(Hub.user ? Hub.user.avatar : {}, 3, 'full', 'ov-avatar')}
         <div class="ov-title">${title}</div>
         <p class="ov-goal">${esc(r.message || '')}</p>
-        <p class="ov-hint">${session.mode === 'local' ? '둘이서' : '컴퓨터 ' + LEVEL_NAME[session.level]} · ${r.moves ? r.moves + '수 · ' : ''}${dur(r.duration_sec || 0)}</p>
+        <p class="ov-hint">${session.mode === 'local' ? (multi ? ex.players + '명이서' : '둘이서') : '컴퓨터 ' + LEVEL_NAME[session.level] + (multi ? ' · ' + ex.players + '명' : '')} · ${r.moves ? r.moves + '수 · ' : ''}${dur(r.duration_sec || 0)}</p>
         ${note}
         <div class="ov-btns"><button class="btn btn-sun" type="button" data-ov="again">다시 하기</button><button class="btn" type="button" data-ov="menu">방식 바꾸기</button><a class="btn" href="#home">다른 게임</a></div></div>`;
     } else ov.innerHTML = '';
     AV.paintAll(ov);
+    $$('[data-players]', ov).forEach(b => b.addEventListener('click', () => {
+      session.players = +b.dataset.players;
+      try { localStorage.setItem('gogo_players_' + session.id, String(session.players)); } catch (e) { /* noop */ }
+      renderOverlay(); renderBoardCard();
+    }));
     $$('[data-pick]', ov).forEach(b => b.addEventListener('click', () => {
       const [m, l] = b.dataset.pick.split(':'); session.mode = m; if (l) session.level = l;
       try { localStorage.setItem('gogo_board_pick', JSON.stringify({ mode: session.mode, level: session.level })); } catch (e) { /* noop */ }
@@ -557,13 +581,22 @@
       else if (a === 'save') openAuth('login', () => { if (session && session.save && session.save.status === 'guest') saveResult(); });
     }));
   }
+  // 등수별 포인트 안내 (예: 1등 +4P · 2등 +2P · 3등 0P · 4등 -1P)
+  function rankPointText(cfg, n) {
+    if (n <= 2 || !cfg.pointsByRank || !cfg.pointsByRank[n]) return `내가 먼저 둬요 · 승리 +${cfg.points.win}P / 패배 ${cfg.points.lose}P`;
+    return '컴퓨터 ' + (n - 1) + '명과 · ' + cfg.pointsByRank[n].map((p, i) => `${i + 1}등 ${p > 0 ? '+' : ''}${p}P`).join(' · ');
+  }
   function finishBoard(res) {
     if (!session) return;
     session.state = 'over'; BGM.pause();
     const rb = $('#btnResign'); if (rb) { rb.disabled = true; rb.textContent = '기권'; rb.classList.remove('btn-danger'); }
     const cfg = SET.get(session.id), ai = session.mode === 'ai';
     let result = null, delta = 0, score = 0;
-    if (ai && res.winner === 0) { result = 'win'; delta = SET.pointsFor(session.id, true).delta; score = (cfg.levelScore || {})[session.level] || 100; }
+    if (ai && res.rank && res.players > 2 && cfg.pointsByRank) {
+      const table = cfg.pointsByRank[res.players] || [];
+      delta = table[res.rank - 1] || 0; result = res.rank === 1 ? 'win' : 'lose';
+      if (res.rank === 1) score = ((cfg.levelScore || {})[session.level] || 100) + (res.players - 2) * (cfg.playersBonus || 0);
+    } else if (ai && res.winner === 0) { result = 'win'; delta = SET.pointsFor(session.id, true).delta; score = (cfg.levelScore || {})[session.level] || 100; }
     else if (ai && res.winner === 1) { result = 'lose'; delta = SET.pointsFor(session.id, false).delta; }
     session.result = {
       game_id: session.id, score, duration_sec: res.duration_sec || 0, result, points_delta: delta,
@@ -578,7 +611,7 @@
   function startGame() {
     if (!session) return;
     session.result = null; session.save = null;
-    if (session.board) { session.inst.start({ mode: session.mode, level: session.level }); BGM.restart(); return; }
+    if (session.board) { session.inst.start({ mode: session.mode, level: session.level, players: session.players || 2 }); BGM.restart(); return; }
     $('#curScore').textContent = '0';
     session.inst.start();
     BGM.restart();
@@ -754,6 +787,10 @@
     }
     else if (gameById(h)) renderPlay(h);
     else if (h === 'rank') renderRank();
+    else if (h === 'admin') {
+      current = 'admin'; setNav('admin');
+      cleanups.push(window.GoAdmin.render(view(), { toast, esc, fmt, dur, ago, nameOf, avCanvas, games: GAMES.map(g => ({ id: g.id, name: g.name })) }));
+    }
     else if (h === 'my') renderMy();
     else renderHome();
     window.scrollTo(0, 0);
@@ -796,6 +833,7 @@
       else if (current === 'my') renderMy();
       else if (current === 'play') { refreshBest(); refreshGameRank(); renderPlayerCard(); if (session && session.state === 'ready') renderOverlay(); }
       else if (current === 'shop' && window.GoShop.refresh) window.GoShop.refresh();
+      else if (current === 'admin') route();
     });
     try { await Hub.init(); } catch (e) { console.error(e); }
     renderUserChip();

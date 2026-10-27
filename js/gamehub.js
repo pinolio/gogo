@@ -18,10 +18,18 @@
   const subs = new Set();
   Hub.onChange = fn => { subs.add(fn); return () => subs.delete(fn); };
   function setUser(u) {
-    if (u) { u.avatar = AV.normalize(u.avatar); u.owned = u.owned || []; u.points = u.points || 0; u.earned = u.earned || 0; }
+    if (u) { u.avatar = AV.normalize(u.avatar); u.owned = u.owned || []; u.points = u.points || 0; u.earned = u.earned || 0; u.role = u.role || 'user'; u.banned = !!u.banned; }
     Hub.user = u;
     subs.forEach(fn => { try { fn(u); } catch (e) { console.error(e); } });
   }
+  const COMMENT_MAX = 300, CHAT_MAX = 120;
+  function cleanText(body, max) {
+    body = String(body || '').replace(/\s+/g, ' ').trim();
+    if (!body) throw new Error('내용을 입력해 주세요.');
+    if (body.length > max) throw new Error(max + '자까지 쓸 수 있어요.');
+    return body;
+  }
+  Hub.isAdmin = () => !!(Hub.user && Hub.user.role === 'admin');
   const clampDelta = d => Math.max(-MAX_DELTA, Math.min(MAX_DELTA, Math.round(d || 0)));
 
   // 레벨: 지금까지 '얻은' 포인트(earned) 기준. 상점에서 써도 레벨은 내려가지 않음.
@@ -44,6 +52,7 @@
     if (signup) {
       nickname = String(nickname || '').trim();
       if (nickname.length < 2 || nickname.length > 10) throw new Error('닉네임은 2~10자로 정해 주세요.');
+      if (window.GoFilter && window.GoFilter.has(nickname)) throw new Error('닉네임에 쓸 수 없는 말이 들어 있어요.');
     }
     return { username, password, nickname };
   }
@@ -72,6 +81,33 @@
         plays: records.length, totalSec: records.reduce((s, r) => s + r.duration_sec, 0),
         wins: records.filter(r => r.result === 'win').length, losses: records.filter(r => r.result === 'lose').length
       }
+    };
+  }
+
+  const kstDay = iso => new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString().slice(0, 10);
+  function overviewFrom(users, records, comments, chat) {
+    const now = Date.now(), week = now - 7 * 864e5, today = kstDay(new Date().toISOString());
+    const per = {};
+    records.forEach(r => {
+      const g = per[r.game_id] || (per[r.game_id] = { game_id: r.game_id, plays: 0, users: new Set(), wins: 0, losses: 0, sec: 0, best: 0, plays_7d: 0 });
+      g.plays++; g.users.add(r.user_id); g.sec += r.duration_sec; g.best = Math.max(g.best, r.score);
+      if (r.result === 'win') g.wins++; else if (r.result === 'lose') g.losses++;
+      if (new Date(r.played_at).getTime() > week) g.plays_7d++;
+    });
+    const daily = {};
+    records.filter(r => new Date(r.played_at).getTime() > now - 14 * 864e5).forEach(r => {
+      const k = kstDay(r.played_at), x = daily[k] || (daily[k] = { day: k, plays: 0, u: new Set() }); x.plays++; x.u.add(r.user_id);
+    });
+    const rating = gid => { const rs = comments.filter(c => c.game_id === gid && c.rating); return rs.length ? Math.round(rs.reduce((s, c) => s + c.rating, 0) / rs.length * 10) / 10 : null; };
+    return {
+      members: users.length, members_7d: users.filter(u => u.created_at && new Date(u.created_at).getTime() > week).length, banned: users.filter(u => u.banned).length,
+      plays: records.length, plays_today: records.filter(r => kstDay(r.played_at) === today).length,
+      players_7d: new Set(records.filter(r => new Date(r.played_at).getTime() > week).map(r => r.user_id)).size,
+      total_sec: records.reduce((s, r) => s + r.duration_sec, 0),
+      comments: comments.filter(c => c.kind === 'comment').length, feedback: comments.filter(c => c.kind === 'feedback').length,
+      chats_7d: chat.filter(m => new Date(m.created_at).getTime() > week).length,
+      per_game: Object.values(per).sort((a, b) => b.plays - a.plays).map(g => ({ game_id: g.game_id, plays: g.plays, players: g.users.size, wins: g.wins, losses: g.losses, avg_sec: Math.round(g.sec / g.plays), best: g.best, plays_7d: g.plays_7d, rating: rating(g.game_id), comments: comments.filter(c => c.game_id === g.game_id).length })),
+      daily: Object.values(daily).sort((a, b) => (a.day < b.day ? -1 : 1)).map(x => ({ day: x.day, plays: x.plays, players: x.u.size }))
     };
   }
 
@@ -116,7 +152,9 @@
         let h = 0; for (const ch of s) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0; return 'f' + h;
       }
     }
-    const pub = u => ({ id: u.id, username: u.username, nickname: u.nickname, points: u.points, earned: u.earned || 0, avatar: u.avatar, owned: (u.owned || []).slice() });
+    // 체험 모드 관리자: 아이디가 config.js 의 demoAdmin(기본 'gogoadmin')인 계정
+    const DEMO_ADMIN = cfg.demoAdmin || 'gogoadmin';
+    const pub = u => ({ id: u.id, username: u.username, nickname: u.nickname, points: u.points, earned: u.earned || 0, avatar: u.avatar, owned: (u.owned || []).slice(), role: u.username === DEMO_ADMIN ? 'admin' : (u.role || 'user'), banned: !!u.banned, created_at: u.created_at });
     const me = () => { const u = Hub.user && db().users[Hub.user.id]; if (!u) throw new Error('로그인이 필요해요.'); return u; };
 
     return {
@@ -126,7 +164,7 @@
         const d = db();
         if (Object.values(d.users).some(u => u.username === username)) throw new Error('이미 사용 중인 아이디예요.');
         const id = 'u' + Date.now().toString(36);
-        d.users[id] = { id, username, nickname, pw: await hash(password), points: 0, earned: 0, avatar: AV.normalize({}), owned: [] };
+        d.users[id] = { id, username, nickname, pw: await hash(password), points: 0, earned: 0, avatar: AV.normalize({}), owned: [], created_at: new Date().toISOString() };
         persist(); write(SKEY, id); setUser(pub(d.users[id]));
       },
       async signIn(a) {
@@ -138,6 +176,7 @@
       async signOut() { write(SKEY, null); setUser(null); },
       async submitScore(rec) {
         const d = db(), u = me();
+        if (u.banned) throw new Error('이용이 정지된 계정이에요.');
         const prevBest = d.records.filter(r => r.user_id === u.id && r.game_id === rec.game_id).reduce((m, r) => Math.max(m, r.score), 0);
         const delta = clampDelta(rec.points_delta), before = u.points;
         d.records.push({ user_id: u.id, game_id: rec.game_id, score: rec.score, result: rec.result || null, points_delta: delta, duration_sec: rec.duration_sec, extra: rec.extra || {}, played_at: new Date().toISOString() });
@@ -184,8 +223,84 @@
       },
       async setAvatar(av) {
         const u = me(); u.avatar = validateAvatar(av); persist(); setUser(pub(u));
+      },
+      /* ---- 댓글 · 피드백 ---- */
+      async listComments(game) {
+        const d = db(), uid = Hub.user && Hub.user.id, admin = Hub.isAdmin();
+        return (d.comments || []).filter(c => c.game_id === game && ((c.kind === 'comment' && !c.hidden) || c.user_id === uid || admin))
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 50).map(c => withUser(d, c));
+      },
+      async addComment(c) {
+        const d = db(), u = me();
+        if (u.banned) throw new Error('이용이 정지된 계정이에요.');
+        const body = cleanText(c.body, COMMENT_MAX), list = d.comments || (d.comments = []);
+        const last = list.filter(x => x.user_id === u.id).sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+        if (last && Date.now() - new Date(last.created_at).getTime() < 10000) throw new Error('댓글은 10초에 한 번만 쓸 수 있어요');
+        const row = { id: Date.now(), game_id: c.game_id, user_id: u.id, kind: c.kind === 'feedback' ? 'feedback' : 'comment', body, rating: c.kind === 'feedback' && c.rating ? Math.max(1, Math.min(5, c.rating | 0)) : null, hidden: false, created_at: new Date().toISOString() };
+        list.push(row); persist(); return withUser(d, row);
+      },
+      async deleteComment(id) {
+        const d = db(), u = me(), c = (d.comments || []).find(x => x.id === id);
+        if (!c) return; if (c.user_id !== u.id && !Hub.isAdmin()) throw new Error('지울 수 없어요.');
+        d.comments = d.comments.filter(x => x.id !== id); persist();
+      },
+      async setCommentHidden(id, hidden) {
+        if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.');
+        const c = (db().comments || []).find(x => x.id === id); if (c) { c.hidden = !!hidden; persist(); }
+      },
+      async adminComments(f) {
+        if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
+        f = f || {}; const d = db();
+        return (d.comments || []).filter(c => (!f.game || c.game_id === f.game) && (!f.kind || c.kind === f.kind))
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, f.limit || 300).map(c => withUser(d, c));
+      },
+      /* ---- 채팅 ---- */
+      async chatHistory(game, limit) {
+        const d = db();
+        return (d.chat || []).filter(m => m.game_id === game).slice(-(limit || 40)).map(m => withUser(d, m));
+      },
+      async chatSend(game, body) {
+        const d = db(), u = me();
+        if (u.banned) throw new Error('이용이 정지된 계정이에요.');
+        body = cleanText(body, CHAT_MAX);
+        const list = d.chat || (d.chat = []), recent = list.filter(m => m.user_id === u.id && Date.now() - new Date(m.created_at).getTime() < 10000);
+        if (recent.length >= 5) throw new Error('채팅을 너무 빨리 보내고 있어요. 잠시 뒤에 보내 주세요');
+        const row = { id: Date.now(), game_id: game, user_id: u.id, body, created_at: new Date().toISOString() };
+        list.push(row); d.chat = list.slice(-500); persist(); return withUser(d, row);
+      },
+      async adminChat(f) {
+        if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
+        f = f || {}; const d = db();
+        return (d.chat || []).filter(m => !f.game || m.game_id === f.game).slice().reverse().slice(0, f.limit || 300).map(m => withUser(d, m));
+      },
+      async adminDeleteChat(id) { if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.'); const d = db(); d.chat = (d.chat || []).filter(m => m.id !== id); persist(); },
+      /* ---- 관리자 ---- */
+      async adminMembers() {
+        if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
+        const d = db();
+        return Object.values(d.users).map(u => {
+          const rs = d.records.filter(r => r.user_id === u.id);
+          return Object.assign(pub(u), { sample: !!u.sample, plays: rs.length, last_played: rs.reduce((m, r) => (r.played_at > (m || '') ? r.played_at : m), null), comments: (d.comments || []).filter(c => c.user_id === u.id).length });
+        });
+      },
+      async adminMember(uid, action, value) {
+        if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.');
+        const d = db(), u = d.users[uid]; if (!u) throw new Error('없는 회원이에요.');
+        if (action === 'ban') { if (uid === Hub.user.id) throw new Error('자기 자신은 정지할 수 없어요'); u.banned = true; }
+        else if (action === 'unban') u.banned = false;
+        else if (action === 'points') { const v = parseInt(value, 10) || 0; u.points = Math.max(0, u.points + v); u.earned = (u.earned || 0) + Math.max(0, v); }
+        else if (action === 'nickname') { const n = String(value || '').trim(); if (n.length < 2 || n.length > 10) throw new Error('닉네임은 2~10자'); u.nickname = n; }
+        else if (action === 'reset_records') d.records = d.records.filter(r => r.user_id !== uid);
+        else if (action === 'make_admin') u.role = 'admin';
+        else if (action === 'remove_admin') { if (uid === Hub.user.id) throw new Error('자기 자신의 관리자 권한은 뺄 수 없어요'); u.role = 'user'; }
+        persist(); if (uid === Hub.user.id) setUser(pub(u));
+      },
+      async adminOverview() {
+        if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
+        return overviewFrom(Object.values(db().users), db().records, db().comments || [], db().chat || []);
       }
     };
+    function withUser(d, x) { const u = d.users[x.user_id] || {}; return Object.assign({}, x, { nickname: u.nickname || '?', avatar: u.avatar, username: u.username }); }
   }
 
   /* ---------------- 온라인 모드 (Supabase) ---------------- */
@@ -194,21 +309,28 @@
     Hub._sb = sb;
     const email = id => id + '@' + (cfg.idDomain || 'gogogogo.game');
     const PKEY = 'gogogogo.profile', QKEY = 'gogogogo.pending';
-    const COLS = 'id,username,nickname,points,earned,avatar,owned';
+    const COLS = 'id,username,nickname,points,earned,avatar,owned', COLS2 = COLS + ',role,banned';
+    let newCols = true;   // DB가 아직 옛 버전이면 role·banned 없이 읽음
     const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } };
     const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* noop */ } };
     const isNet = err => !navigator.onLine || /fetch|network|load failed|timeout/i.test((err && err.message) || '');
     const wait = ms => new Promise(r => setTimeout(r, ms));
+    const CCOLS = 'id,game_id,user_id,kind,body,rating,hidden,created_at,profiles(nickname,avatar,username)';
+    const MCOLS = 'id,game_id,user_id,body,created_at,profiles(nickname,avatar,username)';
+    const flat = x => { const p = x.profiles || {}; const o = Object.assign({}, x, { nickname: p.nickname || '?', avatar: p.avatar, username: p.username }); delete o.profiles; return o; };
     const row = rec => ({ game_id: rec.game_id, score: rec.score, duration_sec: rec.duration_sec, extra: rec.extra || {}, result: rec.result || null, points_delta: clampDelta(rec.points_delta) });
     const friendly = (err, fallback) => {
       const m = (err && err.message) || '';
-      if (/column .* does not exist|function .* does not exist|schema cache/i.test(m)) return 'DB가 최신이 아니에요. Supabase SQL Editor에서 schema.sql을 다시 실행해 주세요.';
+      if (/column .* does not exist|function .* does not exist|schema cache|relation .* does not exist|Could not find/i.test(m)) return 'DB가 최신이 아니에요. Supabase SQL Editor에서 schema.sql을 다시 실행해 주세요.';
+      if (/row-level security/i.test(m)) return '이용이 정지된 계정이거나 권한이 없어요.';
+      if (/[가-힣]/.test(m) && !/[a-z]{6,}/i.test(m)) return m;     // 서버가 보낸 한글 안내 그대로
       return isNet(err) ? '인터넷 연결 후 다시 시도해 주세요.' : fallback + (m ? ': ' + m : '');
     };
 
     async function loadProfile(uid) {
       if (!uid) { lsSet(PKEY, null); return setUser(null); }
-      const { data, error } = await sb.from('profiles').select(COLS).eq('id', uid).single();
+      let { data, error } = await sb.from('profiles').select(newCols ? COLS2 : COLS).eq('id', uid).single();
+      if (error && newCols && /column/i.test(error.message || '')) { newCols = false; ({ data, error } = await sb.from('profiles').select(COLS).eq('id', uid).single()); }
       if (error) {
         const cached = lsGet(PKEY, null);
         if (isNet(error) && cached && cached.id === uid) return setUser(cached);   // 오프라인이면 마지막 프로필 유지
@@ -329,6 +451,75 @@
         const { error } = await sb.rpc('set_avatar', { p_avatar: av });
         if (error) throw new Error(friendly(error, '착용하지 못했어요'));
         await loadProfile(Hub.user.id);
+      },
+      /* ---- 댓글 · 피드백 ---- */
+      async listComments(game) {
+        const { data, error } = await sb.from('comments').select(CCOLS).eq('game_id', game).order('created_at', { ascending: false }).limit(50);
+        if (error) throw new Error(friendly(error, '댓글을 불러오지 못했어요'));
+        return data.map(flat);
+      },
+      async addComment(c) {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const row = { game_id: c.game_id, kind: c.kind === 'feedback' ? 'feedback' : 'comment', body: cleanText(c.body, COMMENT_MAX), rating: c.kind === 'feedback' && c.rating ? Math.max(1, Math.min(5, c.rating | 0)) : null };
+        const { data, error } = await sb.from('comments').insert(row).select(CCOLS).single();
+        if (error) throw new Error(friendly(error, '댓글을 올리지 못했어요'));
+        return flat(data);
+      },
+      async deleteComment(id) {
+        const { error } = await sb.from('comments').delete().eq('id', id);
+        if (error) throw new Error(friendly(error, '지우지 못했어요'));
+      },
+      async setCommentHidden(id, hidden) {
+        const { error } = await sb.from('comments').update({ hidden: !!hidden }).eq('id', id);
+        if (error) throw new Error(friendly(error, '바꾸지 못했어요'));
+      },
+      async adminComments(f) {
+        f = f || {};
+        let q = sb.from('comments').select(CCOLS).order('created_at', { ascending: false }).limit(f.limit || 300);
+        if (f.game) q = q.eq('game_id', f.game); if (f.kind) q = q.eq('kind', f.kind);
+        const { data, error } = await q;
+        if (error) throw new Error(friendly(error, '댓글을 불러오지 못했어요'));
+        return data.map(flat);
+      },
+      /* ---- 채팅 ---- */
+      async chatHistory(game, limit) {
+        const { data, error } = await sb.from('chat_messages').select(MCOLS).eq('game_id', game).order('created_at', { ascending: false }).limit(limit || 40);
+        if (error) throw new Error(friendly(error, '채팅을 불러오지 못했어요'));
+        return data.map(flat).reverse();
+      },
+      async chatSend(game, body) {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const { data, error } = await sb.from('chat_messages').insert({ game_id: game, body: cleanText(body, CHAT_MAX) }).select(MCOLS).single();
+        if (error) throw new Error(friendly(error, '보내지 못했어요'));
+        return flat(data);
+      },
+      async adminChat(f) {
+        f = f || {};
+        let q = sb.from('chat_messages').select(MCOLS).order('created_at', { ascending: false }).limit(f.limit || 300);
+        if (f.game) q = q.eq('game_id', f.game);
+        const { data, error } = await q;
+        if (error) throw new Error(friendly(error, '채팅을 불러오지 못했어요'));
+        return data.map(flat);
+      },
+      async adminDeleteChat(id) {
+        const { error } = await sb.from('chat_messages').delete().eq('id', id);
+        if (error) throw new Error(friendly(error, '지우지 못했어요'));
+      },
+      /* ---- 관리자 ---- */
+      async adminMembers() {
+        const { data, error } = await sb.rpc('admin_members');
+        if (error) throw new Error(friendly(error, '회원 목록을 불러오지 못했어요'));
+        return data;
+      },
+      async adminMember(uid, action, value) {
+        const { error } = await sb.rpc('admin_update_member', { p_uid: uid, p_action: action, p_value: value == null ? null : String(value) });
+        if (error) throw new Error(friendly(error, '바꾸지 못했어요'));
+        if (Hub.user && uid === Hub.user.id) await loadProfile(uid);
+      },
+      async adminOverview() {
+        const { data, error } = await sb.rpc('admin_overview');
+        if (error) throw new Error(friendly(error, '집계를 불러오지 못했어요'));
+        return data;
       }
     };
   }
@@ -389,6 +580,19 @@
       leave() { sb.removeChannel(ch); }
     };
   }
+
+  /* 게임 채팅방: Hub.chatRoom(gameId, { onMsg(row), onPeers(list) }) → { leave() }
+   *  - 메시지는 DB에 저장한 뒤, 같은 방 사람들에게 바로 전달 (Realtime broadcast) */
+  Hub.chatRoom = function (game, h) {
+    const ch = Hub.channel('chat-' + game, { onMsg: p => p && p.k === 'chat' && h.onMsg && h.onMsg(p.row), onPeers: list => h.onPeers && h.onPeers(list) });
+    const me = () => (Hub.user ? { id: Hub.clientId, nick: Hub.user.nickname } : { id: Hub.clientId, nick: '손님' });
+    ch.track(me());
+    const off = Hub.onChange(() => ch.track(me()));
+    return {
+      async send(body) { const row = await Hub.chatSend(game, body); ch.send({ k: 'chat', row }); return row; },
+      leave() { off(); ch.leave(); }
+    };
+  };
 
   const online = !!(cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase);
   Hub.mode = online ? 'online' : 'demo';
