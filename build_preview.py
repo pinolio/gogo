@@ -7,7 +7,7 @@ html = (root / 'index.html').read_text(encoding='utf-8')
 head = re.search(r'<!--HEAD-START-->(.*?)<!--HEAD-END-->', html, re.S).group(1)
 body = re.search(r'<!--BODY-START-->(.*?)<!--BODY-END-->', html, re.S).group(1)
 css = (root / 'css/style.css').read_text(encoding='utf-8')
-scripts = ['js/config.js', 'games/common/shared.js', 'avatar/avatar.js', 'js/gamehub.js', 'games/puzzle/blocks/settings.js', 'games/puzzle/blocks/game.js', 'games/puzzle/battle/settings.js', 'games/puzzle/battle/game.js', 'games/puzzle/2048/settings.js', 'games/puzzle/2048/game.js', 'games/arcade/snake/settings.js', 'games/arcade/snake/game.js', 'js/shop.js', 'js/app.js', 'js/pwa.js']
+scripts = ['js/config.js', 'games/common/shared.js', 'avatar/avatar.js', 'js/gamehub.js', 'games/puzzle/blocks/settings.js', 'games/puzzle/blocks/game.js', 'games/puzzle/battle/settings.js', 'games/puzzle/battle/game.js', 'games/puzzle/2048/settings.js', 'games/puzzle/2048/game.js', 'games/arcade/snake/settings.js', 'games/arcade/snake/game.js', 'games/common/board.js', 'games/board/baduk/settings.js', 'games/board/baduk/game.js', 'games/board/omok/settings.js', 'games/board/omok/game.js', 'games/board/janggi/settings.js', 'games/board/janggi/game.js', 'games/board/chess/settings.js', 'games/board/chess/game.js', 'games/board/alkkagi/settings.js', 'games/board/alkkagi/game.js', 'games/board/code/settings.js', 'games/board/code/game.js', 'js/shop.js', 'js/app.js', 'js/pwa.js']
 js = '\n'.join(f'<script>\n{(root / s).read_text(encoding="utf-8")}\n</script>' for s in scripts)
 page = f'''<title>gogo?gogo!</title>
 <meta name="claude:viewport-fit-sides" content="cover">
