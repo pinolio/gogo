@@ -1,0 +1,26 @@
+{
+  "name": "gogo?gogo! - 도트 게임 모음",
+  "short_name": "gogo?gogo!",
+  "description": "한 번 로그인하면 모든 게임 전적이 쌓이는 도트 게임 모음",
+  "lang": "ko",
+  "id": "./",
+  "start_url": "./#home",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#161C3A",
+  "theme_color": "#161C3A",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "블록 쌓기", "url": "./#blocks", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "스네이크", "url": "./#snake", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "2048", "url": "./#2048", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "내 전적", "url": "./#my", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
