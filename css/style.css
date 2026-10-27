@@ -836,3 +836,8 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 }
 .play > .comments { margin-top: 22px; }
 .rank li.empty { display: block; }
+.g-open { font-family: var(--f-display); font-size: 15px; color: var(--ink); text-decoration: none; font-weight: 700; }
+.g-open:hover, .g-open[aria-expanded="true"] { color: var(--blue); text-decoration: underline; }
+.g-detail > td { background: var(--surface-2); padding: 10px 12px 14px; }
+.g-detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.g-detail-head .btn { margin-left: auto; }

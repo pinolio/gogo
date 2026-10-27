@@ -64,11 +64,43 @@
         <div class="panel"><h3>최근 14일 플레이 <small>한국 시간 기준</small></h3>
           <div class="bars" role="img" aria-label="최근 14일 하루 플레이 수">${days.map(d => `<div class="bar" title="${d.day} · ${d.plays}판 · ${d.players}명"><span class="bar-v">${d.plays || ''}</span><i style="height:${Math.round(d.plays / max * 100)}%"></i><span class="bar-d">${+d.day.slice(8)}</span></div>`).join('')}</div>
         </div>
-        <div class="panel"><h3>게임별 집계 <button class="btn btn-sm" type="button" id="csvGames">CSV 내려받기</button></h3>
+        <div class="panel"><h3>게임별 집계 <small>게임 이름을 누르면 회원별 상세</small> <button class="btn btn-sm" type="button" id="csvGames">CSV 내려받기</button></h3>
           <div class="tbl-wrap"><table><thead><tr><th>게임</th><th class="n">전체 판</th><th class="n">7일 판</th><th class="n">플레이 회원</th><th class="n">승</th><th class="n">패</th><th class="n">평균 시간</th><th class="n">최고 점수</th><th class="n">별점</th><th class="n">댓글</th></tr></thead>
-          <tbody>${games.map(g => `<tr><td><b>${ui.esc(g.name)}</b></td><td class="n">${ui.fmt(g.plays)}</td><td class="n">${ui.fmt(g.plays_7d)}</td><td class="n">${ui.fmt(g.players)}</td><td class="n plus">${ui.fmt(g.wins)}</td><td class="n minus">${ui.fmt(g.losses)}</td><td class="n">${g.plays ? ui.dur(g.avg_sec || 0) : '-'}</td><td class="n">${g.plays ? ui.fmt(g.best) : '-'}</td><td class="n">${g.rating ? '★ ' + g.rating : '-'}</td><td class="n">${ui.fmt(g.comments)}</td></tr>`).join('')}</tbody></table></div>
+          <tbody id="gRows">${games.map(g => `<tr class="g-row" data-game="${ui.esc(g.game_id)}"><td><button class="link g-open" type="button" aria-expanded="false">${ui.esc(g.name)} ▸</button></td><td class="n">${ui.fmt(g.plays)}</td><td class="n">${ui.fmt(g.plays_7d)}</td><td class="n">${ui.fmt(g.players)}</td><td class="n plus">${ui.fmt(g.wins)}</td><td class="n minus">${ui.fmt(g.losses)}</td><td class="n">${g.plays ? ui.dur(g.avg_sec || 0) : '-'}</td><td class="n">${g.plays ? ui.fmt(g.best) : '-'}</td><td class="n">${g.rating ? '★ ' + g.rating : '-'}</td><td class="n">${ui.fmt(g.comments)}</td></tr>`).join('')}</tbody></table></div>
         </div>`;
+      $('#gRows').addEventListener('click', e => {
+        const btn = e.target.closest('.g-open'); if (!btn) return;
+        const tr = btn.closest('tr'), next = tr.nextElementSibling, open = next && next.classList.contains('g-detail');
+        $$('.g-detail', body).forEach(r => r.remove()); $$('.g-open', body).forEach(b => { b.setAttribute('aria-expanded', 'false'); b.textContent = b.textContent.replace('▾', '▸'); });
+        if (open) return;
+        btn.setAttribute('aria-expanded', 'true'); btn.textContent = btn.textContent.replace('▸', '▾');
+        tr.insertAdjacentHTML('afterend', '<tr class="g-detail"><td colspan="10"><p class="empty">불러오는 중…</p></td></tr>');
+        gameDetail(tr.dataset.game, tr.nextElementSibling.firstElementChild).catch(err => { const c = $('.g-detail td', body); if (c) c.innerHTML = `<p class="err">${ui.esc(err.message)}</p>`; });
+      });
       $('#csvGames').addEventListener('click', () => csv('게임별집계', ['게임', '전체 판', '7일 판', '플레이 회원', '승', '패', '평균 시간(초)', '최고 점수', '별점', '댓글'], games.map(g => [g.name, g.plays, g.plays_7d, g.players, g.wins, g.losses, g.avg_sec, g.best, g.rating, g.comments])));
+    }
+
+    // 게임 하나: 회원별 판수·승·패·무
+    async function gameDetail(game, cell) {
+      const rows = await Hub.adminGameRecords(game); if (!alive || !cell.isConnected) return;
+      const per = {};
+      rows.forEach(r => {
+        const x = per[r.user_id] || (per[r.user_id] = { nickname: r.nickname, username: r.username, avatar: r.avatar, plays: 0, win: 0, lose: 0, draw: 0, local: 0, best: 0, sec: 0, last: null });
+        const ex = r.extra || {}, draw = ex.winner === -1 && r.result == null;
+        x.plays++; x.sec += r.duration_sec || 0; x.best = Math.max(x.best, r.score || 0);
+        if (r.result === 'win') x.win++; else if (r.result === 'lose') x.lose++; else if (draw) x.draw++; else if (ex.mode === 'local') x.local++;
+        if (!x.last || r.played_at > x.last) x.last = r.played_at;
+      });
+      const list = Object.values(per).sort((a, b) => b.plays - a.plays);
+      const name = ui.nameOf(game), rate = x => (x.win + x.lose + x.draw ? Math.round(x.win / (x.win + x.lose + x.draw) * 100) + '%' : '-');
+      cell.innerHTML = list.length ? `<div class="g-detail-in">
+        <div class="g-detail-head"><b>${ui.esc(name)}</b> · 회원 ${list.length}명 · ${ui.fmt(rows.length)}판<button class="btn btn-sm" type="button" data-csv>CSV</button></div>
+        <div class="tbl-wrap"><table class="admin-tbl"><thead><tr><th>회원</th><th class="n">판수</th><th class="n">승</th><th class="n">패</th><th class="n">무</th><th class="n">승률</th><th class="n">친구 대전</th><th class="n">최고 점수</th><th class="n">총 시간</th><th>마지막</th></tr></thead>
+        <tbody>${list.map(x => `<tr><td><span class="nm">${ui.avCanvas(x.avatar, 1, 'bust', 'rk-av')}<b>${ui.esc(x.nickname || '?')}</b> <span class="small">@${ui.esc(x.username || '')}</span></span></td><td class="n">${ui.fmt(x.plays)}</td><td class="n plus">${x.win}</td><td class="n minus">${x.lose}</td><td class="n">${x.draw}</td><td class="n">${rate(x)}</td><td class="n">${x.local || '-'}</td><td class="n">${ui.fmt(x.best)}</td><td class="n">${ui.dur(x.sec)}</td><td>${ui.ago(x.last)}</td></tr>`).join('')}</tbody></table></div>
+        <p class="small">무 = 무승부로 끝난 판 · 친구 대전 = 한 기기로 친구와 둔 판(승패·포인트 없이 기록만)</p></div>` : '<p class="empty">아직 이 게임 기록이 없어요.</p>';
+      AV.paintAll(cell);
+      const b = cell.querySelector('[data-csv]');
+      if (b) b.addEventListener('click', () => csv(name + '_회원별', ['닉네임', '아이디', '판수', '승', '패', '무', '승률', '친구 대전', '최고 점수', '총 시간(초)', '마지막 플레이'], list.map(x => [x.nickname, x.username, x.plays, x.win, x.lose, x.draw, rate(x), x.local, x.best, x.sec, x.last || ''])));
     }
 
     /* ---------- 회원 관리 ---------- */

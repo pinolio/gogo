@@ -295,6 +295,11 @@
         else if (action === 'remove_admin') { if (uid === Hub.user.id) throw new Error('자기 자신의 관리자 권한은 뺄 수 없어요'); u.role = 'user'; }
         persist(); if (uid === Hub.user.id) setUser(pub(u));
       },
+      async adminGameRecords(game) {
+        if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
+        const d = db();
+        return d.records.filter(r => r.game_id === game).map(r => withUser(d, r));
+      },
       async adminOverview() {
         if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
         return overviewFrom(Object.values(db().users), db().records, db().comments || [], db().chat || []);
@@ -515,6 +520,16 @@
         const { error } = await sb.rpc('admin_update_member', { p_uid: uid, p_action: action, p_value: value == null ? null : String(value) });
         if (error) throw new Error(friendly(error, '바꾸지 못했어요'));
         if (Hub.user && uid === Hub.user.id) await loadProfile(uid);
+      },
+      // 한 게임의 모든 판 (1000개씩 나눠 받음, 최대 2만 판)
+      async adminGameRecords(game) {
+        const out = [];
+        for (let from = 0; from < 20000; from += 1000) {
+          const { data, error } = await sb.from('play_records').select('user_id,result,score,duration_sec,extra,played_at,profiles(nickname,username,avatar)').eq('game_id', game).order('id').range(from, from + 999);
+          if (error) throw new Error(friendly(error, '기록을 불러오지 못했어요'));
+          out.push(...data.map(flat)); if (data.length < 1000) break;
+        }
+        return out;
       },
       async adminOverview() {
         const { data, error } = await sb.rpc('admin_overview');
