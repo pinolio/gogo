@@ -583,7 +583,7 @@
   }
   // 등수별 포인트 안내 (예: 1등 +4P · 2등 +2P · 3등 0P · 4등 -1P)
   function rankPointText(cfg, n) {
-    if (n <= 2 || !cfg.pointsByRank || !cfg.pointsByRank[n]) return `내가 먼저 둬요 · 승리 +${cfg.points.win}P / 패배 ${cfg.points.lose}P`;
+    if (n <= 2 || !cfg.pointsByRank || !cfg.pointsByRank[n]) return `${cfg.vsText || '내가 먼저 둬요'} · 승리 +${cfg.points.win}P / 패배 ${cfg.points.lose}P`;
     return '컴퓨터 ' + (n - 1) + '명과 · ' + cfg.pointsByRank[n].map((p, i) => `${i + 1}등 ${p > 0 ? '+' : ''}${p}P`).join(' · ');
   }
   function finishBoard(res) {

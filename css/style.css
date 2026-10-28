@@ -687,6 +687,7 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 700; letter-spacing: 0;
 .card[data-cat="퍼즐"] { --cart: #4B5FD0; --cart-d: #2C3A8C; }
 .card[data-cat="아케이드"] { --cart: #D24A45; --cart-d: #8E2A2A; }
 .card[data-cat="보드게임"] { --cart: #2E8A5C; --cart-d: #1B5A3B; }
+.card[data-cat="스포츠"] { --cart: #E0613A; --cart-d: #9A3A1E; }
 .card[data-cat="액션"] { --cart: #D9822B; --cart-d: #94521A; }
 .card[data-cat="슈팅"] { --cart: #7A55D0; --cart-d: #4C3290; }
 a.card {
@@ -848,4 +849,9 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
   .home #accountBox { order: 2; }
   .home #accountBox:has(#sideLogin) { order: -1; }
   .home .side > .panel:not(#accountBox) { order: 3; }
+}
+
+/* 스포츠 게임: 휴대폰을 가로로 돌리면 크게 */
+@media (max-width: 960px) and (orientation: landscape) {
+  .board-play .cabinet { max-width: min(100%, calc((100svh - 24px) * var(--ar, 1) + 16px)); }
 }
