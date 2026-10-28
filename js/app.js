@@ -82,7 +82,8 @@
     $('#loginErr').hidden = true; $('#signupErr').hidden = true;
     setTimeout(() => (tab === 'signup' ? $('#su-id') : $('#li-id')).focus(), 30);
   }
-  function closeAuth() { $('#authModal').hidden = true; afterAuth = null; }
+  // 창을 닫으면 입력한 아이디·비밀번호를 지움 (학교 공용 PC 대비)
+  function closeAuth() { $('#authModal').hidden = true; afterAuth = null; $('#loginForm').reset(); $('#signupForm').reset(); $('#loginErr').hidden = true; $('#signupErr').hidden = true; }
   function setTab(t) {
     $('#tabLogin').setAttribute('aria-selected', String(t === 'login'));
     $('#tabSignup').setAttribute('aria-selected', String(t === 'signup'));
@@ -495,7 +496,7 @@
     };
     mountSocial(id);
     session = { id, board: true, state: 'ready', mode: 'ai', level: 'normal', result: null, save: null };
-    try { const last = JSON.parse(localStorage.getItem('gogo_board_pick') || '{}'); if (last.mode && last.mode !== 'online') { session.mode = last.mode; session.level = last.level || 'normal'; } } catch (e) { /* noop */ }
+    try { const last = JSON.parse(localStorage.getItem('gogo_board_pick') || '{}'); if (last.mode && last.mode !== 'online' && !(cfg.noLocal && last.mode === 'local')) { session.mode = last.mode; session.level = last.level || 'normal'; } } catch (e) { /* noop */ }
     if (cfg.players) { session.players = 2; try { const n = +localStorage.getItem('gogo_players_' + id); if (cfg.players.includes(n)) session.players = n; } catch (e) { /* noop */ } }
     session.inst = window.GoGames[id].create($('#gameCanvas'), hooks);
     renderOverlay(); refreshGameRank(); renderBoardCard();
@@ -653,7 +654,7 @@
       <dl class="rules">
         <dt>포인트</dt><dd>${(session.players || 2) > 2 && cfg.pointsByRank ? rankPointText(cfg, session.players) : `컴퓨터에게 승리 <b class="plus">+${pts.win}P</b> · 패배 <b class="minus">${pts.lose}P</b> · 무승부 0P`}</dd>
         <dt>랭킹 점수</dt><dd>이긴 난이도 · 쉬움 ${ls.easy || 100} / 보통 ${ls.normal || 200} / 어려움 ${ls.hard || 300}</dd>
-        <dt>오프라인</dt><dd>한 기기로 번갈아 두기 · 포인트 없음</dd>
+        ${cfg.noLocal ? '' : '<dt>오프라인</dt><dd>한 기기로 번갈아 두기 · 포인트 없음</dd>'}
         ${cfg.online ? `<dt>온라인</dt><dd>방 코드로 다른 기기 친구와 · 승리 <b class="plus">+${pts.win}P</b> · 패배 <b class="minus">${pts.lose}P</b></dd>` : ''}
       </dl>`;
     AV.paintAll(el);
@@ -661,6 +662,8 @@
   function renderBoardOverlay() {
     const ov = $('#ov'); if (!ov || !session) return;
     const g = gameById(session.id), cfg = SET.get(session.id), st = session.state;
+    // 방 목록이 바뀌어 화면을 다시 그려도, 입력 중인 방 코드는 지우지 않음
+    const codeIn = ov.querySelector('[data-net-form] input'), keep = codeIn ? { v: codeIn.value, f: document.activeElement === codeIn } : null;
     ov.hidden = st === 'playing';
     const np = session.players || 2;
     if (st === 'ready') {
@@ -669,7 +672,7 @@
         <p class="ov-goal">${esc(g.blurb)}</p>
         <div class="mode-pick">
           <div class="mode-row"><span class="mode-lbl">AI 대전</span><div class="mode-btns">${lv}</div></div>
-          <div class="mode-row"><span class="mode-lbl">오프라인</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">${np > 2 ? np + '명이' : '둘이서'} 한 기기</button></div></div>
+          ${cfg.noLocal ? '' : `<div class="mode-row"><span class="mode-lbl">오프라인</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">${np > 2 ? np + '명이' : '둘이서'} 한 기기</button></div></div>`}
           ${cfg.online ? `<div class="mode-row"><span class="mode-lbl">온라인</span><div class="mode-btns"><button class="btn ${session.mode === 'online' ? 'btn-sun' : ''}" type="button" data-pick="online">다른 기기 친구와</button></div></div>` : ''}
           ${cfg.players ? `<div class="mode-row"><span class="mode-lbl">인원</span><div class="mode-btns">${cfg.players.map(n => `<button class="btn ${np === n ? 'btn-sun' : ''}" type="button" data-players="${n}">${esc(playersLabel(cfg, n))}</button>`).join('')}</div></div>` : ''}
         </div>
@@ -691,13 +694,14 @@
         ${avCanvas(Hub.user ? Hub.user.avatar : {}, 3, 'full', 'ov-avatar')}
         <div class="ov-title">${title}</div>
         <p class="ov-goal">${esc(r.message || '')}</p>
-        <p class="ov-hint">${session.mode === 'local' ? (multi ? ex.players + '명이서' : '둘이서') : session.mode === 'online' ? '온라인 · ' + esc(session.net ? session.net.oppNick : '상대') : '컴퓨터 ' + LEVEL_NAME[session.level] + (multi ? ' · ' + ex.players + '명' : '')} · ${r.moves ? r.moves + '수 · ' : ''}${dur(r.duration_sec || 0)}</p>
+        <p class="ov-hint">${session.mode === 'local' ? (multi ? ex.players + '명이서' : '둘이서') : session.mode === 'online' ? '온라인 · ' + esc(session.net ? session.net.oppNick : '상대') : '컴퓨터 ' + LEVEL_NAME[session.level] + (multi ? ' · ' + ex.players + '명' : '')} · ${r.moves ? r.moves + (cfg.category === 'sports' ? '랠리' : '수') + ' · ' : ''}${dur(r.duration_sec || 0)}</p>
         ${note}
         ${session.mode === 'online' && session.net
           ? `<div class="ov-btns">${session.net.hostId === Hub.clientId ? `<button class="btn btn-sun" type="button" data-net="start" ${session.net.peers.length >= 2 ? '' : 'disabled'}>한 판 더 ▶</button>` : ''}<button class="btn" type="button" data-net="leave">방 나가기</button></div>${session.net.hostId === Hub.clientId ? '' : '<p class="ov-hint">방장이 한 판 더를 누르면 바로 시작돼요.</p>'}`
           : `<div class="ov-btns"><button class="btn btn-sun" type="button" data-ov="again">다시 하기</button><button class="btn" type="button" data-ov="menu">방식 바꾸기</button><a class="btn" href="#home">다른 게임</a></div>`}</div>`;
     } else ov.innerHTML = '';
     AV.paintAll(ov);
+    if (keep) { const ni = ov.querySelector('[data-net-form] input'); if (ni) { ni.value = keep.v; if (keep.f) { ni.focus(); ni.setSelectionRange(ni.value.length, ni.value.length); } } }
     $$('[data-players]', ov).forEach(b => b.addEventListener('click', () => {
       session.players = +b.dataset.players; netTrack();
       try { localStorage.setItem('gogo_players_' + session.id, String(session.players)); } catch (e) { /* noop */ }
@@ -999,7 +1003,7 @@
       renderUserChip();
       if (current === 'home') { renderAccountBox(); renderGrid(); loadHomeRank(); }
       else if (current === 'my') renderMy();
-      else if (current === 'play') { refreshBest(); refreshGameRank(); renderPlayerCard(); if (session && session.state === 'ready') renderOverlay(); }
+      else if (current === 'play') { refreshBest(); refreshGameRank(); if (session && session.board) renderBoardCard(); else renderPlayerCard(); if (session && session.state === 'ready') renderOverlay(); }
       else if (current === 'shop' && window.GoShop.refresh) window.GoShop.refresh();
       else if (current === 'closet' && window.GoCloset.refresh) window.GoCloset.refresh();
       else if (current === 'admin') route();

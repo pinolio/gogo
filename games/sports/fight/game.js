@@ -77,6 +77,7 @@
       buildControls(KEYS2);
       const pickRects = () => SKILLS.map((s, i) => ({ s, x: 120 + i * 250, y: 190, w: 220, h: 200 }));
       const onDown = e => {
+        if (phase === 'paused') { phase = 'fight'; return; }   // 일시정지 중 화면을 누르면 계속
         if (phase !== 'pick') return;
         const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * W / b.width, y = (e.clientY - b.top) * H / b.height;
         const r = pickRects().find(q => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h);
@@ -335,7 +336,7 @@
         if (banner && banner.t > 0) S.text(ctx, banner.text, W / 2, banner.big ? H / 2 - 30 : 150, banner.big ? 72 : 26, banner.color);
         if (phase === 'intro') S.text(ctx, intro > 40 ? '준비…' : '일단 덤벼!', W / 2, H / 2 - 30, intro > 40 ? 56 : 72, intro > 40 ? '#FFFFFF' : '#FF5A5F');
         if (phase === 'waitpick') { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, W, H); S.text(ctx, '다른 사람이 스킬을 고르는 중…', W / 2, H / 2, 32, '#fff'); }
-        if (phase === 'paused') { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, W, H); S.text(ctx, '일시정지', W / 2, H / 2, 48, '#fff'); }
+        if (phase === 'paused') { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, W, H); S.text(ctx, '일시정지', W / 2, H / 2 - 20, 48, '#fff'); S.text(ctx, '화면을 누르거나 [일시정지 / 계속] 버튼을 누르면 계속해요', W / 2, H / 2 + 36, 22, '#FFE45C'); }
         if (touch && (phase === 'fight' || phase === 'intro')) touch.draw(ctx);
         ctx.restore();
       }
