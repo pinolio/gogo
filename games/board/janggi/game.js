@@ -244,6 +244,7 @@
         draw();
       });
       draw(); B.whenHanja(draw);
+      const onImg = () => draw(); window.addEventListener('gogo:img', onImg);
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
@@ -253,7 +254,7 @@
         },
         press(id) { if (id === 'resign' && !over) { clearTimeout(timer); busy = false; const loser = mode === 'ai' ? CHO : st.turn; end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
         togglePause() {}, action() {},
-        destroy() { clearTimeout(timer); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }
       };
     }
   };

@@ -4,6 +4,10 @@
   const Hub = window.GameHub, P = window.GoPixel, AV = window.GoAvatar, BGM = window.GoBGM, SET = window.GoSettings;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  // 게임 썸네일 그리기 (그림을 늦게 불러와도 다시 그림)
+  const drawThumbs = root => $$('canvas[data-thumb]', root).forEach(c => { try { const ctx = window.GoPixel.setup(c, 240, 150); window.GoGames[c.dataset.thumb].thumb(ctx, 240, 150); } catch (e) { /* noop */ } });
+  let thumbT = 0;
+  window.addEventListener('gogo:img', () => { clearTimeout(thumbT); thumbT = setTimeout(() => drawThumbs(document), 120); });
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = n => Number(n || 0).toLocaleString('ko-KR');
   const dur = s => s < 60 ? s + '초' : s < 3600 ? Math.floor(s / 60) + '분 ' + (s % 60) + '초' : Math.floor(s / 3600) + '시간 ' + Math.floor(s % 3600 / 60) + '분';
@@ -198,7 +202,7 @@
         <div class="card-body"><span class="cat">${c}</span><h3>${n}</h3><p>2단계에서 추가될 예정이에요.</p></div>
       </div>`).join('');
     if (!live.length && !soon.length) grid.innerHTML = '<p class="empty">이 분류의 게임은 곧 추가돼요.</p>';
-    $$('canvas[data-thumb]', grid).forEach(c => { const ctx = P.setup(c, 240, 150); window.GoGames[c.dataset.thumb].thumb(ctx, 240, 150); });
+    drawThumbs(grid);
     for (const g of live) {
       const foot = $(`[data-foot="${g.id}"]`, grid);
       try {
@@ -262,6 +266,8 @@
       try { window.GoGames[g.id].thumb(octx, 240, 150); } catch (e) { /* noop */ }
       thumbs[g.id] = off;
     });
+    // 게임 그림을 다 불러오면 썸네일 다시 그리기
+    window.addEventListener('gogo:img', () => slides.forEach(g => { const o = thumbs[g.id], c2 = o.getContext('2d'); c2.clearRect(0, 0, 240, 150); try { window.GoGames[g.id].thumb(c2, 240, 150); } catch (e) { /* noop */ } }));
     let ctx, w = 0, h = 0, drops = [], raf = 0, last = 0, elapsed = 0, paused = false, fade = 1;
     function size() {
       const r = c.getBoundingClientRect(); w = Math.max(1, Math.round(r.width)); h = Math.max(1, Math.round(r.height));

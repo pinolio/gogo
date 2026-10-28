@@ -185,7 +185,17 @@
     });
   }
   function drawPiece(ctx, p, x, y, size) {
-    const B = window.GoBoard;
+    const B = window.GoBoard, GP = window.GoPixel;
+    const NM = { k: 'king', q: 'queen', r: 'rook', b: 'bishop', n: 'knight', p: 'pawn' };
+    const im = GP && GP.img ? GP.img((isW(p) ? 'w_' : 'b_') + NM[p.toLowerCase()]) : null;
+    if (im && GP.ok(im)) {
+      // Meshy로 그린 체스 말 (칸 아래쪽에 세움)
+      const k = size / 48, w = im.naturalWidth * k, h = im.naturalHeight * k, cx = x + size / 2, by = y + size + 3 * k;
+      ctx.save(); ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = 'rgba(40,20,4,.35)'; ctx.beginPath(); ctx.ellipse(cx + 2 * k, by - 1 * k, 13 * k, 4 * k, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(im, Math.round(cx - w / 2), Math.round(by - h), Math.round(w), Math.round(h));
+      ctx.restore(); return;
+    }
     if (B && B.sprite) { const k = size / 24; B.drawScaled(ctx, pieceSprite(p), x - 3 * k, y - 3 * k, 30 * k, 30 * k); return; }
     const s = SPR[p.toLowerCase()], u = size / 12, w = isW(p);
     const fill = w ? '#F7F3E8' : '#2A2E3D', edge = '#14161F', hi = w ? '#FFFFFF' : '#4A5070';
@@ -197,7 +207,7 @@
   }
   function drawBoard(ctx, st, ui) {
     window.GoBoard.wood(ctx, 0, 0, W, H);
-    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) { ctx.fillStyle = 'rgba(92,46,12,.62)'; ctx.fillRect(x * S, y * S, S, S); }
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) { ctx.fillStyle = 'rgba(92,46,12,.45)'; ctx.fillRect(x * S, y * S, S, S); }
     ctx.fillStyle = 'rgba(255,240,200,.18)'; for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (!((x + y) % 2)) ctx.fillRect(x * S, y * S, S, 2);
     if (ui.last) { ctx.fillStyle = 'rgba(255,210,63,.5)'; [ui.last.from, ui.last.to].forEach(i => ctx.fillRect(X(i) * S, Y(i) * S, S, S)); }
     if (ui.check >= 0) { ctx.fillStyle = 'rgba(255,90,95,.6)'; ctx.fillRect(X(ui.check) * S, Y(ui.check) * S, S, S); }
@@ -219,7 +229,7 @@
     id: 'chess', size: [W, H], initial, legal, make, status, aiMove, inCheck,
     thumb(ctx, w, h) {
       const s = 30;
-      window.GoBoard.wood(ctx, 0, 0, w, h); for (let y = 0; y < 5; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) { ctx.fillStyle = 'rgba(92,46,12,.62)'; ctx.fillRect(x * s, y * s, s, s); }
+      window.GoBoard.wood(ctx, 0, 0, w, h); for (let y = 0; y < 5; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) { ctx.fillStyle = 'rgba(92,46,12,.45)'; ctx.fillRect(x * s, y * s, s, s); }
       [['k', 4, 0], ['q', 2, 1], ['n', 6, 1], ['p', 3, 2], ['P', 4, 3], ['B', 5, 3], ['K', 6, 4], ['R', 1, 4]].forEach(([p, x, y]) => drawPiece(ctx, p, x * s + 3, y * s + 3, s - 6));
     },
     create(canvas, hooks) {
@@ -265,6 +275,7 @@
         draw();
       });
       draw();
+      const onImg = () => draw(); window.addEventListener('gogo:img', onImg);
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
@@ -274,7 +285,7 @@
         },
         press(id) { if (id === 'resign' && !over) { clearTimeout(timer); busy = false; const loser = mode === 'ai' ? 'w' : st.turn; end(loser === 'w' ? 1 : 0, name(loser) + ' 기권 · ' + name(loser === 'w' ? 'b' : 'w') + ' 승'); } },
         togglePause() {}, action() {},
-        destroy() { clearTimeout(timer); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }
       };
     }
   };

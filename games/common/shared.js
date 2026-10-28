@@ -20,8 +20,46 @@
       return ctx;
     },
 
-    // 도트 느낌의 입체 블록 (밝은 위·왼쪽, 어두운 아래·오른쪽)
+    // 그림 불러오기 (Meshy로 만든 게임 그림). 다 불러오면 'gogo:img' 알림
+    img(name) {
+      const cache = P._imgs || (P._imgs = {});
+      if (cache[name]) return cache[name];
+      const im = new Image(); im.decoding = 'async'; im.src = 'img/game/' + name + '.png'; cache[name] = im;
+      im.onload = () => { try { window.dispatchEvent(new Event('gogo:img')); } catch (e) { /* noop */ } };
+      return im;
+    },
+    ok(im) { return im && im.complete && im.naturalWidth > 0; },
+    // 그림을 칸에 꽉 채워 그리기 (비율 유지, 넘치는 부분 잘라냄)
+    cover(ctx, im, x, y, w, h) {
+      const k = Math.max(w / im.naturalWidth, h / im.naturalHeight), sw = w / k, sh = h / k;
+      ctx.drawImage(im, (im.naturalWidth - sw) / 2, (im.naturalHeight - sh) / 2, sw, sh, x, y, w, h);
+    },
+    // 블록 판 바탕: 밤하늘 그림 + 살짝 어둡게
+    boardBg(ctx, x, y, w, h) {
+      const im = P.img('sky');
+      if (!P.ok(im)) { ctx.fillStyle = P.BOARD; ctx.fillRect(x, y, w, h); return; }
+      ctx.save(); ctx.imageSmoothingEnabled = false; P.cover(ctx, im, x, y, w, h);
+      ctx.fillStyle = 'rgba(16,20,48,.45)'; ctx.fillRect(x, y, w, h); ctx.restore();
+    },
+    // 보석 블록: 회색 보석 그림에 색을 입혀 저장해 두고 씀
+    _gem: {},
+    gem(color) {
+      if (P._gem[color]) return P._gem[color];
+      const base = P.img('gem'); if (!P.ok(base)) return null;
+      const c = document.createElement('canvas'); c.width = c.height = 32;
+      const g = c.getContext('2d');
+      g.fillStyle = color; g.fillRect(0, 0, 32, 32);
+      g.globalCompositeOperation = 'hard-light'; g.drawImage(base, 0, 0, 32, 32);
+      g.globalCompositeOperation = 'destination-in'; g.drawImage(base, 0, 0, 32, 32);
+      return (P._gem[color] = c);
+    },
     block(ctx, x, y, s, color) {
+      const gm = s >= 8 ? P.gem(color) : null;
+      if (gm) { const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false; ctx.drawImage(gm, x, y, s, s); ctx.imageSmoothingEnabled = sm; return; }
+      P.flat(ctx, x, y, s, color);
+    },
+    // 도트 느낌의 입체 블록 (밝은 위·왼쪽, 어두운 아래·오른쪽)
+    flat(ctx, x, y, s, color) {
       const b = Math.max(2, Math.round(s / 8));
       ctx.fillStyle = color; ctx.fillRect(x, y, s, s);
       ctx.fillStyle = 'rgba(255,255,255,.38)'; ctx.fillRect(x, y, s, b); ctx.fillRect(x, y, b, s);
@@ -61,6 +99,9 @@
     }
   };
   window.GoPixel = P;
+  // 게임 그림 미리 불러오기 (첫 화면을 방해하지 않게 조금 늦게)
+  P.img('gem'); P.img('sky');
+  setTimeout(() => ['wood', 'grass', 'apple', 'tray', 'table'].concat(['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'].flatMap(k => ['w_' + k, 'b_' + k])).forEach(n => P.img(n)), 1200);
 })();
 
 /* ------------------------------------------------------------------

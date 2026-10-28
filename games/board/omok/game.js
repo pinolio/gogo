@@ -135,6 +135,7 @@
         else if (t === 'up' && ok && !over && !busy && human()) { if (g.place(gx, gy)) after(); }
       });
       draw();
+      const onImg = () => draw(); window.addEventListener('gogo:img', onImg);
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
@@ -146,7 +147,7 @@
           if (id === 'undo' && !over && !busy) { g.undo(); if (mode === 'ai' && g.turn === 2) g.undo(); after(); }
         },
         togglePause() {}, action() {},
-        destroy() { clearTimeout(timer); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }
       };
     }
   };

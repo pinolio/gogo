@@ -7,6 +7,8 @@
   const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
 
   function apple(ctx, x, y, s) {
+    const im = P.img('apple');
+    if (P.ok(im)) { ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(im, x - s * 0.05, y - s * 0.05, s * 1.1, s * 1.1); ctx.restore(); return; }
     const u = s / 10;
     ctx.fillStyle = APPLE;
     ctx.fillRect(x + 2 * u, y + 3 * u, 6 * u, 6 * u);
@@ -16,6 +18,8 @@
     ctx.fillStyle = LEAF; ctx.fillRect(x + 6 * u, y + 1 * u, 2 * u, 1 * u);
   }
   function board(ctx, w, h, s) {
+    const im = P.img('grass');
+    if (P.ok(im)) { ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(im, 0, 0, w, h); ctx.fillStyle = 'rgba(0,0,0,.12)'; for (let y = 0; y < h / s; y++) for (let x = 0; x < w / s; x++) if ((x + y) % 2) ctx.fillRect(x * s, y * s, s, s); ctx.restore(); return; }
     for (let y = 0; y < h / s; y++) for (let x = 0; x < w / s; x++) {
       ctx.fillStyle = (x + y) % 2 ? P.BOARD : '#1A2144';
       ctx.fillRect(x * s, y * s, s, s);
@@ -28,7 +32,7 @@
     thumb(ctx, w, h) {
       const s = 15; board(ctx, w, h, s);
       const path = [[3, 6], [4, 6], [5, 6], [6, 6], [7, 6], [7, 5], [7, 4], [8, 4], [9, 4], [10, 4], [11, 4]];
-      path.forEach(([x, y], i) => P.block(ctx, x * s, y * s, s, i === path.length - 1 ? HEAD : BODY));
+      path.forEach(([x, y], i) => P.flat(ctx, x * s, y * s, s, i === path.length - 1 ? HEAD : BODY));
       apple(ctx, 13 * s, 4 * s, s);
     },
 
@@ -73,7 +77,7 @@
       function draw() {
         board(ctx, W, H, C);
         apple(ctx, food.x * C, food.y * C, C);
-        for (let i = snake.length - 1; i >= 0; i--) P.block(ctx, snake[i].x * C, snake[i].y * C, C, i === 0 ? HEAD : BODY);
+        for (let i = snake.length - 1; i >= 0; i--) P.flat(ctx, snake[i].x * C, snake[i].y * C, C, i === 0 ? HEAD : BODY);
         // 눈
         const h = snake[0], u = C / 10;
         ctx.fillStyle = '#0F1430';

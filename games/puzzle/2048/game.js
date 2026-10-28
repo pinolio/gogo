@@ -19,6 +19,14 @@
     ctx.fillText(str, x + s / 2 + 1, y + s / 2 + 2);
   }
   const pos = i => G + i * (T + G);
+  // 판: Meshy 쟁반 그림 + 빈 칸
+  function tray(ctx, w, h) {
+    const im = P.img('tray');
+    if (P.ok(im)) { ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(im, 0, 0, w, h); ctx.restore(); }
+    else { ctx.fillStyle = P.BOARD; ctx.fillRect(0, 0, w, h); }
+    const g = G * w / W, t = T * w / W;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { ctx.fillStyle = '#1C2452'; ctx.fillRect(g + c * (t + g), g + r * (t + g), t, t); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(g + c * (t + g), g + r * (t + g), t, 3); }
+  }
 
   window.GoGames['2048'] = {
     id: '2048', size: [W, H],
@@ -90,8 +98,7 @@
         hooks.onOver({ score, duration_sec: clock.sec(), extra: { maxTile } });
       }
       function draw(dt) {
-        ctx.fillStyle = P.BOARD; ctx.fillRect(0, 0, W, H);
-        for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { ctx.fillStyle = '#212A52'; ctx.fillRect(pos(c), pos(r), T, T); }
+        tray(ctx, W, H);
         anim.forEach(a => { a.t += dt; });
         anim = anim.filter(a => a.t < 140);
         for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {

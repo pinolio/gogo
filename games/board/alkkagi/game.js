@@ -97,7 +97,9 @@
     ctx.globalAlpha = 1;
   }
   function drawScene(ctx, ps, aim) {
-    ctx.fillStyle = '#1A2144'; ctx.fillRect(0, 0, W, H);
+    const GP = window.GoPixel, tb = GP.img('table');
+    if (GP.ok(tb)) { ctx.save(); ctx.imageSmoothingEnabled = false; const iw = tb.naturalWidth, ih = tb.naturalHeight; ctx.drawImage(tb, iw * 0.3, ih * 0.3, iw * 0.4, ih * 0.4 * H / W * (iw / ih) * 1, 0, 0, W, H); ctx.fillStyle = 'rgba(12,8,20,.25)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    else { ctx.fillStyle = '#1A2144'; ctx.fillRect(0, 0, W, H); }
     Bd.wood(ctx, L, T, R - L, BOT - T);
     ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(L + 4, BOT, R - L, 4); ctx.fillRect(R, T + 4, 4, BOT - T);
     for (let j = 0; j < 10; j++) Bd.line(ctx, 40, 40 + j * 46.7, 380, 40 + j * 46.7, 'rgba(90,58,26,.45)', 1);
@@ -167,6 +169,7 @@
         }
       });
       draw(); Bd.whenHanja(draw);
+      const onImg = () => draw(); window.addEventListener('gogo:img', onImg);
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
@@ -176,7 +179,7 @@
         },
         press(id) { if (id === 'resign' && !over) { cancelAnimationFrame(raf); clearTimeout(timer); rolling = false; const loser = mode === 'ai' ? 0 : turn; end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
         togglePause() {}, action() {},
-        destroy() { cancelAnimationFrame(raf); clearTimeout(timer); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); cancelAnimationFrame(raf); clearTimeout(timer); off(); }
       };
     }
   };

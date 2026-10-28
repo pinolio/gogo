@@ -118,6 +118,22 @@
       dark: ['#5A3518', '#6E4421', '#83552B', '#986737', '#AC7A45', '#C08F57']
     },
     woodTex(w, h, tone) {
+      // Meshy 원목 그림이 있으면 그것으로 (없으면 아래 자동 나뭇결)
+      const P = window.GoPixel, im = P && P.img && P.img('wood');
+      if (P && P.ok(im)) {
+        const key = 'woodimg:' + w + 'x' + h + ':' + tone;
+        let c = B._cache.get(key);
+        if (c) return c;
+        c = document.createElement('canvas'); c.width = w; c.height = h;
+        const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+        P.cover(g, im, 0, 0, w, h);
+        if (tone === 'dark') { g.globalCompositeOperation = 'multiply'; g.fillStyle = '#8A5A34'; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'source-over'; }
+        g.fillStyle = 'rgba(255,236,190,.35)'; g.fillRect(0, 0, w, 4); g.fillRect(0, 0, 4, h);
+        g.fillStyle = 'rgba(60,30,8,.45)'; g.fillRect(0, h - 5, w, 5); g.fillRect(w - 5, 0, 5, h);
+        g.strokeStyle = '#4A2A10'; g.lineWidth = 2; g.strokeRect(1, 1, w - 2, h - 2);
+        B._cache.set(key, c);
+        return c;
+      }
       const pal = B.WOODS[tone || 'kaya'];
       return B.sprite('wood:' + w + 'x' + h + ':' + tone, w, h, (put, W, H) => {
         for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {

@@ -136,8 +136,8 @@
   /* ---------------- 그리기 ---------------- */
   function drawBoard(ctx, e, ox, oy, C, opts) {
     opts = opts || {};
-    ctx.fillStyle = P.BOARD; ctx.fillRect(ox, oy, COLS * C, ROWS * C);
-    ctx.fillStyle = P.GRID;
+    P.boardBg(ctx, ox, oy, COLS * C, ROWS * C);
+    ctx.fillStyle = 'rgba(120,140,230,.16)';
     for (let c = 1; c < COLS; c++) ctx.fillRect(ox + c * C, oy, 1, ROWS * C);
     for (let r = 1; r < ROWS; r++) ctx.fillRect(ox, oy + r * C, COLS * C, 1);
     e.grid.forEach((row, r) => row.forEach((k, c) => { if (k) P.block(ctx, ox + c * C, oy + r * C, C, colorOf(k)); }));
@@ -151,7 +151,7 @@
   }
   // 상대 화면(작은 판): 문자열 20줄을 그대로 그림
   function drawRows(ctx, rows, ox, oy, C) {
-    ctx.fillStyle = P.BOARD; ctx.fillRect(ox, oy, COLS * C, ROWS * C);
+    P.boardBg(ctx, ox, oy, COLS * C, ROWS * C);
     (rows || []).forEach((row, r) => { for (let c = 0; c < COLS; c++) { const k = row[c]; if (k && k !== '.') P.block(ctx, ox + c * C, oy + r * C, C, colorOf(k)); } });
   }
   function drawPiece(ctx, k, m, ox, oy, s) {

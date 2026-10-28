@@ -217,6 +217,7 @@
         }
       });
       draw();
+      const onImg = () => draw(); window.addEventListener('gogo:img', onImg);
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
@@ -229,7 +230,7 @@
           if (id === 'resign') { clearTimeout(timer); const loser = mode === 'ai' ? 1 : g.turn; end(loser === 1 ? 1 : 0, name(loser) + ' 기권 · ' + name(3 - loser) + ' 승'); }
         },
         togglePause() {}, action() {},
-        destroy() { clearTimeout(timer); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }
       };
     }
   };
