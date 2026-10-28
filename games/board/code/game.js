@@ -15,15 +15,20 @@
   const key = t => t.n * 2 + (t.c === 'w' ? 1 : 0);
 
   /* ---------- 규칙 ---------- */
-  function newGame(n) {
-    n = Math.max(2, Math.min(4, n || 2));
+  // 온라인은 모두 같은 씨앗(seed)으로 섞어서 같은 판을 만듦
+  function seeded(a) {
+    return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  function newGame(n, rnd) {
+    n = Math.max(2, Math.min(4, n || 2)); rnd = rnd || Math.random;
     const piles = { b: [], w: [] };
     for (let k = 0; k < 12; k++) { piles.b.push({ n: k, c: 'b' }); piles.w.push({ n: k, c: 'w' }); }
-    Bd.shuffle(piles.b); Bd.shuffle(piles.w);
+    const shuf = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } };
+    shuf(piles.b); shuf(piles.w);
     const g = { n, piles, rows: Array.from({ length: n }, () => []), out: [], turn: 0, drawn: null, phase: 'draw', streak: 0, winner: null, log: [] };
     const take = c => { const p = g.piles[c].length ? g.piles[c] : g.piles[c === 'b' ? 'w' : 'b']; return p.pop(); };
     const deal = n === 4 ? 3 : 4;
-    for (let k = 0; k < deal; k++) for (let s = 0; s < n; s++) { const t = take(Math.random() < 0.5 ? 'b' : 'w'); t.open = false; insert(g.rows[s], t); }
+    for (let k = 0; k < deal; k++) for (let s = 0; s < n; s++) { const t = take(rnd() < 0.5 ? 'b' : 'w'); t.open = false; insert(g.rows[s], t); }
     g.take = take;
     return g;
   }
@@ -169,10 +174,25 @@
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
       let g = newGame(2), mode = 'ai', level = 'normal', busy = false, over = false, timer = 0, sel = null, cover = false, msg = '', hits = [], lastView = 0;
-      const isHuman = s => mode === 'local' || s === 0;
-      const view = () => (mode === 'local' ? (isHuman(g.turn) && !g.out.includes(g.turn) ? g.turn : lastView) : 0);
-      const name = s => (mode === 'ai' ? (s === 0 ? '나' : g.n === 2 ? '컴퓨터' : '컴퓨터 ' + s) : '플레이어 ' + (s + 1));
-      const human = () => !over && !busy && !cover && isHuman(g.turn);
+      // 온라인: roster = 사람 자리(들어온 순서), me = 내 자리, isHost = 컴퓨터 자리를 돌리는 기기
+      let roster = [], me = 0, isHost = false, reported = false;
+      const isHuman = s => mode === 'local' || (mode === 'online' ? s < roster.length : s === 0);
+      const view = () => (mode === 'local' ? (isHuman(g.turn) && !g.out.includes(g.turn) ? g.turn : lastView) : me);
+      const name = s => (mode === 'ai' ? (s === 0 ? '나' : g.n === 2 ? '컴퓨터' : '컴퓨터 ' + s) : mode === 'online' ? (s === me ? '나' : s < roster.length ? roster[s].nick : '컴퓨터 ' + s) : '플레이어 ' + (s + 1));
+      const human = () => !over && !busy && !cover && isHuman(g.turn) && (mode !== 'online' || g.turn === me);
+      // 한 수 = { a:'draw'|'guess'|'stop'|'pen'|'resign', ... } → 적용하고 온라인이면 다른 사람에게도 보냄
+      function apply(a) {
+        if (a.a === 'draw') { draw(g, a.c); msg = ''; }
+        else if (a.a === 'guess') {
+          const before = g.turn, who = name(g.turn), ok = guess(g, a.seat, a.idx, a.n);
+          msg = who + ' → ' + name(a.seat) + ' ' + (a.idx + 1) + '번째 = ' + a.n + '? ' + (ok ? '정답!' : '틀림');
+          flash(a.seat, a.idx, ok);
+          if (!ok && g.phase !== 'penalty' && g.turn !== before) newTurnCover();
+        } else if (a.a === 'stop') { const who = name(g.turn); stop(g); msg = who + ': 그만하기'; newTurnCover(); }
+        else if (a.a === 'pen') { penalty(g, a.idx); newTurnCover(); }
+        else if (a.a === 'resign') { const who = name(a.seat); resign(g, a.seat); msg = who + ' 기권'; }
+      }
+      function act(a) { apply(a); if (mode === 'online' && hooks.onMove) hooks.onMove(a); }
       const multi = () => g.n > 2;
       // 한 줄 배치: 타일이 많으면 간격을 좁혀 화면 안에 맞춤
       function rowPos(len, small) {
@@ -258,10 +278,15 @@
       }
       function flash(seat, i, ok) { hits.push({ seat, i, ok, until: Date.now() + 900 }); setTimeout(render, 950); }
       function after() {
-        if (g.phase === 'over' || (mode === 'ai' && g.out.includes(0))) { render(); return finish(); }
+        const meOut = mode !== 'local' && g.out.includes(me);
+        if (g.phase === 'over' || meOut) {
+          render(); finish();
+          // 온라인 방장은 내가 탈락해도 컴퓨터 자리를 계속 돌림
+          if (!(mode === 'online' && isHost && g.phase !== 'over')) return;
+        }
         if (g.phase === 'draw' && !deckSize(g)) g.phase = 'guess';
-        render(); status();
-        if (!isHuman(g.turn)) aiTurn();
+        render(); if (!reported) status();
+        if (!isHuman(g.turn) && (mode !== 'online' || isHost) && !busy) aiTurn();
       }
       // 한 기기로 여럿이: 차례가 바뀌면 화면 가리기
       function newTurnCover() { if (mode === 'local' && !over && g.phase !== 'over') { lastView = g.turn; cover = true; render(); } }
@@ -269,16 +294,14 @@
         busy = true; render();
         const stepAi = () => {
           if (g.phase === 'over') { busy = false; return after(); }
-          if (!isHuman(g.turn) && g.phase === 'draw') { draw(g, aiPile(g)); render(); timer = Bd.think(stepAi, 600); return; }
+          if (!isHuman(g.turn) && g.phase === 'draw') { act({ a: 'draw', c: aiPile(g) }); render(); timer = Bd.think(stepAi, 600); return; }
           if (!isHuman(g.turn) && (g.phase === 'guess' || g.phase === 'more')) {
             const p = g.phase === 'guess' ? aiPick(g, level) : aiContinue(g, level);
-            if (!p) { const who = name(g.turn); stop(g); msg = who + ': 그만하기'; render(); timer = Bd.think(stepAi, 600); return; }
+            if (!p) { act({ a: 'stop' }); render(); timer = Bd.think(stepAi, 600); return; }
             sel = { seat: p.seat, i: p.idx }; render(); sel = null;
             timer = Bd.think(() => {
-              const who = name(g.turn), ok = guess(g, p.seat, p.idx, p.n);
-              msg = who + ' → ' + name(p.seat) + ' ' + (p.idx + 1) + '번째 = ' + p.n + '? ' + (ok ? '정답!' : '틀림');
-              flash(p.seat, p.idx, ok);
-              if (g.phase === 'penalty') penalty(g, aiPenalty(g));
+              act({ a: 'guess', seat: p.seat, idx: p.idx, n: p.n });
+              if (g.phase === 'penalty') act({ a: 'pen', idx: aiPenalty(g) });
               render(); timer = Bd.think(stepAi, 900);
             }, 700);
             return;
@@ -288,19 +311,21 @@
         timer = Bd.think(stepAi, 500);
       }
       function finish(resigned) {
-        if (over) return;
-        over = true; clock.stop(); busy = false; render();
-        const rank = rankOf(g, 0);
+        if (over || reported) return;
+        reported = true; over = true; clock.stop(); if (!(mode === 'online' && isHost)) busy = false; render();
+        const rank = rankOf(g, me) || (g.winner === me ? 1 : g.n);
         let m;
         if (mode === 'ai') {
           if (g.n === 2) m = resigned ? '기권 · 컴퓨터 승' : g.winner === 0 ? '승리! 컴퓨터의 코드를 모두 맞혔어요' : '… 컴퓨터가 내 코드를 모두 맞혔어요';
           else m = (resigned ? '기권 · ' : '') + g.n + '명 중 ' + rank + '등' + (rank === 1 ? '! 마지막까지 살아남았어요' : '');
+        } else if (mode === 'online') {
+          m = (resigned ? '기권 · ' : '') + (g.n === 2 ? (rank === 1 ? '승리! 상대 코드를 모두 맞혔어요' : '… 상대가 내 코드를 모두 맞혔어요') : g.n + '명 중 ' + rank + '등');
         } else {
           const order = [g.winner].concat(g.out.slice().reverse()).filter(s => s != null);
           m = order.map((s, k) => (k + 1) + '등 ' + name(s)).join(' · ');
         }
         hooks.onTurn({ text: m, side: -1 });
-        hooks.onOver({ winner: g.n === 2 ? g.winner : (g.winner === 0 ? 0 : 1), rank, players: g.n, message: m, moves: g.log.length, duration_sec: clock.sec(), extra: { guesses: g.log.filter(l => l.by === 0).length, players: g.n, rank } });
+        hooks.onOver({ win: mode === 'online' ? rank === 1 : undefined, winner: mode === 'online' ? (rank === 1 ? 0 : 1) : g.n === 2 ? g.winner : (g.winner === 0 ? 0 : 1), rank, players: g.n, message: m, moves: g.log.length, duration_sec: clock.sec(), extra: { guesses: g.log.filter(l => l.by === me).length, players: g.n, rank } });
       }
       const inR = (o, x, y) => x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h;
       const off = Bd.pointer(canvas, W, H, (t, x, y) => {
@@ -308,15 +333,12 @@
         if (cover) { if (x > W / 2 - 70 && x < W / 2 + 70 && y > H / 2 + 40 && y < H / 2 + 80) { cover = false; lastView = g.turn; after(); } return; }
         if (!human()) return;
         const Ly = layout();
-        if (g.phase === 'draw') { const p = Ly.piles.find(pp => inR(pp, x, y)); if (p && g.piles[p.c].length) { draw(g, p.c); msg = ''; after(); } return; }
+        if (g.phase === 'draw') { const p = Ly.piles.find(pp => inR(pp, x, y)); if (p && g.piles[p.c].length) { act({ a: 'draw', c: p.c }); after(); } return; }
         if (sel) {
           const b = Ly.nums.find(bb => inR(bb, x, y));
           if (b) {
             const target = sel; sel = null;
-            const before = g.turn, ok = guess(g, target.seat, target.i, b.n);
-            msg = name(target.seat) + ' ' + (target.i + 1) + '번째 = ' + b.n + '? ' + (ok ? '정답!' : '틀렸어요');
-            flash(target.seat, target.i, ok);
-            if (!ok && g.phase !== 'penalty' && g.turn !== before) newTurnCover();
+            act({ a: 'guess', seat: target.seat, idx: target.i, n: b.n });
             return after();
           }
         }
@@ -326,12 +348,12 @@
             const o = r.tiles.find(oo => inR(oo, x, y));
             if (o && !o.t.open) { sel = { seat: r.seat, i: o.i }; render(); return; }
           }
-          if (Ly.stop && inR(Ly.stop, x, y)) { stop(g); msg = ''; newTurnCover(); return after(); }
+          if (Ly.stop && inR(Ly.stop, x, y)) { act({ a: 'stop' }); return after(); }
           sel = null; render(); return;
         }
         if (g.phase === 'penalty') {
           const o = Ly.bot.find(oo => inR(oo, x, y));
-          if (o && !o.t.open) { penalty(g, o.i); newTurnCover(); after(); }
+          if (o && !o.t.open) { act({ a: 'pen', idx: o.i }); after(); }
         }
       });
       render();
@@ -339,16 +361,30 @@
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
           clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal';
-          g = newGame(o.players || 2); over = false; busy = false; sel = null; msg = ''; hits = []; lastView = 0; cover = mode === 'local';
+          roster = mode === 'online' ? (o.roster || []) : []; me = mode === 'online' ? (o.me || 0) : 0; isHost = !!o.host; reported = false;
+          g = newGame(o.players || 2, mode === 'online' ? seeded(o.seed || 1) : null); over = false; busy = false; sel = null; msg = ''; hits = []; lastView = 0; cover = mode === 'local';
           clock.reset(); clock.start(); hooks.onState('playing'); hooks.onButtons([]); after();
         },
         press(id) {
           if (id !== 'resign' || over) return;
+          if (mode === 'online') { act({ a: 'resign', seat: me }); return after(); }
           clearTimeout(timer); busy = false; cover = false; sel = null;
           if (mode === 'ai') { if (g.n === 2) g.winner = 1; g.out = g.out.filter(s => s !== 0); g.out.unshift(0); g.phase = 'over'; finish(true); return; }
           const who = name(g.turn); resign(g, g.turn); msg = who + ' 기권';
           if (g.phase === 'over') return after();
           newTurnCover(); after();
+        },
+        // 온라인: 다른 사람의 수 / 나간 사람
+        remote(m) {
+          if (!m || g.phase === 'over') return;
+          if (m.left) {
+            const seat = roster.findIndex(r => r.id === m.left);
+            if (seat >= 0 && !g.out.includes(seat)) { apply({ a: 'resign', seat }); msg = name(seat) + ' 님이 나갔어요'; }
+            // 방장이 나가면 컴퓨터 자리도 멈추므로 함께 탈락
+            if (m.wasHost) for (let s2 = roster.length; s2 < g.n; s2++) if (!g.out.includes(s2) && g.phase !== 'over') resign(g, s2);
+            return after();
+          }
+          apply(m); after();
         },
         togglePause() {}, action() {},
         destroy() { clearTimeout(timer); off(); }

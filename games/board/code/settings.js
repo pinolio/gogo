@@ -11,6 +11,7 @@ GoSettings.register({
   tag: 'NEW',
   board: true,                        // 대국 화면 사용 (컴퓨터 / 한 기기로 같이)
   players: [2, 3, 4],                 // 고를 수 있는 인원 (2~4명)
+  online: true, netRoom: true,        // 온라인 대결: 최대 4명, 빈자리는 컴퓨터
   w: 860,   // 화면에 보이는 판 최대 크기(px)
   sides: '2~4명',
   blurb: '다빈치 코드 방식 숫자 추리 (2~4명). 상대의 숨은 숫자 타일을 맞혀 마지막까지 살아남으면 승리.',

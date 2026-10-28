@@ -146,5 +146,23 @@
   const myAvatar = () => (window.GameHub && window.GameHub.user ? window.GameHub.user.avatar : AV.normalize({}));
   const myName = () => (window.GameHub && window.GameHub.user ? window.GameHub.user.nickname : '나');
 
-  window.GoSport = { image, ready, onImages, keys, pad, touchDevice, fighter, drawFighter, shadow, text, bar, cpuAvatar, myAvatar, myName, SPRITE: { w: SW, h: SH } };
+  /* ---------- 1:1 · 2:2 자리와 온라인 ----------
+   * 자리(slot): 1:1 = [0 왼쪽, 1 오른쪽] / 2:2 = [0·1 왼쪽 팀, 2·3 오른쪽 팀]
+   * 온라인은 들어온 순서대로 팀이 번갈아 가도록 자리를 정함 */
+  const slotOrder = n => (n === 4 ? [0, 2, 1, 3] : [0, 1]);
+  const teamOf = (slot, n) => (n === 4 ? (slot < 2 ? 0 : 1) : slot);
+  // 온라인 방장이 보내는 화면 상태를 부드럽게 (지난 상태 → 이번 상태 사이를 이어 그림)
+  function smoother(every) {
+    let prev = null, cur = null, at = 0;
+    return {
+      push(st) { prev = cur || st; cur = st; at = performance.now(); },
+      get ready() { return !!cur; },
+      get cur() { return cur; },
+      // 숫자 하나를 이어 그림 (a: 지난 값, b: 이번 값)
+      mix(a, b) { const k = Math.min(1, (performance.now() - at) / every); return a + (b - a) * k; },
+      get prev() { return prev; }
+    };
+  }
+
+  window.GoSport = { image, ready, onImages, keys, pad, touchDevice, fighter, drawFighter, shadow, text, bar, cpuAvatar, myAvatar, myName, slotOrder, teamOf, smoother, SPRITE: { w: SW, h: SH } };
 })();

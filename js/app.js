@@ -549,12 +549,19 @@
       onMsg: m => netMsg(s, m),
       onError() { toast('방에 연결하지 못했어요.'); }
     });
-    n.ch.track({ id: Hub.clientId, nick: netNick(), avatar: Hub.user ? Hub.user.avatar : null, joinedAt: n.joinedAt });
+    netTrack();
     renderOverlay();
+    const max = netMax();
     setTimeout(() => {
       if (session !== s || s.net !== n) return;
-      if (!n.peers.slice(0, 2).some(p => p.id === Hub.clientId) && n.peers.length >= 2) { toast('이미 두 사람이 대국 중인 방이에요.'); netLeave(); renderOverlay(); }
+      if (!n.peers.slice(0, max).some(p => p.id === Hub.clientId) && n.peers.length >= max) { toast('방이 꽉 찼어요. (최대 ' + max + '명)'); netLeave(); renderOverlay(); }
     }, 1500);
+  }
+  // 'room' 방식(숫자 코드·배구·격투): 최대 인원 = 고를 수 있는 가장 큰 인원
+  const netMax = () => { const cfg = SET.get(session.id) || {}; return cfg.netRoom ? Math.max(...(cfg.players || [2])) : 2; };
+  function netTrack() {
+    const n = session && session.net; if (!n) return;
+    n.ch.track({ id: Hub.clientId, nick: netNick(), avatar: Hub.user ? Hub.user.avatar : null, joinedAt: n.joinedAt, players: session.players || 2 });
   }
   function netLeave() {
     const s = session, n = s && s.net; if (!n) return;
@@ -568,12 +575,15 @@
     n.hostId = n.peers.length ? n.peers[0].id : Hub.clientId;
     // 대국 중 상대가 나가면 내 승리
     if (s.state === 'playing' && n.oppId && !n.peers.some(p => p.id === n.oppId)) { toast('상대가 나갔어요.'); s.inst.remote({ resign: 1, left: 1 }); }
+    if (n.roster && s.state === 'playing') n.roster.forEach(r => {
+      if (r.id !== Hub.clientId && !r.gone && !n.peers.some(p => p.id === r.id)) { r.gone = true; toast(r.nick + ' 님이 나갔어요.'); s.inst.remote({ left: r.id, wasHost: r.id === n.roster[0].id }); }
+    });
     netAdvertise();
     if (s.state !== 'playing') renderOverlay();
   }
   function netMsg(s, m) {
     if (!m || session !== s || !s.net) return;
-    if (m.t === 'start') netStart(m.hostSide);
+    if (m.t === 'start') { if (m.roster) netStartRoom(m); else netStart(m.hostSide); }
     else if (m.t === 'mv' && s.state === 'playing') s.inst.remote(m.m);
   }
   function netStart(hostSide) {
@@ -586,13 +596,31 @@
     s.inst.start({ mode: 'online', side: n.side }); BGM.restart();
     netAdvertise();
   }
+  // 'room' 방식: 방장이 들어온 순서대로 자리를 정해 모두에게 보냄 (빈자리는 방장 기기의 컴퓨터)
+  function netStartRoom(m) {
+    const s = session, n = s.net; if (!n) return;
+    const me = m.roster.findIndex(r => r.id === Hub.clientId); if (me < 0) return;
+    n.roster = m.roster.map(r => ({ ...r })); n.side = null; n.oppId = null;
+    n.oppNick = m.roster.filter(r => r.id !== Hub.clientId).map(r => r.nick).join(', ');
+    s.result = null; s.save = null;
+    s.inst.start({ mode: 'online', players: m.players, seed: m.seed, roster: m.roster, me, host: m.roster[0].id === Hub.clientId, level: 'normal' }); BGM.restart();
+    netAdvertise();
+  }
   function netHostStart() {
     const n = session && session.net; if (!n || n.hostId !== Hub.clientId || n.peers.length < 2) return;
+    const cfg = SET.get(session.id) || {};
+    if (cfg.netRoom) {
+      const np = session.players || 2, humans = n.peers.slice(0, netMax());
+      if (humans.length > np) { toast('사람이 ' + humans.length + '명이에요. 인원을 ' + humans.length + ' 이상으로 골라 주세요.'); return; }
+      const m = { t: 'start', seed: (Math.random() * 2147483647) | 0, players: np, roster: humans.map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar || null })) };
+      n.ch.send(m); netStartRoom(m); return;
+    }
     const hostSide = n.round++ % 2;
     n.ch.send({ t: 'start', hostSide });
     netStart(hostSide);
   }
   // 온라인 대기 화면 (오버레이 안)
+  const playersLabel = (cfg, n) => (cfg.teamLabels && cfg.teamLabels[n]) || n + '명';
   function netPanelHTML(cfg) {
     const s = session, n = s.net;
     const sides = (cfg.sides || '선 · 후').split('/')[0].split('·').map(x => x.trim());
@@ -604,12 +632,13 @@
         ${rooms.length ? `<div class="net-rooms">${rooms.slice(0, 5).map(r => `<button class="btn btn-sm" type="button" data-net-join="${esc(r.code)}">${esc(r.nick)}의 방 · ${esc(r.code)}</button>`).join('')}</div>` : '<p class="ov-hint">열린 방이 없으면 방을 만들고 코드를 친구에게 알려 주세요.</p>'}
       </div>`;
     }
-    const host = n.hostId === Hub.clientId, two = n.peers.length >= 2;
+    const host = n.hostId === Hub.clientId, two = n.peers.length >= 2, max = netMax();
     const mySide = host ? n.round % 2 : 1 - n.round % 2;
+    const hostPeer = n.peers.find(p => p.id === n.hostId) || {}, np = host ? (session.players || 2) : (hostPeer.players || 2);
     return `<div class="net-box">
       <div class="net-code">방 코드 <b class="num">${esc(n.code)}</b></div>
-      <ul class="net-peers">${n.peers.slice(0, 2).map(p => `<li>${esc(p.nick)}${p.id === Hub.clientId ? ' <small>(나)</small>' : ''}${p.id === n.hostId ? ' <small>방장</small>' : ''}</li>`).join('')}${two ? '' : '<li class="wait">상대를 기다리는 중…</li>'}</ul>
-      ${two ? `<p class="ov-hint">이번 판: 나는 <b>${esc(sides[mySide] || (mySide ? '후' : '선'))}</b> (판마다 바뀌어요)</p>` : ''}
+      <ul class="net-peers">${n.peers.slice(0, max).map(p => `<li>${esc(p.nick)}${p.id === Hub.clientId ? ' <small>(나)</small>' : ''}${p.id === n.hostId ? ' <small>방장</small>' : ''}</li>`).join('')}${n.peers.length < max ? `<li class="wait">${two ? '더 들어올 수 있어요…' : '상대를 기다리는 중…'}</li>` : ''}</ul>
+      ${cfg.netRoom ? `<p class="ov-hint">방장 설정: <b>${esc(playersLabel(cfg, np))}</b>${np > n.peers.length ? ' · 빈자리는 컴퓨터' : ''}</p>` : two ? `<p class="ov-hint">이번 판: 나는 <b>${esc(sides[mySide] || (mySide ? '후' : '선'))}</b> (판마다 바뀌어요)</p>` : ''}
       ${host ? `<button class="btn btn-primary" type="button" data-net="start" ${two ? '' : 'disabled'}>대국 시작 ▶</button>` : `<p class="ov-hint">${two ? '방장이 시작하면 바로 시작돼요.' : ''}</p>`}
       <button class="btn btn-sm" type="button" data-net="leave">방 나가기</button>
     </div>`;
@@ -641,7 +670,7 @@
           <div class="mode-row"><span class="mode-lbl">AI 대전</span><div class="mode-btns">${lv}</div></div>
           <div class="mode-row"><span class="mode-lbl">오프라인</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">${np > 2 ? np + '명이' : '둘이서'} 한 기기</button></div></div>
           ${cfg.online ? `<div class="mode-row"><span class="mode-lbl">온라인</span><div class="mode-btns"><button class="btn ${session.mode === 'online' ? 'btn-sun' : ''}" type="button" data-pick="online">다른 기기 친구와</button></div></div>` : ''}
-          ${cfg.players ? `<div class="mode-row"><span class="mode-lbl">인원</span><div class="mode-btns">${cfg.players.map(n => `<button class="btn ${np === n ? 'btn-sun' : ''}" type="button" data-players="${n}">${n}명</button>`).join('')}</div></div>` : ''}
+          ${cfg.players ? `<div class="mode-row"><span class="mode-lbl">인원</span><div class="mode-btns">${cfg.players.map(n => `<button class="btn ${np === n ? 'btn-sun' : ''}" type="button" data-players="${n}">${esc(playersLabel(cfg, n))}</button>`).join('')}</div></div>` : ''}
         </div>
         ${session.mode === 'online' ? netPanelHTML(cfg) : `<button class="btn btn-primary" type="button" data-ov="start">${session.mode === 'local' ? (np > 2 ? np + '명' : '둘이서') : LEVEL_NAME[session.level] + (np > 2 ? ' · ' + np + '명' : '')} 시작 ▶</button>`}
         <p class="ov-note">${session.mode === 'local' ? '포인트 없이 기록만 남아요' : session.mode === 'online' ? `온라인 승리 +${cfg.points.win}P / 패배 ${cfg.points.lose}P` : rankPointText(cfg, np)}${Hub.user ? '' : ' · 손님 플레이'}</p></div>`;
@@ -655,7 +684,7 @@
         else if (s.status === 'error') note = `<p class="ov-note bad">${esc(s.msg)}</p>`;
         else if (s.status === 'guest') note = `<p class="ov-note">로그인하면 이 기록과 포인트(${r.points_delta > 0 ? '+' : ''}${r.points_delta || 0}P)가 남아요.</p><button class="btn btn-primary" type="button" data-ov="save">로그인하고 기록 저장</button>`;
       } else if (s.status === 'saved') note = '<p class="ov-note">둘이서 둔 판 · 전적에 기록했어요</p>';
-      const ex = r.extra || {}, multi = (ex.players || 2) > 2;
+      const ex = r.extra || {}, multi = (ex.players || 2) > 2 && !cfg.teamLabels;
       const title = session.mode === 'local' ? '대국 끝!' : multi ? (ex.rank === 1 ? '1등!' : ex.rank + '등') : r.result === 'win' ? '승리!' : r.result === 'lose' ? '아쉬워요!' : '무승부';
       ov.innerHTML = `<div class="ov-box">
         ${avCanvas(Hub.user ? Hub.user.avatar : {}, 3, 'full', 'ov-avatar')}
@@ -669,7 +698,7 @@
     } else ov.innerHTML = '';
     AV.paintAll(ov);
     $$('[data-players]', ov).forEach(b => b.addEventListener('click', () => {
-      session.players = +b.dataset.players;
+      session.players = +b.dataset.players; netTrack();
       try { localStorage.setItem('gogo_players_' + session.id, String(session.players)); } catch (e) { /* noop */ }
       renderOverlay(); renderBoardCard();
     }));
@@ -712,9 +741,12 @@
     const rb = $('#btnResign'); if (rb) { rb.disabled = true; rb.textContent = '기권'; rb.classList.remove('btn-danger'); }
     const cfg = SET.get(session.id), ai = session.mode === 'ai', online = session.mode === 'online' && session.net;
     let result = null, delta = 0, score = 0;
-    if (online && res.winner >= 0) {
-      const win = res.winner === session.net.side;
-      result = win ? 'win' : 'lose'; delta = SET.pointsFor(session.id, win).delta; score = win ? ((cfg.levelScore || {}).online || (cfg.levelScore || {}).hard || 300) : 0;
+    const onlineWin = !online ? null : res.rank && res.players > 2 ? res.rank === 1 : res.win != null ? res.win : res.winner >= 0 ? res.winner === session.net.side : null;
+    if (online && onlineWin != null) {
+      const win = onlineWin;
+      result = win ? 'win' : 'lose';
+      delta = res.rank && res.players > 2 && cfg.pointsByRank && cfg.pointsByRank[res.players] ? (cfg.pointsByRank[res.players][res.rank - 1] || 0) : SET.pointsFor(session.id, win).delta;
+      score = win ? ((cfg.levelScore || {}).online || (cfg.levelScore || {}).hard || 300) : 0;
     } else
     if (ai && res.rank && res.players > 2 && cfg.pointsByRank) {
       const table = cfg.pointsByRank[res.players] || [];
