@@ -65,6 +65,13 @@
     return av;
   }
 
+  // 코디 3칸: [아바타 또는 null] × 3
+  const OUTFITS = 3;
+  function normOutfits(list) {
+    list = Array.isArray(list) ? list : [];
+    return Array.from({ length: OUTFITS }, (_, i) => (list[i] && typeof list[i] === 'object' ? AV.normalize(list[i]) : null));
+  }
+
   function summarize(records) {
     const per = {};
     window.GoSettings.ids().forEach(g => { per[g] = { plays: 0, best: 0, totalSec: 0, last: null, wins: 0, losses: 0 }; });
@@ -224,6 +231,9 @@
       async setAvatar(av) {
         const u = me(); u.avatar = validateAvatar(av); persist(); setUser(pub(u));
       },
+      /* ---- 옷장: 코디 3칸 ---- */
+      async getOutfits() { const u = me(); return normOutfits(u.outfits); },
+      async saveOutfits(list) { const u = me(); u.outfits = normOutfits(list); persist(); return u.outfits; },
       /* ---- 댓글 · 피드백 ---- */
       async listComments(game) {
         const d = db(), uid = Hub.user && Hub.user.id, admin = Hub.isAdmin();
@@ -453,9 +463,24 @@
       async setAvatar(av) {
         if (!Hub.user) throw new Error('로그인이 필요해요.');
         av = validateAvatar(av);
-        const { error } = await sb.rpc('set_avatar', { p_avatar: av });
+        const send = Object.assign({}, av); if (send.bg == null) delete send.bg;   // 배경이 없으면 보내지 않음 (DB가 옛 버전이어도 착용 가능)
+        const { error } = await sb.rpc('set_avatar', { p_avatar: send });
         if (error) throw new Error(friendly(error, '착용하지 못했어요'));
         await loadProfile(Hub.user.id);
+      },
+      /* ---- 옷장: 코디 3칸 (profiles.outfits) ---- */
+      async getOutfits() {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const { data, error } = await sb.from('profiles').select('outfits').eq('id', Hub.user.id).single();
+        if (error) throw new Error(friendly(error, '코디를 불러오지 못했어요'));
+        return normOutfits(data && data.outfits);
+      },
+      async saveOutfits(list) {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const out = normOutfits(list);
+        const { error } = await sb.rpc('save_outfits', { p_outfits: out });
+        if (error) throw new Error(friendly(error, '코디를 저장하지 못했어요'));
+        return out;
       },
       /* ---- 댓글 · 피드백 ---- */
       async listComments(game) {

@@ -11,11 +11,14 @@
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let A = null, root = null, slot = 'top', picked = null, trial = null, confirmBuy = false, busy = false, walkTimer = 0, walking = false;
+  let A = null, root = null, slot = 'top', theme = 'all', picked = null, trial = null, confirmBuy = false, busy = false, walkTimer = 0, walking = false;
 
   const saved = () => (Hub.user ? Hub.user.avatar : AV.normalize({}));
   const slotName = id => (AV.SLOTS.find(s => s[0] === id) || [])[1] || id;
-  const itemsOf = s => AV.ITEMS.filter(it => it.slot === s).sort((a, b) => Hub.price(a.id) - Hub.price(b.id));
+  // 테마 고르기: 'all' 전체 · 'basic' 처음부터 있던 아이템 · 그 밖은 avatar.js 의 theme 값
+  const inTheme = it => theme === 'all' || (theme === 'basic' ? !it.theme : it.theme === theme);
+  const itemsOf = s => AV.ITEMS.filter(it => it.slot === s && inTheme(it)).sort((a, b) => Hub.price(a.id) - Hub.price(b.id));
+  const PREMIUM = 40;   // 이 가격 이상은 '고급' 표시
 
   function statusOf(id) {
     const cur = saved();
@@ -30,7 +33,7 @@
     if (id === null) return '<span class="it-badge">벗기</span>';
     if (price === 0) return '<span class="it-badge free">무료</span>';
     if (st === 'owned') return '<span class="it-badge owned">보유</span>';
-    return `<span class="it-badge price num">${price}P</span>`;
+    return `<span class="it-badge price num ${price >= PREMIUM ? 'premium' : ''}">${price >= PREMIUM ? '★' : ''}${price}P</span>`;
   }
 
   function render() {
@@ -38,22 +41,26 @@
     const u = Hub.user;
     root.innerHTML = `
       <div class="page-head shop-head">
-        <div><h1>상점</h1><p>게임에서 이기면 포인트를 받아요. 아이템을 누르면 아래에서 미리 입어 볼 수 있어요.</p></div>
+        <div><h1>상점</h1><p>게임에서 이기면 포인트를 받아요. 아이템을 누르면 아래에서 미리 입어 볼 수 있어요. 산 옷은 <a href="#closet">옷장</a>에서 언제든 갈아입어요.</p></div>
         <div class="wallet-big">${u ? `<span class="lbl">MY POINTS</span><b class="num">${A.fmt(u.points)}P</b>` : '<button class="btn btn-primary" type="button" data-auth="login">로그인하고 쇼핑하기</button>'}</div>
       </div>
       <div class="panel shop-items">
         <div class="slot-tabs" role="tablist" aria-label="아이템 종류">
           ${AV.SLOTS.map(([id, name]) => `<button type="button" role="tab" aria-selected="${id === slot}" data-slot="${id}">${name}</button>`).join('')}
         </div>
+        <div class="theme-chips" role="group" aria-label="테마">
+          ${(AV.THEMES || []).map(([id, name]) => `<button type="button" class="chip" aria-pressed="${id === theme}" data-theme="${id}">${name}</button>`).join('')}
+        </div>
         <div class="item-grid" id="itemGrid">
           ${AV.OPTIONAL[slot] ? card(null) : ''}
           ${itemsOf(slot).map(it => card(it.id)).join('')}
+          ${itemsOf(slot).length ? '' : '<p class="empty small">이 테마에는 이 부위 아이템이 없어요. 다른 부위나 테마를 골라 보세요.</p>'}
         </div>
       </div>
       <div class="panel shop-preview">
         <h3>미리보기</h3>
         <div class="pv-pair">
-          <figure><div class="pv-stage">${A.avCanvas(saved(), 5, 'full', 'pv-av')}</div><figcaption>지금 내 모습</figcaption></figure>
+          <figure><div class="pv-stage">${A.avCanvas(saved(), 5, 'full', 'pv-av', true)}</div><figcaption>지금 내 모습</figcaption></figure>
           <div class="pv-arrow" aria-hidden="true">▶</div>
           <figure><div class="pv-stage try"><canvas id="pvTry" aria-label="미리보기 아바타"></canvas></div><figcaption>입어 본 모습</figcaption></figure>
         </div>
@@ -67,6 +74,7 @@
     paintTry(0);
     renderInfo();
     $$('[data-slot]', root).forEach(b => b.addEventListener('click', () => { slot = b.dataset.slot; picked = undefined; confirmBuy = false; render(); }));
+    $$('[data-theme]', root).forEach(b => b.addEventListener('click', () => { theme = b.dataset.theme; picked = undefined; confirmBuy = false; render(); }));
     $$('[data-item]', root).forEach(b => b.addEventListener('click', () => pick(b.dataset.item === '' ? null : b.dataset.item)));
     $('#pvReset').addEventListener('click', () => { trial = Object.assign({}, saved()); picked = undefined; confirmBuy = false; render(); });
     $('#pvWalk').addEventListener('click', () => { walking = !walking; startWalk(); $('#pvWalk').textContent = walking ? '■ 멈추기' : '▶ 걸어 보기'; });
@@ -78,7 +86,7 @@
     const look = Object.assign({}, trial, { [slot]: id });
     const sel = picked === id;
     return `<button type="button" class="item ${sel ? 'sel' : ''}" data-item="${id || ''}" aria-pressed="${sel}">
-      <canvas data-avatar="${AV.attr(look)}" data-scale="2" aria-hidden="true"></canvas>
+      <canvas data-avatar="${AV.attr(look)}" data-scale="2" data-scene aria-hidden="true"></canvas>
       <span class="it-name">${it ? A.esc(it.name) : '없음'}</span>${badge(id)}</button>`;
   }
 
@@ -89,13 +97,13 @@
     // 다른 칸 썸네일도 새 미리보기 기준으로 다시 그림
     $$('[data-item]', root).forEach(b => {
       const c = b.querySelector('canvas'), v = b.dataset.item || null;
-      AV.paint(c, Object.assign({}, trial, { [slot]: v }), { scale: 2 });
+      AV.paint(c, Object.assign({}, trial, { [slot]: v }), { scale: 2, scene: true });
     });
     paintTry(0);
     renderInfo();
   }
 
-  function paintTry(frame) { const c = $('#pvTry'); if (c) AV.paint(c, trial, { scale: 5, frame }); }
+  function paintTry(frame) { const c = $('#pvTry'); if (c) AV.paint(c, trial, { scale: 5, frame, scene: true }); }
   function startWalk() {
     clearInterval(walkTimer);
     if (!walking || reduce) { paintTry(0); return; }

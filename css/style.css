@@ -489,6 +489,10 @@ canvas.ov-avatar { filter: drop-shadow(0 4px 0 rgba(0, 0, 0, .35)); }
 .it-name { font-size: 13px; font-weight: 700; line-height: 1.3; }
 .it-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--ink-2); }
 .it-badge.price { background: var(--sun); color: #1D2340; font-size: 9px; padding: 4px 8px 3px; }
+.it-badge.price.premium { background: linear-gradient(135deg, #A66BFF, #FF7EB6); color: #FFFFFF; }
+.theme-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.theme-chips .chip { font: inherit; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--chip); color: var(--ink-2); cursor: pointer; }
+.theme-chips .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .it-badge.free { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
 .it-badge.owned { background: color-mix(in srgb, var(--blue) 15%, transparent); color: var(--blue); }
 .it-badge.wearing { background: var(--ink); color: var(--bg); }
@@ -921,3 +925,25 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 .net-peers small { font-weight: 400; color: #8A93C0; }
 .net-peers .wait { color: #8A93C0; font-weight: 400; animation: blink 1.2s steps(2) infinite; }
 .net-box .btn { border-color: #05081A; }
+
+/* ---------- 옷장 (#closet) ---------- */
+.acct-links { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+.closet { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 18px; align-items: start; margin-bottom: 18px; }
+.closet-pv { position: sticky; top: 12px; }
+.closet-pv h3 small, .closet-sets h3 small { font-weight: 600; }
+.closet-stage { padding: 10px; overflow: hidden; place-items: center; background: var(--surface-2); }
+.closet-stage canvas { display: block; image-rendering: pixelated; }
+.closet .slot-tabs small { opacity: .7; font-size: 11px; margin-left: 2px; }
+.outfit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.outfit { display: grid; justify-items: center; gap: 8px; padding: 12px 8px; border-radius: 12px; border: 2px solid var(--border); background: var(--surface-2); text-align: center; }
+.outfit.empty { border-style: dashed; }
+.outfit-pv { min-height: 87px; display: grid; place-items: center; }
+.outfit-pv canvas { image-rendering: pixelated; border-radius: 6px; }
+.outfit-pv span { color: var(--ink-2); font-size: 13px; }
+.outfit-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.item canvas, .pv-stage canvas, .me canvas.me-av, .profile-av { image-rendering: pixelated; }
+@media (max-width: 720px) {
+  .closet { grid-template-columns: 1fr; }
+  .closet-pv { position: static; }
+  .outfit-grid { grid-template-columns: 1fr; }
+}

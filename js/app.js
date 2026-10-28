@@ -31,7 +31,8 @@
 
   /* ---------- 공통 조각 ---------- */
   // 아바타 캔버스 (그린 뒤 AV.paintAll 로 채움)
-  const avCanvas = (av, scale, crop, cls) => `<canvas class="av ${cls || ''}" data-avatar="${AV.attr(av)}" data-scale="${scale}" data-crop="${crop || 'full'}" aria-hidden="true"></canvas>`;
+  // scene = true 이면 배경(옷장에서 고른 배경)까지 그림 — 내 아바타 크게 보이는 곳에만 사용
+  const avCanvas = (av, scale, crop, cls, scene) => `<canvas class="av ${cls || ''}" data-avatar="${AV.attr(av)}" data-scale="${scale}" data-crop="${crop || 'full'}" ${scene ? 'data-scene' : ''} aria-hidden="true"></canvas>`;
   // 포인트 변화 문구: gained = 실제 변화, delta = 규칙상 변화
   function pointText(gained, delta) {
     if (gained > 0) return '+' + gained + 'P';
@@ -219,10 +220,10 @@
     const u = Hub.user;
     if (u) {
       box.innerHTML = `
-        <div class="me">${avCanvas(u.avatar, 3, 'full', 'me-av')}
+        <div class="me">${avCanvas(u.avatar, 3, 'full', 'me-av', true)}
           <div><b>${esc(u.nickname)}</b><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span>${levelBlock(u)}</div></div>
         <div class="row"><a class="btn btn-sun" href="#shop">아바타 꾸미기</a><a class="btn" href="#my">내 전적</a></div>
-        <p class="small" style="text-align:right"><button class="link" type="button" data-logout>로그아웃</button></p>`;
+        <p class="small acct-links"><a class="btn btn-sm" href="#closet">옷장</a><button class="link" type="button" data-logout>로그아웃</button></p>`;
       AV.paintAll(box);
     } else {
       box.innerHTML = `
@@ -905,9 +906,9 @@
     view().innerHTML = `
       <div class="stack">
         <div class="panel profile">
-          ${avCanvas(u.avatar, 4, 'full', 'profile-av')}
+          ${avCanvas(u.avatar, 4, 'full', 'profile-av', true)}
           <div><h1>${esc(u.nickname)} <span class="lv">Lv.${L.level}</span></h1><div class="sub">@${esc(u.username)}</div>
-            <a class="btn btn-sun btn-sm" href="#shop" style="margin-top:10px">아바타 꾸미기</a></div>
+            <a class="btn btn-sun btn-sm" href="#shop" style="margin-top:10px">아바타 꾸미기</a> <a class="btn btn-sm" href="#closet" style="margin-top:10px">옷장</a></div>
           ${levelBlock(u)}
         </div>
         <div class="tiles">
@@ -941,6 +942,10 @@
     else if (h === 'shop') {
       current = 'shop'; setNav('shop');
       cleanups.push(window.GoShop.render(view(), { toast, esc, fmt, openAuth, avCanvas }));
+    }
+    else if (h === 'closet') {
+      current = 'closet'; setNav('shop');
+      cleanups.push(window.GoCloset.render(view(), { toast, esc, fmt, openAuth }));
     }
     else if (h === 'blocks') { location.replace('#battle'); return; }   // 블록 쌓기는 블록 대전으로 합침
     else if (h === '2048' || h === 'p1024') { location.replace('#p512'); return; }   // 2048 → 퍼즐512
@@ -996,6 +1001,7 @@
       else if (current === 'my') renderMy();
       else if (current === 'play') { refreshBest(); refreshGameRank(); renderPlayerCard(); if (session && session.state === 'ready') renderOverlay(); }
       else if (current === 'shop' && window.GoShop.refresh) window.GoShop.refresh();
+      else if (current === 'closet' && window.GoCloset.refresh) window.GoCloset.refresh();
       else if (current === 'admin') route();
     });
     try { await Hub.init(); } catch (e) { console.error(e); }
