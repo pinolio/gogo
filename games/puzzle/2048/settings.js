@@ -8,6 +8,7 @@ GoSettings.register({
   category: 'puzzle',
   folder: 'games/puzzle/2048',
   order: 3,
+  hidden: true,                       // 퍼즐1024(대결)로 바뀌어 목록에서 숨김 (예전 기록은 그대로)
   w: 400,
   blurb: '같은 숫자를 합쳐서 2048 타일을 만들어 보세요.',
   keys: [['방향키 · WASD', '타일 밀기'], ['화면 밀기', '모바일 타일 밀기'], ['P', '일시정지']],

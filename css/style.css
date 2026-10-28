@@ -906,3 +906,5 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
   .match-grid.v2.two .mains { flex-wrap: wrap; }
 }
 @media (max-width: 560px) { .match-grid.v2 .minis { grid-auto-columns: 44px; } }
+
+.mini-sq canvas { aspect-ratio: 1; }

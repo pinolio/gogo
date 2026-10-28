@@ -22,8 +22,9 @@
   // 혼자 조작 (AI 대전·온라인): 방향키·WASD, Ctrl = 블록 저장/바꾸기
   const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', KeyA: 'left', KeyD: 'right', KeyW: 'rotate', KeyS: 'down', KeyX: 'rotate', KeyZ: 'rotateL', Space: 'drop', ControlLeft: 'hold', ControlRight: 'hold', KeyC: 'hold' };
   // 오프라인 대결 (한 키보드에 2명)
-  const KEY_1P = { KeyA: 'left', KeyD: 'right', KeyW: 'rotate', KeyS: 'down', KeyQ: 'rotateL', Space: 'drop', ControlLeft: 'hold' };
-  const KEY_2P = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', ShiftRight: 'rotateL', Enter: 'drop', NumpadEnter: 'drop', Numpad0: 'drop', ControlRight: 'hold' };
+  // (Ctrl+W 를 같이 누르면 브라우저 탭이 닫혀서, 오프라인에서는 저장 키를 Shift 로 둠)
+  const KEY_1P = { KeyA: 'left', KeyD: 'right', KeyW: 'rotate', KeyS: 'down', KeyQ: 'rotateL', Space: 'drop', ShiftLeft: 'hold', KeyE: 'hold' };
+  const KEY_2P = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', Slash: 'rotateL', Enter: 'drop', NumpadEnter: 'drop', Numpad0: 'drop', ShiftRight: 'hold', Period: 'hold' };
   const P2 = 'local-2p';
   const PLAY = {
     ai: { name: 'AI 대전', desc: '컴퓨터 1~5명과 바로 대결해요.', pts: '승리 +1P · 패배 -1P' },
@@ -138,14 +139,14 @@
           <h3>공격 규칙</h3>
           <table class="atk-table"><thead><tr><th>한 번에 지운 줄</th><th class="n">상대에게</th></tr></thead>
             <tbody><tr><td>1~2줄</td><td class="n">-</td></tr><tr><td>3줄</td><td class="n hot">1줄</td></tr><tr><td>4줄</td><td class="n hot">3줄</td></tr></tbody></table>
-          <ul class="rule-list"><li>다음 블록 5개가 미리 보여요.</li><li><b>Ctrl</b>을 누르면 지금 블록을 저장하고, 다시 누르면 저장한 블록과 바꿔요. (블록 하나당 1번)</li><li>30초마다 빨라져요.</li></ul>
+          <ul class="rule-list"><li>다음 블록 5개가 미리 보여요.</li><li><b>Ctrl</b>(오프라인은 Shift)을 누르면 지금 블록을 저장하고, 다시 누르면 저장한 블록과 바꿔요. (블록 하나당 1번)</li><li>30초마다 빨라져요.</li></ul>
         </div>
         <div class="panel b-rules">
           <h3>조작 키</h3>
           <ul class="rule-list">
             <li><b>혼자</b>: ← → 이동 · ↑ 회전 · ↓ 내리기 · Space 한 번에 · Ctrl 저장</li>
-            <li><b>오프라인 1P</b>: A D 이동 · W 회전 · S 내리기 · Space 한 번에 · 왼쪽 Ctrl 저장</li>
-            <li><b>오프라인 2P</b>: ← → 이동 · ↑ 회전 · ↓ 내리기 · Enter 한 번에 · 오른쪽 Ctrl 저장</li>
+            <li><b>오프라인 1P</b>: A D 이동 · W 회전 · S 내리기 · Space 한 번에 · 왼쪽 Shift(또는 E) 저장</li>
+            <li><b>오프라인 2P</b>: ← → 이동 · ↑ 회전 · ↓ 내리기 · Enter 한 번에 · 오른쪽 Shift(또는 .) 저장</li>
             <li>휴대폰은 화면 버튼(HOLD 포함)으로 해요.</li>
           </ul>
         </div>
@@ -307,7 +308,7 @@
     root.innerHTML = `
       <div class="room">
         ${room.local ? `<div class="panel room-head">
-          <div><span class="lbl">블록 대전</span><h2 style="margin:4px 0 0">${PLAY[room.play].name}</h2><p class="small" style="margin:4px 0 0">${room.play === 'offline' ? '1P는 WASD·Space·왼쪽 Ctrl, 2P는 방향키·Enter·오른쪽 Ctrl로 해요.' : '컴퓨터 상대를 더하거나 빼고 시작하세요.'} ${PLAY[room.play].pts}</p></div>
+          <div><span class="lbl">블록 대전</span><h2 style="margin:4px 0 0">${PLAY[room.play].name}</h2><p class="small" style="margin:4px 0 0">${room.play === 'offline' ? '1P는 WASD 이동·회전, Space 한 번에, 왼쪽 Shift 저장 / 2P는 방향키, Enter 한 번에, 오른쪽 Shift 저장이에요.' : '컴퓨터 상대를 더하거나 빼고 시작하세요.'} ${PLAY[room.play].pts}</p></div>
           <div class="row" style="margin:0"><button class="btn" type="button" id="btLeave">다른 방식 고르기</button></div>
         </div>` : `<div class="panel room-head">
           <div><span class="lbl">ROOM CODE</span><div class="room-code-big num">${esc(room.code)}</div><p class="small" style="margin:4px 0 0">친구에게 이 코드를 알려 주면 같은 방에 들어올 수 있어요.</p></div>
@@ -567,7 +568,7 @@
   function countdown() {
     const ov = $('#btOv'); let n = 3;
     const hint = () => match.play === 'offline'
-      ? '1P: WASD · Space · 왼쪽 Ctrl 저장<br>2P: 방향키 · Enter · 오른쪽 Ctrl 저장'
+      ? '1P: WASD · Space 한 번에 · 왼쪽 Shift 저장<br>2P: 방향키 · Enter 한 번에 · 오른쪽 Shift 저장'
       : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
     const step = () => {
       if (!match || !ov.isConnected) return;
@@ -596,7 +597,7 @@
     ctx.fillStyle = P.PANEL; ctx.fillRect(0, 0, HOLDW, H);
     P.text(ctx, 'HOLD', 10, 18, 10, P.DIM);
     B.drawBox(ctx, eng.hold, 8, 36, HOLDW - 16, 52, 12, !eng.canHold);
-    P.text(ctx, match.play === 'offline' ? (id === Hub.clientId ? 'L-CTRL' : 'R-CTRL') : 'CTRL', 10, 98, 7, '#5D6699');
+    P.text(ctx, match.play === 'offline' ? (id === Hub.clientId ? 'L-SHIFT' : 'R-SHIFT') : 'CTRL', 10, 98, 7, '#5D6699');
     // 받을 공격 막대
     ctx.fillStyle = '#0B0F28'; ctx.fillRect(HOLDW, 0, METER, H);
     const pend = eng.pendingLines();

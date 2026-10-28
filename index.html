@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>gogo?gogo! (gogogogo) · 무료 도트 게임 모음</title>
-<meta name="description" content="gogogogo(gogo?gogo!) — 블록 쌓기, 2048, 스네이크, 바둑, 오목, 장기, 체스, 알까기, 숫자 코드, 아바타 배구, 격투 게임 일단 덤벼를 브라우저에서 바로 하는 무료 도트 게임 사이트. 한 번 로그인하면 모든 게임 전적과 포인트가 쌓여요.">
-<meta name="keywords" content="gogogogo, gogo?gogo!, 고고고고, 도트 게임, 무료 게임, 블록 쌓기, 바둑, 오목, 장기, 체스, 알까기, 다빈치 코드">
+<meta name="description" content="gogogogo(gogo?gogo!) — 블록 대전, 퍼즐1024, 스네이크, 바둑, 오목, 장기, 체스, 알까기, 숫자 코드, 아바타 배구, 격투 게임 일단 덤벼를 브라우저에서 바로 하는 무료 도트 게임 사이트. 한 번 로그인하면 모든 게임 전적과 포인트가 쌓여요.">
+<meta name="keywords" content="gogogogo, gogo?gogo!, 고고고고, 도트 게임, 무료 게임, 블록 대전, 퍼즐1024, 바둑, 오목, 장기, 체스, 알까기, 다빈치 코드">
 <link rel="canonical" href="https://pinolio.github.io/gogo/">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
@@ -26,7 +26,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@900&text=%E6%A5%9A%E6%BC%A2%E8%BB%8A%E5%8C%85%E9%A6%AC%E8%B1%A1%E5%A3%AB%E5%8D%92%E5%85%B5&display=swap">
 <!--HEAD-END-->
 <!-- ?v= 숫자: 업데이트할 때마다 sw.js 의 VERSION 과 함께 1씩 올리기 (브라우저가 옛 파일을 쓰지 않도록) -->
-<link rel="stylesheet" href="css/style.css?v=17">
+<link rel="stylesheet" href="css/style.css?v=18">
 <!-- 앱 설치(PWA) -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#161C3A">
@@ -39,7 +39,7 @@
 </head>
 <body>
 <!--BODY-START-->
-<noscript><h1>gogo?gogo! (gogogogo) — 무료 도트 게임 모음</h1><p>블록 쌓기, 블록 대전, 2048, 스네이크, 바둑, 오목, 장기, 체스, 장기 알까기, 숫자 코드. 게임을 하려면 자바스크립트를 켜 주세요.</p></noscript>
+<noscript><h1>gogo?gogo! (gogogogo) — 무료 도트 게임 모음</h1><p>블록 대전, 퍼즐1024, 스네이크, 바둑, 오목, 장기, 체스, 장기 알까기, 숫자 코드. 게임을 하려면 자바스크립트를 켜 주세요.</p></noscript>
 <div class="demo-strip" id="demoStrip" hidden>
   <div class="strip-in"><b>체험 모드</b> · 기록이 이 브라우저에만 저장돼요. Supabase를 연결하면 어느 기기에서든 전적이 이어집니다.</div>
 </div>
@@ -116,41 +116,43 @@
 <!-- Supabase 연결 시 사용 (config.js가 비어 있으면 체험 모드) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
 <!-- 순서 중요: 설정 → 공통 → 아바타 → 로그인/전적 → 게임(장르 폴더별 settings.js + game.js) → 화면 -->
-<script src="js/config.js?v=17"></script>
-<script src="games/common/shared.js?v=17"></script>
-<script src="avatar/avatar.js?v=17"></script>
-<script src="js/filter.js?v=17"></script>
-<script src="js/gamehub.js?v=17"></script>
-<script src="games/puzzle/blocks/settings.js?v=17"></script>
-<script src="games/puzzle/blocks/game.js?v=17"></script>
-<script src="games/puzzle/battle/settings.js?v=17"></script>
-<script src="games/puzzle/battle/game.js?v=17"></script>
-<script src="games/puzzle/2048/settings.js?v=17"></script>
-<script src="games/puzzle/2048/game.js?v=17"></script>
-<script src="games/arcade/snake/settings.js?v=17"></script>
-<script src="games/arcade/snake/game.js?v=17"></script>
-<script src="games/common/board.js?v=17"></script>
-<script src="games/board/baduk/settings.js?v=17"></script>
-<script src="games/board/baduk/game.js?v=17"></script>
-<script src="games/board/omok/settings.js?v=17"></script>
-<script src="games/board/omok/game.js?v=17"></script>
-<script src="games/board/janggi/settings.js?v=17"></script>
-<script src="games/board/janggi/game.js?v=17"></script>
-<script src="games/board/chess/settings.js?v=17"></script>
-<script src="games/board/chess/game.js?v=17"></script>
-<script src="games/board/alkkagi/settings.js?v=17"></script>
-<script src="games/board/alkkagi/game.js?v=17"></script>
-<script src="games/board/code/settings.js?v=17"></script>
-<script src="games/board/code/game.js?v=17"></script>
-<script src="games/sports/sport.js?v=17"></script>
-<script src="games/sports/volley/settings.js?v=17"></script>
-<script src="games/sports/volley/game.js?v=17"></script>
-<script src="games/sports/fight/settings.js?v=17"></script>
-<script src="games/sports/fight/game.js?v=17"></script>
-<script src="js/shop.js?v=17"></script>
-<script src="js/social.js?v=17"></script>
-<script src="js/admin.js?v=17"></script>
-<script src="js/app.js?v=17"></script>
-<script src="js/pwa.js?v=17"></script>
+<script src="js/config.js?v=18"></script>
+<script src="games/common/shared.js?v=18"></script>
+<script src="avatar/avatar.js?v=18"></script>
+<script src="js/filter.js?v=18"></script>
+<script src="js/gamehub.js?v=18"></script>
+<script src="games/puzzle/blocks/settings.js?v=18"></script>
+<script src="games/puzzle/blocks/game.js?v=18"></script>
+<script src="games/puzzle/battle/settings.js?v=18"></script>
+<script src="games/puzzle/battle/game.js?v=18"></script>
+<script src="games/puzzle/p1024/settings.js?v=18"></script>
+<script src="games/puzzle/p1024/game.js?v=18"></script>
+<script src="games/puzzle/2048/settings.js?v=18"></script>
+<script src="games/puzzle/2048/game.js?v=18"></script>
+<script src="games/arcade/snake/settings.js?v=18"></script>
+<script src="games/arcade/snake/game.js?v=18"></script>
+<script src="games/common/board.js?v=18"></script>
+<script src="games/board/baduk/settings.js?v=18"></script>
+<script src="games/board/baduk/game.js?v=18"></script>
+<script src="games/board/omok/settings.js?v=18"></script>
+<script src="games/board/omok/game.js?v=18"></script>
+<script src="games/board/janggi/settings.js?v=18"></script>
+<script src="games/board/janggi/game.js?v=18"></script>
+<script src="games/board/chess/settings.js?v=18"></script>
+<script src="games/board/chess/game.js?v=18"></script>
+<script src="games/board/alkkagi/settings.js?v=18"></script>
+<script src="games/board/alkkagi/game.js?v=18"></script>
+<script src="games/board/code/settings.js?v=18"></script>
+<script src="games/board/code/game.js?v=18"></script>
+<script src="games/sports/sport.js?v=18"></script>
+<script src="games/sports/volley/settings.js?v=18"></script>
+<script src="games/sports/volley/game.js?v=18"></script>
+<script src="games/sports/fight/settings.js?v=18"></script>
+<script src="games/sports/fight/game.js?v=18"></script>
+<script src="js/shop.js?v=18"></script>
+<script src="js/social.js?v=18"></script>
+<script src="js/admin.js?v=18"></script>
+<script src="js/app.js?v=18"></script>
+<script src="js/pwa.js?v=18"></script>
 </body>
 </html>
