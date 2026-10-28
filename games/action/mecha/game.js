@@ -22,69 +22,70 @@
    *   탄 추가 효과: burn 화상 · slow 느림 · root 묶기 · heal 우리 편 회복 · explode 폭발 반지름 · boomerang 되돌아오는 시간
    *   cd 다시 쓰기까지(프레임, 60 = 1초) · en 에너지 · dmg 피해 · 힘 모으기 1단계마다 피해 ×1.5, 에너지 ×1.5 */
   const ROBOTS = [
-    { id: 1, name: '볼트', team: '테라 연합', role: '속도형', color: '#FFD23F', hp: 85, spd: 4.1, r: 21, pref: 190,
+    { id: 1, name: '볼트', team: '테라 연합', role: '속도형', color: '#FFD23F', hp: 80, spd: 4.1, r: 21, pref: 190,
       desc: '가장 빠른 로봇. 쌍발 블래스터와 유도 미사일로 치고 빠지기!',
-      w: [{ name: '전기 단검', kind: 'melee', range: 54, arc: 1.6, dmg: 7, stun: 8, cd: 18, en: 4, col: '#7FE3FF' },
-          { name: '쌍발 블래스터', kind: 'shot', spd: 9, dmg: 4, count: 2, extra: 1, spread: 0.1, life: 55, rad: 4, cd: 14, en: 5, col: '#FFE45C' },
-          { name: '유도 미사일', kind: 'shot', spd: 5.5, dmg: 9, count: 2, extra: 1, spread: 0.7, life: 150, rad: 6, homing: 0.07, cd: 150, en: 28, col: '#FF9A3D' }] },
+      w: [{ name: '전기 단검', tip: '짧은 마비', kind: 'melee', range: 54, arc: 1.6, dmg: 7, stun: 8, cd: 18, en: 4, col: '#7FE3FF' },
+          { name: '쌍발 블래스터', tip: '빠른 2연발', kind: 'shot', spd: 9, dmg: 4, count: 2, extra: 1, spread: 0.1, life: 55, rad: 4, cd: 14, en: 6, col: '#FFE45C' },
+          { name: '유도 미사일', tip: '상대를 따라감', kind: 'shot', spd: 5.5, dmg: 9, count: 2, extra: 1, spread: 0.7, life: 150, rad: 6, homing: 0.07, cd: 150, en: 28, col: '#FF9A3D' }] },
     { id: 2, name: '타이탄', team: '테라 연합', role: '중장갑', color: '#FF9A3D', hp: 140, spd: 2.8, r: 26, pref: 80,
       desc: '느리지만 단단해요. 해머로 날려 버리고 지뢰를 깔아요.',
-      w: [{ name: '해머 강타', kind: 'melee', range: 66, arc: 1.8, dmg: 15, knock: 9, stun: 20, cd: 50, en: 10, col: '#FFD23F' },
-          { name: '산탄포', kind: 'shot', spd: 8, dmg: 4, count: 5, extra: 2, spread: 0.5, life: 30, rad: 4, cd: 45, en: 12, col: '#FFB27A' },
-          { name: '지뢰', kind: 'mine', dmg: 22, blast: 75, cd: 110, en: 24, col: '#FF5A5F' }] },
-    { id: 3, name: '레이븐', team: '테라 연합', role: '저격형', color: '#7FA2FF', hp: 95, spd: 3.3, r: 22, pref: 340,
+      w: [{ name: '해머 강타', tip: '크게 날려 보냄·마비', kind: 'melee', range: 66, arc: 1.8, dmg: 15, knock: 9, stun: 20, cd: 50, en: 10, col: '#FFD23F' },
+          { name: '산탄포', tip: '가까이서 5발', kind: 'shot', spd: 8, dmg: 4, count: 5, extra: 2, spread: 0.5, life: 30, rad: 4, cd: 45, en: 12, col: '#FFB27A' },
+          { name: '지뢰', tip: '뒤에 설치, 최대 3개', kind: 'mine', dmg: 22, blast: 75, cd: 110, en: 24, col: '#FF5A5F' }] },
+    { id: 3, name: '레이븐', team: '테라 연합', role: '저격형', color: '#7FA2FF', hp: 100, spd: 3.3, r: 22, pref: 340,
       desc: '멀리서 레일 캐논 한 방! 힘을 모으면 장애물도 꿰뚫어요.',
-      w: [{ name: '전기 충격', kind: 'melee', range: 48, arc: 2.2, dmg: 5, stun: 32, cd: 60, en: 10, col: '#7FE3FF' },
-          { name: '레일 캐논', kind: 'shot', spd: 17, dmg: 15, count: 1, life: 60, rad: 6, pierce: true, cd: 50, en: 16, col: '#BFE6FF' },
-          { name: '마비탄', kind: 'shot', spd: 8, dmg: 3, count: 1, life: 90, rad: 8, stun: 70, cd: 160, en: 28, col: '#C792FF' }] },
+      w: [{ name: '전기 충격', tip: '긴 마비', kind: 'melee', range: 48, arc: 2.2, dmg: 5, stun: 32, cd: 60, en: 10, col: '#7FE3FF' },
+          { name: '레일 캐논', tip: '아주 빠른 한 방, 힘 모으면 관통', kind: 'shot', spd: 17, dmg: 17, count: 1, life: 60, rad: 6, pierce: true, cd: 50, en: 16, col: '#BFE6FF' },
+          { name: '마비탄', tip: '맞으면 1초 넘게 마비', kind: 'shot', spd: 8, dmg: 3, count: 1, life: 90, rad: 8, stun: 70, cd: 160, en: 28, col: '#C792FF' }] },
     { id: 4, name: '스팅어', team: '제노 군단', role: '근접 독', color: '#B36BFF', hp: 100, spd: 4.0, r: 21, pref: 90,
       desc: '외계 곤충 로봇. 독을 묻히고 순간 돌진으로 파고들어요.',
-      w: [{ name: '독 발톱', kind: 'melee', range: 52, arc: 1.4, dmg: 6, poison: 120, cd: 20, en: 5, col: '#7DFF8A' },
-          { name: '독침 3갈래', kind: 'shot', spd: 9, dmg: 4, count: 3, extra: 0, spread: 0.32, life: 45, rad: 4, poison: 60, cd: 30, en: 9, col: '#7DFF8A' },
-          { name: '돌진 찌르기', kind: 'dash', dist: 190, dmg: 14, cd: 140, en: 24, col: '#E3B3FF' }] },
-    { id: 5, name: '메두사', team: '제노 군단', role: '범위형', color: '#3DDCC4', hp: 110, spd: 3.2, r: 23, pref: 160,
+      w: [{ name: '독 발톱', tip: '독(조금씩 피해)', kind: 'melee', range: 52, arc: 1.4, dmg: 6, poison: 120, cd: 20, en: 5, col: '#7DFF8A' },
+          { name: '독침 3갈래', tip: '3발 + 독', kind: 'shot', spd: 9, dmg: 4, count: 3, extra: 0, spread: 0.32, life: 45, rad: 4, poison: 60, cd: 30, en: 9, col: '#7DFF8A' },
+          { name: '돌진 찌르기', tip: '앞으로 순간 돌진', kind: 'dash', dist: 190, dmg: 14, cd: 140, en: 24, col: '#E3B3FF' }] },
+    { id: 5, name: '메두사', team: '제노 군단', role: '범위형', color: '#3DDCC4', hp: 120, spd: 3.2, r: 23, pref: 160,
       desc: '촉수로 둘레를 휩쓸고, 멀리 있는 상대를 끌어당겨요.',
-      w: [{ name: '촉수 회오리', kind: 'spin', range: 72, dmg: 7, knock: 6, cd: 45, en: 10, col: '#3DDCC4' },
-          { name: '에너지 구체', kind: 'shot', spd: 5.5, dmg: 11, count: 1, life: 100, rad: 13, slow: 90, cd: 36, en: 11, col: '#FF7EB6' },
-          { name: '끌어당기기', kind: 'pull', range: 380, dmg: 6, stun: 25, cd: 160, en: 26, col: '#FF7EB6' }] },
+      w: [{ name: '촉수 회오리', tip: '내 둘레 전체 공격', kind: 'spin', range: 72, dmg: 8, knock: 6, cd: 40, en: 10, col: '#3DDCC4' },
+          { name: '에너지 구체', tip: '느린 큰 탄, 맞으면 느려짐', kind: 'shot', spd: 5.5, dmg: 13, count: 1, life: 100, rad: 13, slow: 90, cd: 36, en: 11, col: '#FF7EB6' },
+          { name: '끌어당기기', tip: '먼 상대를 내 앞으로', kind: 'pull', range: 380, dmg: 6, stun: 25, cd: 160, en: 26, col: '#FF7EB6' }] },
     { id: 6, name: '골렘', team: '제노 군단', role: '탱커', color: '#8FD16B', hp: 150, spd: 2.6, r: 26, pref: 90,
       desc: '바위 갑옷 로봇. 방패로 버티고 상대 에너지를 빨아들여요.',
-      w: [{ name: '바위 창', kind: 'melee', range: 74, arc: 0.9, dmg: 12, knock: 7, cd: 36, en: 8, col: '#C9A15A' },
-          { name: '흡수 빔', kind: 'shot', spd: 11, dmg: 5, count: 1, life: 42, rad: 5, drain: 18, cd: 28, en: 6, col: '#8FD16B' },
-          { name: '바위 방패', kind: 'shield', time: 150, cd: 300, en: 30, col: '#C9A15A' }] },
+      w: [{ name: '바위 창', tip: '길고 좁은 찌르기', kind: 'melee', range: 74, arc: 0.9, dmg: 12, knock: 7, cd: 36, en: 8, col: '#C9A15A' },
+          { name: '흡수 빔', tip: '상대 에너지를 빼앗음', kind: 'shot', spd: 11, dmg: 5, count: 1, life: 42, rad: 5, drain: 18, cd: 28, en: 6, col: '#8FD16B' },
+          { name: '바위 방패', tip: '받는 피해 70% 줄임', kind: 'shield', time: 150, cd: 300, en: 30, col: '#C9A15A' }] },
     /* ----- 7~12: 추가 로봇 (기술은 시중 게임을 참고: 괄호 안) ----- */
     { id: 7, name: '블레이즈', team: '테라 연합', role: '화염형', color: '#FF5A3D', hp: 105, spd: 3.4, r: 23, pref: 110,
       desc: '불꽃을 뿜어 태워요. 로켓 점프로 날아올라 내려찍기!',
-      w: [{ name: '화염 방사', kind: 'cone', range: 105, arc: 0.9, dmg: 3, burn: 90, knock: 1, cd: 14, en: 5, col: '#FF7A3D' },        // 팀 포트리스 2 파이로 화염 방사기
-          { name: '네이팜탄', kind: 'shot', spd: 6, dmg: 6, count: 1, extra: 1, spread: 0.25, life: 60, rad: 7, explode: 65, burn: 120, cd: 50, en: 14, col: '#FFB347' },   // 터지면 주변에 불
-          { name: '로켓 점프', kind: 'leap', dist: 220, dmg: 12, blast: 85, cd: 150, en: 26, col: '#FF5A3D' }] },    // 오버워치 파라 · 솔저 로켓 점프
+      w: [{ name: '화염 방사', tip: '부채꼴 불, 화상', kind: 'cone', range: 105, arc: 0.9, dmg: 3, burn: 90, knock: 1, cd: 14, en: 5, col: '#FF7A3D' },        // 팀 포트리스 2 파이로 화염 방사기
+          { name: '네이팜탄', tip: '터지며 주변에 불', kind: 'shot', spd: 6, dmg: 6, count: 1, extra: 1, spread: 0.25, life: 60, rad: 7, explode: 65, burn: 120, cd: 50, en: 14, col: '#FFB347' },   // 터지면 주변에 불
+          { name: '로켓 점프', tip: '날아가 내려찍기(공중 무적)', kind: 'leap', dist: 220, dmg: 12, blast: 85, cd: 150, en: 26, col: '#FF5A3D' }] },    // 오버워치 파라 · 솔저 로켓 점프
     { id: 8, name: '프로스트', team: '테라 연합', role: '빙결 제어', color: '#8FD8FF', hp: 100, spd: 3.3, r: 22, pref: 200,
       desc: '얼음으로 느리게 만들고, 빙결 장판으로 꽁꽁 묶어요.',
-      w: [{ name: '얼음 칼', kind: 'melee', range: 56, arc: 1.5, dmg: 7, slow: 70, cd: 20, en: 5, col: '#BFF0FF' },
-          { name: '고드름 연사', kind: 'shot', spd: 10, dmg: 3, count: 3, extra: 1, spread: 0.18, life: 50, rad: 4, slow: 25, cd: 30, en: 10, col: '#8FD8FF' },
-          { name: '빙결 장판', kind: 'zone', zone: 'ice', r: 90, time: 160, throw: 170, freeze: 30, cd: 200, en: 30, col: '#BFF0FF' }] },  // 오버워치 메이 · 리그 오브 레전드 애니비아
+      w: [{ name: '얼음 칼', tip: '맞으면 느려짐', kind: 'melee', range: 58, arc: 1.5, dmg: 8, slow: 70, cd: 20, en: 5, col: '#BFF0FF' },
+          { name: '고드름 연사', tip: '3발, 느려짐', kind: 'shot', spd: 10, dmg: 4, count: 3, extra: 1, spread: 0.18, life: 50, rad: 4, slow: 25, cd: 30, en: 10, col: '#8FD8FF' },
+          { name: '빙결 장판', tip: '상대 자리에 던져 얼림', kind: 'zone', zone: 'ice', r: 90, time: 160, throw: 170, freeze: 30, cd: 200, en: 30, col: '#BFF0FF' }] },  // 오버워치 메이 · 리그 오브 레전드 애니비아
     { id: 9, name: '엔젤', team: '테라 연합', role: '지원형', color: '#7DFFC4', hp: 105, spd: 3.6, r: 21, pref: 220,
       desc: '나노탄은 적은 다치고 우리 편은 고쳐요. 수리 구역에 서 있으면 체력 회복!',
-      w: [{ name: '전기봉', kind: 'melee', range: 52, arc: 1.6, dmg: 6, stun: 14, cd: 22, en: 5, col: '#7DFFC4' },
-          { name: '나노탄', kind: 'shot', spd: 10, dmg: 6, count: 1, extra: 1, spread: 0.15, life: 55, rad: 5, heal: 8, cd: 20, en: 8, col: '#B8FFE0' },
-          { name: '수리 구역', kind: 'zone', zone: 'heal', r: 110, time: 200, throw: 0, cd: 300, en: 32, col: '#7DFFC4' }] },  // 오버워치 메르시·루시우 · 롤 소나
+      w: [{ name: '전기봉', tip: '짧은 마비', kind: 'melee', range: 52, arc: 1.6, dmg: 6, stun: 14, cd: 22, en: 5, col: '#7DFFC4' },
+          { name: '나노탄', tip: '상대는 피해, 우리 편은 회복', kind: 'shot', spd: 10, dmg: 6, count: 1, extra: 1, spread: 0.15, life: 55, rad: 5, heal: 10, cd: 20, en: 8, col: '#B8FFE0' },
+          { name: '수리 구역', tip: '서 있으면 체력 회복', kind: 'zone', zone: 'heal', r: 110, time: 200, throw: 0, cd: 300, en: 32, col: '#7DFFC4' }] },  // 오버워치 메르시·루시우 · 롤 소나
     { id: 10, name: '팬텀', team: '제노 군단', role: '암살자', color: '#C77DFF', hp: 100, spd: 4.4, r: 20, pref: 70,
       desc: '모습을 감추고 다가가 첫 공격 2배! 부메랑 칼날은 돌아와요.',
-      w: [{ name: '그림자 베기', kind: 'melee', range: 58, arc: 1.6, dmg: 10, cd: 18, en: 5, col: '#E3B3FF' },
-          { name: '부메랑 칼날', kind: 'shot', spd: 8, dmg: 6, count: 1, extra: 1, spread: 0.3, life: 90, rad: 7, boomerang: 28, cd: 40, en: 10, col: '#C77DFF' },   // 젤다 부메랑
-          { name: '그림자 은신', kind: 'cloak', time: 180, cd: 280, en: 28, col: '#C77DFF' }] },   // 롤 이블린·트위치 · 스타크래프트 클로킹
+      w: [{ name: '그림자 베기', tip: '빠른 베기', kind: 'melee', range: 58, arc: 1.6, dmg: 11, cd: 18, en: 5, col: '#E3B3FF' },
+          { name: '부메랑 칼날', tip: '돌아오며 한 번 더', kind: 'shot', spd: 8, dmg: 6, count: 1, extra: 1, spread: 0.3, life: 90, rad: 7, boomerang: 28, cd: 40, en: 10, col: '#C77DFF' },   // 젤다 부메랑
+          { name: '그림자 은신', tip: '3초 투명, 첫 공격 2배', kind: 'cloak', time: 180, cd: 280, en: 28, col: '#C77DFF' }] },   // 롤 이블린·트위치 · 스타크래프트 클로킹
     { id: 11, name: '볼텍스', team: '제노 군단', role: '중력 제어', color: '#6B5BFF', hp: 105, spd: 3.0, r: 23, pref: 230,
       desc: '번개가 상대끼리 옮겨 다니고, 블랙홀로 한곳에 빨아들여요.',
-      w: [{ name: '중력 펀치', kind: 'melee', range: 60, arc: 1.4, dmg: 9, knock: 13, cd: 34, en: 7, col: '#9A8CFF' },
-          { name: '연쇄 번개', kind: 'chain', range: 250, jump: 150, dmg: 7, hops: 1, stun: 4, cd: 50, en: 14, col: '#9AD0FF' },   // 디아블로 연쇄 번개
-          { name: '블랙홀', kind: 'zone', zone: 'hole', r: 140, time: 120, throw: 200, cd: 280, en: 34, col: '#6B5BFF' }] },     // 오버워치 자리야 중력자탄
+      w: [{ name: '중력 펀치', tip: '아주 멀리 날려 보냄', kind: 'melee', range: 60, arc: 1.4, dmg: 9, knock: 13, cd: 34, en: 7, col: '#9A8CFF' },
+          { name: '연쇄 번개', tip: '반드시 맞음, 옆 상대로 튐', kind: 'chain', range: 250, jump: 150, dmg: 8, hops: 1, stun: 4, cd: 46, en: 14, col: '#9AD0FF' },   // 디아블로 연쇄 번개
+          { name: '블랙홀', tip: '가운데로 빨아들임', kind: 'zone', zone: 'hole', r: 140, time: 120, throw: 200, cd: 280, en: 34, col: '#6B5BFF' }] },     // 오버워치 자리야 중력자탄
     { id: 12, name: '스파이더', team: '제노 군단', role: '설치형', color: '#C9D63A', hp: 115, spd: 3.1, r: 24, pref: 230,
       desc: '거미줄로 발을 묶고, 자동 포탑을 세워 함께 싸워요.',
-      w: [{ name: '다리 찌르기', kind: 'melee', range: 62, arc: 1.2, dmg: 10, knock: 5, cd: 28, en: 6, col: '#E6F07A' },
-          { name: '거미줄탄', kind: 'shot', spd: 8, dmg: 4, count: 1, extra: 1, spread: 0.2, life: 60, rad: 6, root: 60, cd: 34, en: 10, col: '#F2F2F2' },
-          { name: '포탑 설치', kind: 'turret', time: 480, rate: 26, dmg: 3, range: 330, hp: 30, cd: 300, en: 30, col: '#C9D63A' }] }     // 팀 포트리스 2 엔지니어 · 오버워치 토르비욘
+      w: [{ name: '다리 찌르기', tip: '단단한 찌르기', kind: 'melee', range: 62, arc: 1.2, dmg: 10, knock: 5, cd: 28, en: 6, col: '#E6F07A' },
+          { name: '거미줄탄', tip: '1초 동안 발이 묶임', kind: 'shot', spd: 8, dmg: 4, count: 1, extra: 1, spread: 0.2, life: 60, rad: 6, root: 60, cd: 34, en: 10, col: '#F2F2F2' },
+          { name: '포탑 설치', tip: '8초 동안 자동 사격', kind: 'turret', time: 480, rate: 26, dmg: 3, range: 330, hp: 30, cd: 300, en: 30, col: '#C9D63A' }] }     // 팀 포트리스 2 엔지니어 · 오버워치 토르비욘
   ];
   const ZK = ['ice', 'heal', 'hole'];
+  const HP_MUL = 1.8;   // 체력 배율: 표의 hp × 1.8 이 실제 체력 (한 판이 너무 빨리 끝나지 않게, 평균 약 35초)
   const ROCKS = [[300, 150, 34], [660, 390, 34], [480, 270, 26], [190, 410, 22], [770, 130, 22]];   // 경기장 바위 (x, y, 반지름)
   const LV = { easy: { think: 22, err: 0.35, dodge: 0.08, charge: 0.1, aggro: 0.55 }, normal: { think: 12, err: 0.14, dodge: 0.35, charge: 0.35, aggro: 0.8 }, hard: { think: 6, err: 0.04, dodge: 0.7, charge: 0.6, aggro: 1 } };
   const cfg = () => window.GoSettings.get('mecha') || {};
@@ -164,7 +165,7 @@
       const KEYS = {
         KeyA: 'me.left', KeyD: 'me.right', KeyW: 'me.up', KeyS: 'me.down', ArrowLeft: 'me.left', ArrowRight: 'me.right', ArrowUp: 'me.up', ArrowDown: 'me.down',
         ShiftLeft: 'me.boost', ShiftRight: 'me.boost', Space: 'me.boost',
-        KeyJ: 'me.w1', KeyK: 'me.w2', KeyL: 'me.w3', Digit1: 'me.w1', Digit2: 'me.w2', Digit3: 'me.w3', Numpad1: 'me.w1', Numpad2: 'me.w2', Numpad3: 'me.w3',
+        KeyJ: 'me.w1', KeyK: 'me.w2', KeyL: 'me.w3', KeyZ: 'me.w1', KeyX: 'me.w2', KeyC: 'me.w3', KeyP: 'pause', Escape: 'pause', Digit1: 'me.w1', Digit2: 'me.w2', Digit3: 'me.w3', Numpad1: 'me.w1', Numpad2: 'me.w2', Numpad3: 'me.w3',
         Digit4: 'pick4', Digit5: 'pick5', Digit6: 'pick6', Digit7: 'pick7', Digit8: 'pick8', Digit9: 'pick9', Digit0: 'pick10', Minus: 'pick11', Equal: 'pick12',
         Enter: 'pickOk', NumpadEnter: 'pickOk'
       };
@@ -182,11 +183,25 @@
         const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * W / b.width, y = (e.clientY - b.top) * H / b.height;
         return pickRects().find(q => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h);
       };
-      const onDown = e => { if (phase !== 'pick') return; const r = pickAt(e); if (r) { cur = r.i; choose(r.rb.id); } };
+      const onDown = e => {
+        if (phase === 'paused') { phase = 'fight'; hooks.onButtons(pauseBtn()); return; }   // 일시정지 중 화면을 누르면 계속
+        if (phase !== 'pick') return; const r = pickAt(e); if (!r) return;
+        if (e.pointerType === 'mouse' || r.i === cur) { cur = r.i; choose(r.rb.id); } else { cur = r.i; render(); }
+      };
       const onHover = e => { if (phase !== 'pick') return; const r = pickAt(e); if (r && r.i !== cur) { cur = r.i; render(); } };
       canvas.addEventListener('pointerdown', onDown); canvas.addEventListener('pointermove', onHover);
 
+      const pauseBtn = () => (online() ? [] : [{ id: 'pause', label: '일시정지 / 계속' }]);
+      function togglePause() {
+        if (online()) return;
+        if (phase === 'fight') phase = 'paused'; else if (phase === 'paused') phase = 'fight'; else return;
+        P.forEach(f => { f.ai.hold = {}; });
+        render();
+      }
+      const onVis = () => { if (document.hidden && phase === 'fight') togglePause(); };   // 다른 탭을 보면 자동 일시정지 (AI 대전)
+      document.addEventListener('visibilitychange', onVis);
       function onKey(a, fromPad) {
+        if (a === 'pause') return togglePause();
         if (phase !== 'pick' || fromPad) return;   // 휴대폰은 카드를 직접 눌러 고름 (화면 버튼과 겹쳐 잘못 고르지 않게)
         const v = { 'me.w1': 1, 'me.w2': 2, 'me.w3': 3 }[a] || (/^pick\d+$/.test(a) ? +a.slice(4) : 0);
         if (v) { cur = v - 1; return choose(v); }
@@ -207,7 +222,7 @@
           hp: 100, maxHp: 100, en: 100, cd: [0, 0, 0], chg: [-1, -1, -1], prevW: [false, false, false], prevBoost: false, boostCd: 0,
           stun: 0, poison: 0, slowT: 0, shield: 0, burn: 0, rootT: 0, cloak: 0, leap: null, dead: false, hitFlash: 0, ai: { t: 0, hold: {}, strafe: 1, chargeFor: [0, 0, 0], wx: 0, wy: 0 } };
       }
-      function setRobot(f, rid) { const rb = ROBOTS[rid - 1] || ROBOTS[0]; f.rid = rb.id; f.rb = rb; f.hp = f.maxHp = rb.hp; }
+      function setRobot(f, rid) { const rb = ROBOTS[rid - 1] || ROBOTS[0]; f.rid = rb.id; f.rb = rb; f.hp = f.maxHp = Math.round(rb.hp * HP_MUL); }
       const alive = () => P.filter(f => !f.dead);
       const enemiesOf = f => P.filter(e => e.team !== f.team && !e.dead);
       const seen = t => !(t.cloak > 0);   // 은신 중이면 상대가 자동 조준할 수 없음
@@ -233,16 +248,17 @@
         o = o || {};
         if (t.shield > 0) dmg *= 0.3;
         dmg = Math.max(1, Math.round(dmg));
-        t.hp -= dmg; t.hitFlash = 8;
+        t.hp -= dmg; if (!o.dot) t.hitFlash = 8;
+        t.taken = (t.taken || 0) + dmg; if (from && from !== t) from.dealt = (from.dealt || 0) + dmg;
         if (t.cloak > 0) { t.cloak = 0; addFx({ kind: 'ring', x: t.x, y: t.y, r: t.rb.r, color: '#C77DFF', life: 14 }); }   // 맞으면 은신이 풀림
         if (o.stun) t.stun = Math.max(t.stun, o.stun);
-        if (o.poison) t.poison = Math.max(t.poison, o.poison);
+        if (o.poison) { t.poison = Math.max(t.poison, o.poison); t.poisonBy = from; }
         if (o.slow) t.slowT = Math.max(t.slowT, o.slow);
-        if (o.burn) t.burn = Math.max(t.burn, o.burn);
+        if (o.burn) { t.burn = Math.max(t.burn, o.burn); t.burnBy = from; }
         if (o.root) t.rootT = Math.max(t.rootT, o.root);
         if (o.drain) { t.en = Math.max(0, t.en - o.drain); if (from) from.en = Math.min(100, from.en + o.drain / 2); }
         if (o.knock && from) { const a = Math.atan2(t.y - from.y, t.x - from.x); t.vx += Math.cos(a) * o.knock; t.vy += Math.sin(a) * o.knock; }
-        addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r - 12, text: '-' + dmg, color: o.poison ? '#7DFF8A' : o.fire ? '#FF9A3D' : dmg >= 12 ? '#FF5A5F' : '#FFE48A', life: 34 });
+        if (!o.dot) addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r - 12, text: '-' + dmg, color: o.poison ? '#7DFF8A' : o.fire ? '#FF9A3D' : dmg >= 12 ? '#FF5A5F' : '#FFE48A', life: 34 });
         if (dmg >= 12) shake = Math.max(shake, 8);
         if (t.hp <= 0) {
           t.hp = 0; t.dead = true; t.vx = t.vy = 0;
@@ -253,8 +269,8 @@
 
       function heal(t, amt) {
         if (t.dead || t.hp >= t.maxHp) return;
-        const v = Math.min(t.maxHp - t.hp, Math.round(amt)); t.hp += v;
-        if (v >= 3) addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r - 12, text: '+' + v, color: '#7DFFC4', life: 30 });
+        const v = Math.min(t.maxHp - t.hp, amt); t.hp += v;
+        if (v >= 3) addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r - 12, text: '+' + Math.round(v), color: '#7DFFC4', life: 30 });
       }
       // 폭발: 반지름 안의 상대 모두에게 피해
       function explodeAt(x, y, rad, dmg, team, from, o) {
@@ -411,8 +427,8 @@
           if (f.stun > 0) f.stun--; if (f.slowT > 0) f.slowT--; if (f.shield > 0) f.shield--; if (f.hitFlash > 0) f.hitFlash--;
           if (f.boostCd > 0) f.boostCd--;
           for (let k = 0; k < 3; k++) if (f.cd[k] > 0) f.cd[k]--;
-          if (f.poison > 0) { f.poison--; if (f.poison % 20 === 0) hurt(f, 1, null, {}); if (f.dead) return; }
-          if (f.burn > 0) { f.burn--; if (f.burn % 15 === 0) hurt(f, 1, null, { fire: true }); if (f.dead) return; }
+          if (f.poison > 0) { f.poison--; if (f.poison % 20 === 0) hurt(f, 1, f.poisonBy, { dot: true }); if (f.dead) return; }
+          if (f.burn > 0) { f.burn--; if (f.burn % 15 === 0) hurt(f, 1, f.burnBy, { fire: true, dot: true }); if (f.dead) return; }
           if (f.rootT > 0) f.rootT--;
           if (f.cloak > 0) f.cloak--;
           // 로켓 점프 중: 날아가는 동안 조작 불가, 내려앉으면 폭발
@@ -497,10 +513,10 @@
           P.forEach(t => {
             if (t.dead || t.leap) return;
             const d = Math.hypot(t.x - z.x, t.y - z.y); if (d > z.r + t.rb.r * 0.5) return;
-            if (z.kind === 'heal') { if (t.team === z.team && frames % 10 === 0) heal(t, z.mul); return; }
+            if (z.kind === 'heal') { if (t.team === z.team && frames % 10 === 0) heal(t, 1.4 * z.mul); return; }
             if (t.team === z.team) return;
-            if (z.kind === 'ice') { t.slowT = Math.max(t.slowT, 10); if (frames % 30 === 0) hurt(t, 1, P[z.from], {}); }
-            else if (z.kind === 'hole' && d > 4) { t.vx += (z.x - t.x) / d * 0.32; t.vy += (z.y - t.y) / d * 0.32; if (frames % 15 === 0) hurt(t, 1 * z.mul, P[z.from], {}); }
+            if (z.kind === 'ice') { t.slowT = Math.max(t.slowT, 10); if (frames % 30 === 0) hurt(t, 1, P[z.from], { dot: true }); }
+            else if (z.kind === 'hole' && d > 4) { t.vx += (z.x - t.x) / d * 0.32; t.vy += (z.y - t.y) / d * 0.32; if (frames % 15 === 0) hurt(t, 1 * z.mul, P[z.from], { dot: true }); }
           });
         });
         ZONES = ZONES.filter(z => z.life > 0);
@@ -532,7 +548,7 @@
         const winner = ko ? (a0 ? 0 : a1 ? 1 : -1) : (p0 > p1 ? 0 : p1 > p0 ? 1 : -1);
         phase = 'ko'; slow = 80;
         banner = { text: ko ? '격파!' : (winner === -1 ? '무승부!' : '시간 종료!'), color: '#FFD23F', t: 999, big: true };
-        P._result = { winner, ko, pct: [p0, p1] };
+        P._result = { winner, ko, pct: [p0, p1], dmg: P.map(f => [Math.round(f.dealt || 0), Math.round(f.taken || 0)]) };
       }
       function finish(why) {
         if (phase === 'over') return;
@@ -543,8 +559,10 @@
         if (why && winner === -1) msg = why;
         else if (winner === -1) msg = `무승부 (남은 체력 ${pct[0]}% : ${pct[1]}%)`;
         else msg = (winner === myTeam() ? (ko ? '승리! 상대 로봇을 모두 격파했어요' : '승리! 남은 체력이 더 많았어요') : (ko ? '아쉬워요… 모두 격파당했어요' : '아쉬워요… 남은 체력이 모자랐어요')) + (why ? ' · ' + why : '');
-        hooks.onTurn({ text: msg, side: -1 });
         const me = P.find(f => f.mine) || P[0];
+        const dm = P._result && P._result.dmg && P._result.dmg[me.i];
+        if (dm && winner !== -1 || dm && !why) msg += ` · 준 피해 ${dm[0]} · 받은 피해 ${dm[1]}`;
+        hooks.onTurn({ text: msg, side: -1 });
         hooks.onOver({ winner, win: winner < 0 ? null : winner === myTeam(), message: msg, moves: 0, duration_sec: clock.sec(), extra: { pct, ko, robot: me.rid, players: n } });
       }
       function status() {
@@ -643,6 +661,7 @@
           if (!hidden) {
             ctx.globalAlpha = f.dead ? 0.25 : 1;
             ctx.strokeStyle = TEAM_COL[f.team]; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 6, 0, Math.PI * 2); ctx.stroke();
+            if (f.mine && !f.dead) { ctx.strokeStyle = 'rgba(255,210,63,' + (0.55 + 0.35 * Math.sin(frames / 8)) + ')'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 22, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
             ctx.globalAlpha = 1;
           }
           drawRobot(ctx, f.rb, f.x, f.leap && !f.dead ? f.y - 22 : f.y, f.ang, f.leap && !f.dead ? 1.25 : 1, f.dead ? 0.35 : hidden ? 0.08 : f.cloak > 0 ? 0.45 : f.hitFlash % 4 >= 2 ? 0.5 : 1);
@@ -657,8 +676,15 @@
           if (ch >= 0) { const lv = Math.min(2, Math.floor(ch / 30)), part = lv >= 2 ? 1 : (ch % 30) / 30; ctx.strokeStyle = ['#FFFFFF', '#FFD23F', '#FF5A5F'][lv]; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * part); ctx.stroke(); }
           // 머리 위 이름·체력
           S.bar(ctx, f.x - 26, f.y - f.rb.r - 18, 52, 5, f.hp / f.maxHp, TEAM_COL[f.team]);
-          S.text(ctx, tagOf(f), f.x, f.y - f.rb.r - 32, 13, f.mine ? '#FFD23F' : '#FFFFFF');
+          S.text(ctx, tagOf(f), f.x, f.y - f.rb.r - 32, f.mine ? 15 : 13, f.mine ? '#FFD23F' : '#FFFFFF');
+          if (f.mine) { const ty = f.y - f.rb.r - 50 + Math.sin(frames / 7) * 3; ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.moveTo(f.x - 7, ty - 6); ctx.lineTo(f.x + 7, ty - 6); ctx.lineTo(f.x, ty + 2); ctx.closePath(); ctx.fill(); }
         });
+        // 내가 지금 자동 조준 중인 상대 표시 (가장 가까운, 보이는 상대)
+        { const me = P.find(f => f.mine);
+          if (me && me.rb && !me.dead && (phase === 'fight' || phase === 'paused')) {
+            const tg = nearest(me);
+            if (tg) { const r = tg.rb.r + 14, sp = frames / 30; ctx.strokeStyle = '#FFD23F'; ctx.lineWidth = 3; for (let k = 0; k < 4; k++) { const a = sp + k * Math.PI / 2; ctx.beginPath(); ctx.arc(tg.x, tg.y, r, a, a + 0.6); ctx.stroke(); } }
+          } }
         B.forEach(b => { const x = b.x + (b.dx || 0), y = b.y + (b.dy || 0); ctx.fillStyle = b.col; ctx.fillRect(x - b.r, y - b.r, b.r * 2, b.r * 2); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillRect(x - b.r / 2, y - b.r / 2, b.r, b.r); });
         fx.forEach(p => {
           const a = Math.max(0, Math.min(1, p.life / 14));
@@ -678,10 +704,13 @@
         });
         ctx.globalAlpha = 1;
         hud();
-        if (banner && banner.t > 0) S.text(ctx, banner.text, W / 2, banner.big ? H / 2 - 20 : 120, banner.big ? 72 : 24, banner.color);
+        if (banner && banner.t > 0) S.text(ctx, banner.text, W / 2, banner.big ? H / 2 - 20 : 76, banner.big ? 72 : 20, banner.color);
         if (phase === 'intro') S.text(ctx, intro > 40 ? '준비…' : '출격!', W / 2, H / 2 - 20, intro > 40 ? 56 : 80, intro > 40 ? '#FFFFFF' : '#FFD23F');
         if (phase === 'waitpick') { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, W, H); S.text(ctx, '다른 사람이 로봇을 고르는 중…', W / 2, H / 2, 32, '#fff'); }
-        if (touch && (phase === 'fight' || phase === 'intro')) touch.draw(ctx);
+        if (touch && (phase === 'fight' || phase === 'intro')) { touch.draw(ctx); hudTouch(); }
+        { const me = P.find(f => f.mine);
+          if (me && me.dead && (phase === 'fight' || phase === 'paused')) { ctx.fillStyle = 'rgba(11,14,34,.7)'; ctx.fillRect(W / 2 - 230, H - 96, 460, 40); S.text(ctx, '내 로봇이 격파됐어요 · 우리 편을 응원하며 관전 중', W / 2, H - 76, 17, '#FFE45C'); } }
+        if (phase === 'paused') { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, H); S.text(ctx, '일시정지', W / 2, H / 2 - 20, 48, '#fff'); S.text(ctx, touch ? '화면을 누르면 계속해요' : '화면을 누르거나 P · Esc 를 누르면 계속해요', W / 2, H / 2 + 36, 22, '#FFE45C'); }
         ctx.restore();
       }
       function hud() {
@@ -692,6 +721,8 @@
           const side = f.team, row = P.filter((q, j) => q.team === side && j < idx).length, bw = 200;
           const x = side === 0 ? 14 : W - 14 - bw, y = 10 + row * 44;
           ctx.fillStyle = 'rgba(11,14,34,.72)'; ctx.fillRect(x, y, bw, 38);
+          if (f.mine) { ctx.strokeStyle = '#FFD23F'; ctx.lineWidth = 2; ctx.strokeRect(x, y, bw, 38); }
+          if (f.dead) { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(x, y, bw, 38); S.text(ctx, '격파됨', x + bw / 2, y + 22, 12, '#FF8A8A'); }
           S.text(ctx, f.name + ' · ' + f.rb.name, side === 0 ? x + 6 : x + bw - 6, y + 9, 12, f.mine ? '#FFD23F' : '#FFFFFF', side === 0 ? 'left' : 'right');
           S.bar(ctx, x + 6, y + 19, bw - 12, 7, f.hp / f.maxHp, f.hp / f.maxHp > 0.3 ? TEAM_COL[side] : '#FFD23F');
           S.bar(ctx, x + 6, y + 30, bw - 12, 3, f.en / 100, '#7FE3FF');
@@ -700,7 +731,7 @@
         ctx.fillStyle = 'rgba(11,14,34,.8)'; ctx.fillRect(W / 2 - 40, 10, 80, 46); ctx.strokeStyle = '#FFD23F'; ctx.lineWidth = 3; ctx.strokeRect(W / 2 - 40, 10, 80, 46);
         S.text(ctx, String(timeLeft), W / 2, 34, 28, timeLeft <= 10 ? '#FF5A5F' : '#fff');
         // 아래쪽: 내 무기 3개 (다시 쓰기까지 남은 시간)
-        if (me && me.rb && !touch) {
+        if (me && me.rb && !touch && !me.dead) {
           me.rb.w.forEach((w, k) => {
             const x = W / 2 - 165 + k * 112, y = H - 46, cdr = me.cd[k] > 0 ? me.cd[k] / w.cd : 0;
             ctx.fillStyle = 'rgba(11,14,34,.8)'; ctx.fillRect(x, y, 106, 36);
@@ -711,11 +742,22 @@
           });
         }
       }
+      function hudTouch() {
+        const me = P.find(f => f.mine);
+        if (!me || !me.rb || me.dead) return;
+        touch.buttons.forEach(bt => {
+          const k = { 'me.w1': 0, 'me.w2': 1, 'me.w3': 2 }[bt.id]; if (k == null) return;
+          const w = me.rb.w[k], cdr = me.cd[k] > 0 ? me.cd[k] / w.cd : 0, poor = me.en < w.en;
+          if (cdr > 0) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.beginPath(); ctx.moveTo(bt.x, bt.y); ctx.arc(bt.x, bt.y, bt.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cdr); ctx.closePath(); ctx.fill(); }
+          if (poor) { ctx.strokeStyle = '#FF5A5F'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(bt.x, bt.y, bt.r + 3, 0, Math.PI * 2); ctx.stroke(); }
+          S.text(ctx, w.name, bt.x, bt.y - bt.r - 10, 12, '#FFFFFF');
+        });
+      }
       function drawPick() {
         ctx.fillStyle = 'rgba(11,14,34,.78)'; ctx.fillRect(0, 0, W, H);
         const p = pickers()[pick];
         S.text(ctx, (p ? p.name : '') + ' · 로봇을 고르세요', W / 2, 40, 28, '#FFD23F');
-        S.text(ctx, touch ? '카드를 눌러 골라요' : '카드 클릭 · 방향키로 옮기고 Enter · 숫자 1~9, 0(10), -(11), =(12)', W / 2, 76, 14, '#fff', 'center', 400);
+        S.text(ctx, touch ? '한 번 누르면 아래에 설명 · 같은 카드를 한 번 더 누르면 출격' : '마우스를 올리면 아래에 설명 · 클릭 또는 Enter 로 출격 · 방향키로 옮기기 · 숫자 1~9, 0(10), -(11), =(12)', W / 2, 76, 14, '#fff', 'center', 400);
         const KEY = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
         pickRects().forEach(r => {
           const rb = r.rb, alien = rb.team === '제노 군단', on = r.i === cur;
@@ -730,7 +772,10 @@
         });
         // 아래: 고른 칸 로봇 설명
         const rb = ROBOTS[cur];
-        if (rb) { S.text(ctx, rb.team + ' · ' + rb.name + ' — ' + rb.desc, W / 2, 516, 13, '#D9DEF2', 'center', 400); }
+        if (rb) {
+          S.text(ctx, rb.name + ' (' + rb.team + ') — ' + rb.desc, W / 2, 503, 13, '#FFE45C', 'center', 400);
+          S.text(ctx, rb.w.map((w, k) => (k + 1) + ' ' + w.name + ': ' + w.tip).join('   ·   '), W / 2, 524, 12, '#D9DEF2', 'center', 400);
+        }
       }
       function loop(ts) {
         raf = requestAnimationFrame(loop);
@@ -769,7 +814,8 @@
             for (let slot = 0; slot < n; slot++) P.push(slot === 0 ? robot(0, meName, true, true) : robot(slot, n > 2 && S.teamOf(slot, n) === 0 ? '우리 편 CPU' : 'CPU' + (n > 2 ? ' ' + (slot - 1) : ''), false));
           }
           timeLeft = cfg().timeLimit || 120; frames = 0; fx = []; banner = null; pick = 0; phase = 'pick'; P._result = null; shake = 0;
-          clock.reset(); clock.start(); hooks.onState('playing'); hooks.onButtons([]); status(); render();
+          clock.reset(); clock.start(); hooks.onState('playing'); hooks.onButtons(pauseBtn()); status(); render();
+          if (touch) setTimeout(() => { try { canvas.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* noop */ } }, 60);
         },
         remote(m) {
           if (!m || !net) return;
@@ -791,6 +837,7 @@
           }
         },
         press(id) {
+          if (id === 'pause') return togglePause();
           if (id === 'resign' && phase !== 'over' && phase !== 'idle') {
             if (online()) {
               const me = P.find(f => f.mine);
@@ -804,8 +851,8 @@
             hooks.onOver({ winner: 1, win: false, message: msg, moves: 0, duration_sec: clock.sec(), extra: { resigned: true } });
           }
         },
-        togglePause() {}, action() {},
-        destroy() { cancelAnimationFrame(raf); input.off(); if (touch) touch.off(); offImg(); canvas.removeEventListener('pointerdown', onDown); canvas.removeEventListener('pointermove', onHover); }
+        togglePause, action() {},
+        destroy() { cancelAnimationFrame(raf); input.off(); if (touch) touch.off(); offImg(); canvas.removeEventListener('pointerdown', onDown); canvas.removeEventListener('pointermove', onHover); document.removeEventListener('visibilitychange', onVis); }
       };
     }
   };
