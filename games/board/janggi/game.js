@@ -198,15 +198,16 @@
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
       const labels = (window.GoSettings.get('janggi') || {}).labels || 'hanja';
-      let st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0 }, mode = 'ai', level = 'normal', busy = false, over = false, timer = 0;
+      let st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0 }, mode = 'ai', level = 'normal', busy = false, over = false, timer = 0, side = CHO;
       const name = s => (s === CHO ? '초' : '한');
-      const human = () => mode === 'local' || st.turn === CHO;
+      const human = () => mode === 'local' || (mode === 'online' ? st.turn === side : st.turn === CHO);
+      const send = m => { if (mode === 'online' && hooks.onMove) hooks.onMove(m); };
       const draw = () => drawBoard(ctx, st, labels);
       function buttons() { hooks.onButtons([]); }
       function turnText() {
         if (over) return;
         const chk = inCheck(st.b, st.turn) ? ' · 장군!' : '';
-        const who = mode === 'ai' ? (st.turn === CHO ? '내 차례 (초)' : '컴퓨터 생각 중… (한)') : name(st.turn) + ' 차례';
+        const who = mode === 'ai' ? (st.turn === CHO ? '내 차례 (초)' : '컴퓨터 생각 중… (한)') : mode === 'online' ? (human() ? '내 차례 (' + name(st.turn) + ')' : '상대 차례… (' + name(st.turn) + ')') : name(st.turn) + ' 차례';
         hooks.onTurn({ text: who + chk + ' · ' + st.moves + '수', side: st.turn });
       }
       function doMove(m) {
@@ -238,7 +239,7 @@
         if (t !== 'up' || over || busy || !human()) return;
         const gx = Math.round((x - MX) / C), gy = Math.round((y - MY) / C); if (!inB(gx, gy)) return;
         const p = st.b[gy][gx];
-        if (st.sel && st.targets.some(([a, c]) => a === gx && c === gy)) { doMove([st.sel[0], st.sel[1], gx, gy]); return after(); }
+        if (st.sel && st.targets.some(([a, c]) => a === gx && c === gy)) { const mv = [st.sel[0], st.sel[1], gx, gy]; doMove(mv); send(mv); return after(); }
         if (p && p.s === st.turn) { st.sel = [gx, gy]; st.targets = legalFrom(st.b, gx, gy); if (!st.targets.length && hooks.onToast) hooks.onToast('그 기물은 지금 움직일 수 없어요'); }
         else { st.sel = null; st.targets = []; }
         draw();
@@ -248,11 +249,16 @@
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
-          clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal';
+          clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || CHO;
           st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0 }; over = false; busy = false;
           clock.reset(); clock.start(); hooks.onState('playing'); buttons(); after();
         },
-        press(id) { if (id === 'resign' && !over) { clearTimeout(timer); busy = false; const loser = mode === 'ai' ? CHO : st.turn; end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
+        press(id) { if (id === 'resign' && !over) { clearTimeout(timer); busy = false; const loser = mode === 'ai' ? CHO : mode === 'online' ? side : st.turn; send({ resign: 1 }); end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
+        remote(m) {
+          if (over) return;
+          if (m && m.resign) { const loser = 1 - side; return end(side, (m.left ? '상대가 나갔어요 · ' : name(loser) + ' 기권 · ') + name(side) + ' 승'); }
+          if (Array.isArray(m) && m.length === 4) { const p = st.b[m[1]] && st.b[m[1]][m[0]]; if (p && p.s === st.turn && legalFrom(st.b, m[0], m[1]).some(([a, c]) => a === m[2] && c === m[3])) { doMove(m); after(); } }
+        },
         togglePause() {}, action() {},
         destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }
       };

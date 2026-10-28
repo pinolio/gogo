@@ -9,6 +9,7 @@ GoSettings.register({
   folder: 'games/board/chess',
   order: 13,
   board: true,                        // 2인 대국 화면 사용 (컴퓨터 / 둘이서)
+  online: true,                       // 온라인 대결 (방 코드로 다른 기기와 대국)
   w: 860,   // 화면에 보이는 판 최대 크기(px)
   sides: '백(먼저) · 흑',
   blurb: '세계 장기 체스. 상대 킹을 체크메이트하면 승리.',

@@ -489,11 +489,12 @@
         if (st === 'over') BGM.pause(); else if (st === 'playing') BGM.play();
       },
       onOver: res => finishBoard(res),
-      onToast: m => toast(m)
+      onToast: m => toast(m),
+      onMove: m => { if (session && session.net) session.net.ch.send({ t: 'mv', m }); }   // 온라인: 내가 둔 수를 상대에게
     };
     mountSocial(id);
     session = { id, board: true, state: 'ready', mode: 'ai', level: 'normal', result: null, save: null };
-    try { const last = JSON.parse(localStorage.getItem('gogo_board_pick') || '{}'); if (last.mode) { session.mode = last.mode; session.level = last.level || 'normal'; } } catch (e) { /* noop */ }
+    try { const last = JSON.parse(localStorage.getItem('gogo_board_pick') || '{}'); if (last.mode && last.mode !== 'online') { session.mode = last.mode; session.level = last.level || 'normal'; } } catch (e) { /* noop */ }
     if (cfg.players) { session.players = 2; try { const n = +localStorage.getItem('gogo_players_' + id); if (cfg.players.includes(n)) session.players = n; } catch (e) { /* noop */ } }
     session.inst = window.GoGames[id].create($('#gameCanvas'), hooks);
     renderOverlay(); refreshGameRank(); renderBoardCard();
@@ -518,7 +519,100 @@
     });
     cleanups.push(() => clearTimeout(resignTimer));
     $('#btnRestart').addEventListener('click', () => { cleanup(); renderPlay(id); });
+    cleanups.push(() => { netLeave(); if (session && session.lobby) { session.lobby.ch.leave(); session.lobby = null; } });
     cleanups.push(() => { if (session) { session.inst.destroy(); session = null; } });
+  }
+
+  /* ---------- 보드게임 온라인 대결 (방 코드, 2명) ----------
+   * 방장 = 먼저 들어온 사람. 판마다 선/후를 번갈아 맡음. 수는 { t:'mv', m } 로 주고받음. */
+  const NET_CODE = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let netGuest = '손님' + (1000 + Math.random() * 9000 | 0);
+  const netNick = () => (Hub.user ? Hub.user.nickname : netGuest);
+  function netLobby() {
+    if (!session || session.lobby) return;
+    const s = session;
+    s.lobby = { rooms: [] };
+    s.lobby.ch = Hub.channel('blobby-' + s.id, {
+      onPeers(list) { s.lobby.rooms = list.filter(r => r && r.code); if (session === s && s.mode === 'online' && !s.net && s.state !== 'playing') renderOverlay(); },
+      onMsg() {}, onError() { toast('실시간 서버에 연결하지 못했어요.'); }
+    });
+  }
+  function netAdvertise() {
+    const s = session, n = s && s.net; if (!n || !s.lobby || n.hostId !== Hub.clientId) return;
+    s.lobby.ch.track({ code: n.code, nick: netNick(), count: n.peers.length, status: s.state === 'playing' ? 'playing' : 'waiting', at: n.joinedAt });
+  }
+  function netJoin(code) {
+    netLeave();
+    const s = session, n = s.net = { code, peers: [], hostId: Hub.clientId, joinedAt: Date.now(), round: 0, side: 0, oppId: null, oppNick: '' };
+    n.ch = Hub.channel('broom-' + s.id + '-' + code, {
+      onPeers: list => netPeers(s, list),
+      onMsg: m => netMsg(s, m),
+      onError() { toast('방에 연결하지 못했어요.'); }
+    });
+    n.ch.track({ id: Hub.clientId, nick: netNick(), avatar: Hub.user ? Hub.user.avatar : null, joinedAt: n.joinedAt });
+    renderOverlay();
+    setTimeout(() => {
+      if (session !== s || s.net !== n) return;
+      if (!n.peers.slice(0, 2).some(p => p.id === Hub.clientId) && n.peers.length >= 2) { toast('이미 두 사람이 대국 중인 방이에요.'); netLeave(); renderOverlay(); }
+    }, 1500);
+  }
+  function netLeave() {
+    const s = session, n = s && s.net; if (!n) return;
+    try { n.ch.leave(); } catch (e) { /* noop */ }
+    if (s.lobby) try { s.lobby.ch.untrack(); } catch (e) { /* noop */ }
+    s.net = null;
+  }
+  function netPeers(s, list) {
+    const n = s.net; if (!n || session !== s) return;
+    n.peers = list.filter(p => p && p.id).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
+    n.hostId = n.peers.length ? n.peers[0].id : Hub.clientId;
+    // 대국 중 상대가 나가면 내 승리
+    if (s.state === 'playing' && n.oppId && !n.peers.some(p => p.id === n.oppId)) { toast('상대가 나갔어요.'); s.inst.remote({ resign: 1, left: 1 }); }
+    netAdvertise();
+    if (s.state !== 'playing') renderOverlay();
+  }
+  function netMsg(s, m) {
+    if (!m || session !== s || !s.net) return;
+    if (m.t === 'start') netStart(m.hostSide);
+    else if (m.t === 'mv' && s.state === 'playing') s.inst.remote(m.m);
+  }
+  function netStart(hostSide) {
+    const s = session, n = s.net; if (!n) return;
+    const players = n.peers.slice(0, 2); if (!players.some(p => p.id === Hub.clientId)) return;
+    n.side = n.hostId === Hub.clientId ? hostSide : 1 - hostSide;
+    const opp = players.find(p => p.id !== Hub.clientId) || {};
+    n.oppId = opp.id || null; n.oppNick = opp.nick || '상대';
+    s.result = null; s.save = null;
+    s.inst.start({ mode: 'online', side: n.side }); BGM.restart();
+    netAdvertise();
+  }
+  function netHostStart() {
+    const n = session && session.net; if (!n || n.hostId !== Hub.clientId || n.peers.length < 2) return;
+    const hostSide = n.round++ % 2;
+    n.ch.send({ t: 'start', hostSide });
+    netStart(hostSide);
+  }
+  // 온라인 대기 화면 (오버레이 안)
+  function netPanelHTML(cfg) {
+    const s = session, n = s.net;
+    const sides = (cfg.sides || '선 · 후').split('/')[0].split('·').map(x => x.trim());
+    if (!n) {
+      const rooms = (s.lobby ? s.lobby.rooms : []).filter(r => r.status !== 'playing' && r.count < 2);
+      return `<div class="net-box">
+        <button class="btn btn-primary" type="button" data-net="create">방 만들기</button>
+        <form class="code-row" data-net-form><input maxlength="4" placeholder="코드 4자리" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="방 코드"><button class="btn" type="submit">입장</button></form>
+        ${rooms.length ? `<div class="net-rooms">${rooms.slice(0, 5).map(r => `<button class="btn btn-sm" type="button" data-net-join="${esc(r.code)}">${esc(r.nick)}의 방 · ${esc(r.code)}</button>`).join('')}</div>` : '<p class="ov-hint">열린 방이 없으면 방을 만들고 코드를 친구에게 알려 주세요.</p>'}
+      </div>`;
+    }
+    const host = n.hostId === Hub.clientId, two = n.peers.length >= 2;
+    const mySide = host ? n.round % 2 : 1 - n.round % 2;
+    return `<div class="net-box">
+      <div class="net-code">방 코드 <b class="num">${esc(n.code)}</b></div>
+      <ul class="net-peers">${n.peers.slice(0, 2).map(p => `<li>${esc(p.nick)}${p.id === Hub.clientId ? ' <small>(나)</small>' : ''}${p.id === n.hostId ? ' <small>방장</small>' : ''}</li>`).join('')}${two ? '' : '<li class="wait">상대를 기다리는 중…</li>'}</ul>
+      ${two ? `<p class="ov-hint">이번 판: 나는 <b>${esc(sides[mySide] || (mySide ? '후' : '선'))}</b> (판마다 바뀌어요)</p>` : ''}
+      ${host ? `<button class="btn btn-primary" type="button" data-net="start" ${two ? '' : 'disabled'}>대국 시작 ▶</button>` : `<p class="ov-hint">${two ? '방장이 시작하면 바로 시작돼요.' : ''}</p>`}
+      <button class="btn btn-sm" type="button" data-net="leave">방 나가기</button>
+    </div>`;
   }
   function renderBoardCard() {
     const el = $('#playerCard'); if (!el || !session) return;
@@ -529,7 +623,8 @@
       <dl class="rules">
         <dt>포인트</dt><dd>${(session.players || 2) > 2 && cfg.pointsByRank ? rankPointText(cfg, session.players) : `컴퓨터에게 승리 <b class="plus">+${pts.win}P</b> · 패배 <b class="minus">${pts.lose}P</b> · 무승부 0P`}</dd>
         <dt>랭킹 점수</dt><dd>이긴 난이도 · 쉬움 ${ls.easy || 100} / 보통 ${ls.normal || 200} / 어려움 ${ls.hard || 300}</dd>
-        <dt>${cfg.players ? '친구와' : '둘이서'}</dt><dd>한 기기로 번갈아 두기 · 포인트 없음</dd>
+        <dt>오프라인</dt><dd>한 기기로 번갈아 두기 · 포인트 없음</dd>
+        ${cfg.online ? `<dt>온라인</dt><dd>방 코드로 다른 기기 친구와 · 승리 <b class="plus">+${pts.win}P</b> · 패배 <b class="minus">${pts.lose}P</b></dd>` : ''}
       </dl>`;
     AV.paintAll(el);
   }
@@ -543,16 +638,17 @@
       ov.innerHTML = `<div class="ov-box ov-board"><div class="ov-title">${g.name}</div>
         <p class="ov-goal">${esc(g.blurb)}</p>
         <div class="mode-pick">
-          <div class="mode-row"><span class="mode-lbl">컴퓨터와</span><div class="mode-btns">${lv}</div></div>
-          <div class="mode-row"><span class="mode-lbl">친구와</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">${np > 2 ? np + '명이' : '둘이서'} 한 기기</button></div></div>
+          <div class="mode-row"><span class="mode-lbl">AI 대전</span><div class="mode-btns">${lv}</div></div>
+          <div class="mode-row"><span class="mode-lbl">오프라인</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">${np > 2 ? np + '명이' : '둘이서'} 한 기기</button></div></div>
+          ${cfg.online ? `<div class="mode-row"><span class="mode-lbl">온라인</span><div class="mode-btns"><button class="btn ${session.mode === 'online' ? 'btn-sun' : ''}" type="button" data-pick="online">다른 기기 친구와</button></div></div>` : ''}
           ${cfg.players ? `<div class="mode-row"><span class="mode-lbl">인원</span><div class="mode-btns">${cfg.players.map(n => `<button class="btn ${np === n ? 'btn-sun' : ''}" type="button" data-players="${n}">${n}명</button>`).join('')}</div></div>` : ''}
         </div>
-        <button class="btn btn-primary" type="button" data-ov="start">${session.mode === 'local' ? (np > 2 ? np + '명' : '둘이서') : LEVEL_NAME[session.level] + (np > 2 ? ' · ' + np + '명' : '')} 시작 ▶</button>
-        <p class="ov-note">${session.mode === 'local' ? '포인트 없이 기록만 남아요' : rankPointText(cfg, np)}${Hub.user ? '' : ' · 손님 플레이'}</p></div>`;
+        ${session.mode === 'online' ? netPanelHTML(cfg) : `<button class="btn btn-primary" type="button" data-ov="start">${session.mode === 'local' ? (np > 2 ? np + '명' : '둘이서') : LEVEL_NAME[session.level] + (np > 2 ? ' · ' + np + '명' : '')} 시작 ▶</button>`}
+        <p class="ov-note">${session.mode === 'local' ? '포인트 없이 기록만 남아요' : session.mode === 'online' ? `온라인 승리 +${cfg.points.win}P / 패배 ${cfg.points.lose}P` : rankPointText(cfg, np)}${Hub.user ? '' : ' · 손님 플레이'}</p></div>`;
     } else if (st === 'over') {
       const r = session.result || {}, s = session.save || {};
       let note = '';
-      if (session.mode === 'ai') {
+      if (session.mode === 'ai' || session.mode === 'online') {
         if (s.status === 'saving') note = '<p class="ov-note">기록 저장 중…</p>';
         else if (s.status === 'saved' && s.queued) note = '<p class="ov-note">지금은 오프라인이에요. 연결되면 자동으로 저장돼요.</p>';
         else if (s.status === 'saved') note = `<p class="ov-note ${s.gained > 0 ? 'ok' : ''}">${pointText(s.gained, s.delta)} · 전적에 저장했어요</p>`;
@@ -565,9 +661,11 @@
         ${avCanvas(Hub.user ? Hub.user.avatar : {}, 3, 'full', 'ov-avatar')}
         <div class="ov-title">${title}</div>
         <p class="ov-goal">${esc(r.message || '')}</p>
-        <p class="ov-hint">${session.mode === 'local' ? (multi ? ex.players + '명이서' : '둘이서') : '컴퓨터 ' + LEVEL_NAME[session.level] + (multi ? ' · ' + ex.players + '명' : '')} · ${r.moves ? r.moves + '수 · ' : ''}${dur(r.duration_sec || 0)}</p>
+        <p class="ov-hint">${session.mode === 'local' ? (multi ? ex.players + '명이서' : '둘이서') : session.mode === 'online' ? '온라인 · ' + esc(session.net ? session.net.oppNick : '상대') : '컴퓨터 ' + LEVEL_NAME[session.level] + (multi ? ' · ' + ex.players + '명' : '')} · ${r.moves ? r.moves + '수 · ' : ''}${dur(r.duration_sec || 0)}</p>
         ${note}
-        <div class="ov-btns"><button class="btn btn-sun" type="button" data-ov="again">다시 하기</button><button class="btn" type="button" data-ov="menu">방식 바꾸기</button><a class="btn" href="#home">다른 게임</a></div></div>`;
+        ${session.mode === 'online' && session.net
+          ? `<div class="ov-btns">${session.net.hostId === Hub.clientId ? `<button class="btn btn-sun" type="button" data-net="start" ${session.net.peers.length >= 2 ? '' : 'disabled'}>한 판 더 ▶</button>` : ''}<button class="btn" type="button" data-net="leave">방 나가기</button></div>${session.net.hostId === Hub.clientId ? '' : '<p class="ov-hint">방장이 한 판 더를 누르면 바로 시작돼요.</p>'}`
+          : `<div class="ov-btns"><button class="btn btn-sun" type="button" data-ov="again">다시 하기</button><button class="btn" type="button" data-ov="menu">방식 바꾸기</button><a class="btn" href="#home">다른 게임</a></div>`}</div>`;
     } else ov.innerHTML = '';
     AV.paintAll(ov);
     $$('[data-players]', ov).forEach(b => b.addEventListener('click', () => {
@@ -575,8 +673,24 @@
       try { localStorage.setItem('gogo_players_' + session.id, String(session.players)); } catch (e) { /* noop */ }
       renderOverlay(); renderBoardCard();
     }));
+    $$('[data-net]', ov).forEach(b => b.addEventListener('click', () => {
+      const a = b.dataset.net;
+      if (a === 'create') netJoin(Array.from({ length: 4 }, () => NET_CODE[Math.random() * NET_CODE.length | 0]).join(''));
+      else if (a === 'start') netHostStart();
+      else if (a === 'leave') { netLeave(); session.state = 'ready'; renderOverlay(); }
+    }));
+    $$('[data-net-join]', ov).forEach(b => b.addEventListener('click', () => netJoin(b.dataset.netJoin)));
+    const nf = $('[data-net-form]', ov);
+    if (nf) nf.addEventListener('submit', e => {
+      e.preventDefault();
+      const code = nf.querySelector('input').value.trim().toUpperCase();
+      if (!/^[A-Z0-9]{4}$/.test(code)) { toast('방 코드 4자리를 입력해 주세요.'); return; }
+      netJoin(code);
+    });
     $$('[data-pick]', ov).forEach(b => b.addEventListener('click', () => {
-      const [m, l] = b.dataset.pick.split(':'); session.mode = m; if (l) session.level = l;
+      const [m, l] = b.dataset.pick.split(':');
+      if (m !== 'online') netLeave(); else netLobby();
+      session.mode = m; if (l) session.level = l;
       try { localStorage.setItem('gogo_board_pick', JSON.stringify({ mode: session.mode, level: session.level })); } catch (e) { /* noop */ }
       renderOverlay();
     }));
@@ -596,8 +710,12 @@
     if (!session) return;
     session.state = 'over'; BGM.pause();
     const rb = $('#btnResign'); if (rb) { rb.disabled = true; rb.textContent = '기권'; rb.classList.remove('btn-danger'); }
-    const cfg = SET.get(session.id), ai = session.mode === 'ai';
+    const cfg = SET.get(session.id), ai = session.mode === 'ai', online = session.mode === 'online' && session.net;
     let result = null, delta = 0, score = 0;
+    if (online && res.winner >= 0) {
+      const win = res.winner === session.net.side;
+      result = win ? 'win' : 'lose'; delta = SET.pointsFor(session.id, win).delta; score = win ? ((cfg.levelScore || {}).online || (cfg.levelScore || {}).hard || 300) : 0;
+    } else
     if (ai && res.rank && res.players > 2 && cfg.pointsByRank) {
       const table = cfg.pointsByRank[res.players] || [];
       delta = table[res.rank - 1] || 0; result = res.rank === 1 ? 'win' : 'lose';
@@ -607,9 +725,10 @@
     session.result = {
       game_id: session.id, score, duration_sec: res.duration_sec || 0, result, points_delta: delta,
       message: res.message, moves: res.moves,
-      extra: Object.assign({}, res.extra || {}, { mode: session.mode, level: ai ? session.level : null, winner: res.winner })
+      extra: Object.assign({}, res.extra || {}, { mode: session.mode, level: ai ? session.level : null, winner: res.winner }, online ? { side: session.net.side } : {})
     };
-    session.save = { status: Hub.user ? 'saving' : (ai ? 'guest' : 'none') };
+    session.save = { status: Hub.user ? 'saving' : (ai || online ? 'guest' : 'none') };
+    if (online) netAdvertise();
     renderOverlay();
     if (Hub.user) saveResult();
   }

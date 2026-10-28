@@ -173,13 +173,15 @@
     },
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
-      let g = Rules(), mode = 'ai', level = 'normal', hover = null, busy = false, over = false, timer = 0;
+      let g = Rules(), mode = 'ai', level = 'normal', hover = null, busy = false, over = false, timer = 0, side = 0;
       const name = c => (c === 1 ? '흑' : '백');
-      const human = () => mode === 'local' || g.turn === 1;
+      // online: 내 쪽(side 0=흑, 1=백) 차례일 때만 둠
+      const human = () => mode === 'local' || (mode === 'online' ? g.turn - 1 === side : g.turn === 1);
+      const send = m => { if (mode === 'online' && hooks.onMove) hooks.onMove(m); };
       const capsText = () => `따낸 돌 흑 ${g.caps[1]} · 백 ${g.caps[2]}`;
       function turnText(extra) {
         if (over) return;
-        const who = mode === 'ai' ? (g.turn === 1 ? '내 차례 (흑)' : '컴퓨터 생각 중… (백)') : name(g.turn) + ' 차례';
+        const who = mode === 'ai' ? (g.turn === 1 ? '내 차례 (흑)' : '컴퓨터 생각 중… (백)') : mode === 'online' ? (human() ? '내 차례 (' + name(g.turn) + ')' : '상대 차례… (' + name(g.turn) + ')') : name(g.turn) + ' 차례';
         hooks.onTurn({ text: (extra ? extra + ' · ' : '') + who + ' · ' + capsText(), side: g.turn - 1 });
       }
       function buttons() { hooks.onButtons([{ id: 'pass', label: '수 넘기기', disabled: over || busy || !human() }]); }
@@ -213,7 +215,7 @@
         if (t === 'move') { if (i !== hover) { hover = i; draw(); } }
         else if (t === 'leave') { hover = null; draw(); }
         else if (t === 'up' && ok && !over && !busy && human()) {
-          if (g.play(i)) after(); else if (g.b[i] === 0) hooks.onToast && hooks.onToast('그곳은 둘 수 없어요 (자충수 또는 패)');
+          if (g.play(i)) { send(i); after(); } else if (g.b[i] === 0) hooks.onToast && hooks.onToast('그곳은 둘 수 없어요 (자충수 또는 패)');
         }
       });
       draw();
@@ -221,13 +223,20 @@
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
-          clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal';
+          clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || 0;
           g = Rules(); over = false; busy = false; clock.reset(); clock.start(); hooks.onState('playing'); after();
         },
         press(id) {
           if (over || busy) return;
-          if (id === 'pass' && human()) { g.pass(); after(name(3 - g.turn) + '이(가) 수를 넘겼어요'); }
-          if (id === 'resign') { clearTimeout(timer); const loser = mode === 'ai' ? 1 : g.turn; end(loser === 1 ? 1 : 0, name(loser) + ' 기권 · ' + name(3 - loser) + ' 승'); }
+          if (id === 'pass' && human()) { g.pass(); send('pass'); after(name(3 - g.turn) + '이(가) 수를 넘겼어요'); }
+          if (id === 'resign') { clearTimeout(timer); const loser = mode === 'ai' ? 1 : mode === 'online' ? side + 1 : g.turn; send({ resign: 1 }); end(loser === 1 ? 1 : 0, name(loser) + ' 기권 · ' + name(3 - loser) + ' 승'); }
+        },
+        // 온라인: 상대가 둔 수
+        remote(m) {
+          if (over) return;
+          if (m && m.resign) { const loser = 2 - side; return end(loser === 1 ? 1 : 0, (m.left ? '상대가 나갔어요 · ' : name(loser) + ' 기권 · ') + name(3 - loser) + ' 승'); }
+          if (m === 'pass') { g.pass(); return after('상대가 수를 넘겼어요'); }
+          if (g.play(m)) after();
         },
         togglePause() {}, action() {},
         destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }

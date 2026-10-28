@@ -101,15 +101,16 @@
     },
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
-      let g = Rules(), mode = 'ai', level = 'normal', hover = null, busy = false, over = false, timer = 0;
-      const human = () => mode === 'local' || g.turn === 1;
+      let g = Rules(), mode = 'ai', level = 'normal', hover = null, busy = false, over = false, timer = 0, side = 0;
+      const human = () => mode === 'local' || (mode === 'online' ? g.turn - 1 === side : g.turn === 1);
+      const send = m => { if (mode === 'online' && hooks.onMove) hooks.onMove(m); };
       const name = c => (c === 1 ? '흑' : '백');
       function turnText() {
         if (over) return;
-        const who = mode === 'ai' ? (g.turn === 1 ? '내 차례 (흑)' : '컴퓨터 생각 중… (백)') : name(g.turn) + ' 차례';
+        const who = mode === 'ai' ? (g.turn === 1 ? '내 차례 (흑)' : '컴퓨터 생각 중… (백)') : mode === 'online' ? (human() ? '내 차례 (' + name(g.turn) + ')' : '상대 차례… (' + name(g.turn) + ')') : name(g.turn) + ' 차례';
         hooks.onTurn({ text: who + ' · ' + g.moves.length + '수', side: g.turn - 1 });
       }
-      function buttons() { hooks.onButtons([{ id: 'undo', label: '한 수 무르기', disabled: over || busy || !g.moves.length || (mode === 'ai' && g.moves.length < 2) }]); }
+      function buttons() { hooks.onButtons([{ id: 'undo', label: '한 수 무르기', disabled: over || busy || mode === 'online' || !g.moves.length || (mode === 'ai' && g.moves.length < 2) }]); }
       function draw() { drawBoard(ctx, g, hover); }
       function after() {
         draw(); buttons();
@@ -120,10 +121,10 @@
           timer = B.think(() => { const m = aiMove(g, level); if (m) g.place(m.x, m.y); busy = false; after(); }, 400);
         }
       }
-      function end(resignSide) {
+      function end(resignSide, left) {
         over = true; clock.stop(); buttons();
         const w = resignSide ? 2 - resignSide : g.winner === 3 ? -1 : g.winner - 1;
-        const msg = w === -1 ? '판이 가득 차서 무승부!' : resignSide ? name(resignSide) + ' 기권 · ' + name(3 - resignSide) + ' 승' : name(g.winner) + ' 다섯 줄 완성! ' + name(g.winner) + ' 승';
+        const msg = w === -1 ? '판이 가득 차서 무승부!' : resignSide ? (left ? '상대가 나갔어요 · ' : name(resignSide) + ' 기권 · ') + name(3 - resignSide) + ' 승' : name(g.winner) + ' 다섯 줄 완성! ' + name(g.winner) + ' 승';
         hooks.onTurn({ text: msg, side: -1 });
         hooks.onOver({ winner: w, message: msg, moves: g.moves.length, duration_sec: clock.sec(), extra: { moves: g.moves.length } });
       }
@@ -132,19 +133,24 @@
         const ok = gx >= 0 && gy >= 0 && gx < N && gy < N;
         if (t === 'move') { const nh = ok ? [gx, gy] : null; if (String(nh) !== String(hover)) { hover = nh; draw(); } }
         else if (t === 'leave') { hover = null; draw(); }
-        else if (t === 'up' && ok && !over && !busy && human()) { if (g.place(gx, gy)) after(); }
+        else if (t === 'up' && ok && !over && !busy && human()) { if (g.place(gx, gy)) { send([gx, gy]); after(); } }
       });
       draw();
       const onImg = () => draw(); window.addEventListener('gogo:img', onImg);
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
-          clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal';
+          clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || 0;
           g = Rules(); over = false; busy = false; clock.reset(); clock.start(); hooks.onState('playing'); after();
         },
         press(id) {
-          if (id === 'resign' && !over) { clearTimeout(timer); busy = false; end(mode === 'ai' ? 1 : g.turn); }
-          if (id === 'undo' && !over && !busy) { g.undo(); if (mode === 'ai' && g.turn === 2) g.undo(); after(); }
+          if (id === 'resign' && !over) { clearTimeout(timer); busy = false; send({ resign: 1 }); end(mode === 'ai' ? 1 : mode === 'online' ? side + 1 : g.turn); }
+          if (id === 'undo' && !over && !busy && mode !== 'online') { g.undo(); if (mode === 'ai' && g.turn === 2) g.undo(); after(); }
+        },
+        remote(m) {
+          if (over) return;
+          if (m && m.resign) return end(2 - side, m.left);
+          if (Array.isArray(m) && g.place(m[0], m[1])) after();
         },
         togglePause() {}, action() {},
         destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }

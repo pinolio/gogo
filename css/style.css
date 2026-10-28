@@ -908,3 +908,16 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 @media (max-width: 560px) { .match-grid.v2 .minis { grid-auto-columns: 44px; } }
 
 .mini-sq canvas { aspect-ratio: 1; }
+
+/* ---------- 보드게임 온라인 대결 ---------- */
+.net-box { display: grid; gap: 10px; width: 100%; justify-items: stretch; }
+.net-box .code-row input { font-size: 14px; min-height: 36px; background: #EEF1FF; color: #1D2340; }
+.net-rooms { display: grid; gap: 6px; }
+.net-rooms .btn { border-color: #05081A; box-shadow: 3px 3px 0 #05081A; }
+.net-code { font-size: 13px; color: #C9D0F0; }
+.net-code b { font-size: 22px; letter-spacing: .15em; color: var(--sun); margin-left: 6px; }
+.net-peers { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-weight: 700; }
+.net-peers li { background: rgba(255,255,255,.08); border-radius: 6px; padding: 6px 10px; }
+.net-peers small { font-weight: 400; color: #8A93C0; }
+.net-peers .wait { color: #8A93C0; font-weight: 400; animation: blink 1.2s steps(2) infinite; }
+.net-box .btn { border-color: #05081A; }

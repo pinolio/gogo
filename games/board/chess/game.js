@@ -234,14 +234,16 @@
     },
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
-      let st = initial(), ui = { sel: -1, targets: [], last: null, check: -1 }, mode = 'ai', level = 'normal', busy = false, over = false, timer = 0;
+      let st = initial(), ui = { sel: -1, targets: [], last: null, check: -1 }, mode = 'ai', level = 'normal', busy = false, over = false, timer = 0, side = 0;
       const name = c => (c === 'w' ? '백' : '흑');
-      const human = () => mode === 'local' || st.turn === 'w';
+      const mine = () => (side === 0 ? 'w' : 'b');
+      const human = () => mode === 'local' || (mode === 'online' ? st.turn === mine() : st.turn === 'w');
+      const send = m => { if (mode === 'online' && hooks.onMove) hooks.onMove(m); };
       const draw = () => { ui.check = inCheck(st, st.turn) ? kingSq(st.b, st.turn) : -1; drawBoard(ctx, st, ui); };
       function turnText() {
         if (over) return;
         const chk = ui.check >= 0 ? ' · 체크!' : '';
-        const who = mode === 'ai' ? (st.turn === 'w' ? '내 차례 (백)' : '컴퓨터 생각 중… (흑)') : name(st.turn) + ' 차례';
+        const who = mode === 'ai' ? (st.turn === 'w' ? '내 차례 (백)' : '컴퓨터 생각 중… (흑)') : mode === 'online' ? (human() ? '내 차례 (' + name(st.turn) + ')' : '상대 차례… (' + name(st.turn) + ')') : name(st.turn) + ' 차례';
         hooks.onTurn({ text: who + chk + ' · ' + Math.ceil(st.moves / 2 + 0.5) + '번째 수', side: st.turn === 'w' ? 0 : 1 });
       }
       function play(m) {
@@ -269,7 +271,7 @@
         if (t !== 'up' || over || busy || !human()) return;
         const i = sq(Math.min(7, Math.floor(x / S)), Math.min(7, Math.floor(y / S)));
         const m = ui.targets.find(mm => mm.to === i);
-        if (m) { play(m); return after(); }
+        if (m) { play(m); send({ from: m.from, to: m.to, promo: m.promo || null }); return after(); }
         if (st.b[i] && col(st.b[i]) === st.turn) { ui.sel = i; ui.targets = legal(st).filter(mm => mm.from === i); }
         else { ui.sel = -1; ui.targets = []; }
         draw();
@@ -279,11 +281,17 @@
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
-          clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal';
+          clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || 0;
           st = initial(); ui = { sel: -1, targets: [], last: null, check: -1 }; over = false; busy = false;
           clock.reset(); clock.start(); hooks.onState('playing'); hooks.onButtons([]); after();
         },
-        press(id) { if (id === 'resign' && !over) { clearTimeout(timer); busy = false; const loser = mode === 'ai' ? 'w' : st.turn; end(loser === 'w' ? 1 : 0, name(loser) + ' 기권 · ' + name(loser === 'w' ? 'b' : 'w') + ' 승'); } },
+        remote(m) {
+          if (over || !m) return;
+          if (m.resign) { const loser = mine() === 'w' ? 'b' : 'w'; return end(side, (m.left ? '상대가 나갔어요 · ' : name(loser) + ' 기권 · ') + name(mine()) + ' 승'); }
+          const mv = legal(st).find(x => x.from === m.from && x.to === m.to && (x.promo || null) === (m.promo || null));
+          if (mv) { play(mv); after(); }
+        },
+        press(id) { if (id === 'resign' && !over) { clearTimeout(timer); busy = false; const loser = mode === 'ai' ? 'w' : mode === 'online' ? mine() : st.turn; send({ resign: 1 }); end(loser === 'w' ? 1 : 0, name(loser) + ' 기권 · ' + name(loser === 'w' ? 'b' : 'w') + ' 승'); } },
         togglePause() {}, action() {},
         destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }
       };

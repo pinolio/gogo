@@ -9,6 +9,7 @@ GoSettings.register({
   folder: 'games/board/janggi',
   order: 12,
   board: true,                        // 2인 대국 화면 사용 (컴퓨터 / 둘이서)
+  online: true,                       // 온라인 대결 (방 코드로 다른 기기와 대국)
   labels: 'hanja',                    // 장기알 글자: 'hanja'(楚 車 包 馬 象 士 卒) 또는 'ko'(초 차 포 마 상 사 졸)
   w: 790, ar: 436 / 474,   // 화면에 보이는 판 최대 크기(px)
   sides: '초(먼저) · 한',
