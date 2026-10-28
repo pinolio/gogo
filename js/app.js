@@ -911,7 +911,7 @@
       cleanups.push(window.GoShop.render(view(), { toast, esc, fmt, openAuth, avCanvas }));
     }
     else if (h === 'blocks') { location.replace('#battle'); return; }   // 블록 쌓기는 블록 대전으로 합침
-    else if (h === '2048') { location.replace('#p1024'); return; }      // 2048은 퍼즐1024로 바뀜
+    else if (h === '2048' || h === 'p1024') { location.replace('#p512'); return; }   // 2048 → 퍼즐512
     else if (SET.get(h) && SET.get(h).page && window[SET.get(h).page]) {
       current = h; setNav('home');
       cleanups.push(window[SET.get(h).page].render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText }));
