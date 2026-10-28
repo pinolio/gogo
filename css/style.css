@@ -855,3 +855,14 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 @media (max-width: 960px) and (orientation: landscape) {
   .board-play .cabinet { max-width: min(100%, calc((100svh - 24px) * var(--ar, 1) + 16px)); }
 }
+
+/* ---------- 마스코트 (선생님 그림 → Meshy AI로 도트 다듬기) ---------- */
+#accountBox { position: relative; margin-top: 92px; }
+#accountBox::before {
+  content: ""; position: absolute; right: 12px; top: -101px; width: 97px; height: 106px; pointer-events: none;
+  background: url(../img/mascot.png) no-repeat; image-rendering: pixelated;
+  animation: mascot-bob 1.4s steps(2, jump-none) infinite alternate;
+}
+@keyframes mascot-bob { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+@media (max-width: 960px) { #accountBox { margin-top: 96px; } }
+@media (prefers-reduced-motion: reduce) { #accountBox::before { animation: none; } }
