@@ -121,7 +121,8 @@
       return s;
     },
     get: id => all[id] || null,
-    list: () => Object.values(all).sort((a, b) => (a.order || 99) - (b.order || 99)),
+    list: () => Object.values(all).filter(s => !s.hidden).sort((a, b) => (a.order || 99) - (b.order || 99)),
+    listAll: () => Object.values(all).sort((a, b) => (a.order || 99) - (b.order || 99)),
     ids: () => Object.keys(all),
     // 한 판 결과 → { win, delta }  (delta = 이번 판 포인트 변화. 실제 지급은 최하 0P 규칙 적용)
     pointsFor(id, win, variant) {

@@ -13,13 +13,24 @@
   const CFG = window.GoSettings.get('battle');          // 이 폴더의 settings.js
   const ATTACK = CFG.attack || { 3: 1, 4: 3 };          // 지운 줄 수 → 상대에게 보내는 줄 수
   const MAX = CFG.maxPlayers || 6;                      // 한 방 최대 인원 (컴퓨터 포함)
-  const C = 24, METER = 14, SIDE = 132, W = METER + B.COLS * C + SIDE, H = B.ROWS * C, MINI = 9;
+  const C = 24, HOLDW = 72, METER = 14, SIDE = 132, BX = HOLDW + METER, W = BX + B.COLS * C + SIDE, H = B.ROWS * C, MINI = 9;
   const levelFn = e => Math.min(15, Math.max(1 + Math.floor(e.lines / 10), 1 + Math.floor(e.elapsed / 30000))); // 30초마다 빨라짐
   const battleScore = (n, place, sent) => (n - place) * 100 + sent * 10;
   const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   const newCode = () => Array.from({ length: 4 }, () => CODE_CHARS[Math.random() * CODE_CHARS.length | 0]).join('');
   const BOT_NAMES = ['블록봇', '테트봇', '쌓기봇', '고고봇', '줄삭봇'];
-  const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', KeyA: 'left', KeyD: 'right', KeyW: 'rotate', KeyS: 'down', KeyX: 'rotate', KeyZ: 'rotateL', Space: 'drop' };
+  // 혼자 조작 (AI 대전·온라인): 방향키·WASD, Ctrl = 블록 저장/바꾸기
+  const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', KeyA: 'left', KeyD: 'right', KeyW: 'rotate', KeyS: 'down', KeyX: 'rotate', KeyZ: 'rotateL', Space: 'drop', ControlLeft: 'hold', ControlRight: 'hold', KeyC: 'hold' };
+  // 오프라인 대결 (한 키보드에 2명)
+  const KEY_1P = { KeyA: 'left', KeyD: 'right', KeyW: 'rotate', KeyS: 'down', KeyQ: 'rotateL', Space: 'drop', ControlLeft: 'hold' };
+  const KEY_2P = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', ShiftRight: 'rotateL', Enter: 'drop', NumpadEnter: 'drop', Numpad0: 'drop', ControlRight: 'hold' };
+  const P2 = 'local-2p';
+  const PLAY = {
+    ai: { name: 'AI 대전', desc: '컴퓨터 1~5명과 바로 대결해요.', pts: '승리 +1P · 패배 -1P' },
+    offline: { name: '오프라인 대결', desc: '한 컴퓨터에서 키보드를 나눠 2명이 겨뤄요. 컴퓨터도 더할 수 있어요.', pts: '승리 +1P · 패배 -1P (1P 기록)' },
+    online: { name: '온라인 대결', desc: '방 코드로 다른 기기의 친구와 실시간으로 겨뤄요.', pts: '사람과 대결 승리 +2P · 패배 -1P' }
+  };
+  const fakeCh = { send() {}, track() {}, untrack() {}, leave() {} };
 
   let A = null;          // app 도우미 { toast, esc, fmt, dur, openAuth }
   let root = null;       // 화면 영역
@@ -49,7 +60,7 @@
 
   function renderLobby() {
     root.innerHTML = `
-      <div class="page-head"><h1>블록 대전</h1><p>최대 ${MAX}명이 개인전 또는 블루·레드 팀전으로 겨뤄요. 마지막까지 살아남으면 승리!</p></div>
+      <div class="page-head"><button class="back" type="button" data-home>← 대결 방식 고르기</button><h1>온라인 대결</h1><p>최대 ${MAX}명이 개인전 또는 블루·레드 팀전으로 겨뤄요. 마지막까지 살아남으면 승리!</p></div>
       ${Hub.mode === 'demo' ? '<div class="note-box"><b>체험 모드</b> · 지금은 같은 브라우저의 다른 탭끼리만 대전돼요. 방을 만든 뒤 <b>컴퓨터 상대</b>를 추가하면 혼자서도 바로 해 볼 수 있어요.</div>' : ''}
       <div class="battle-lobby">
         <div class="panel">
@@ -67,7 +78,7 @@
           <h3>열린 방 <small>누르면 입장</small></h3>
           <ul class="room-list" id="roomList"><li class="empty">방을 찾는 중…</li></ul>
         </div>
-        <div class="panel rules">
+        <div class="panel b-rules">
           <h3>공격 규칙</h3>
           <table class="atk-table"><thead><tr><th>한 번에 지운 줄</th><th class="n">상대에게</th></tr></thead>
             <tbody><tr><td>1~2줄</td><td class="n">-</td></tr><tr><td>3줄</td><td class="n hot">1줄</td></tr><tr><td>4줄</td><td class="n hot">3줄</td></tr></tbody></table>
@@ -87,6 +98,7 @@
       if (v.length >= 2) { guestNick = v.slice(0, 10); try { sessionStorage.setItem('gogogogo.guestNick', guestNick); } catch (e) { /* noop */ } }
       else nickIn.value = guestNick;
     });
+    $('[data-home]', root).addEventListener('click', () => { closeLobby(); renderHome(); });
     $('#btCreate').addEventListener('click', () => { syncNick(); joinRoom(newCode()); });
     $('#joinForm').addEventListener('submit', e => {
       e.preventDefault(); syncNick();
@@ -112,6 +124,48 @@
     }).join('');
   }
 
+  /* ================= 처음 화면: 대결 방식 고르기 ================= */
+  function renderHome() {
+    root.innerHTML = `
+      <div class="page-head"><a class="back" href="#home">← 게임 목록</a><h1>블록 대전</h1><p>떨어지는 블록을 맞춰 줄을 지우고, 여러 줄을 한 번에 지워 상대에게 공격을 보내요. 최대 ${MAX}명, 마지막까지 살아남으면 승리!</p></div>
+      <div class="play-modes">${Object.entries(PLAY).map(([k, v]) => `
+        <button type="button" class="play-mode pm-${k}" data-play="${k}">
+          <span class="pm-name">${v.name}</span><span class="pm-desc">${v.desc}</span><span class="pm-pts">${v.pts}</span>
+        </button>`).join('')}
+      </div>
+      <div class="battle-lobby" style="margin-top:18px">
+        <div class="panel b-rules">
+          <h3>공격 규칙</h3>
+          <table class="atk-table"><thead><tr><th>한 번에 지운 줄</th><th class="n">상대에게</th></tr></thead>
+            <tbody><tr><td>1~2줄</td><td class="n">-</td></tr><tr><td>3줄</td><td class="n hot">1줄</td></tr><tr><td>4줄</td><td class="n hot">3줄</td></tr></tbody></table>
+          <ul class="rule-list"><li>다음 블록 5개가 미리 보여요.</li><li><b>Ctrl</b>을 누르면 지금 블록을 저장하고, 다시 누르면 저장한 블록과 바꿔요. (블록 하나당 1번)</li><li>30초마다 빨라져요.</li></ul>
+        </div>
+        <div class="panel b-rules">
+          <h3>조작 키</h3>
+          <ul class="rule-list">
+            <li><b>혼자</b>: ← → 이동 · ↑ 회전 · ↓ 내리기 · Space 한 번에 · Ctrl 저장</li>
+            <li><b>오프라인 1P</b>: A D 이동 · W 회전 · S 내리기 · Space 한 번에 · 왼쪽 Ctrl 저장</li>
+            <li><b>오프라인 2P</b>: ← → 이동 · ↑ 회전 · ↓ 내리기 · Enter 한 번에 · 오른쪽 Ctrl 저장</li>
+            <li>휴대폰은 화면 버튼(HOLD 포함)으로 해요.</li>
+          </ul>
+        </div>
+      </div>`;
+    $$('[data-play]', root).forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.play;
+      if (k === 'online') { openLobby(); renderLobby(); }
+      else createLocal(k);
+    }));
+  }
+  // AI 대전 · 오프라인 대결: 서버 없이 이 기기 안에서만 도는 방
+  function createLocal(play) {
+    leaveRoom(true);
+    const me = { id: Hub.clientId, nick: myNick(), avatar: myAvatar(), joinedAt: Date.now(), team: null };
+    room = { code: '', local: true, play, ch: fakeCh, peers: [me], bots: [], status: 'waiting', mode: 'solo', myTeam: null, hostId: Hub.clientId, joinedAt: me.joinedAt, checkedFull: true };
+    if (play === 'offline') room.bots.push({ id: P2, nick: '2P', human: true, owner: Hub.clientId, team: null, avatar: AV.random('2p-friend') });
+    else room.bots.push({ id: 'bot-' + Math.random().toString(36).slice(2, 8), nick: BOT_NAMES[0], level: 'normal', owner: Hub.clientId, team: null, avatar: AV.random('bot-a') });
+    renderRoom();
+  }
+
   /* ================= 방 (대기실) ================= */
   function joinRoom(code) {
     leaveRoom(true);
@@ -130,6 +184,7 @@
   function leaveRoom(silent) {
     stopMatch();
     if (!room) return;
+    if (room.local) { room = null; if (!silent) renderHome(); return; }
     if (lobby) lobby.ch.untrack();
     room.ch.leave(); room = null;
     if (!silent) renderLobby();
@@ -183,7 +238,7 @@
   }
   function broadcastRoom() { room.ch.send({ t: 'room', bots: room.bots, status: room.status, mode: room.mode }); }
   function advertise() {
-    if (!lobby || !room || !isHost()) return;
+    if (!lobby || !room || room.local || !isHost()) return;
     lobby.ch.track({ code: room.code, nick: myNick(), count: totalCount(), status: room.status, mode: room.mode, at: room.joinedAt });
   }
   function setMode(mode) {
@@ -210,14 +265,15 @@
 
   const TEAM_NAME = { blue: '블루', red: '레드' };
   function memberLi(m, host) {
-    const isBot = !!m.bot, mine = m.id === Hub.clientId, t = room.mode === 'team' ? roomTeamOf(m.id) : null;
+    const isBot = !!m.bot, isLocal = !!m.human, mine = m.id === Hub.clientId, t = room.mode === 'team' ? roomTeamOf(m.id) : null;
     let ctrl = '';
     if (t && mine) ctrl = `<button class="link" type="button" data-myteam="${t === 'blue' ? 'red' : 'blue'}">${TEAM_NAME[t === 'blue' ? 'red' : 'blue']} 팀으로</button>`;
-    else if (t && isBot && host) ctrl = `<button class="link" type="button" data-botteam="${esc(m.id)}">팀 바꾸기</button>`;
+    else if (t && (isBot || isLocal) && host) ctrl = `<button class="link" type="button" data-botteam="${esc(m.id)}">팀 바꾸기</button>`;
     const rm = isBot && host ? `<button class="link" type="button" data-rmbot="${esc(m.id)}">빼기</button>` : '';
     return `<li class="${t ? 'team-' + t : ''}">${bust(m.avatar || AV.random(m.id), 2)}<span class="nm">${esc(m.nick)}</span>`
-      + (m.id === room.hostId ? '<span class="badge host">방장</span>' : '')
-      + (mine ? '<span class="badge me">나</span>' : '')
+      + (m.id === room.hostId && !room.local ? '<span class="badge host">방장</span>' : '')
+      + (mine ? `<span class="badge me">${room.play === 'offline' ? '1P · 나' : '나'}</span>` : '')
+      + (isLocal ? '<span class="badge bot">같은 키보드 · 방향키</span>' : '')
       + (isBot ? `<span class="badge bot">컴퓨터 · ${B.BOT_LEVELS[m.level].name}</span>` : '')
       + `<span class="li-ctrl">${ctrl}${rm}</span></li>`;
   }
@@ -242,7 +298,7 @@
       return;
     }
     const hostPeer = room.peers.find(p => p.id === room.hostId);
-    const members = room.peers.map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar })).concat(room.bots.map(b => ({ ...b, bot: true })));
+    const members = room.peers.map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar })).concat(room.bots.map(b => ({ ...b, bot: !b.human })));
     const team = room.mode === 'team';
     const list = team
       ? `<div class="teams">${['blue', 'red'].map(t => `<div class="team-col team-${t}"><div class="team-title">${TEAM_NAME[t]} 팀 <small>${members.filter(m => roomTeamOf(m.id) === t).length}명</small></div><ul class="players">${members.filter(m => roomTeamOf(m.id) === t).map(m => memberLi(m, host)).join('') || '<li class="empty">아직 없어요</li>'}</ul></div>`).join('')}</div>`
@@ -250,10 +306,13 @@
     const cs = canStart();
     root.innerHTML = `
       <div class="room">
-        <div class="panel room-head">
+        ${room.local ? `<div class="panel room-head">
+          <div><span class="lbl">블록 대전</span><h2 style="margin:4px 0 0">${PLAY[room.play].name}</h2><p class="small" style="margin:4px 0 0">${room.play === 'offline' ? '1P는 WASD·Space·왼쪽 Ctrl, 2P는 방향키·Enter·오른쪽 Ctrl로 해요.' : '컴퓨터 상대를 더하거나 빼고 시작하세요.'} ${PLAY[room.play].pts}</p></div>
+          <div class="row" style="margin:0"><button class="btn" type="button" id="btLeave">다른 방식 고르기</button></div>
+        </div>` : `<div class="panel room-head">
           <div><span class="lbl">ROOM CODE</span><div class="room-code-big num">${esc(room.code)}</div><p class="small" style="margin:4px 0 0">친구에게 이 코드를 알려 주면 같은 방에 들어올 수 있어요.</p></div>
           <div class="row" style="margin:0"><button class="btn" type="button" id="btCopy">코드 복사</button><button class="btn" type="button" id="btLeave">나가기</button></div>
-        </div>
+        </div>`}
         <div class="room-grid">
           <div class="panel">
             <h3>${team ? '팀 구성' : '참가자'} <small>${total}/${MAX}명 · ${team ? '팀전' : '개인전'}</small></h3>
@@ -261,7 +320,7 @@
           </div>
           <div class="panel">
             ${host ? `
-              <h3>방장 설정</h3>
+              <h3>${room.local ? '경기 설정' : '방장 설정'}</h3>
               <p class="small" style="margin:0 0 8px">경기 방식</p>
               <div class="seg" role="radiogroup" aria-label="경기 방식">
                 <button type="button" role="radio" aria-checked="${!team}" data-mode="solo">개인전<small>모두가 서로 공격</small></button>
@@ -278,7 +337,7 @@
       </div>`;
     AV.paintAll(root);
     $('#btLeave').addEventListener('click', () => leaveRoom());
-    $('#btCopy').addEventListener('click', () => {
+    if ($('#btCopy')) $('#btCopy').addEventListener('click', () => {
       const done = () => A.toast('방 코드 ' + room.code + '를 복사했어요.');
       try { navigator.clipboard.writeText(room.code).then(done, () => A.toast('방 코드: ' + room.code)); } catch (e) { A.toast('방 코드: ' + room.code); }
     });
@@ -294,7 +353,7 @@
         broadcastRoom(); advertise(); renderRoom();
       }));
       $$('[data-rmbot]', root).forEach(b => b.addEventListener('click', () => {
-        room.bots = room.bots.filter(x => x.id !== b.dataset.rmbot); broadcastRoom(); advertise(); renderRoom();
+        room.bots = room.bots.filter(x => x.id !== b.dataset.rmbot || x.human); broadcastRoom(); advertise(); renderRoom();
       }));
       $$('[data-botteam]', root).forEach(b => b.addEventListener('click', () => {
         const bot = room.bots.find(x => x.id === b.dataset.botteam); if (!bot) return;
@@ -309,7 +368,7 @@
     if (!isHost() || !canStart().ok) return;
     const seed = (Math.random() * 2147483647) | 0, mode = room.mode, team = id => (mode === 'team' ? roomTeamOf(id) : null);
     const roster = room.peers.map(p => ({ id: p.id, nick: p.nick, team: team(p.id), avatar: p.avatar }))
-      .concat(room.bots.map(b => ({ id: b.id, nick: b.nick, bot: true, level: b.level, owner: b.owner, team: team(b.id), avatar: b.avatar })));
+      .concat(room.bots.map(b => ({ id: b.id, nick: b.nick, bot: !b.human, human: !!b.human, level: b.level, owner: b.owner, team: team(b.id), avatar: b.avatar })));
     room.ch.send({ t: 'start', seed, roster, mode });
     startMatch(seed, roster, mode);
   }
@@ -326,8 +385,8 @@
     match = {
       seed, roster, n: roster.length, alive: new Set(roster.map(r => r.id)), places: {}, others: {},
       mode: mode === 'team' ? 'team' : 'solo', teamOf: Object.fromEntries(roster.map(r => [r.id, r.team || null])), winTeam: null,
-      running: false, ended: false, raf: 0, last: 0, clock: P.clock(), flash: 0, popups: [], saved: null,
-      local: {} // 이 기기에서 돌리는 참가자: 나 + (방장이면) 컴퓨터
+      running: false, ended: false, raf: 0, last: 0, clock: P.clock(), flash: {}, popups: {}, saved: null, play: room.local ? room.play : 'online',
+      local: {} // 이 기기에서 돌리는 참가자: 나 + (방장이면) 컴퓨터 + (오프라인이면) 2P
     };
     const mk = id => ({
       seed, levelFn,
@@ -336,6 +395,7 @@
       onTopOut: () => { sendBoard(id, true); ko(id); }
     });
     match.local[Hub.clientId] = { eng: B.Engine(mk(Hub.clientId)), bot: null };
+    roster.filter(r => r.human && r.owner === Hub.clientId).forEach(r => { match.local[r.id] = { eng: B.Engine(mk(r.id)), bot: null, human: true }; });
     roster.filter(r => r.bot && r.owner === Hub.clientId).forEach(r => {
       const bot = B.Bot(r.level, mk(r.id));
       match.local[r.id] = { eng: bot.eng, bot };
@@ -355,10 +415,12 @@
   }
 
   const myEng = () => match && match.local[Hub.clientId] && match.local[Hub.clientId].eng;
+  // 이 기기에서 사람이 조작하는 판 (나 + 오프라인 2P)
+  const mainIds = () => match ? [Hub.clientId].concat(match.roster.filter(r => r.human && match.local[r.id]).map(r => r.id)) : [];
 
   function onClear(id, n) {
     const atk = ATTACK[n] || 0;
-    if (id === Hub.clientId) match.popups.push({ text: n + '줄!' + (atk ? ' 공격 +' + atk : ''), t: 0, hot: !!atk });
+    if (mainIds().includes(id)) (match.popups[id] = match.popups[id] || []).push({ text: n + '줄!' + (atk ? ' 공격 +' + atk : ''), t: 0, hot: !!atk });
     if (!atk) return;
     const L = match.local[id]; if (L) L.eng.sent += atk;
     room.ch.send({ t: 'atk', from: id, n: atk });
@@ -370,7 +432,7 @@
       if (id === from || !match.alive.has(id)) return;
       if (match.mode === 'team' && match.teamOf[id] === match.teamOf[from]) return;   // 같은 팀은 공격받지 않음
       L.eng.addGarbage(n);
-      if (id === Hub.clientId) match.flash = 400;
+      if (id === Hub.clientId || L.human) match.flash[id] = 400;
     });
   }
   // 상대 화면 갱신은 참가자마다 최대 2초에 1번만 전송 (무료 요금제 메시지 한도 절약)
@@ -435,14 +497,14 @@
     if (!eng || !place) return;
     const team = match.mode === 'team', win = team ? match.teamOf[Hub.clientId] === match.winTeam : place === 1;
     const res = { place, win, score: team ? (win ? 200 : 0) + eng.sent * 10 : battleScore(match.n, place, eng.sent), sent: eng.sent };
-    // 포인트: settings.js — 상대가 모두 컴퓨터면 botsOnly 값 사용
-    const humansAgainst = match.roster.some(r => !r.bot && r.id !== Hub.clientId && (!team || r.team !== match.teamOf[Hub.clientId]));
+    // 포인트: settings.js — 상대가 모두 컴퓨터이거나 같은 기기(AI·오프라인)면 botsOnly 값 사용
+    const humansAgainst = match.play === 'online' && match.roster.some(r => !r.bot && r.id !== Hub.clientId && (!team || r.team !== match.teamOf[Hub.clientId]));
     res.delta = window.GoSettings.pointsFor('battle', win, humansAgainst ? null : 'botsOnly').delta;
     match.saved = { status: Hub.user ? 'saving' : 'guest', ...res };
     if (!Hub.user) return;
     const m = match;
     try {
-      const r = await Hub.submitScore({ game_id: 'battle', score: res.score, result: res.win ? 'win' : 'lose', points_delta: res.delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { mode: m.mode, team: m.teamOf[Hub.clientId], win: res.win, place, players: m.n, sent: eng.sent, lines: eng.lines, bots: m.roster.filter(x => x.bot).length } });
+      const r = await Hub.submitScore({ game_id: 'battle', score: res.score, result: res.win ? 'win' : 'lose', points_delta: res.delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: m.play, mode: m.mode, team: m.teamOf[Hub.clientId], win: res.win, place, players: m.n, sent: eng.sent, lines: eng.lines, bots: m.roster.filter(x => x.bot).length } });
       m.saved = { ...m.saved, status: r.queued ? 'queued' : 'saved', gained: r.gained };
     } catch (e) { m.saved = { ...m.saved, status: 'error', msg: e.message }; }
     if (match === m) showResult();
@@ -450,26 +512,34 @@
 
   function renderMatch() {
     const team = match.mode === 'team', myTeam = match.teamOf[Hub.clientId];
+    const mains = mainIds();
     // 팀전: 우리 팀을 먼저, 상대 팀을 뒤에
-    const others = match.roster.filter(r => r.id !== Hub.clientId).sort((a, b) => team ? (a.team === myTeam ? 0 : 1) - (b.team === myTeam ? 0 : 1) : 0);
+    const others = match.roster.filter(r => !mains.includes(r.id)).sort((a, b) => team ? (a.team === myTeam ? 0 : 1) - (b.team === myTeam ? 0 : 1) : 0);
+    const half = Math.ceil(others.length / 2), sides = [others.slice(0, half), others.slice(half)];
+    const miniHTML = r => `<div class="mini ${team ? 'team-' + r.team : ''}" data-mini="${esc(r.id)}"><div class="mini-screen"><canvas aria-hidden="true"></canvas><div class="mini-ko" hidden></div></div><div class="mini-name"><span>${bust(r.avatar || AV.random(r.id), 1)}${team ? `<i class="dot t-${r.team}"></i>` : ''}${esc(r.nick)}</span>${team ? `<small>${r.team === myTeam ? '우리 팀' : '상대 팀'}</small>` : ''}${r.bot ? `<small>컴퓨터·${B.BOT_LEVELS[r.level].name}</small>` : ''}</div><div class="mini-stat num" data-stat>ATK 0</div></div>`;
+    const nameOfMain = id => { const r = match.roster.find(x => x.id === id); return r ? r.nick : ''; };
+    const title = match.play === 'online' ? (team ? `팀전 · <span class="team-word t-${myTeam}">${TEAM_NAME[myTeam]} 팀</span>` : '블록 대전') : PLAY[match.play].name;
     root.innerHTML = `
       <div class="match ${team ? 'team-' + myTeam : ''}">
-        <div class="play-head"><span class="cat">방 ${esc(room.code)}</span><h1>${team ? `팀전 · <span class="team-word t-${myTeam}">${TEAM_NAME[myTeam]} 팀</span>` : '블록 대전'}</h1><span class="small" id="aliveTxt" style="margin:0">${aliveText()}</span></div>
-        <div class="match-grid">
+        <div class="play-head">${match.play === 'online' ? `<span class="cat">방 ${esc(room.code)}</span>` : '<span class="cat">블록 대전</span>'}<h1>${title}</h1><span class="small" id="aliveTxt" style="margin:0">${aliveText()}</span></div>
+        <div class="match-grid v2 ${mains.length > 1 ? 'two' : ''}">
+          <div class="minis side-l" style="--n:${sides[0].length}">${sides[0].map(miniHTML).join('')}</div>
           <div class="stage-col">
-            <div class="cabinet ${team ? 'cab-' + myTeam : ''}" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas id="btCanvas" aria-label="내 게임 화면"></canvas><div class="overlay" id="btOv"></div></div></div>
-            <div class="pad" id="pad"><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟳</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button></div>
+            <div class="mains">
+              ${mains.map((id, i) => `<div class="main-col">${mains.length > 1 ? `<div class="main-tag">${i ? '2P · 방향키' : '1P · WASD'} <b>${esc(nameOfMain(id))}</b></div>` : ''}<div class="cabinet ${team ? 'cab-' + match.teamOf[id] : ''}" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas data-main="${esc(id)}" aria-label="${i ? '2P' : '내'} 게임 화면"></canvas></div></div></div>`).join('')}
+              <div class="overlay" id="btOv"></div>
+            </div>
+            <div class="pad pad6" id="pad"><button type="button" data-act="hold" aria-label="블록 저장">HOLD</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟳</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button></div>
           </div>
-          <div class="minis" style="--n:${others.length}">
-            ${others.map(r => `<div class="mini ${team ? 'team-' + r.team : ''}" data-mini="${esc(r.id)}"><div class="mini-screen"><canvas aria-hidden="true"></canvas><div class="mini-ko" hidden></div></div><div class="mini-name"><span>${bust(r.avatar || AV.random(r.id), 1)}${team ? `<i class="dot t-${r.team}"></i>` : ''}${esc(r.nick)}</span>${team ? `<small>${r.team === myTeam ? '우리 팀' : '상대 팀'}</small>` : ''}${r.bot ? `<small>컴퓨터·${B.BOT_LEVELS[r.level].name}</small>` : ''}</div><div class="mini-stat num" data-stat>ATK 0</div></div>`).join('')}
-          </div>
+          <div class="minis side-r" style="--n:${sides[1].length}">${sides[1].map(miniHTML).join('')}</div>
         </div>
       </div>`;
-    match.ctx = P.setup($('#btCanvas'), W, H);
+    match.ctxs = {};
+    mains.forEach(id => { match.ctxs[id] = P.setup(root.querySelector(`canvas[data-main="${CSS.escape(id)}"]`), W, H); });
     $$('.mini-screen canvas', root).forEach(c => P.setup(c, B.COLS * MINI, B.ROWS * MINI));
     AV.paintAll(root);
     others.forEach(r => drawMini(r.id));
-    // 터치 패드
+    // 터치 패드 (1P = 나)
     $$('#pad [data-act]', root).forEach(b => {
       let t1 = 0, t2 = 0;
       const stop = () => { clearTimeout(t1); clearInterval(t2); };
@@ -479,7 +549,7 @@
       });
       ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, stop));
     });
-    P.swipe($('#btCanvas'), d => act(d === 'down' ? 'drop' : d === 'up' || d === 'tap' ? 'rotate' : d));
+    P.swipe(root.querySelector(`canvas[data-main="${CSS.escape(Hub.clientId)}"]`), d => act(d === 'down' ? 'drop' : d === 'up' || d === 'tap' ? 'rotate' : d));
     const loop = t => {
       if (!match) return;
       match.raf = requestAnimationFrame(loop);
@@ -488,76 +558,87 @@
         if (!match.alive.has(id)) return;
         if (L.bot) L.bot.update(dt); else L.eng.update(dt);
       });
-      drawMain(dt);
+      mains.forEach(id => drawMain(id, dt));
+      const at = $('#aliveTxt'); if (at) at.textContent = aliveText();
     };
     match.raf = requestAnimationFrame(loop);
   }
 
   function countdown() {
     const ov = $('#btOv'); let n = 3;
+    const hint = () => match.play === 'offline'
+      ? '1P: WASD · Space · 왼쪽 Ctrl 저장<br>2P: 방향키 · Enter · 오른쪽 Ctrl 저장'
+      : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
     const step = () => {
       if (!match || !ov.isConnected) return;
-      if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격'}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
+      if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${hint()}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
       else { ov.hidden = true; match.running = true; match.clock.start(); BGM.restart(); }
     };
     step();
   }
 
-  function act(a) {
-    const eng = myEng();
-    if (!match || !match.running || match.ended || !eng || eng.over) return;
+  function act(a, id) {
+    id = id || Hub.clientId;
+    const L = match && match.local[id], eng = L && L.eng;
+    if (!match || !match.running || match.ended || !eng || eng.over || L.bot) return;
     if (a === 'left') eng.move(-1, 0);
     else if (a === 'right') eng.move(1, 0);
     else if (a === 'down') eng.soft();
     else if (a === 'rotate') eng.rotate(false);
     else if (a === 'rotateL') eng.rotate(true);
     else if (a === 'drop') eng.hard();
+    else if (a === 'hold') eng.holdSwap();
   }
 
-  function drawMain(dt) {
-    const ctx = match.ctx, eng = myEng(); if (!ctx || !eng) return;
+  function drawMain(id, dt) {
+    const ctx = match.ctxs[id], L = match.local[id], eng = L && L.eng; if (!ctx || !eng) return;
+    // 왼쪽: 저장한 블록 (HOLD)
+    ctx.fillStyle = P.PANEL; ctx.fillRect(0, 0, HOLDW, H);
+    P.text(ctx, 'HOLD', 10, 18, 10, P.DIM);
+    B.drawBox(ctx, eng.hold, 8, 36, HOLDW - 16, 52, 12, !eng.canHold);
+    P.text(ctx, match.play === 'offline' ? (id === Hub.clientId ? 'L-CTRL' : 'R-CTRL') : 'CTRL', 10, 98, 7, '#5D6699');
     // 받을 공격 막대
-    ctx.fillStyle = P.PANEL; ctx.fillRect(0, 0, METER, H);
+    ctx.fillStyle = '#0B0F28'; ctx.fillRect(HOLDW, 0, METER, H);
     const pend = eng.pendingLines();
     if (pend) {
       const blink = Math.floor(performance.now() / 180) % 2;
       ctx.fillStyle = blink ? '#FF5A5F' : '#C9343A';
-      ctx.fillRect(2, H - Math.min(H, pend * C), METER - 4, Math.min(H, pend * C));
+      ctx.fillRect(HOLDW + 2, H - Math.min(H, pend * C), METER - 4, Math.min(H, pend * C));
     }
-    B.drawBoard(ctx, eng, METER, 0, C, { live: match.running && !eng.over });
-    if (match.flash > 0) { match.flash -= dt; ctx.fillStyle = 'rgba(255,90,95,' + (0.25 * match.flash / 400) + ')'; ctx.fillRect(METER, 0, B.COLS * C, H); }
-    // 오른쪽 정보
-    const x0 = METER + B.COLS * C, cx = x0 + 18;
+    B.drawBoard(ctx, eng, BX, 0, C, { live: match.running && !eng.over });
+    const fl = match.flash[id] || 0;
+    if (fl > 0) { match.flash[id] = fl - dt; ctx.fillStyle = 'rgba(255,90,95,' + (0.25 * fl / 400) + ')'; ctx.fillRect(BX, 0, B.COLS * C, H); }
+    // 오른쪽: 다음 블록 5개 + 정보
+    const x0 = BX + B.COLS * C, cx = x0 + 18;
     ctx.fillStyle = P.PANEL; ctx.fillRect(x0, 0, SIDE, H);
     ctx.fillStyle = '#2A3366'; ctx.fillRect(x0, 0, 2, H);
-    P.text(ctx, 'NEXT', cx, 18, 10, P.DIM);
-    B.drawNext(ctx, eng, cx, 36, 96, 72);
-    P.text(ctx, 'ATTACK', cx, 136, 10, P.DIM); P.text(ctx, eng.sent, cx, 154, 13, '#FF5A5F');
-    P.text(ctx, 'LINES', cx, 196, 10, P.DIM); P.text(ctx, eng.lines, cx, 214, 13, P.INK);
-    P.text(ctx, 'SPEED', cx, 256, 10, P.DIM); P.text(ctx, eng.level, cx, 274, 13, P.PIECE.O);
+    P.text(ctx, 'NEXT', cx, 14, 10, P.DIM);
+    B.drawQueue(ctx, eng, cx, 30, 96, 5);
+    P.text(ctx, 'ATTACK', cx, 290, 9, P.DIM); P.text(ctx, eng.sent, cx, 304, 13, '#FF5A5F');
+    P.text(ctx, 'LINES', cx + 56, 290, 9, P.DIM); P.text(ctx, eng.lines, cx + 56, 304, 13, P.INK);
+    P.text(ctx, 'SPEED', cx, 336, 9, P.DIM); P.text(ctx, eng.level, cx, 350, 13, P.PIECE.O);
     if (match.mode === 'team') {
-      const c = { blue: 0, red: 0 }; match.alive.forEach(id => { c[match.teamOf[id]]++; });
-      P.text(ctx, 'ALIVE', cx, 316, 10, P.DIM);
-      P.text(ctx, 'B' + c.blue, cx, 334, 13, '#6F95FF'); P.text(ctx, 'R' + c.red, cx + 50, 334, 13, '#FF6B70');
-    } else { P.text(ctx, 'ALIVE', cx, 316, 10, P.DIM); P.text(ctx, match.alive.size + '/' + match.n, cx, 334, 13, P.PIECE.S); }
-    if (pend) { P.text(ctx, 'INCOMING', cx, 376, 9, '#FF5A5F'); P.text(ctx, pend, cx, 394, 13, '#FF5A5F'); }
+      const c = { blue: 0, red: 0 }; match.alive.forEach(i => { c[match.teamOf[i]]++; });
+      P.text(ctx, 'ALIVE', cx, 382, 9, P.DIM);
+      P.text(ctx, 'B' + c.blue, cx, 396, 13, '#6F95FF'); P.text(ctx, 'R' + c.red, cx + 50, 396, 13, '#FF6B70');
+    } else { P.text(ctx, 'ALIVE', cx, 382, 9, P.DIM); P.text(ctx, match.alive.size + '/' + match.n, cx, 396, 13, P.PIECE.S); }
+    if (pend) { P.text(ctx, 'INCOMING', cx, 430, 9, '#FF5A5F'); P.text(ctx, pend, cx, 444, 13, '#FF5A5F'); }
     // 줄 지우기 알림
-    match.popups = match.popups.filter(p => (p.t += dt) < 1100);
-    match.popups.forEach(p => {
+    const pops = (match.popups[id] || []).filter(p => (p.t += dt) < 1100); match.popups[id] = pops;
+    pops.forEach(p => {
       ctx.globalAlpha = 1 - p.t / 1100;
-      P.text(ctx, p.text, METER + B.COLS * C / 2, 200 - p.t / 30, p.hot ? 13 : 11, p.hot ? P.PIECE.O : P.INK, 'center');
+      P.text(ctx, p.text, BX + B.COLS * C / 2, 200 - p.t / 30, p.hot ? 13 : 11, p.hot ? P.PIECE.O : P.INK, 'center');
       ctx.globalAlpha = 1;
     });
     if (eng.over && !match.ended) {
-      ctx.fillStyle = 'rgba(10,14,36,.7)'; ctx.fillRect(METER, 0, B.COLS * C, H);
-      P.text(ctx, 'K.O.', METER + B.COLS * C / 2, 200, 22, '#FF5A5F', 'center');
-      P.text(ctx, match.mode === 'team' ? 'CHEER!' : (match.places[Hub.clientId] || '-') + '위', METER + B.COLS * C / 2, 236, 13, P.INK, 'center');
+      ctx.fillStyle = 'rgba(10,14,36,.7)'; ctx.fillRect(BX, 0, B.COLS * C, H);
+      P.text(ctx, 'K.O.', BX + B.COLS * C / 2, 200, 22, '#FF5A5F', 'center');
+      P.text(ctx, match.mode === 'team' ? 'CHEER!' : (match.places[id] || '-') + '위', BX + B.COLS * C / 2, 236, 13, P.INK, 'center');
     }
-    const at = $('#aliveTxt'); if (at) at.textContent = aliveText();
   }
 
   function drawMini(id) {
-    if (!match || id === Hub.clientId) return;
+    if (!match || mainIds().includes(id)) return;
     const box = root && root.querySelector(`[data-mini="${CSS.escape(id)}"]`); if (!box) return;
     const c = box.querySelector('.mini-screen canvas'), ctx = c.getContext('2d');
     const o = match.others[id] || {};
@@ -578,7 +659,7 @@
     const order = match.roster.slice().sort((a, b) => (match.places[a.id] || 99) - (match.places[b.id] || 99));
     const myPlace = match.places[Hub.clientId], s = match.saved || {};
     const team = match.mode === 'team', myTeam = match.teamOf[Hub.clientId], won = team ? match.winTeam === myTeam : myPlace === 1;
-    const sentOf = r => (r.id === Hub.clientId && myEng() ? myEng().sent : (match.others[r.id] && match.others[r.id].sent) || 0);
+    const sentOf = r => (match.local[r.id] ? match.local[r.id].eng.sent : (match.others[r.id] && match.others[r.id].sent) || 0);
     let note = '';
     if (s.status === 'saving') note = '<p class="ov-note">기록 저장 중…</p>';
     else if (s.status === 'saved') note = `<p class="ov-note ${s.gained > 0 ? 'ok' : ''}">${s.win ? '승리' : '패배'} ${A.pointText(s.gained, s.delta)} · 전적에 저장했어요</p>`;
@@ -594,8 +675,9 @@
       <ol class="result-list">${order.map(r => `<li class="${r.id === Hub.clientId ? 'mine' : ''}"><span class="num">${team ? `<i class="dot t-${r.team}"></i>` : match.places[r.id] || '-'}</span><span class="rl-name">${bust(r.avatar || AV.random(r.id), 1)}${esc(r.nick)}</span><span class="num">${sentOf(r)}</span></li>`).join('')}</ol>
       <p class="ov-hint">오른쪽 숫자 = 보낸 공격 줄</p>
       ${note}
-      <div class="ov-btns">${isHost() ? '<button class="btn btn-sun" type="button" id="btAgain">한 판 더 ▶</button>' : ''}<button class="btn" type="button" id="btBack">대기실로</button></div>
+      <div class="ov-btns">${isHost() ? '<button class="btn btn-sun" type="button" id="btAgain">한 판 더 ▶</button>' : ''}<button class="btn" type="button" id="btBack">${room && room.local ? '설정으로' : '대기실로'}</button></div>
       ${isHost() ? '' : '<p class="ov-hint">방장이 다음 판을 시작하면 바로 시작돼요.</p>'}
+      ${match.play === 'offline' ? '<p class="ov-hint">기록은 1P(로그인한 사람)에게 저장돼요.</p>' : ''}
     </div>`;
     AV.paintAll(ov);
     const again = $('#btAgain');
@@ -608,8 +690,15 @@
     if (!match || !match.running) return;
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
-    const a = KEYMAP[e.code]; if (!a) return;
-    e.preventDefault(); act(a);
+    let a, id = Hub.clientId;
+    if (match.play === 'offline' && match.local[P2]) {
+      if (KEY_1P[e.code]) a = KEY_1P[e.code];
+      else if (KEY_2P[e.code]) { a = KEY_2P[e.code]; id = P2; }
+    } else a = KEYMAP[e.code];
+    if (!a) return;
+    e.preventDefault();
+    if (e.repeat && (a === 'hold' || a === 'drop')) return;
+    act(a, id);
   }
 
   /* ================= 진입점 ================= */
@@ -617,9 +706,8 @@
     render(el, app) {
       A = app; root = el;
       BGM.load('battle');
-      openLobby();
       document.addEventListener('keydown', onKey);
-      if (room) renderRoom(); else renderLobby();
+      if (room) renderRoom(); else if (lobby) renderLobby(); else renderHome();
       return function cleanup() {
         document.removeEventListener('keydown', onKey);
         leaveRoom(true); closeLobby(); root = null; BGM.stop();

@@ -39,8 +39,10 @@
   function Engine(opt) {
     opt = opt || {};
     const rnd = opt.seed != null ? mulberry32(opt.seed) : Math.random;
-    const e = { grid: null, cur: null, next: null, score: 0, lines: 0, level: 1, sent: 0, over: false, acc: 0, pending: [], elapsed: 0 };
+    const e = { grid: null, cur: null, queue: [], hold: null, canHold: true, score: 0, lines: 0, level: 1, sent: 0, over: false, acc: 0, pending: [], elapsed: 0 };
     let bag = [];
+    // 다음 블록: 5개까지 미리 보임 (e.next = 바로 다음 1개)
+    Object.defineProperty(e, 'next', { get: () => e.queue[0] || null });
 
     function newBag() {
       const b = KEYS.slice();
@@ -59,14 +61,28 @@
       return false;
     };
     function topOut() { if (e.over) return; e.over = true; opt.onTopOut && opt.onTopOut(); }
-    function spawn() {
-      e.cur = e.next || take(); e.next = take();
-      e.cur.x = ((COLS - e.cur.m[0].length) / 2) | 0; e.cur.y = e.cur.k === 'I' ? -1 : 0;
+    function place(p) {
+      e.cur = p; e.cur.x = ((COLS - e.cur.m[0].length) / 2) | 0; e.cur.y = e.cur.k === 'I' ? -1 : 0;
       if (e.hit(e.cur.m, e.cur.x, e.cur.y)) topOut();
     }
+    function spawn() {
+      while (e.queue.length < 6) e.queue.push(take());
+      const p = e.queue.shift(); e.queue.push(take());
+      e.canHold = true;
+      place(p);
+    }
+    // 블록 저장(홀드): 저장 칸이 비면 지금 블록을 넣고 다음 블록을 꺼냄, 차 있으면 서로 바꿈 (블록 하나당 1번)
+    e.holdSwap = function () {
+      if (e.over || !e.canHold || !e.cur) return false;
+      const k = e.cur.k;
+      if (e.hold) { const h = e.hold; e.hold = k; place({ k: h, m: SHAPES[h].map(r => r.slice()), x: 0, y: 0 }); }
+      else { e.hold = k; spawn(); }
+      e.canHold = false; e.acc = 0;
+      return true;
+    };
     e.reset = function () {
       e.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-      bag = []; e.next = null; e.score = 0; e.lines = 0; e.level = 1; e.sent = 0;
+      bag = []; e.queue = []; e.hold = null; e.canHold = true; e.score = 0; e.lines = 0; e.level = 1; e.sent = 0;
       e.over = false; e.acc = 0; e.pending = []; e.elapsed = 0;
       spawn();
     };
@@ -157,6 +173,24 @@
   function drawPiece(ctx, k, m, ox, oy, s) {
     m.forEach((row, r) => row.forEach((v, c) => { if (v) P.block(ctx, ox + c * s, oy + r * s, s, P.PIECE[k]); }));
   }
+  // 블록 하나를 상자 가운데에 (k 없으면 빈 상자)
+  function drawBox(ctx, k, x, y, w, h, s, dim) {
+    ctx.fillStyle = P.BOARD; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(120,140,230,.18)'; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
+    if (!k) return;
+    const m = SHAPES[k].filter(r => r.some(Boolean)), mw = m[0].length * s, mh = m.length * s;
+    if (dim) ctx.globalAlpha = 0.35;
+    drawPiece(ctx, k, m, Math.round(x + (w - mw) / 2), Math.round(y + (h - mh) / 2), s);
+    ctx.globalAlpha = 1;
+  }
+  // 다음 블록 n개 (첫 번째는 크게)
+  function drawQueue(ctx, e, x, y, w, n) {
+    const q = e.queue.slice(0, n || 5);
+    q.forEach((p, i) => {
+      if (i === 0) drawBox(ctx, p.k, x, y, w, 64, 16);
+      else drawBox(ctx, p.k, x + 12, y + 70 + (i - 1) * 44, w - 24, 40, 11);
+    });
+  }
   function drawNext(ctx, e, x, y, w, h) {
     ctx.fillStyle = P.BOARD; ctx.fillRect(x, y, w, h);
     if (!e.next) return;
@@ -226,7 +260,7 @@
     };
   }
 
-  window.GoBlocks = { Engine, Bot, BOT_LEVELS, drawBoard, drawRows, drawNext, drawPiece, bestMove, COLS, ROWS, SHAPES, colorOf };
+  window.GoBlocks = { Engine, Bot, BOT_LEVELS, drawBoard, drawRows, drawNext, drawPiece, drawBox, drawQueue, bestMove, COLS, ROWS, SHAPES, colorOf };
 
   /* ---------------- 혼자 하기 모드 ---------------- */
   const C = 24, SIDE = 132, W = COLS * C + SIDE, H = ROWS * C;

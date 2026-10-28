@@ -8,6 +8,7 @@ GoSettings.register({
   category: 'puzzle',
   folder: 'games/puzzle/blocks',      // 이 폴더의 위치 (배경음악 경로에 사용)
   order: 2,                           // 게임 목록에서의 순서
+  hidden: true,                       // 블록 대전(AI 대전)으로 합쳐서 목록에서 숨김 (예전 기록은 그대로)
   tag: '인기',
   w: 360,                             // 게임 화면 최대 너비(px)
   blurb: '떨어지는 블록을 돌리고 맞춰서 줄을 지워요. 10줄마다 빨라집니다.',

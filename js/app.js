@@ -131,7 +131,7 @@
   let current = 'home';
 
   /* ---------- 홈 ---------- */
-  let homeCat = '전체', homeRankGame = 'blocks';
+  let homeCat = '전체', homeRankGame = 'battle';
   async function renderHome() {
     current = 'home'; setNav('home');
     view().innerHTML = `
@@ -773,7 +773,7 @@
         <div class="panel"><h3>최근 기록 <small>최근 10판</small></h3>
           ${st.recent.length ? `<div class="tbl-wrap"><table><thead><tr><th>게임</th><th>결과</th><th class="n">점수</th><th class="n">시간</th><th>언제</th></tr></thead><tbody>
           ${st.recent.map(r => `<tr><td>${esc(nameOf(r.game_id))}</td><td>${r.result === 'win' ? '<span class="res win">승리</span>' : r.result === 'lose' ? '<span class="res lose">패배</span>' : '-'}</td><td class="n">${fmt(r.score)}</td><td class="n">${dur(r.duration_sec)}</td><td>${ago(r.played_at)}</td></tr>`).join('')}
-          </tbody></table></div>` : '<p class="empty">아직 플레이 기록이 없어요. <a href="#blocks">블록 쌓기</a>로 첫 기록을 남겨 보세요.</p>'}
+          </tbody></table></div>` : '<p class="empty">아직 플레이 기록이 없어요. <a href="#battle">블록 대전</a>으로 첫 기록을 남겨 보세요.</p>'}
         </div>
       </div>`;
     AV.paintAll(view());
@@ -784,18 +784,19 @@
     cleanup();
     const h = (location.hash || '').replace(/^#/, '') || 'home';
     if (h === 'battle') {
-      current = 'battle'; setNav('battle');
+      current = 'battle'; setNav('home');
       cleanups.push(window.GoBattle.render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText }));
     }
     else if (h === 'shop') {
       current = 'shop'; setNav('shop');
       cleanups.push(window.GoShop.render(view(), { toast, esc, fmt, openAuth, avCanvas }));
     }
+    else if (h === 'blocks') { location.replace('#battle'); return; }   // 블록 쌓기는 블록 대전으로 합침
     else if (gameById(h)) renderPlay(h);
     else if (h === 'rank') renderRank();
     else if (h === 'admin') {
       current = 'admin'; setNav('admin');
-      cleanups.push(window.GoAdmin.render(view(), { toast, esc, fmt, dur, ago, nameOf, avCanvas, games: GAMES.map(g => ({ id: g.id, name: g.name })) }));
+      cleanups.push(window.GoAdmin.render(view(), { toast, esc, fmt, dur, ago, nameOf, avCanvas, games: SET.listAll().map(g => ({ id: g.id, name: g.name })) }));
     }
     else if (h === 'my') renderMy();
     else renderHome();
