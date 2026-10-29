@@ -1017,3 +1017,13 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 .mn-bar { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
 .mn-bar .btn { min-width: 150px; }
 .mn-bar .mn-flag b { margin-left: 4px; }
+
+/* ---------- v32: 관리자 '반영여부' 체크 (댓글·피드백·채팅) ---------- */
+.res-chk { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border: 2px solid #C9CFE6; border-radius: 999px; font-size: 12px; font-weight: 700; color: #5A6080; background: #fff; cursor: pointer; }
+.res-chk input { width: 16px; height: 16px; accent-color: #1E9E5A; cursor: pointer; margin: 0; }
+.res-chk.only { border: 0; padding: 0; background: none; }
+.cm-item.is-resolved { box-shadow: inset 4px 0 0 #1E9E5A; }
+.cm-item.is-resolved .res-chk { border-color: #1E9E5A; color: #1E9E5A; background: #E6F8EE; }
+.admin-tbl tr.is-resolved td { background: rgba(30,158,90,.07); }
+.admin-tbl th.c, .admin-tbl td.c { text-align: center; }
+.res-note { margin: 8px 0; padding: 8px 12px; border-radius: 8px; background: #FFF6D6; border: 2px solid #FFD23F; font-size: 13px; }

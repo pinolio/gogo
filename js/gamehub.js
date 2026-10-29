@@ -258,6 +258,12 @@
         if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.');
         const c = (db().comments || []).find(x => x.id === id); if (c) { c.hidden = !!hidden; persist(); }
       },
+      // v32: 관리자 '반영여부' 체크 (kind: 'comments' 댓글·피드백 | 'chat' 채팅)
+      async setResolved(kind, id, v) {
+        if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.');
+        const d = db(), list = kind === 'chat' ? (d.chat || []) : (d.comments || []), c = list.find(x => x.id === id);
+        if (c) { c.resolved = !!v; persist(); }
+      },
       async adminComments(f) {
         if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
         f = f || {}; const d = db();
@@ -503,11 +509,17 @@
         const { error } = await sb.from('comments').update({ hidden: !!hidden }).eq('id', id);
         if (error) throw new Error(friendly(error, '바꾸지 못했어요'));
       },
+      // v32: 관리자 '반영여부' 체크. 서버에 resolved 열이 없으면(supabase/feedback_v32.sql 실행 전) 안내
+      async setResolved(kind, id, v) {
+        const { error } = await sb.from(kind === 'chat' ? 'chat_messages' : 'comments').update({ resolved: !!v }).eq('id', id);
+        if (error) throw new Error(/resolved/.test(error.message || '') ? '반영여부 칸이 아직 없어요. supabase/feedback_v32.sql 을 먼저 실행해 주세요.' : friendly(error, '바꾸지 못했어요'));
+      },
       async adminComments(f) {
         f = f || {};
-        let q = sb.from('comments').select(CCOLS).order('created_at', { ascending: false }).limit(f.limit || 300);
-        if (f.game) q = q.eq('game_id', f.game); if (f.kind) q = q.eq('kind', f.kind);
-        const { data, error } = await q;
+        const run = cols => { let q = sb.from('comments').select(cols).order('created_at', { ascending: false }).limit(f.limit || 300); if (f.game) q = q.eq('game_id', f.game); if (f.kind) q = q.eq('kind', f.kind); return q; };
+        let { data, error } = await run(CCOLS + ',resolved');   // v32 반영여부 (열이 없으면 예전처럼)
+        Hub.noResolved = !!error;
+        if (error) ({ data, error } = await run(CCOLS));
         if (error) throw new Error(friendly(error, '댓글을 불러오지 못했어요'));
         return data.map(flat);
       },
@@ -525,9 +537,10 @@
       },
       async adminChat(f) {
         f = f || {};
-        let q = sb.from('chat_messages').select(MCOLS).order('created_at', { ascending: false }).limit(f.limit || 300);
-        if (f.game) q = q.eq('game_id', f.game);
-        const { data, error } = await q;
+        const run = cols => { let q = sb.from('chat_messages').select(cols).order('created_at', { ascending: false }).limit(f.limit || 300); if (f.game) q = q.eq('game_id', f.game); return q; };
+        let { data, error } = await run(MCOLS + ',resolved');   // v32 반영여부 (열이 없으면 예전처럼)
+        Hub.noResolved = !!error;
+        if (error) ({ data, error } = await run(MCOLS));
         if (error) throw new Error(friendly(error, '채팅을 불러오지 못했어요'));
         return data.map(flat);
       },

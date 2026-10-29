@@ -173,13 +173,21 @@
     const hj = labels !== 'ko';
     B.label(ctx, (hj ? NAME_HJ : NAME_KO)[p.t][p.s], cx, cy + (hj ? 1 : 0), Math.round((p.t === 'K' ? 20 : p.t === 'S' ? 14 : 17) * (hj ? 1.22 : 1)), k.ink, hj ? 900 : 700, hj ? 'hanja' : null);
   }
+  const ANIM_MS = 300;   // v32: 말이 움직이는 시간(밀리초). 0 이면 예전처럼 바로 옮김
   function drawBoard(ctx, st, labels) {
     B.wood(ctx, 0, 0, W, H);
     for (let y = 0; y < ROWS; y++) B.line(ctx, px(0), py(y), px(COLS - 1), py(y), B.LINE, 2);
     for (let x = 0; x < COLS; x++) B.line(ctx, px(x), py(0), px(x), py(ROWS - 1), B.LINE, 2);
     for (const [y0, y1] of [[0, 2], [7, 9]]) { B.line(ctx, px(3), py(y0), px(5), py(y1), B.LINE, 2); B.line(ctx, px(5), py(y0), px(3), py(y1), B.LINE, 2); }
-    if (st.last) { ctx.fillStyle = 'rgba(255,210,63,.45)'; [[st.last[0], st.last[1]], [st.last[2], st.last[3]]].forEach(([x, y]) => ctx.fillRect(px(x) - 22, py(y) - 22, 44, 44)); }
-    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const p = st.b[y][x]; if (p) drawPiece(ctx, p, px(x), py(y), labels, st.sel && st.sel[0] === x && st.sel[1] === y); }
+    if (st.last) { ctx.fillStyle = 'rgba(255,210,63,.45)'; [[st.last[0], st.last[1]], [st.last[2], st.last[3]]].forEach(([x, y]) => ctx.fillRect(px(x) - 22, py(y) - 22, 44, 44)); ctx.strokeStyle = '#FF9A1F'; ctx.lineWidth = 3; ctx.strokeRect(px(st.last[2]) - 23, py(st.last[3]) - 23, 46, 46); }   // v32: 방금 움직인 자리 주황 테두리
+    // v32 (학생 의견 '말이 순간이동해서 뭘 움직이는지 모르겠어요'): 움직인 말이 0.3초 동안 미끄러져 감
+    const an = st.anim, k = an ? Math.min(1, (performance.now() - an.t0) / ANIM_MS) : 1, moving = an && k < 1;
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const p = st.b[y][x]; if (p && !(moving && an.m[2] === x && an.m[3] === y)) drawPiece(ctx, p, px(x), py(y), labels, st.sel && st.sel[0] === x && st.sel[1] === y); }
+    if (moving) {
+      if (an.cap) { ctx.globalAlpha = 1 - k; drawPiece(ctx, an.cap, px(an.m[2]), py(an.m[3]), labels, false); ctx.globalAlpha = 1; }
+      const e = 1 - Math.pow(1 - k, 3), m = an.m;
+      drawPiece(ctx, an.p, px(m[0]) + (px(m[2]) - px(m[0])) * e, py(m[1]) + (py(m[3]) - py(m[1])) * e - Math.sin(k * Math.PI) * 6, labels, false);
+    }
     (st.targets || []).forEach(([x, y]) => {
       if (st.b[y][x]) { ctx.strokeStyle = '#FF5A5F'; ctx.lineWidth = 3; ctx.strokeRect(px(x) - 20, py(y) - 20, 40, 40); }
       else { ctx.fillStyle = 'rgba(61,220,132,.9)'; ctx.fillRect(px(x) - 6, py(y) - 6, 12, 12); }
@@ -210,10 +218,14 @@
         const who = mode === 'ai' ? (st.turn === CHO ? '내 차례 (초)' : '컴퓨터 생각 중… (한)') : mode === 'online' ? (human() ? '내 차례 (' + name(st.turn) + ')' : '상대 차례… (' + name(st.turn) + ')') : name(st.turn) + ' 차례';
         hooks.onTurn({ text: who + chk + ' · ' + st.moves + '수', side: st.turn });
       }
+      let raf = 0;
+      function animate() { cancelAnimationFrame(raf); const tick = () => { draw(); if (st.anim && performance.now() - st.anim.t0 < ANIM_MS) raf = requestAnimationFrame(tick); else { st.anim = null; draw(); } }; raf = requestAnimationFrame(tick); }
       function doMove(m) {
         const cap = st.b[m[3]][m[2]];
+        st.anim = ANIM_MS > 0 ? { t0: performance.now(), m, p: st.b[m[1]][m[0]], cap } : null;
         st.b = applyMove(st.b, m); st.last = m; st.moves++; st.sel = null; st.targets = [];
         st.turn = 1 - st.turn;
+        if (st.anim) animate();
         if (cap && hooks.onToast && cap.t !== 'S') hooks.onToast(name(1 - st.turn) + '이(가) ' + NAME_KO[cap.t][cap.s] + '을(를) 잡았어요');
       }
       function after() {
@@ -260,7 +272,7 @@
           if (Array.isArray(m) && m.length === 4) { const p = st.b[m[1]] && st.b[m[1]][m[0]]; if (p && p.s === st.turn && legalFrom(st.b, m[0], m[1]).some(([a, c]) => a === m[2] && c === m[3])) { doMove(m); after(); } }
         },
         togglePause() {}, action() {},
-        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); cancelAnimationFrame(raf); off(); }
       };
     }
   };

@@ -82,11 +82,12 @@
     { id: 12, name: '스파이더', team: '제노 군단', role: '설치형', color: '#C9D63A', hp: 115, spd: 3.1, r: 24, pref: 230,
       desc: '거미줄로 발을 묶고, 자동 포탑을 세워 함께 싸워요.',
       w: [{ name: '다리 찌르기', tip: '단단한 찌르기', kind: 'melee', range: 62, arc: 1.2, dmg: 10, knock: 5, cd: 28, en: 6, col: '#E6F07A' },
-          { name: '거미줄탄', tip: '1초 동안 발이 묶임', kind: 'shot', spd: 8, dmg: 4, count: 1, extra: 1, spread: 0.2, life: 60, rad: 6, root: 60, cd: 34, en: 10, col: '#F2F2F2' },
+          { name: '거미줄탄', tip: '1초 동안 발이 묶임 (풀린 뒤 0.8초는 다시 안 묶임)', kind: 'shot', spd: 8, dmg: 6, count: 1, extra: 1, spread: 0.2, life: 60, rad: 6, root: 60, cd: 40, en: 10, col: '#F2F2F2' },
           { name: '포탑 설치', tip: '8초 동안 자동 사격', kind: 'turret', time: 480, rate: 26, dmg: 3, range: 330, hp: 30, cd: 300, en: 30, col: '#C9D63A' }] }     // 팀 포트리스 2 엔지니어 · 오버워치 토르비욘
   ];
   const ZK = ['ice', 'heal', 'hole'];
   const HP_MUL = 1.8;   // 체력 배율: 표의 hp × 1.8 이 실제 체력 (한 판이 너무 빨리 끝나지 않게, 평균 약 35초)
+  const ROOT_IMM = 48;  // v32: 거미줄(묶기)이 풀린 뒤 다시 묶이지 않는 시간(프레임, 60 = 1초). 학생 의견 "스파이더 무한 속박" 반영
   const ROCKS = [[375, 188, 38], [825, 488, 38], [600, 338, 30], [238, 512, 26], [962, 162, 26]];   // 경기장 바위 (x, y, 반지름)
   const LV = { easy: { think: 22, err: 0.35, dodge: 0.08, charge: 0.1, aggro: 0.55 }, normal: { think: 12, err: 0.14, dodge: 0.35, charge: 0.35, aggro: 0.8 }, hard: { think: 6, err: 0.04, dodge: 0.7, charge: 0.6, aggro: 1 } };
   const cfg = () => window.GoSettings.get('mecha') || {};
@@ -256,7 +257,7 @@
         const team = S.teamOf(slot, n), [x, y] = homeOf(slot);
         return { i: slot, name, human, mine: !!mine, remote: null, team, rid: 0, rb: null, x, y, vx: 0, vy: 0, ang: team === 0 ? 0 : Math.PI,
           hp: 100, maxHp: 100, en: 100, cd: [0, 0, 0], chg: [-1, -1, -1], prevW: [false, false, false], prevBoost: false, boostCd: 0,
-          stun: 0, poison: 0, slowT: 0, shield: 0, burn: 0, rootT: 0, cloak: 0, leap: null, dead: false, hitFlash: 0, ai: { t: 0, hold: {}, strafe: 1, chargeFor: [0, 0, 0], wx: 0, wy: 0 } };
+          stun: 0, poison: 0, slowT: 0, shield: 0, burn: 0, rootT: 0, rootImm: 0, cloak: 0, leap: null, dead: false, hitFlash: 0, ai: { t: 0, hold: {}, strafe: 1, chargeFor: [0, 0, 0], wx: 0, wy: 0 } };
       }
       function setRobot(f, rid) { const rb = ROBOTS[rid - 1] || ROBOTS[0]; f.rid = rb.id; f.rb = rb; f.hp = f.maxHp = Math.round(rb.hp * HP_MUL); }
       const alive = () => P.filter(f => !f.dead);
@@ -291,7 +292,7 @@
         if (o.poison) { t.poison = Math.max(t.poison, o.poison); t.poisonBy = from; }
         if (o.slow) t.slowT = Math.max(t.slowT, o.slow);
         if (o.burn) { t.burn = Math.max(t.burn, o.burn); t.burnBy = from; }
-        if (o.root) t.rootT = Math.max(t.rootT, o.root);
+        if (o.root && !(t.rootT > 0) && !(t.rootImm > 0)) t.rootT = o.root;   // v32: 묶여 있는 동안 다시 맞아도 시간이 늘지 않고, 풀린 뒤 ROOT_IMM 동안은 다시 안 묶임 (거미줄 무한 속박 막기)
         if (o.drain) { t.en = Math.max(0, t.en - o.drain); if (from) from.en = Math.min(100, from.en + o.drain / 2); }
         if (o.knock && from) { const a = Math.atan2(t.y - from.y, t.x - from.x); t.vx += Math.cos(a) * o.knock; t.vy += Math.sin(a) * o.knock; }
         if (!o.dot) addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r - 12, text: '-' + dmg, color: o.poison ? '#7DFF8A' : o.fire ? '#FF9A3D' : dmg >= 12 ? '#FF5A5F' : '#FFE48A', life: 34 });
@@ -465,7 +466,7 @@
           for (let k = 0; k < 3; k++) if (f.cd[k] > 0) f.cd[k]--;
           if (f.poison > 0) { f.poison--; if (f.poison % 20 === 0) hurt(f, 1, f.poisonBy, { dot: true }); if (f.dead) return; }
           if (f.burn > 0) { f.burn--; if (f.burn % 15 === 0) hurt(f, 1, f.burnBy, { fire: true, dot: true }); if (f.dead) return; }
-          if (f.rootT > 0) f.rootT--;
+          if (f.rootT > 0) { f.rootT--; if (f.rootT === 0) f.rootImm = ROOT_IMM; } else if (f.rootImm > 0) f.rootImm--;
           if (f.cloak > 0) f.cloak--;
           // 로켓 점프 중: 날아가는 동안 조작 불가, 내려앉으면 폭발
           if (f.leap) {

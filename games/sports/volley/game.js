@@ -8,7 +8,11 @@
   'use strict';
   const S = window.GoSport, AV = window.GoAvatar;
   const W = 960, H = 540, GROUND = 488, NET_X = W / 2, NET_H = 168, NET_TOP = GROUND - NET_H;
-  const G = 0.5, BALL_G = 0.3, BALL_R = 20, SPEED = 6.4, JUMP = -14;
+  const G = 0.5, BALL_R = 20, SPEED = 6.4, JUMP = -14;
+  // v32 (학생 의견 '공 판정이 작고 너무 빨리 떨어져요'): 공 무게·판정은 settings.js 의 ballGravity · hitPad 로 조절
+  //  공을 쳐 올리는 힘도 무게에 맞춰 줄여서, 공이 올라가는 높이는 원작과 같고 떨어지는 속도만 느려짐
+  let BALL_G = 0.3, HIT_PAD = 0, LIFT = 1;
+  function tune() { const s = (window.GoSettings.get('volley') || {}); BALL_G = s.ballGravity || 0.3; HIT_PAD = s.hitPad || 0; LIFT = Math.sqrt(BALL_G / 0.3); }
   const SCALE = 3, PW = 46, PH = 80;                 // 아바타 3배, 몸 판정 크기
   const DIR = 'games/sports/volley/';
   const SKILLS = [
@@ -203,9 +207,9 @@
           if (p.spike > 0) p.spike -= dt;
           const top = p.y - PH * k, left = p.x - half, right = p.x + half;
           const nx = Math.max(left, Math.min(ball.x, right)), ny = Math.max(top, Math.min(ball.y, p.y));
-          if ((ball.x - nx) ** 2 + (ball.y - ny) ** 2 < BALL_R * BALL_R && ball.vy > -11) {
-            ball.vy = -12 - (p.air ? 1.5 : 0);
-            ball.vx = Math.max(-12, Math.min(12, (ball.x - p.x) / 3));
+          if ((ball.x - nx) ** 2 + (ball.y - ny) ** 2 < (BALL_R + HIT_PAD) * (BALL_R + HIT_PAD) && ball.vy > -11 * LIFT) {
+            ball.vy = (-12 - (p.air ? 1.5 : 0)) * LIFT;
+            ball.vx = Math.max(-12, Math.min(12, (ball.x - p.x) / 3)) * LIFT;   // 느려진 만큼 옆으로도 덜 가게 (떨어지는 곳은 원작과 같음)
             if (Math.abs(ball.vx) < 1.2) ball.vx = p.side === 0 ? 2 : -2;
             ball.y = top - BALL_R - 1; p.spike = 0.25; rallies++;
           }
@@ -359,6 +363,7 @@
       return {
         get state() { return phase === 'over' ? 'over' : phase === 'idle' ? 'ready' : 'playing'; },
         start(o) {
+          tune();
           o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; n = o.players === 4 ? 4 : 2;
           const me = S.myAvatar(), meName = S.myName();
           net = null; players = [];

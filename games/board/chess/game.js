@@ -205,14 +205,22 @@
       else if (on(i - 1, j) || on(i + 1, j) || on(i, j - 1) || on(i, j + 1)) { ctx.fillStyle = edge; ctx.fillRect(x + i * u, y + j * u, u, u); }
     }
   }
+  const ANIM_MS = 300;   // v32: 말이 움직이는 시간(밀리초). 0 이면 예전처럼 바로 옮김
   function drawBoard(ctx, st, ui) {
     window.GoBoard.wood(ctx, 0, 0, W, H);
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) { ctx.fillStyle = 'rgba(92,46,12,.45)'; ctx.fillRect(x * S, y * S, S, S); }
     ctx.fillStyle = 'rgba(255,240,200,.18)'; for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (!((x + y) % 2)) ctx.fillRect(x * S, y * S, S, 2);
-    if (ui.last) { ctx.fillStyle = 'rgba(255,210,63,.5)'; [ui.last.from, ui.last.to].forEach(i => ctx.fillRect(X(i) * S, Y(i) * S, S, S)); }
+    if (ui.last) { ctx.fillStyle = 'rgba(255,210,63,.5)'; [ui.last.from, ui.last.to].forEach(i => ctx.fillRect(X(i) * S, Y(i) * S, S, S)); ctx.strokeStyle = '#FF9A1F'; ctx.lineWidth = 4; ctx.strokeRect(X(ui.last.to) * S + 2, Y(ui.last.to) * S + 2, S - 4, S - 4); }   // v32: 방금 움직인 칸은 주황 테두리
     if (ui.check >= 0) { ctx.fillStyle = 'rgba(255,90,95,.6)'; ctx.fillRect(X(ui.check) * S, Y(ui.check) * S, S, S); }
     if (ui.sel >= 0) { ctx.fillStyle = 'rgba(76,125,255,.45)'; ctx.fillRect(X(ui.sel) * S, Y(ui.sel) * S, S, S); }
-    for (let i = 0; i < 64; i++) if (st.b[i]) drawPiece(ctx, st.b[i], X(i) * S + 6, Y(i) * S + 6, S - 12);
+    // v32 (학생 의견 '말이 순간이동해서 뭘 움직이는지 모르겠어요'): 움직인 말이 0.3초 동안 미끄러져 감
+    const an = ui.anim, k = an ? Math.min(1, (performance.now() - an.t0) / ANIM_MS) : 1, moving = an && k < 1;
+    for (let i = 0; i < 64; i++) if (st.b[i] && !(moving && an.moves.some(m => m.to === i))) drawPiece(ctx, st.b[i], X(i) * S + 6, Y(i) * S + 6, S - 12);
+    if (moving) {
+      if (an.cap) { ctx.globalAlpha = 1 - k; drawPiece(ctx, an.cap, X(an.capAt) * S + 6, Y(an.capAt) * S + 6, S - 12); ctx.globalAlpha = 1; }   // 잡힌 말은 흐려지며 사라짐
+      const e = 1 - Math.pow(1 - k, 3);
+      an.moves.forEach(m => drawPiece(ctx, m.p, (X(m.from) + (X(m.to) - X(m.from)) * e) * S + 6, (Y(m.from) + (Y(m.to) - Y(m.from)) * e) * S + 6 - Math.sin(k * Math.PI) * 6, S - 12));
+    }
     (ui.targets || []).forEach(m => {
       const cx = X(m.to) * S + S / 2, cy = Y(m.to) * S + S / 2;
       if (m.cap) { ctx.strokeStyle = 'rgba(255,90,95,.9)'; ctx.lineWidth = 4; ctx.strokeRect(X(m.to) * S + 3, Y(m.to) * S + 3, S - 6, S - 6); }
@@ -246,8 +254,16 @@
         const who = mode === 'ai' ? (st.turn === 'w' ? '내 차례 (백)' : '컴퓨터 생각 중… (흑)') : mode === 'online' ? (human() ? '내 차례 (' + name(st.turn) + ')' : '상대 차례… (' + name(st.turn) + ')') : name(st.turn) + ' 차례';
         hooks.onTurn({ text: who + chk + ' · ' + Math.ceil(st.moves / 2 + 0.5) + '번째 수', side: st.turn === 'w' ? 0 : 1 });
       }
+      let raf = 0;
+      function animate() { cancelAnimationFrame(raf); const tick = () => { draw(); if (ui.anim && performance.now() - ui.anim.t0 < ANIM_MS) raf = requestAnimationFrame(tick); else { ui.anim = null; draw(); } }; raf = requestAnimationFrame(tick); }
       function play(m) {
-        const cap = m.cap; st = make(st, m); ui.last = m; ui.sel = -1; ui.targets = [];
+        const before = st.b.slice(), cap = m.cap; st = make(st, m); ui.last = m; ui.sel = -1; ui.targets = [];
+        // 움직임 그리기 준비: 옮긴 말(캐슬링이면 룩도) · 잡힌 말
+        const mv = [{ from: m.from, to: m.to, p: st.b[m.to] }];
+        before.forEach((p, i) => { if (p && i !== m.from && !st.b[i] && col(p) === col(before[m.from])) { const j = st.b.findIndex((q, k) => q === p && !before[k]); if (j >= 0) mv.push({ from: i, to: j, p }); } });
+        const capAt = before[m.to] ? m.to : before.findIndex((p, i) => p && !st.b[i] && i !== m.from && col(p) !== col(before[m.from]));
+        ui.anim = ANIM_MS > 0 ? { t0: performance.now(), moves: mv, cap: capAt >= 0 ? before[capAt] : null, capAt } : null;
+        if (ui.anim) animate();
         if (m.promo && hooks.onToast) hooks.onToast('폰이 퀸으로 승진했어요!');
         else if (m.flag === 'castle' && hooks.onToast) hooks.onToast('캐슬링!');
         void cap;
@@ -293,7 +309,7 @@
         },
         press(id) { if (id === 'resign' && !over) { clearTimeout(timer); busy = false; const loser = mode === 'ai' ? 'w' : mode === 'online' ? mine() : st.turn; send({ resign: 1 }); end(loser === 'w' ? 1 : 0, name(loser) + ' 기권 · ' + name(loser === 'w' ? 'b' : 'w') + ' 승'); } },
         togglePause() {}, action() {},
-        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); cancelAnimationFrame(raf); off(); }
       };
     }
   };

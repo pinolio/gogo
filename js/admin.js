@@ -168,8 +168,24 @@
       });
     }
 
+    /* ---------- v32: 반영여부 체크 (댓글·피드백·채팅) ----------
+     * 학생 의견을 고쳐서 사이트에 반영했으면 체크. 서버 표의 resolved 열 (supabase/feedback_v32.sql) */
+    function resBox(c, bare) {
+      const box = `<input type="checkbox" data-res ${c.resolved ? 'checked' : ''} ${Hub.noResolved ? 'disabled' : ''} aria-label="반영여부">`;
+      return bare ? `<label class="res-chk only">${box}</label>` : `<label class="res-chk" title="고쳐서 반영했으면 체크">${box} 반영여부</label>`;
+    }
+    const resNote = () => (Hub.noResolved ? '<p class="res-note">반영여부 체크를 쓰려면 Supabase SQL Editor 에서 <b>supabase/feedback_v32.sql</b> 을 한 번 실행해 주세요.</p>' : '');
+    async function resToggle(e, kind, rowSel) {
+      const box = e.target.closest('[data-res]'); if (!box) return;
+      const row = box.closest(rowSel), id = isNaN(+row.dataset.id) ? row.dataset.id : +row.dataset.id;
+      box.disabled = true;
+      try { await Hub.setResolved(kind, id, box.checked); row.classList.toggle('is-resolved', box.checked); const cnt = $(kind === 'chat' ? '#tCount' : '#cCount'); if (cnt) cnt.textContent = cnt.textContent.replace(/반영 \d+개/, '반영 ' + $$('[data-res]:checked', body).length + '개'); ui.toast(box.checked ? '반영됨으로 표시했어요.' : '반영 표시를 지웠어요.'); }
+      catch (err) { box.checked = !box.checked; ui.toast(err.message); }
+      box.disabled = false;
+    }
+
     /* ---------- 댓글 · 피드백 ---------- */
-    let cg = '', ck = '', cbad = false;
+    let cg = '', ck = '', cbad = false, copen = false;   // copen: 반영 안 된 것만 (v32)
     const gameOpts = sel => '<option value="">모든 게임</option>' + ui.games.map(g => `<option value="${g.id}" ${sel === g.id ? 'selected' : ''}>${ui.esc(g.name)}</option>`).join('');
     async function comments() {
       body.innerHTML = `
@@ -178,6 +194,7 @@
             <label class="sr-only" for="cGame">게임</label><select id="cGame">${gameOpts(cg)}</select>
             <div class="mini-tabs">${[['', '전체'], ['comment', '댓글'], ['feedback', '피드백']].map(([k, n]) => `<button type="button" data-ck="${k}" aria-pressed="${ck === k}">${n}</button>`).join('')}</div>
             <label class="chk"><input type="checkbox" id="cBad" ${cbad ? 'checked' : ''}> 비속어 포함만</label>
+            <label class="chk"><input type="checkbox" id="cOpen" ${copen ? 'checked' : ''}> 반영 안 된 것만</label>
             <span class="small" id="cCount"></span><button class="btn btn-sm" type="button" id="csvComments">CSV 내려받기</button>
           </div>
           <div id="cSummary"></div>
@@ -186,22 +203,25 @@
       $('#cGame').addEventListener('change', e => { cg = e.target.value; comments(); });
       $$('[data-ck]', body).forEach(b => b.addEventListener('click', () => { ck = b.dataset.ck; comments(); }));
       $('#cBad').addEventListener('change', e => { cbad = e.target.checked; comments(); });
+      $('#cOpen').addEventListener('change', e => { copen = e.target.checked; comments(); });
       let rows = await Hub.adminComments({ game: cg || null, kind: ck || null, limit: 500 }); if (!alive || tab !== 'comments') return;
       if (cbad) rows = rows.filter(c => F.has(c.body));
-      $('#cCount').textContent = rows.length + '개';
+      if (copen) rows = rows.filter(c => !c.resolved);
+      $('#cCount').textContent = rows.length + '개' + (Hub.noResolved ? '' : ` · 반영 ${rows.filter(c => c.resolved).length}개`);
       // 피드백 별점 요약
       const fb = rows.filter(c => c.kind === 'feedback'), rated = {};
       fb.filter(c => c.rating).forEach(c => { const r = rated[c.game_id] || (rated[c.game_id] = { n: 0, s: 0 }); r.n++; r.s += c.rating; });
-      $('#cSummary').innerHTML = Object.keys(rated).length ? `<div class="rate-sum">${Object.entries(rated).map(([g, r]) => `<span><b>${ui.esc(ui.nameOf(g))}</b> ★ ${(r.s / r.n).toFixed(1)} <small>(${r.n}명)</small></span>`).join('')}</div>` : '';
+      $('#cSummary').innerHTML = resNote() + (Object.keys(rated).length ? `<div class="rate-sum">${Object.entries(rated).map(([g, r]) => `<span><b>${ui.esc(ui.nameOf(g))}</b> ★ ${(r.s / r.n).toFixed(1)} <small>(${r.n}명)</small></span>`).join('')}</div>` : '');
       const el = $('#cRows');
-      el.innerHTML = rows.map(c => `<li class="cm-item ${c.kind === 'feedback' ? 'is-fb' : ''} ${c.hidden ? 'is-hidden' : ''}" data-id="${c.id}">
+      el.innerHTML = rows.map(c => `<li class="cm-item ${c.kind === 'feedback' ? 'is-fb' : ''} ${c.hidden ? 'is-hidden' : ''} ${c.resolved ? 'is-resolved' : ''}" data-id="${c.id}">
         ${ui.avCanvas(c.avatar, 2, 'bust', 'cm-av')}
-        <div class="cm-main"><div class="cm-meta"><span class="cm-game">${ui.esc(ui.nameOf(c.game_id))}</span><b>${ui.esc(c.nickname)}</b><span class="small">@${ui.esc(c.username || '')}</span>
+        <div class="cm-main"><div class="cm-meta"><span class="cm-game">${ui.esc(ui.nameOf(c.game_id))}</span><b>${ui.esc(c.nickname)}</b><span class="small">@${ui.esc(c.username || '')}</span>${resBox(c)}
           ${c.kind === 'feedback' ? '<span class="cm-tag fb">피드백</span>' : ''}${c.hidden ? '<span class="cm-tag hid">숨김</span>' : ''}${c.rating ? `<span class="cm-stars">${'★'.repeat(c.rating)}${'☆'.repeat(5 - c.rating)}</span>` : ''}<time>${ui.ago(c.created_at)}</time></div>
           <p class="cm-body">${F.html(c.body, true)}</p></div>
         <div class="cm-act">${c.kind === 'comment' ? `<button class="link" type="button" data-hide="${c.hidden ? 0 : 1}">${c.hidden ? '보이기' : '숨기기'}</button>` : ''}<button class="link" type="button" data-del>지우기</button></div></li>`).join('') || '<li class="cm-empty">해당하는 글이 없어요.</li>';
       AV.paintAll(el);
-      $('#csvComments').addEventListener('click', () => csv('댓글피드백', ['게임', '종류', '별점', '닉네임', '아이디', '내용', '숨김', '작성 시각'], rows.map(c => [ui.nameOf(c.game_id), c.kind === 'feedback' ? '피드백' : '댓글', c.rating || '', c.nickname, c.username, c.body, c.hidden ? 'O' : '', c.created_at])));
+      $('#csvComments').addEventListener('click', () => csv('댓글피드백', ['게임', '종류', '별점', '닉네임', '아이디', '반영여부', '내용', '숨김', '작성 시각'], rows.map(c => [ui.nameOf(c.game_id), c.kind === 'feedback' ? '피드백' : '댓글', c.rating || '', c.nickname, c.username, c.resolved ? 'O' : '', c.body, c.hidden ? 'O' : '', c.created_at])));
+      el.addEventListener('change', e => resToggle(e, 'comments', 'li'));
       el.addEventListener('click', async e => {
         const li = e.target.closest('[data-id]'); if (!li) return;
         const id = isNaN(+li.dataset.id) ? li.dataset.id : +li.dataset.id, del = e.target.closest('[data-del]'), hide = e.target.closest('[data-hide]');
@@ -222,15 +242,18 @@
             <label class="chk"><input type="checkbox" id="tBad" ${tbad ? 'checked' : ''}> 비속어 포함만</label>
             <span class="small" id="tCount"></span><span class="small">30일이 지난 대화는 자동으로 지워져요.</span>
           </div>
-          <div class="tbl-wrap"><table class="admin-tbl"><thead><tr><th>시각</th><th>게임</th><th>보낸 사람</th><th>내용 (원문)</th><th></th></tr></thead><tbody id="tRows"><tr><td colspan="5" class="empty">불러오는 중…</td></tr></tbody></table></div>
+          <div id="tNote"></div>
+          <div class="tbl-wrap"><table class="admin-tbl"><thead><tr><th>시각</th><th>게임</th><th>보낸 사람</th><th class="c">반영여부</th><th>내용 (원문)</th><th></th></tr></thead><tbody id="tRows"><tr><td colspan="6" class="empty">불러오는 중…</td></tr></tbody></table></div>
         </div>`;
       $('#tGame').addEventListener('change', e => { tg = e.target.value; chat(); });
       $('#tBad').addEventListener('change', e => { tbad = e.target.checked; chat(); });
       let rows = await Hub.adminChat({ game: tg || null, limit: 500 }); if (!alive || tab !== 'chat') return;
       if (tbad) rows = rows.filter(m => F.has(m.body));
-      $('#tCount').textContent = rows.length + '개';
+      $('#tCount').textContent = rows.length + '개' + (Hub.noResolved ? '' : ` · 반영 ${rows.filter(m => m.resolved).length}개`);
+      const tn = $('#tNote'); if (tn) tn.innerHTML = resNote();
       const el = $('#tRows');
-      el.innerHTML = rows.map(m => `<tr data-id="${m.id}"><td>${day(m.created_at)} ${new Date(m.created_at).toTimeString().slice(0, 5)}</td><td>${ui.esc(ui.nameOf(m.game_id))}</td><td><b>${ui.esc(m.nickname)}</b> <span class="small">@${ui.esc(m.username || '')}</span></td><td>${F.html(m.body, true)}</td><td><button class="link" type="button" data-del>지우기</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty">대화가 없어요.</td></tr>';
+      el.innerHTML = rows.map(m => `<tr data-id="${m.id}" class="${m.resolved ? 'is-resolved' : ''}"><td>${day(m.created_at)} ${new Date(m.created_at).toTimeString().slice(0, 5)}</td><td>${ui.esc(ui.nameOf(m.game_id))}</td><td><b>${ui.esc(m.nickname)}</b> <span class="small">@${ui.esc(m.username || '')}</span></td><td class="c">${resBox(m, true)}</td><td>${F.html(m.body, true)}</td><td><button class="link" type="button" data-del>지우기</button></td></tr>`).join('') || '<tr><td colspan="6" class="empty">대화가 없어요.</td></tr>';
+      el.addEventListener('change', e => resToggle(e, 'chat', 'tr'));
       el.addEventListener('click', async e => {
         const del = e.target.closest('[data-del]'); if (!del) return;
         const tr = del.closest('tr'), id = isNaN(+tr.dataset.id) ? tr.dataset.id : +tr.dataset.id;

@@ -123,21 +123,37 @@
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
       let ps = initial(), turn = 0, mode = 'ai', level = 'normal', aim = null, rolling = false, over = false, shots = 0, raf = 0, timer = 0;
+      // v32 온라인 (학생 의견 '다른 기기로 2인 하게 해 주세요'): side = 내 자리(0 초 · 1 한), 튕긴 알과 속도만 보내고 두 기기가 똑같이 굴림.
+      //   알이 멈추면 튕긴 쪽 기기가 최종 위치(sync)를 보내 맞춤 (계산이 같아도 혹시 모를 차이를 없앰)
+      let side = 0, waitSync = false, pendingSync = null;
       const name = s => (s === 0 ? '초' : '한');
-      const human = () => !over && !rolling && (mode === 'local' || turn === 0);
+      const online = () => mode === 'online';
+      const send = m => { if (online() && hooks.onMove) hooks.onMove(m); };
+      const human = () => !over && !rolling && !waitSync && (mode === 'local' || (online() ? turn === side : turn === 0));
       const draw = () => drawScene(ctx, ps, aim);
       function turnText() {
         if (over) return;
-        const who = rolling ? '알이 굴러가는 중…' : mode === 'ai' ? (turn === 0 ? '내 차례 (초) · 알을 당겼다 놓으세요' : '컴퓨터가 조준 중… (한)') : name(turn) + ' 차례 · 알을 당겼다 놓으세요';
+        const who = rolling || waitSync ? '알이 굴러가는 중…' : online() ? (turn === side ? '내 차례 (' + name(turn) + ') · 알을 당겼다 놓으세요' : '상대 차례… (' + name(turn) + ')') : mode === 'ai' ? (turn === 0 ? '내 차례 (초) · 알을 당겼다 놓으세요' : '컴퓨터가 조준 중… (한)') : name(turn) + ' 차례 · 알을 당겼다 놓으세요';
         hooks.onTurn({ text: who + ` · 남은 알 초 ${count(ps, 0)} : 한 ${count(ps, 1)}`, side: turn });
       }
-      function shoot(i, vx, vy) {
+      const snap = () => ps.map(p => [p.x, p.y, p.vx, p.vy, p.alive ? 1 : 0, p.fall || 0]);
+      function applySnap(a) { a.forEach((v, k) => { const p = ps[k]; if (!p) return; p.x = v[0]; p.y = v[1]; p.vx = v[2]; p.vy = v[3]; p.alive = !!v[4]; p.fall = v[5]; }); }
+      function shoot(i, vx, vy, fromRemote) {
+        if (online() && !fromRemote) send({ i, vx, vy, n: shots });
+        const mineShot = !online() || !fromRemote;
         ps[i].vx = vx; ps[i].vy = vy; rolling = true; shots++; turnText();
         const loop = () => {
           let moving = false;
           for (let k = 0; k < 2; k++) moving = step(ps) || moving;   // 한 화면에 두 걸음
           draw();
-          if (moving) raf = requestAnimationFrame(loop); else { rolling = false; next(); }
+          if (moving) raf = requestAnimationFrame(loop);
+          else {
+            rolling = false;
+            if (!online()) return next();
+            if (mineShot) { send({ sync: snap(), n: shots }); return next(); }
+            if (pendingSync && pendingSync.n === shots) { applySnap(pendingSync.sync); pendingSync = null; draw(); return next(); }
+            waitSync = true; turnText();   // 상대 기기의 최종 위치를 기다림
+          }
         };
         raf = requestAnimationFrame(loop);
       }
@@ -174,10 +190,21 @@
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
           cancelAnimationFrame(raf); clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal';
+          side = o.side || 0; waitSync = false; pendingSync = null;
           ps = initial(); turn = 0; shots = 0; rolling = false; over = false; aim = null;
           clock.reset(); clock.start(); hooks.onState('playing'); hooks.onButtons([]); draw(); turnText();
         },
-        press(id) { if (id === 'resign' && !over) { cancelAnimationFrame(raf); clearTimeout(timer); rolling = false; const loser = mode === 'ai' ? 0 : turn; end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
+        remote(m) {
+          if (over || !m) return;
+          if (m.resign) { cancelAnimationFrame(raf); rolling = false; return end(side, (m.left ? '상대가 나갔어요 · ' : name(1 - side) + ' 기권 · ') + name(side) + ' 승'); }
+          if (m.sync) {
+            if (waitSync && m.n === shots) { waitSync = false; applySnap(m.sync); draw(); next(); }
+            else pendingSync = m;
+            return;
+          }
+          if (m.i != null && !rolling && turn !== side && m.n === shots && ps[m.i]) shoot(m.i, m.vx, m.vy, true);
+        },
+        press(id) { if (id === 'resign' && !over) { cancelAnimationFrame(raf); clearTimeout(timer); rolling = false; const loser = mode === 'ai' ? 0 : online() ? side : turn; send({ resign: 1 }); end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
         togglePause() {}, action() {},
         destroy() { window.removeEventListener('gogo:img', onImg); cancelAnimationFrame(raf); clearTimeout(timer); off(); }
       };
