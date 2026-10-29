@@ -11,7 +11,8 @@
 (function () {
   'use strict';
   const S = window.GoSport;
-  const W = 960, H = 540, M = 18, FPS = 60;
+  const W = 960, H = 540, M = 18, FPS = 60;          // W·H = 화면(캔버스) 크기
+  const AW = 1200, AH = 675, SC = W / AW;             // 경기장(전장) 크기: 화면의 1.25배, 0.8배로 줄여 그림 (v26)
   const DIR = 'games/action/mecha/';
   const TEAM_COL = ['#FF6B70', '#5B8CFF'];
 
@@ -25,7 +26,7 @@
     { id: 1, name: '볼트', team: '테라 연합', role: '속도형', color: '#FFD23F', hp: 80, spd: 4.1, r: 21, pref: 190,
       desc: '가장 빠른 로봇. 쌍발 블래스터와 유도 미사일로 치고 빠지기!',
       w: [{ name: '전기 단검', tip: '짧은 마비', kind: 'melee', range: 54, arc: 1.6, dmg: 7, stun: 8, cd: 18, en: 4, col: '#7FE3FF' },
-          { name: '쌍발 블래스터', tip: '빠른 2연발', kind: 'shot', spd: 9, dmg: 4, count: 2, extra: 1, spread: 0.1, life: 55, rad: 4, cd: 14, en: 6, col: '#FFE45C' },
+          { name: '쌍발 블래스터', tip: '빠른 2연발', kind: 'shot', spd: 9, dmg: 4, count: 2, extra: 1, spread: 0.1, life: 55, rad: 4, cd: 15, en: 6, col: '#FFE45C' },
           { name: '유도 미사일', tip: '상대를 따라감', kind: 'shot', spd: 5.5, dmg: 9, count: 2, extra: 1, spread: 0.7, life: 150, rad: 6, homing: 0.07, cd: 150, en: 28, col: '#FF9A3D' }] },
     { id: 2, name: '타이탄', team: '테라 연합', role: '중장갑', color: '#FF9A3D', hp: 140, spd: 2.8, r: 26, pref: 80,
       desc: '느리지만 단단해요. 해머로 날려 버리고 지뢰를 깔아요.',
@@ -35,7 +36,7 @@
     { id: 3, name: '레이븐', team: '테라 연합', role: '저격형', color: '#7FA2FF', hp: 100, spd: 3.3, r: 22, pref: 340,
       desc: '멀리서 레일 캐논 한 방! 힘을 모으면 장애물도 꿰뚫어요.',
       w: [{ name: '전기 충격', tip: '긴 마비', kind: 'melee', range: 48, arc: 2.2, dmg: 5, stun: 32, cd: 60, en: 10, col: '#7FE3FF' },
-          { name: '레일 캐논', tip: '아주 빠른 한 방, 힘 모으면 관통', kind: 'shot', spd: 17, dmg: 17, count: 1, life: 60, rad: 6, pierce: true, cd: 50, en: 16, col: '#BFE6FF' },
+          { name: '레일 캐논', tip: '아주 빠른 한 방, 힘 모으면 관통', kind: 'shot', spd: 17, dmg: 15, count: 1, life: 60, rad: 6, pierce: true, cd: 50, en: 16, col: '#BFE6FF' },
           { name: '마비탄', tip: '맞으면 1초 넘게 마비', kind: 'shot', spd: 8, dmg: 3, count: 1, life: 90, rad: 8, stun: 70, cd: 160, en: 28, col: '#C792FF' }] },
     { id: 4, name: '스팅어', team: '제노 군단', role: '근접 독', color: '#B36BFF', hp: 100, spd: 4.0, r: 21, pref: 90,
       desc: '외계 곤충 로봇. 독을 묻히고 순간 돌진으로 파고들어요.',
@@ -53,7 +54,7 @@
           { name: '흡수 빔', tip: '상대 에너지를 빼앗음', kind: 'shot', spd: 11, dmg: 5, count: 1, life: 42, rad: 5, drain: 18, cd: 28, en: 6, col: '#8FD16B' },
           { name: '바위 방패', tip: '받는 피해 70% 줄임', kind: 'shield', time: 150, cd: 300, en: 30, col: '#C9A15A' }] },
     /* ----- 7~12: 추가 로봇 (기술은 시중 게임을 참고: 괄호 안) ----- */
-    { id: 7, name: '블레이즈', team: '테라 연합', role: '화염형', color: '#FF5A3D', hp: 105, spd: 3.4, r: 23, pref: 110,
+    { id: 7, name: '블레이즈', team: '테라 연합', role: '화염형', color: '#FF5A3D', hp: 105, spd: 3.7, r: 23, pref: 110,
       desc: '불꽃을 뿜어 태워요. 로켓 점프로 날아올라 내려찍기!',
       w: [{ name: '화염 방사', tip: '부채꼴 불, 화상', kind: 'cone', range: 105, arc: 0.9, dmg: 3, burn: 90, knock: 1, cd: 14, en: 5, col: '#FF7A3D' },        // 팀 포트리스 2 파이로 화염 방사기
           { name: '네이팜탄', tip: '터지며 주변에 불', kind: 'shot', spd: 6, dmg: 6, count: 1, extra: 1, spread: 0.25, life: 60, rad: 7, explode: 65, burn: 120, cd: 50, en: 14, col: '#FFB347' },   // 터지면 주변에 불
@@ -68,15 +69,15 @@
       w: [{ name: '전기봉', tip: '짧은 마비', kind: 'melee', range: 52, arc: 1.6, dmg: 6, stun: 14, cd: 22, en: 5, col: '#7DFFC4' },
           { name: '나노탄', tip: '상대는 피해, 우리 편은 회복', kind: 'shot', spd: 10, dmg: 6, count: 1, extra: 1, spread: 0.15, life: 55, rad: 5, heal: 10, cd: 20, en: 8, col: '#B8FFE0' },
           { name: '수리 구역', tip: '서 있으면 체력 회복', kind: 'zone', zone: 'heal', r: 110, time: 200, throw: 0, cd: 300, en: 32, col: '#7DFFC4' }] },  // 오버워치 메르시·루시우 · 롤 소나
-    { id: 10, name: '팬텀', team: '제노 군단', role: '암살자', color: '#C77DFF', hp: 100, spd: 4.4, r: 20, pref: 70,
+    { id: 10, name: '팬텀', team: '제노 군단', role: '암살자', color: '#C77DFF', hp: 108, spd: 4.4, r: 20, pref: 70,
       desc: '모습을 감추고 다가가 첫 공격 2배! 부메랑 칼날은 돌아와요.',
       w: [{ name: '그림자 베기', tip: '빠른 베기', kind: 'melee', range: 58, arc: 1.6, dmg: 11, cd: 18, en: 5, col: '#E3B3FF' },
           { name: '부메랑 칼날', tip: '돌아오며 한 번 더', kind: 'shot', spd: 8, dmg: 6, count: 1, extra: 1, spread: 0.3, life: 90, rad: 7, boomerang: 28, cd: 40, en: 10, col: '#C77DFF' },   // 젤다 부메랑
           { name: '그림자 은신', tip: '3초 투명, 첫 공격 2배', kind: 'cloak', time: 180, cd: 280, en: 28, col: '#C77DFF' }] },   // 롤 이블린·트위치 · 스타크래프트 클로킹
-    { id: 11, name: '볼텍스', team: '제노 군단', role: '중력 제어', color: '#6B5BFF', hp: 105, spd: 3.0, r: 23, pref: 230,
+    { id: 11, name: '볼텍스', team: '제노 군단', role: '중력 제어', color: '#6B5BFF', hp: 105, spd: 3.3, r: 23, pref: 230,
       desc: '번개가 상대끼리 옮겨 다니고, 블랙홀로 한곳에 빨아들여요.',
       w: [{ name: '중력 펀치', tip: '아주 멀리 날려 보냄', kind: 'melee', range: 60, arc: 1.4, dmg: 9, knock: 13, cd: 34, en: 7, col: '#9A8CFF' },
-          { name: '연쇄 번개', tip: '반드시 맞음, 옆 상대로 튐', kind: 'chain', range: 250, jump: 150, dmg: 8, hops: 1, stun: 4, cd: 46, en: 14, col: '#9AD0FF' },   // 디아블로 연쇄 번개
+          { name: '연쇄 번개', tip: '반드시 맞음, 옆 상대로 튐', kind: 'chain', range: 280, jump: 120, dmg: 8, hops: 1, stun: 4, cd: 46, en: 14, col: '#9AD0FF' },   // 디아블로 연쇄 번개
           { name: '블랙홀', tip: '가운데로 빨아들임', kind: 'zone', zone: 'hole', r: 140, time: 120, throw: 200, cd: 280, en: 34, col: '#6B5BFF' }] },     // 오버워치 자리야 중력자탄
     { id: 12, name: '스파이더', team: '제노 군단', role: '설치형', color: '#C9D63A', hp: 115, spd: 3.1, r: 24, pref: 230,
       desc: '거미줄로 발을 묶고, 자동 포탑을 세워 함께 싸워요.',
@@ -86,7 +87,7 @@
   ];
   const ZK = ['ice', 'heal', 'hole'];
   const HP_MUL = 1.8;   // 체력 배율: 표의 hp × 1.8 이 실제 체력 (한 판이 너무 빨리 끝나지 않게, 평균 약 35초)
-  const ROCKS = [[300, 150, 34], [660, 390, 34], [480, 270, 26], [190, 410, 22], [770, 130, 22]];   // 경기장 바위 (x, y, 반지름)
+  const ROCKS = [[375, 188, 38], [825, 488, 38], [600, 338, 30], [238, 512, 26], [962, 162, 26]];   // 경기장 바위 (x, y, 반지름)
   const LV = { easy: { think: 22, err: 0.35, dodge: 0.08, charge: 0.1, aggro: 0.55 }, normal: { think: 12, err: 0.14, dodge: 0.35, charge: 0.35, aggro: 0.8 }, hard: { think: 6, err: 0.04, dodge: 0.7, charge: 0.6, aggro: 1 } };
   const cfg = () => window.GoSettings.get('mecha') || {};
   const img = name => S.image(DIR + 'img/' + name);
@@ -117,21 +118,56 @@
       ctx.fillStyle = 'rgba(91,140,255,.12)'; for (let x = 0; x < W; x += 48) ctx.fillRect(x, 0, 1, H); for (let y = 0; y < H; y += 48) ctx.fillRect(0, y, W, 1);
       ctx.fillStyle = '#FFFFFF'; for (let i = 0; i < 70; i++) { const x = (i * 137) % W, y = (i * 251) % H; ctx.fillRect(x, y, i % 5 ? 1 : 2, i % 5 ? 1 : 2); }
     }
-    ctx.strokeStyle = 'rgba(127,162,255,.55)'; ctx.lineWidth = 3; ctx.strokeRect(M - 4, M - 4, W - 2 * M + 8, H - 2 * M + 8);
+    ctx.save(); ctx.scale(SC, SC);
+    ctx.strokeStyle = 'rgba(127,162,255,.55)'; ctx.lineWidth = 3; ctx.strokeRect(M - 4, M - 4, AW - 2 * M + 8, AH - 2 * M + 8);
     ROCKS.forEach(([x, y, r]) => {
       ctx.fillStyle = '#2A2442'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#4A4170'; ctx.beginPath(); ctx.arc(x - r * 0.15, y - r * 0.15, r * 0.82, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#6A5F96'; ctx.fillRect(x - r * 0.45, y - r * 0.4, r * 0.3, r * 0.2); ctx.fillRect(x + r * 0.1, y + r * 0.1, r * 0.22, r * 0.16);
     });
+    ctx.restore();
   }
-  // 경기 중 로봇: Meshy 그림(옆모습, 오른쪽을 봄)은 돌리지 않고 왼쪽을 볼 때만 뒤집음. 조준 방향은 따로 화살표로 표시
-  function drawRobot(ctx, rb, x, y, ang, scale, alpha) {
-    const side = img('m' + rb.id + '_top.png'), size = rb.r * 2.9 * (scale || 1);
+  /* 경기 중 로봇: 8방향 (v26, 새 그림 없이 지금 그림으로)
+   *  → · ←  : 옆모습 그림 (m?_top.png, 왼쪽은 좌우 뒤집기)
+   *  ↓      : 정면 그림 (m?_card.png)
+   *  ↘ · ↙  : 정면 그림을 조금 좁히고 기울임 (↙ 는 뒤집기)
+   *  ↑      : 정면 그림을 뒤집고 어둡게 → 뒷모습 느낌
+   *  ↗ · ↖  : 뒷모습을 조금 좁히고 기울임
+   *  어색하면 USE_8DIR 을 false 로 바꾸면 예전처럼 좌·우만 봄 */
+  const USE_8DIR = true;
+  const backCache = {};
+  function backOf(rb, card) {   // 뒷모습: 정면 그림을 좌우로 뒤집고 어둡게
+    if (backCache[rb.id]) return backCache[rb.id];
+    const c = document.createElement('canvas'); c.width = card.naturalWidth; c.height = card.naturalHeight;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(card, 0, 0);
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(14,16,40,.42)'; g.fillRect(0, 0, c.width, c.height);
+    return (backCache[rb.id] = c);
+  }
+  // 방향 0~7 (0 →, 1 ↘, 2 ↓, 3 ↙, 4 ←, 5 ↖, 6 ↑, 7 ↗). 경계에서 깜빡이지 않게 조금 버팀
+  function faceOf(ang, prev) {
+    const step = Math.PI / 4, d = ((Math.round(ang / step) % 8) + 8) % 8;
+    if (prev != null && Math.abs(angDiff(ang, prev * step)) < step / 2 + 0.15) return prev;
+    return d;
+  }
+  function drawRobot(ctx, rb, x, y, ang, scale, alpha, f) {
+    const side = img('m' + rb.id + '_top.png'), card = img('m' + rb.id + '_card.png'), size = rb.r * 2.9 * (scale || 1);
     ctx.save(); ctx.translate(x, y); if (alpha != null) ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = false;
     if (S.ready(side)) {
-      const k = size * 1.45 / Math.max(side.naturalWidth, side.naturalHeight), w = side.naturalWidth * k, h = side.naturalHeight * k;
-      if (Math.cos(ang) < 0) ctx.scale(-1, 1);
-      ctx.drawImage(side, -w / 2, -h / 2, w, h);
+      const d = faceOf(ang, f ? f.face : null); if (f) f.face = d;
+      if (!USE_8DIR || !S.ready(card) || d === 0 || d === 4) {
+        const k = size * 1.45 / Math.max(side.naturalWidth, side.naturalHeight), w = side.naturalWidth * k, h = side.naturalHeight * k;
+        if (USE_8DIR ? d === 4 || (d !== 0 && Math.cos(ang) < 0) : Math.cos(ang) < 0) ctx.scale(-1, 1);
+        ctx.drawImage(side, -w / 2, -h / 2, w, h);
+      } else {
+        const up = d >= 5, pic = up ? backOf(rb, card) : card, diag = d % 2 === 1;
+        const pw = pic.naturalWidth || pic.width, ph = pic.naturalHeight || pic.height;
+        const k = size * 1.3 / ph, w = pw * k * (diag ? 0.84 : 1), h = ph * k;   // 정면·뒷모습은 옆모습보다 조금 작게 (돌 때 크기가 튀지 않게)
+        const left = d === 3 || d === 5;           // ↙ · ↖ 은 좌우 뒤집기
+        if (left) ctx.scale(-1, 1);
+        if (diag) ctx.rotate(up ? -0.09 : 0.09);   // 가는 방향으로 살짝 기울임
+        ctx.drawImage(pic, -w / 2, -h / 2, w, h);
+      }
     } else { ctx.rotate(ang); ctx.drawImage(fallbackSprite(rb), -size / 2, -size / 2, size, size); }
     ctx.restore();
   }
@@ -157,7 +193,7 @@
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
       const bg = img('arena.jpg');
       let mode = 'ai', level = 'normal', phase = 'idle', raf = 0, last = 0, frames = 0, timeLeft = 120, n = 2;
-      let P = [], B = [], MINES = [], ZONES = [], TUR = [], fx = [], pick = 0, cur = 0, banner = null, intro = 0, slow = 0, shake = 0, net = null;
+      let P = [], B = [], MINES = [], ZONES = [], TUR = [], fx = [], pick = 0, cur = 0, lastTap = -1, banner = null, intro = 0, slow = 0, shake = 0, net = null;
       const online = () => mode === 'online';
       const isHost = () => !online() || (net && net.host);
 
@@ -186,7 +222,7 @@
       const onDown = e => {
         if (phase === 'paused') { phase = 'fight'; hooks.onButtons(pauseBtn()); return; }   // 일시정지 중 화면을 누르면 계속
         if (phase !== 'pick') return; const r = pickAt(e); if (!r) return;
-        if (e.pointerType === 'mouse' || r.i === cur) { cur = r.i; choose(r.rb.id); } else { cur = r.i; render(); }
+        if (e.pointerType === 'mouse' || r.i === lastTap) { cur = r.i; lastTap = -1; choose(r.rb.id); } else { cur = r.i; lastTap = r.i; render(); }   // 휴대폰: 처음 누른 카드는 설명만
       };
       const onHover = e => { if (phase !== 'pick') return; const r = pickAt(e); if (r && r.i !== cur) { cur = r.i; render(); } };
       canvas.addEventListener('pointerdown', onDown); canvas.addEventListener('pointermove', onHover);
@@ -215,7 +251,7 @@
       }
 
       /* ---------- 로봇 ---------- */
-      const homeOf = slot => (n === 4 ? [[110, 170], [110, 370], [W - 110, 170], [W - 110, 370]][slot] : [[130, H / 2], [W - 130, H / 2]][slot]);
+      const homeOf = slot => (n === 4 ? [[140, 215], [140, 460], [AW - 140, 215], [AW - 140, 460]][slot] : [[160, AH / 2], [AW - 160, AH / 2]][slot]);
       function robot(slot, name, human, mine) {
         const team = S.teamOf(slot, n), [x, y] = homeOf(slot);
         return { i: slot, name, human, mine: !!mine, remote: null, team, rid: 0, rb: null, x, y, vx: 0, vy: 0, ang: team === 0 ? 0 : Math.PI,
@@ -281,7 +317,7 @@
       function throwPos(f, tg, maxD) {
         let x = f.x, y = f.y;
         if (maxD > 0) { if (tg && dist(f, tg) <= maxD) { x = tg.x; y = tg.y; } else { x += Math.cos(f.ang) * maxD; y += Math.sin(f.ang) * maxD; } }
-        return [clamp(x, M + 20, W - M - 20), clamp(y, M + 20, H - M - 20)];
+        return [clamp(x, M + 20, AW - M - 20), clamp(y, M + 20, AH - M - 20)];
       }
 
       /* ---------- 무기 쏘기 ---------- */
@@ -316,7 +352,7 @@
           MINES.push({ x: f.x - Math.cos(a) * (f.rb.r + 10), y: f.y - Math.sin(a) * (f.rb.r + 10), team: f.team, from: f.i, dmg: w.dmg * mul, blast: w.blast * (1 + 0.2 * lv), arm: 30, life: 60 * 12 });
         } else if (w.kind === 'dash') {
           const len = w.dist + 60 * lv, sx = f.x, sy = f.y;
-          f.x = clamp(f.x + Math.cos(a) * len, M + f.rb.r, W - M - f.rb.r); f.y = clamp(f.y + Math.sin(a) * len, M + f.rb.r, H - M - f.rb.r);
+          f.x = clamp(f.x + Math.cos(a) * len, M + f.rb.r, AW - M - f.rb.r); f.y = clamp(f.y + Math.sin(a) * len, M + f.rb.r, AH - M - f.rb.r);
           addFx({ kind: 'line', x: sx, y: sy, x2: f.x, y2: f.y, color: w.col, life: 14 });
           enemiesOf(f).forEach(t => { if (segDist(sx, sy, f.x, f.y, t.x, t.y) < t.rb.r + f.rb.r) hurt(t, w.dmg * mul, f, { knock: 6, poison: 60 }); });
         } else if (w.kind === 'pull') {
@@ -331,7 +367,7 @@
         } else if (w.kind === 'leap') {
           // 로켓 점프: 0.33초 동안 날아올라(무적) 내려앉으며 폭발
           const len = Math.min(w.dist + 50 * lv, tg ? Math.max(40, dist(f, tg)) : w.dist + 50 * lv);
-          f.leap = { sx: f.x, sy: f.y, tx: clamp(f.x + Math.cos(a) * len, M + f.rb.r, W - M - f.rb.r), ty: clamp(f.y + Math.sin(a) * len, M + f.rb.r, H - M - f.rb.r), t: 0, T: 20, dmg: w.dmg * mul, blast: w.blast * (1 + 0.15 * lv), col: w.col };
+          f.leap = { sx: f.x, sy: f.y, tx: clamp(f.x + Math.cos(a) * len, M + f.rb.r, AW - M - f.rb.r), ty: clamp(f.y + Math.sin(a) * len, M + f.rb.r, AH - M - f.rb.r), t: 0, T: 20, dmg: w.dmg * mul, blast: w.blast * (1 + 0.15 * lv), col: w.col };
           f.vx = f.vy = 0; burst(f.x, f.y, '#FFB347', 10);
         } else if (w.kind === 'zone') {
           const [x, y] = throwPos(f, tg, w.throw ? w.throw * (1 + 0.2 * lv) : 0);
@@ -354,7 +390,7 @@
         } else if (w.kind === 'cloak') {
           f.cloak = w.time + 60 * lv; burst(f.x, f.y, w.col, 12);
         } else if (w.kind === 'turret') {
-          const x = clamp(f.x + Math.cos(a) * (f.rb.r + 24), M + 16, W - M - 16), y = clamp(f.y + Math.sin(a) * (f.rb.r + 24), M + 16, H - M - 16);
+          const x = clamp(f.x + Math.cos(a) * (f.rb.r + 24), M + 16, AW - M - 16), y = clamp(f.y + Math.sin(a) * (f.rb.r + 24), M + 16, AH - M - 16);
           TUR = TUR.filter(t => t.from !== f.i);   // 포탑은 한 개만
           TUR.push({ x, y, team: f.team, from: f.i, life: w.time + 120 * lv, cd: 20, ang: a, rate: w.rate, dmg: w.dmg * mul, range: w.range, hp: w.hp * mul, col: w.col });
           burst(x, y, w.col, 10);
@@ -377,7 +413,7 @@
           // 상대가 은신해서 안 보이면 이리저리 돌아다니며 찾음
           if (--f.ai.t <= 0) { f.ai.t = 30 + Math.floor(Math.random() * 30); const ra = Math.random() * Math.PI * 2; f.ai.wx = Math.cos(ra); f.ai.wy = Math.sin(ra); }
           let mx = f.ai.wx, my = f.ai.wy;
-          if (f.x < M + 90) mx = 1; if (f.x > W - M - 90) mx = -1; if (f.y < M + 80) my = 1; if (f.y > H - M - 80) my = -1;
+          if (f.x < M + 90) mx = 1; if (f.x > AW - M - 90) mx = -1; if (f.y < M + 80) my = 1; if (f.y > AH - M - 80) my = -1;
           h.left = mx < -0.3; h.right = mx > 0.3; h.up = my < -0.3; h.down = my > 0.3;
           return;
         }
@@ -396,7 +432,7 @@
         else { mx = Math.cos(a + Math.PI / 2 * f.ai.strafe); my = Math.sin(a + Math.PI / 2 * f.ai.strafe); }
         // 바위·벽 피하기
         ROCKS.forEach(([rx, ry, rr]) => { const rd = Math.hypot(f.x - rx, f.y - ry); if (rd < rr + f.rb.r + 40) { mx += (f.x - rx) / rd * 1.2; my += (f.y - ry) / rd * 1.2; } });
-        if (f.x < M + 70) mx += 1; if (f.x > W - M - 70) mx -= 1; if (f.y < M + 60) my += 1; if (f.y > H - M - 60) my -= 1;
+        if (f.x < M + 70) mx += 1; if (f.x > AW - M - 70) mx -= 1; if (f.y < M + 60) my += 1; if (f.y > AH - M - 60) my -= 1;
         h.left = mx < -0.3; h.right = mx > 0.3; h.up = my < -0.3; h.down = my > 0.3;
         if (Math.random() > L.aggro) return;
         // 무기 고르기
@@ -458,8 +494,8 @@
           f.vx *= 0.95; f.vy *= 0.95;
           f.x += f.vx; f.y += f.vy;
           // 벽·바위
-          if (f.x < M + f.rb.r) { f.x = M + f.rb.r; f.vx = Math.abs(f.vx) * 0.4; } if (f.x > W - M - f.rb.r) { f.x = W - M - f.rb.r; f.vx = -Math.abs(f.vx) * 0.4; }
-          if (f.y < M + f.rb.r) { f.y = M + f.rb.r; f.vy = Math.abs(f.vy) * 0.4; } if (f.y > H - M - f.rb.r) { f.y = H - M - f.rb.r; f.vy = -Math.abs(f.vy) * 0.4; }
+          if (f.x < M + f.rb.r) { f.x = M + f.rb.r; f.vx = Math.abs(f.vx) * 0.4; } if (f.x > AW - M - f.rb.r) { f.x = AW - M - f.rb.r; f.vx = -Math.abs(f.vx) * 0.4; }
+          if (f.y < M + f.rb.r) { f.y = M + f.rb.r; f.vy = Math.abs(f.vy) * 0.4; } if (f.y > AH - M - f.rb.r) { f.y = AH - M - f.rb.r; f.vy = -Math.abs(f.vy) * 0.4; }
           ROCKS.forEach(([rx, ry, rr]) => { const d = Math.hypot(f.x - rx, f.y - ry), need = rr + f.rb.r; if (d < need && d > 0) { f.x = rx + (f.x - rx) / d * need; f.y = ry + (f.y - ry) / d * need; } });
           // 무기: 누르면 힘 모으기 시작, 놓으면 발사
           for (let k = 0; k < 3; k++) {
@@ -483,7 +519,7 @@
           // 부메랑: 일정 거리 뒤 주인에게 돌아옴 (돌아올 때 다시 한 번 맞힘)
           if (b.boomerang) {
             b.age++;
-            const out = b.x < M || b.x > W - M || b.y < M || b.y > H - M;
+            const out = b.x < M || b.x > AW - M || b.y < M || b.y > AH - M;
             if (!b.back && (b.age >= b.boomerang || out)) { b.back = true; b.hit = []; }
             const o = P[b.from];
             if (b.back && o && !o.dead) {
@@ -492,7 +528,7 @@
             } else if (b.back) b.life = 0;
           }
           b.x += b.vx; b.y += b.vy; b.life--;
-          if (!b.boomerang && (b.x < M || b.x > W - M || b.y < M || b.y > H - M)) b.life = 0;
+          if (!b.boomerang && (b.x < M || b.x > AW - M || b.y < M || b.y > AH - M)) b.life = 0;
           if (b.rock && ROCKS.some(([rx, ry, rr]) => Math.hypot(b.x - rx, b.y - ry) < rr + b.r)) { b.life = 0; burst(b.x, b.y, b.col, 4); }
           if (b.life <= 0) return;
           P.forEach(t => {
@@ -635,6 +671,7 @@
         if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
         drawArena(ctx, bg);
         if (phase === 'pick' || (phase === 'idle' && !P.length)) { if (phase === 'pick') drawPick(); ctx.restore(); return; }
+        ctx.save(); ctx.scale(SC, SC);   // 여기부터 경기장 좌표 (1200×675 → 화면 960×540)
         ZONES.forEach(z => {
           const fade = Math.min(1, z.life / 30), t = frames / 20;
           ctx.globalAlpha = fade;
@@ -664,19 +701,19 @@
             if (f.mine && !f.dead) { ctx.strokeStyle = 'rgba(255,210,63,' + (0.55 + 0.35 * Math.sin(frames / 8)) + ')'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 22, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
             ctx.globalAlpha = 1;
           }
-          drawRobot(ctx, f.rb, f.x, f.leap && !f.dead ? f.y - 22 : f.y, f.ang, f.leap && !f.dead ? 1.25 : 1, f.dead ? 0.35 : hidden ? 0.08 : f.cloak > 0 ? 0.45 : f.hitFlash % 4 >= 2 ? 0.5 : 1);
+          drawRobot(ctx, f.rb, f.x, f.leap && !f.dead ? f.y - 22 : f.y, f.ang, f.leap && !f.dead ? 1.25 : 1, f.dead ? 0.35 : hidden ? 0.08 : f.cloak > 0 ? 0.45 : f.hitFlash % 4 >= 2 ? 0.5 : 1, f);
           if (f.dead || hidden) return;
           if (f.burn > 0) { ctx.fillStyle = frames % 8 < 4 ? '#FF9A3D' : '#FF5A3D'; ctx.fillRect(f.x - f.rb.r + 8, f.y + f.rb.r + 6, 6, 6); }
           if (f.rootT > 0) { ctx.strokeStyle = 'rgba(242,242,242,.8)'; ctx.lineWidth = 2; for (let k = 0; k < 4; k++) { const ra = k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(f.x - Math.cos(ra) * (f.rb.r + 8), f.y - Math.sin(ra) * (f.rb.r + 8)); ctx.lineTo(f.x + Math.cos(ra) * (f.rb.r + 8), f.y + Math.sin(ra) * (f.rb.r + 8)); ctx.stroke(); } }
           { const ax = f.x + Math.cos(f.ang) * (f.rb.r + 12), ay = f.y + Math.sin(f.ang) * (f.rb.r + 12); ctx.save(); ctx.translate(ax, ay); ctx.rotate(f.ang); ctx.fillStyle = TEAM_COL[f.team]; ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-4, -6); ctx.lineTo(-4, 6); ctx.closePath(); ctx.fill(); ctx.restore(); }   // 조준 방향
           if (f.shield > 0) { ctx.strokeStyle = 'rgba(201,161,90,.9)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 11, 0, Math.PI * 2); ctx.stroke(); }
-          if (f.stun > 0) S.text(ctx, '★', f.x + Math.cos(frames / 6) * 14, f.y - f.rb.r - 6, 14, '#FFE45C');
+          if (f.stun > 0) S.text(ctx, '★', f.x + Math.cos(frames / 6) * 14, f.y - f.rb.r - 6, 17, '#FFE45C');
           if (f.poison > 0) { ctx.fillStyle = '#7DFF8A'; ctx.fillRect(f.x - f.rb.r, f.y + f.rb.r + 6, 6, 6); }
           const ch = Math.max(...f.chg);
           if (ch >= 0) { const lv = Math.min(2, Math.floor(ch / 30)), part = lv >= 2 ? 1 : (ch % 30) / 30; ctx.strokeStyle = ['#FFFFFF', '#FFD23F', '#FF5A5F'][lv]; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * part); ctx.stroke(); }
           // 머리 위 이름·체력
-          S.bar(ctx, f.x - 26, f.y - f.rb.r - 18, 52, 5, f.hp / f.maxHp, TEAM_COL[f.team]);
-          S.text(ctx, tagOf(f), f.x, f.y - f.rb.r - 32, f.mine ? 15 : 13, f.mine ? '#FFD23F' : '#FFFFFF');
+          S.bar(ctx, f.x - 30, f.y - f.rb.r - 19, 60, 6, f.hp / f.maxHp, TEAM_COL[f.team]);
+          S.text(ctx, tagOf(f), f.x, f.y - f.rb.r - 34, f.mine ? 19 : 16, f.mine ? '#FFD23F' : '#FFFFFF');
           if (f.mine) { const ty = f.y - f.rb.r - 50 + Math.sin(frames / 7) * 3; ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.moveTo(f.x - 7, ty - 6); ctx.lineTo(f.x + 7, ty - 6); ctx.lineTo(f.x, ty + 2); ctx.closePath(); ctx.fill(); }
         });
         // 내가 지금 자동 조준 중인 상대 표시 (가장 가까운, 보이는 상대)
@@ -700,9 +737,10 @@
             for (let k = 1; k < 6; k++) { const o = (k % 2 ? 1 : -1) * 10; ctx.lineTo(p.x + dx * k / 6 + nx * o, p.y + dy * k / 6 + ny * o); }
             ctx.lineTo(p.x2, p.y2); ctx.stroke();
           }
-          else if (p.kind === 'txt') { ctx.globalAlpha = Math.min(1, p.life / 12); S.text(ctx, p.text, p.x, p.y, 18, p.color); }
+          else if (p.kind === 'txt') { ctx.globalAlpha = Math.min(1, p.life / 12); S.text(ctx, p.text, p.x, p.y, 22, p.color); }
         });
         ctx.globalAlpha = 1;
+        ctx.restore();   // 여기부터 화면 좌표
         hud();
         if (banner && banner.t > 0) S.text(ctx, banner.text, W / 2, banner.big ? H / 2 - 20 : 76, banner.big ? 72 : 20, banner.color);
         if (phase === 'intro') S.text(ctx, intro > 40 ? '준비…' : '출격!', W / 2, H / 2 - 20, intro > 40 ? 56 : 80, intro > 40 ? '#FFFFFF' : '#FFD23F');
@@ -800,7 +838,7 @@
         start(o) {
           o = o || {}; mode = o.mode === 'online' ? 'online' : 'ai'; level = o.level || 'normal'; n = o.players === 4 ? 4 : 2;
           const meName = S.myName();
-          net = null; P = []; B = []; MINES = []; ZONES = []; TUR = []; cur = 0;
+          net = null; P = []; B = []; MINES = []; ZONES = []; TUR = []; cur = 0; lastTap = -1;
           if (mode === 'online') {
             const roster = o.roster || [], order = S.slotOrder(n);
             net = { host: !!o.host, sm: S.smoother(SNAP_MS), fx: [], lastSnap: 0, lastKey: -1, lastSent: 0, snapAt: 0 };

@@ -632,6 +632,7 @@
         <button class="btn btn-primary" type="button" data-net="create">방 만들기</button>
         <form class="code-row" data-net-form><input maxlength="4" placeholder="코드 4자리" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="방 코드"><button class="btn" type="submit">입장</button></form>
         ${rooms.length ? `<div class="net-rooms">${rooms.slice(0, 5).map(r => `<button class="btn btn-sm" type="button" data-net-join="${esc(r.code)}">${esc(r.nick)}의 방 · ${esc(r.code)}</button>`).join('')}</div>` : '<p class="ov-hint">열린 방이 없으면 방을 만들고 코드를 친구에게 알려 주세요.</p>'}
+        <button class="btn btn-sm" type="button" data-net="back">← 뒤로 (AI 대전 고르기)</button>
       </div>`;
     }
     const host = n.hostId === Hub.clientId, two = n.peers.length >= 2, max = netMax();
@@ -712,6 +713,11 @@
       if (a === 'create') netJoin(Array.from({ length: 4 }, () => NET_CODE[Math.random() * NET_CODE.length | 0]).join(''));
       else if (a === 'start') netHostStart();
       else if (a === 'leave') { netLeave(); session.state = 'ready'; renderOverlay(); }
+      else if (a === 'back') {   // 온라인 대기 화면 → 처음 고르기 화면 (AI 대전)
+        netLeave(); session.mode = 'ai';
+        try { localStorage.setItem('gogo_board_pick', JSON.stringify({ mode: session.mode, level: session.level })); } catch (e) { /* noop */ }
+        renderOverlay();
+      }
     }));
     $$('[data-net-join]', ov).forEach(b => b.addEventListener('click', () => netJoin(b.dataset.netJoin)));
     const nf = $('[data-net-form]', ov);
