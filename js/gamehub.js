@@ -56,6 +56,19 @@
     }
     return { username, password, nickname };
   }
+  // v33 배너: 글자 길이·링크 주소·그림 크기 검사 (서버 표의 검사와 같게)
+  const BANNER_IMG_MAX = 400000;   // 그림(data URL) 최대 글자 수 ≈ 300KB
+  function cleanBanner(b) {
+    b = b || {};
+    const title = String(b.title || '').trim().slice(0, 40), body = String(b.body || '').trim().slice(0, 200);
+    let link = String(b.link || '').trim();
+    if (link && !/^https?:\/\/[^\s<>"']+$/i.test(link)) throw new Error('링크 주소는 http:// 또는 https:// 로 시작해야 해요.');
+    const image = b.image ? String(b.image) : null;
+    if (image && (!/^data:image\/(png|jpeg|webp|gif);base64,/.test(image) || image.length > BANNER_IMG_MAX)) throw new Error('그림이 너무 크거나 형식이 맞지 않아요.');
+    if (b.enabled && !title && !body && !image) throw new Error('제목·내용·그림 중 하나는 넣어 주세요.');
+    return { enabled: !!b.enabled, title, body, image, link: link.slice(0, 500) };
+  }
+  Hub.BANNER_IMG_MAX = BANNER_IMG_MAX;
   function validateAvatar(av) {
     av = AV.normalize(av);
     for (const [slot] of AV.SLOTS) {
@@ -319,6 +332,12 @@
       async adminOverview() {
         if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
         return overviewFrom(Object.values(db().users), db().records, db().comments || [], db().chat || []);
+      },
+      /* ---- v33 로그인 팝업 배너 (한 개) ---- */
+      async getBanner() { return db().banner || null; },
+      async saveBanner(b) {
+        if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.');
+        const d = db(); d.banner = Object.assign(cleanBanner(b), { updated_at: new Date().toISOString() }); persist(); return d.banner;
       }
     };
     function withUser(d, x) { const u = d.users[x.user_id] || {}; return Object.assign({}, x, { nickname: u.nickname || '?', avatar: u.avatar, username: u.username }); }
@@ -572,6 +591,18 @@
       async adminOverview() {
         const { data, error } = await sb.rpc('admin_overview');
         if (error) throw new Error(friendly(error, '집계를 불러오지 못했어요'));
+        return data;
+      },
+      /* ---- v33 로그인 팝업 배너 (한 개, site_banner 표의 id = 1 줄) ---- */
+      async getBanner() {
+        const { data, error } = await sb.from('site_banner').select('enabled,title,body,image,link,updated_at').eq('id', 1).maybeSingle();
+        if (error) { if (/site_banner|relation|schema cache/i.test(error.message || '')) return null; throw new Error(friendly(error, '배너를 불러오지 못했어요')); }
+        return data;
+      },
+      async saveBanner(b) {
+        const row = Object.assign({ id: 1 }, cleanBanner(b), { updated_at: new Date().toISOString() });
+        const { data, error } = await sb.from('site_banner').upsert(row).select('enabled,title,body,image,link,updated_at').single();
+        if (error) throw new Error(/site_banner|relation|schema cache/i.test(error.message || '') ? '배너 표가 아직 없어요. supabase/banner_v33.sql 을 먼저 실행해 주세요.' : friendly(error, '배너를 저장하지 못했어요'));
         return data;
       }
     };

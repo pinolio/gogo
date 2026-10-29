@@ -1,7 +1,7 @@
 /*
  * gogo?gogo! — 관리자 설정 (GoAdmin)
  *  - 관리자(role = 'admin')에게만 맨 위 메뉴에 보입니다.
- *  - 탭: 전적 종합 · 회원 관리 · 댓글·피드백 · 채팅 기록
+ *  - 탭: 전적 종합 · 회원 관리 · 댓글·피드백 · 채팅 기록 · 배너(v33, 로그인 팝업)
  *  - 실제 권한 확인은 서버(Supabase 함수·보안 규칙)가 합니다. 이 화면은 보기 좋게 보여 주는 역할만 해요.
  */
 (function () {
@@ -9,7 +9,7 @@
   const Hub = window.GameHub, F = window.GoFilter, AV = window.GoAvatar;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-  const TABS = [['stats', '전적 종합'], ['members', '회원 관리'], ['comments', '댓글·피드백'], ['chat', '채팅 기록']];
+  const TABS = [['stats', '전적 종합'], ['members', '회원 관리'], ['comments', '댓글·피드백'], ['chat', '채팅 기록'], ['banner', '배너']];
   let tab = 'stats';
 
   function csv(name, head, rows) {
@@ -31,7 +31,7 @@
     }
     root.innerHTML = `
       <div class="admin">
-        <div class="page-head"><h1>관리자 설정</h1><p>회원, 전적, 댓글·피드백, 채팅을 한곳에서 확인해요. 바꾼 내용은 바로 사이트에 반영돼요.</p></div>
+        <div class="page-head"><h1>관리자 설정</h1><p>회원, 전적, 댓글·피드백, 채팅, 로그인 팝업 배너를 한곳에서 관리해요. 바꾼 내용은 바로 사이트에 반영돼요.</p></div>
         <div class="admin-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${tab === k}">${n}</button>`).join('')}</div>
         <div id="adminBody" class="admin-body"><p class="empty">불러오는 중…</p></div>
       </div>`;
@@ -40,7 +40,7 @@
     $$('[data-tab]', root).forEach(b => b.addEventListener('click', () => {
       tab = b.dataset.tab; $$('[data-tab]', root).forEach(x => x.setAttribute('aria-selected', String(x === b))); show();
     }));
-    function show() { body.innerHTML = '<p class="empty">불러오는 중…</p>'; ({ stats, members, comments, chat })[tab]().catch(fail); }
+    function show() { body.innerHTML = '<p class="empty">불러오는 중…</p>'; ({ stats, members, comments, chat, banner })[tab]().catch(fail); }
 
     /* ---------- 전적 종합 ---------- */
     async function stats() {
@@ -229,6 +229,76 @@
           if (del) { if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = '정말 지울까요?'; return; } await Hub.deleteComment(id); li.remove(); ui.toast('지웠어요.'); }
           else if (hide) { await Hub.setCommentHidden(id, hide.dataset.hide === '1'); comments(); }
         } catch (err) { ui.toast(err.message); }
+      });
+    }
+
+    /* ---------- v33: 배너 (로그인하면 뜨는 작은 팝업, 한 개) ---------- */
+    async function banner() {
+      let b = null;
+      try { b = await Hub.getBanner(); } catch (e) { /* 아래에서 안내 */ }
+      if (!alive || tab !== 'banner') return;
+      const cur = Object.assign({ enabled: false, title: '', body: '', image: null, link: '' }, b || {});
+      body.innerHTML = `
+        <div class="panel bn-admin">
+          <h3>로그인 팝업 배너 <small>로그인하면 화면 위쪽에 작게 떠요 · 링크는 새 탭으로 열려요</small></h3>
+          ${Hub.mode !== 'demo' && !b ? '<p class="res-note">아직 저장된 배너가 없어요. 처음 저장이 안 되면 Supabase SQL Editor 에서 <b>supabase/banner_v33.sql</b> 을 한 번 실행해 주세요.</p>' : ''}
+          <div class="bn-form">
+            <label class="chk bn-on"><input type="checkbox" id="bnOn" ${cur.enabled ? 'checked' : ''}> <b>배너 켜기</b> <span class="small">(끄면 아무에게도 안 보여요)</span></label>
+            <label>제목 <span class="small">(40자)</span><input id="bnTitle" maxlength="40" value="${ui.esc(cur.title)}" placeholder="예) 11월 게임 대회 안내"></label>
+            <label>내용 <span class="small">(200자, 줄바꿈 가능)</span><textarea id="bnBody" maxlength="200" rows="3" placeholder="예) 11월 15일까지 Ultimate mode 1등에게 상품!">${ui.esc(cur.body)}</textarea></label>
+            <label>링크 주소 <span class="small">(누르면 새 탭으로 열림 · 비워 두면 링크 없음)</span><input id="bnLink" maxlength="500" value="${ui.esc(cur.link || '')}" placeholder="https://..."></label>
+            <div class="bn-imgrow">
+              <span>그림 <span class="small">(선택 · 큰 그림은 가로 600 크기로 자동으로 줄여요)</span></span>
+              <div class="row"><input type="file" id="bnFile" accept="image/png,image/jpeg,image/webp,image/gif"><button class="btn btn-sm" type="button" id="bnImgDel" ${cur.image ? '' : 'hidden'}>그림 빼기</button></div>
+              <img id="bnImgPrev" class="bn-imgprev" alt="" ${cur.image ? `src="${ui.esc(cur.image)}"` : 'hidden'}>
+            </div>
+            <div class="row bn-btns"><button class="btn" type="button" id="bnPreview">팝업 미리보기</button><button class="btn btn-primary" type="button" id="bnSave">저장</button><span class="small" id="bnState">${b && b.updated_at ? '마지막 저장: ' + day(b.updated_at) + ' ' + new Date(b.updated_at).toTimeString().slice(0, 5) : ''}</span></div>
+          </div>
+          <ul class="ult-rules small">
+            <li>회원이 <b>로그인하면 한 번</b> 떠요. 같은 창에서는 다시 안 뜨고, 로그아웃 후 다시 로그인하면 또 떠요.</li>
+            <li>'오늘 하루 보지 않기'를 누른 사람은 그날 안 떠요. 배너를 <b>저장하면(내용을 바꾸면) 다시 떠요.</b></li>
+            <li>그림은 이 사이트 서버(Supabase)에 함께 저장돼요. 학생 얼굴·실명이 나온 그림은 넣지 마세요.</li>
+          </ul>
+        </div>`;
+      let img = cur.image || null;
+      const prev = $('#bnImgPrev'), del = $('#bnImgDel');
+      const form = () => ({ enabled: $('#bnOn').checked, title: $('#bnTitle').value, body: $('#bnBody').value, link: $('#bnLink').value.trim(), image: img });
+      $('#bnFile').addEventListener('change', async e => {
+        const f = e.target.files && e.target.files[0]; if (!f) return;
+        try { img = await shrink(f); prev.src = img; prev.hidden = false; del.hidden = false; ui.toast('그림을 넣었어요. 저장을 눌러야 반영돼요.'); }
+        catch (err) { ui.toast(err.message); }
+        e.target.value = '';
+      });
+      del.addEventListener('click', () => { img = null; prev.hidden = true; prev.removeAttribute('src'); del.hidden = true; });
+      $('#bnPreview').addEventListener('click', () => window.GoBanner.show(Object.assign(form(), { updated_at: 'preview' }), { preview: true }));
+      $('#bnSave').addEventListener('click', async e => {
+        const btn = e.currentTarget; btn.disabled = true;
+        try { const saved = await Hub.saveBanner(form()); $('#bnState').textContent = '저장했어요 · ' + (saved.enabled ? '켜짐 (다음 로그인부터 떠요)' : '꺼짐'); ui.toast('배너를 저장했어요.'); }
+        catch (err) { ui.toast(err.message); }
+        btn.disabled = false;
+      });
+    }
+    // 그림을 가로 600 이하 JPEG(투명 PNG 는 PNG)로 줄여 data URL 로
+    function shrink(file) {
+      return new Promise((ok, bad) => {
+        if (!/^image\//.test(file.type)) return bad(new Error('그림 파일만 넣을 수 있어요.'));
+        const r = new FileReader();
+        r.onerror = () => bad(new Error('그림을 읽지 못했어요.'));
+        r.onload = () => {
+          const im = new Image();
+          im.onerror = () => bad(new Error('그림을 열지 못했어요.'));
+          im.onload = () => {
+            const k = Math.min(1, 600 / im.width, 600 / im.height), w = Math.max(1, Math.round(im.width * k)), h = Math.max(1, Math.round(im.height * k));
+            const c = document.createElement('canvas'); c.width = w; c.height = h;
+            const g = c.getContext('2d'); g.fillStyle = '#fff'; if (file.type !== 'image/png') g.fillRect(0, 0, w, h); g.drawImage(im, 0, 0, w, h);
+            let out = file.type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.85);
+            if (out.length > Hub.BANNER_IMG_MAX) out = c.toDataURL('image/jpeg', 0.7);
+            if (out.length > Hub.BANNER_IMG_MAX) return bad(new Error('그림이 너무 커요. 더 작은 그림을 넣어 주세요.'));
+            ok(out);
+          };
+          im.src = r.result;
+        };
+        r.readAsDataURL(file);
       });
     }
 
