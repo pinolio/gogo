@@ -247,7 +247,8 @@
           if (mode === 'online') {
             const roster = o.roster || [];
             net = { host: !!o.host };
-            for (let s = 0; s < n; s++) { const r = roster[s]; P.push(r ? { name: s === o.me ? myName() : r.nick, mine: s === o.me, human: true, cpu: false, netId: r.id, out: false, words: 0 } : { name: '컴퓨터' + (s + 1), mine: false, human: false, cpu: true, out: false, words: 0 }); }
+            for (let s = 0; s < n; s++) { const r = roster[s]; P.push(r ? { name: r.nick || myName(),   // 온라인은 모두 방 이름표(닉네임)로 — 손님끼리 '나'로 보이던 문제
+                mine: s === o.me, human: true, cpu: false, netId: r.id, out: false, words: 0 } : { name: '컴퓨터' + (s + 1), mine: false, human: false, cpu: true, out: false, words: 0 }); }
           } else if (mode === 'local') {
             for (let s = 0; s < n; s++) P.push({ name: s === 0 ? myName() : (s + 1) + '번', human: true, cpu: false, out: false, words: 0 });
           } else {
