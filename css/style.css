@@ -1012,3 +1012,8 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 .idm-btn.dim { opacity: .5; }
 .idm-btn[disabled] { cursor: default; }
 @media (max-width: 560px) { .idm-choices { grid-template-columns: 1fr; } .idm-short .idm-btn { font-size: 19px; } .idm-btn { font-size: 15px; min-height: 46px; } }
+
+/* ---------- 지뢰찾기 (v31): 게임판 아래 깃발 모드 · 새 판 버튼 ---------- */
+.mn-bar { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.mn-bar .btn { min-width: 150px; }
+.mn-bar .mn-flag b { margin-left: 4px; }

@@ -10,6 +10,8 @@
   window.addEventListener('gogo:img', () => { clearTimeout(thumbT); thumbT = setTimeout(() => drawThumbs(document), 120); });
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = n => Number(n || 0).toLocaleString('ko-KR');
+  // 게임별 점수 표시: settings.js 에 scoreText(점수) 가 있으면 그 글자로 (예: 지뢰찾기 = 걸린 시간)
+  const sfmt = (gid, v) => { const s = gid && SET.get(gid); return s && s.scoreText ? s.scoreText(v) : fmt(v); };
   const dur = s => s < 60 ? s + '초' : s < 3600 ? Math.floor(s / 60) + '분 ' + (s % 60) + '초' : Math.floor(s / 3600) + '시간 ' + Math.floor(s % 3600 / 60) + '분';
   function ago(iso) {
     if (!iso) return '-';
@@ -46,12 +48,12 @@
     $('#toasts').appendChild(el); setTimeout(() => el.remove(), 2800);
   }
 
-  function rankItems(rows, valueKey) {
+  function rankItems(rows, valueKey, gid) {
     if (!rows.length) return '<li class="empty">아직 기록이 없어요. 첫 1위가 되어 보세요!</li>';
     const me = Hub.user && Hub.user.id;
-    return rows.map((r, i) => `<li class="${r.user_id === me ? 'mine' : ''}"><span class="rk">${i + 1}</span><span class="nm">${avCanvas(r.user_id === me ? Hub.user.avatar : r.avatar, 1, 'bust', 'rk-av')}<span class="nm-t">${esc(r.nickname)}</span>${r.sample ? '<span class="ex">예시</span>' : ''}</span><span class="sc">${fmt(r[valueKey])}${valueKey === 'earned' ? 'P' : ''}</span></li>`).join('');
+    return rows.map((r, i) => `<li class="${r.user_id === me ? 'mine' : ''}"><span class="rk">${i + 1}</span><span class="nm">${avCanvas(r.user_id === me ? Hub.user.avatar : r.avatar, 1, 'bust', 'rk-av')}<span class="nm-t">${esc(r.nickname)}</span>${r.sample ? '<span class="ex">예시</span>' : ''}</span><span class="sc">${valueKey === 'best_score' ? sfmt(gid, r[valueKey]) : fmt(r[valueKey])}${valueKey === 'earned' ? 'P' : ''}</span></li>`).join('');
   }
-  function fillRank(el, rows, key) { if (!el || !el.isConnected) return; el.innerHTML = rankItems(rows, key); AV.paintAll(el); }
+  function fillRank(el, rows, key, gid) { if (!el || !el.isConnected) return; el.innerHTML = rankItems(rows, key, gid); AV.paintAll(el); }
 
   function levelBlock(u) {
     const L = Hub.levelInfo(u.earned);
@@ -209,9 +211,9 @@
     for (const s of eventGames()) {
       const el = $(`[data-event-rank="${s.id}"]`), mine = $(`[data-event-mine="${s.id}"]`);
       try {
-        fillRank(el, await Hub.leaderboard(s.id, 5), 'best_score');
+        fillRank(el, await Hub.leaderboard(s.id, 5), 'best_score', s.id);
         const best = Hub.user ? await Hub.myBest(s.id) : null;
-        if (mine && mine.isConnected) mine.innerHTML = Hub.user ? (best ? `내 최고 <b class="num">${fmt(best)}</b>` : '아직 도전 기록이 없어요') : '로그인하면 랭킹에 올라가요';
+        if (mine && mine.isConnected) mine.innerHTML = Hub.user ? (best ? `내 최고 <b class="num">${sfmt(s.id, best)}</b>` : '아직 도전 기록이 없어요') : '로그인하면 랭킹에 올라가요';
       } catch (e) { if (el && el.isConnected) el.innerHTML = '<li class="empty">랭킹을 불러오지 못했어요.</li>'; }
     }
   }
@@ -242,7 +244,7 @@
         const [top] = await Hub.leaderboard(g.id, 1);
         const mine = Hub.user ? await Hub.myBest(g.id) : null;
         if (!foot.isConnected) continue;
-        foot.innerHTML = `<span>1위 ${top ? esc(top.nickname) + ' <b class="num">' + fmt(top.best_score) + '</b>' : '-'}</span>${mine != null ? `<span>내 최고 <b class="num">${fmt(mine)}</b></span>` : ''}`;
+        foot.innerHTML = `<span>1위 ${top ? esc(top.nickname) + ' <b class="num">' + sfmt(g.id, top.best_score) + '</b>' : '-'}</span>${mine ? `<span>내 최고 <b class="num">${sfmt(g.id, mine)}</b></span>` : mine != null ? `<span>내 최고 <b class="num">${fmt(mine)}</b></span>` : ''}`;
       } catch (e) { foot.innerHTML = '<span>기록을 불러오지 못했어요</span>'; }
     }
   }
@@ -278,7 +280,7 @@
 
   async function loadHomeRank() {
     const el = $('#rankList'); if (!el) return;
-    try { fillRank(el, await Hub.leaderboard(homeRankGame, 10), 'best_score'); }
+    try { fillRank(el, await Hub.leaderboard(homeRankGame, 10), 'best_score', homeRankGame); }
     catch (e) { el.innerHTML = '<li class="empty">랭킹을 불러오지 못했어요.</li>'; }
   }
 
@@ -812,7 +814,12 @@
   function startGame() {
     if (!session) return;
     session.result = null; session.save = null;
-    if (session.board) { session.inst.start({ mode: session.mode, level: session.level, players: session.players || 2 }); BGM.restart(); return; }
+    if (session.board) {
+      session.inst.start({ mode: session.mode, level: session.level, players: session.players || 2 }); BGM.restart();
+      // 휴대폰: 시작하면 게임 화면이 화면 가운데로 오게 (가로로 돌렸을 때 위가 잘리지 않게)
+      const cv = $('#gameCanvas'); if (cv && window.matchMedia && matchMedia('(pointer: coarse)').matches) setTimeout(() => { try { cv.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* noop */ } }, 80);
+      return;
+    }
     $('#curScore').textContent = '0';
     session.inst.start();
     BGM.restart();
@@ -892,11 +899,11 @@
     const el = $('#myBest'); if (!el || !session) return;
     if (!Hub.user) { el.textContent = '로그인 필요'; el.style.fontSize = '9px'; return; }
     el.style.fontSize = '';
-    try { el.textContent = fmt(await Hub.myBest(session.id)); } catch (e) { el.textContent = '-'; }
+    try { el.textContent = sfmt(session.id, await Hub.myBest(session.id)); } catch (e) { el.textContent = '-'; }
   }
   async function refreshGameRank() {
     const el = $('#gameRank'); if (!el || !session) return;
-    try { fillRank(el, await Hub.leaderboard(session.id, 10), 'best_score'); }
+    try { fillRank(el, await Hub.leaderboard(session.id, 10), 'best_score', session.id); }
     catch (e) { el.innerHTML = '<li class="empty">랭킹을 불러오지 못했어요.</li>'; }
   }
 
@@ -924,10 +931,10 @@
     view().innerHTML = `
       <div class="page-head"><h1>랭킹</h1><p>게임별 최고 점수와 누적 포인트 순위예요. 상점에서 포인트를 써도 누적 포인트는 줄지 않아요.</p></div>
       <div class="rank-grid">
-        ${GAMES.map(g => `<div class="panel"><h3>${g.name} <small>최고 점수 TOP 20</small></h3><ol class="rank" data-rank="${g.id}"><li class="empty">불러오는 중…</li></ol></div>`).join('')}
+        ${GAMES.map(g => `<div class="panel"><h3>${g.name} <small>${g.scoreText ? '최고 기록' : '최고 점수'} TOP 20</small></h3><ol class="rank" data-rank="${g.id}"><li class="empty">불러오는 중…</li></ol></div>`).join('')}
         <div class="panel"><h3>포인트 <small>누적 포인트 TOP 20</small></h3><ol class="rank" id="rankPoints"><li class="empty">불러오는 중…</li></ol></div>
       </div>`;
-    GAMES.forEach(g => Hub.leaderboard(g.id, 20).then(rows => fillRank($(`[data-rank="${g.id}"]`), rows, 'best_score')).catch(() => {}));
+    GAMES.forEach(g => Hub.leaderboard(g.id, 20).then(rows => fillRank($(`[data-rank="${g.id}"]`), rows, 'best_score', g.id)).catch(() => {}));
     Hub.pointRanking(20).then(rows => fillRank($('#rankPoints'), rows, 'earned')).catch(() => {});
   }
 
@@ -963,11 +970,11 @@
         </div>
         <div class="panel"><h3>게임별 전적</h3><div class="tbl-wrap"><table>
           <thead><tr><th>게임</th><th class="n">최고 점수</th><th class="n">승</th><th class="n">패</th><th class="n">플레이</th><th class="n">플레이 시간</th><th>마지막 플레이</th><th></th><th>전적 초기화</th></tr></thead>
-          <tbody>${GAMES.map(g => { const p = st.per[g.id]; return `<tr><td><b>${g.name}</b></td><td class="n">${p.plays ? fmt(p.best) : '-'}</td><td class="n plus">${fmt(p.wins)}</td><td class="n minus">${fmt(p.losses)}</td><td class="n">${fmt(p.plays)}</td><td class="n">${p.plays ? dur(p.totalSec) : '-'}</td><td>${ago(p.last)}</td><td><a class="btn btn-sm" href="#${g.id}">플레이</a></td><td>${p.plays ? resetHTML(g.id) : '<span class="small">-</span>'}</td></tr>`; }).join('')}</tbody>
+          <tbody>${GAMES.map(g => { const p = st.per[g.id]; return `<tr><td><b>${g.name}</b></td><td class="n">${p.plays ? sfmt(g.id, p.best) : '-'}</td><td class="n plus">${fmt(p.wins)}</td><td class="n minus">${fmt(p.losses)}</td><td class="n">${fmt(p.plays)}</td><td class="n">${p.plays ? dur(p.totalSec) : '-'}</td><td>${ago(p.last)}</td><td><a class="btn btn-sm" href="#${g.id}">플레이</a></td><td>${p.plays ? resetHTML(g.id) : '<span class="small">-</span>'}</td></tr>`; }).join('')}</tbody>
         </table></div></div>
         <div class="panel"><h3>최근 기록 <small>최근 10판</small></h3>
           ${st.recent.length ? `<div class="tbl-wrap"><table><thead><tr><th>게임</th><th>결과</th><th class="n">점수</th><th class="n">시간</th><th>언제</th></tr></thead><tbody>
-          ${st.recent.map(r => `<tr><td>${esc(nameOf(r.game_id))}</td><td>${r.result === 'win' ? '<span class="res win">승리</span>' : r.result === 'lose' ? '<span class="res lose">패배</span>' : '-'}</td><td class="n">${fmt(r.score)}</td><td class="n">${dur(r.duration_sec)}</td><td>${ago(r.played_at)}</td></tr>`).join('')}
+          ${st.recent.map(r => `<tr><td>${esc(nameOf(r.game_id))}</td><td>${r.result === 'win' ? '<span class="res win">승리</span>' : r.result === 'lose' ? '<span class="res lose">패배</span>' : '-'}</td><td class="n">${sfmt(r.game_id, r.score)}</td><td class="n">${dur(r.duration_sec)}</td><td>${ago(r.played_at)}</td></tr>`).join('')}
           </tbody></table></div>` : '<p class="empty">아직 플레이 기록이 없어요. <a href="#battle">블록 대전</a>으로 첫 기록을 남겨 보세요.</p>'}
         </div>
       </div>`;

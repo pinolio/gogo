@@ -59,7 +59,7 @@
   }
 
   /* ---------- 혼자 도전 화면 (게임판 + 바로 옆 랭킹) ----------
-   * opt: { id, title, tag, sub, w, h, rules: [문장…], cab: 'cab-blue' 등 }
+   * opt: { id, title, tag, sub, w, h, rules: [문장…], cab: 'cab-blue' 등, rankLabel: '최고 기록' 등, fmt: 점수→글자(지뢰찾기 시간) }
    * 돌려줌: { canvas, ov(안내 칸), stage, loadRank(), save(rec) } */
   function soloPage(el, A, opt) {
     el.innerHTML = `
@@ -72,7 +72,7 @@
           </div>
           <aside class="ult-side">
             <div class="panel ult-rank-panel">
-              <h3>${opt.title} 랭킹 <small>최고 점수</small></h3>
+              <h3>${opt.title} 랭킹 <small>${opt.rankLabel || '최고 점수'}</small></h3>
               <ol class="rank" id="stRank"><li class="empty">불러오는 중…</li></ol>
               <p class="small ult-mine" id="stMine"></p>
             </div>
@@ -87,10 +87,10 @@
         try {
           const rows = await Hub.leaderboard(opt.id, 10);
           if (!rk.isConnected) return;
-          rk.innerHTML = A.rankItems(rows, 'best_score'); AV.paintAll(rk);
+          rk.innerHTML = A.rankItems(rows, 'best_score', opt.id); AV.paintAll(rk);
           if (Hub.user) {
             const best = await Hub.myBest(opt.id), all = await Hub.leaderboard(opt.id, 500), pos = all.findIndex(r => r.user_id === Hub.user.id);
-            if (mine.isConnected) mine.innerHTML = best ? `내 최고 <b class="num">${A.fmt(best)}</b>${pos >= 0 ? ` · ${pos + 1}위` : ''}` : '아직 내 기록이 없어요. 도전해 보세요!';
+            if (mine.isConnected) mine.innerHTML = best ? `내 최고 <b class="num">${opt.fmt ? opt.fmt(best) : A.fmt(best)}</b>${pos >= 0 ? ` · ${pos + 1}위` : ''}` : '아직 내 기록이 없어요. 도전해 보세요!';
           } else if (mine.isConnected) mine.textContent = '로그인하면 내 기록이 랭킹에 올라가요.';
         } catch (e) { rk.innerHTML = '<li class="empty">랭킹을 불러오지 못했어요.</li>'; }
       },
