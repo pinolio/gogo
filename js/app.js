@@ -149,6 +149,7 @@
             </div>
             <div class="hero-timer" aria-hidden="true"><i id="heroBar"></i></div>
           </section>
+          ${eventHTML()}
           <section aria-labelledby="gamesTitle">
             <div class="sec-head">
               <h2 id="gamesTitle">게임 목록</h2>
@@ -182,7 +183,37 @@
       homeRankGame = b.dataset.g; $$('#rankTabs button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); loadHomeRank();
     });
     loadHomeRank();
+    loadEventRank();
     Hub.pointRanking(10).then(rows => fillRank($('#pointList'), rows, 'earned')).catch(() => {});
+  }
+
+  /* ---------- 홈 이벤트 칸 (맨 위 소개와 게임 목록 사이) ----------
+   * settings.js 에 event: true 인 게임 (지금은 Ultimate mode). 왼쪽 소개·도전 버튼, 오른쪽 바로 랭킹 TOP 5 */
+  const eventGames = () => SET.listAll().filter(s => s.event);
+  function eventHTML() {
+    return eventGames().map(s => `
+      <section class="event-box" aria-label="이벤트 ${esc(s.name)}">
+        <div class="event-copy">
+          <span class="event-tag">EVENT</span>
+          <h2>${esc(s.eventTitle || s.name)}</h2>
+          <p>${s.eventDesc || esc(s.blurb)}</p>
+          <div class="event-btns"><a class="btn btn-sun" href="#${s.id}">도전하기 ▶</a><span class="event-mine" data-event-mine="${s.id}"></span></div>
+        </div>
+        <div class="event-rank">
+          <h3>랭킹 TOP 5</h3>
+          <ol class="rank" data-event-rank="${s.id}"><li class="empty">불러오는 중…</li></ol>
+        </div>
+      </section>`).join('');
+  }
+  async function loadEventRank() {
+    for (const s of eventGames()) {
+      const el = $(`[data-event-rank="${s.id}"]`), mine = $(`[data-event-mine="${s.id}"]`);
+      try {
+        fillRank(el, await Hub.leaderboard(s.id, 5), 'best_score');
+        const best = Hub.user ? await Hub.myBest(s.id) : null;
+        if (mine && mine.isConnected) mine.innerHTML = Hub.user ? (best ? `내 최고 <b class="num">${fmt(best)}</b>` : '아직 도전 기록이 없어요') : '로그인하면 랭킹에 올라가요';
+      } catch (e) { if (el && el.isConnected) el.innerHTML = '<li class="empty">랭킹을 불러오지 못했어요.</li>'; }
+    }
   }
 
   async function renderGrid() {
@@ -456,7 +487,7 @@
         <div class="play-head"><a class="back" href="#home">← 게임 목록</a><h1>${g.name}</h1><span class="cat">${g.cat}</span></div>
         <div class="play-grid">
           <div class="stage-col">
-            <div class="cabinet" style="--cw:${g.w}px;--ar:${cfg.ar || 1}"><div class="screen"><canvas id="gameCanvas" aria-label="${g.name} 게임 화면"></canvas><div class="overlay" id="ov"></div></div></div>
+            <div class="cabinet${(cfg.ar || 1) > 1.2 ? ' wide' : ''}" style="--cw:${g.w}px;--ar:${cfg.ar || 1}"><div class="screen"><canvas id="gameCanvas" aria-label="${g.name} 게임 화면"></canvas><div class="overlay" id="ov"></div></div></div>
           </div>
           <aside class="side">
             <div class="panel turn-panel">
@@ -640,9 +671,9 @@
     const hostPeer = n.peers.find(p => p.id === n.hostId) || {}, np = host ? (session.players || 2) : (hostPeer.players || 2);
     return `<div class="net-box">
       <div class="net-code">방 코드 <b class="num">${esc(n.code)}</b></div>
+      ${host ? `<button class="btn btn-primary" type="button" data-net="start" ${two ? '' : 'disabled'}>${two ? '시작 ▶' : '친구를 기다리는 중…'}</button>` : `<p class="ov-hint">${two ? '방장이 시작하면 바로 시작돼요.' : '방장을 기다리는 중…'}</p>`}
       <ul class="net-peers">${n.peers.slice(0, max).map(p => `<li>${esc(p.nick)}${p.id === Hub.clientId ? ' <small>(나)</small>' : ''}${p.id === n.hostId ? ' <small>방장</small>' : ''}</li>`).join('')}${n.peers.length < max ? `<li class="wait">${two ? '더 들어올 수 있어요…' : '상대를 기다리는 중…'}</li>` : ''}</ul>
       ${cfg.netRoom ? `<p class="ov-hint">방장 설정: <b>${esc(playersLabel(cfg, np))}</b>${np > n.peers.length ? ' · 빈자리는 컴퓨터' : ''}</p>` : two ? `<p class="ov-hint">이번 판: 나는 <b>${esc(sides[mySide] || (mySide ? '후' : '선'))}</b> (판마다 바뀌어요)</p>` : ''}
-      ${host ? `<button class="btn btn-primary" type="button" data-net="start" ${two ? '' : 'disabled'}>대국 시작 ▶</button>` : `<p class="ov-hint">${two ? '방장이 시작하면 바로 시작돼요.' : ''}</p>`}
       <button class="btn btn-sm" type="button" data-net="leave">방 나가기</button>
     </div>`;
   }
@@ -669,13 +700,14 @@
     const np = session.players || 2;
     if (st === 'ready') {
       const lv = ['easy', 'normal', 'hard'].map(l => `<button class="btn ${session.mode === 'ai' && session.level === l ? 'btn-sun' : ''}" type="button" data-pick="ai:${l}">${LEVEL_NAME[l]}</button>`).join('');
+      const inRoom = session.mode === 'online' && session.net, roomHost = inRoom && session.net.hostId === Hub.clientId;   // 방 안: 꼭 필요한 것만 (시작 버튼이 화면 밖으로 밀리지 않게)
       ov.innerHTML = `<div class="ov-box ov-board"><div class="ov-title">${g.name}</div>
-        <p class="ov-goal">${esc(g.blurb)}</p>
+        ${inRoom ? '' : `<p class="ov-goal">${esc(g.blurb)}</p>`}
         <div class="mode-pick">
-          <div class="mode-row"><span class="mode-lbl">AI 대전</span><div class="mode-btns">${lv}</div></div>
-          ${cfg.noLocal ? '' : `<div class="mode-row"><span class="mode-lbl">오프라인</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">${np > 2 ? np + '명이' : '둘이서'} 한 기기</button></div></div>`}
-          ${cfg.online ? `<div class="mode-row"><span class="mode-lbl">온라인</span><div class="mode-btns"><button class="btn ${session.mode === 'online' ? 'btn-sun' : ''}" type="button" data-pick="online">다른 기기 친구와</button></div></div>` : ''}
-          ${cfg.players ? `<div class="mode-row"><span class="mode-lbl">인원</span><div class="mode-btns">${cfg.players.map(n => `<button class="btn ${np === n ? 'btn-sun' : ''}" type="button" data-players="${n}">${esc(playersLabel(cfg, n))}</button>`).join('')}</div></div>` : ''}
+          ${inRoom ? '' : `<div class="mode-row"><span class="mode-lbl">AI 대전</span><div class="mode-btns">${lv}</div></div>`}
+          ${cfg.noLocal || inRoom ? '' : `<div class="mode-row"><span class="mode-lbl">오프라인</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">${np > 2 ? np + '명이' : '둘이서'} 한 기기</button></div></div>`}
+          ${cfg.online && !inRoom ? `<div class="mode-row"><span class="mode-lbl">온라인</span><div class="mode-btns"><button class="btn ${session.mode === 'online' ? 'btn-sun' : ''}" type="button" data-pick="online">다른 기기 친구와</button></div></div>` : ''}
+          ${cfg.players && (!inRoom || roomHost) ? `<div class="mode-row"><span class="mode-lbl">인원</span><div class="mode-btns">${cfg.players.map(n => `<button class="btn ${np === n ? 'btn-sun' : ''}" type="button" data-players="${n}">${esc(playersLabel(cfg, n))}</button>`).join('')}</div></div>` : ''}
         </div>
         ${session.mode === 'online' ? netPanelHTML(cfg) : `<button class="btn btn-primary" type="button" data-ov="start">${session.mode === 'local' ? (np > 2 ? np + '명' : '둘이서') : LEVEL_NAME[session.level] + (np > 2 ? ' · ' + np + '명' : '')} 시작 ▶</button>`}
         <p class="ov-note">${session.mode === 'local' ? '포인트 없이 기록만 남아요' : session.mode === 'online' ? `온라인 승리 +${cfg.points.win}P / 패배 ${cfg.points.lose}P` : rankPointText(cfg, np)}${Hub.user ? '' : ' · 손님 플레이'}</p></div>`;
@@ -702,6 +734,7 @@
           : `<div class="ov-btns"><button class="btn btn-sun" type="button" data-ov="again">다시 하기</button><button class="btn" type="button" data-ov="menu">방식 바꾸기</button><a class="btn" href="#home">다른 게임</a></div>`}</div>`;
     } else ov.innerHTML = '';
     AV.paintAll(ov);
+    if (st === 'ready' && session.mode === 'online' && session.net) ov.scrollTop = 0;   // 방 안: 맨 위(방 코드·시작 버튼)가 보이게
     if (keep) { const ni = ov.querySelector('[data-net-form] input'); if (ni) { ni.value = keep.v; if (keep.f) { ni.focus(); ni.setSelectionRange(ni.value.length, ni.value.length); } } }
     $$('[data-players]', ov).forEach(b => b.addEventListener('click', () => {
       session.players = +b.dataset.players; netTrack();
@@ -961,7 +994,7 @@
     else if (h === '2048' || h === 'p1024') { location.replace('#p512'); return; }   // 2048 → 퍼즐512
     else if (SET.get(h) && SET.get(h).page && window[SET.get(h).page]) {
       current = h; setNav('home');
-      cleanups.push(window[SET.get(h).page].render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText }));
+      cleanups.push(window[SET.get(h).page].render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText, rankItems }));
     }
     else if (gameById(h)) renderPlay(h);
     else if (h === 'rank') renderRank();

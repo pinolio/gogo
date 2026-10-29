@@ -56,7 +56,7 @@
 
   function Engine(opt) {
     opt = opt || {};
-    const e = { b: null, score: 0, max: 2, moves: 0, resets: 0, won: false, fresh: [] };
+    const e = { b: null, score: 0, max: 2, best: 2, moves: 0, resets: 0, won: false, fresh: [] };   // max = 지금 판 가장 큰 숫자, best = 이번 경기 최고 기록 (다시 시작해도 남음)
     function spawn() {
       const empty = []; e.b.forEach((v, i) => { if (!v) empty.push(i); });
       if (!empty.length) return;
@@ -69,14 +69,18 @@
       spawn(); spawn();
       opt.onChange && opt.onChange();
     };
+    const goal = opt.goal || GOAL;   // Ultimate mode 는 목표 없음(Infinity)
     e.move = function (dir) {
-      if (e.won) return false;
+      if (e.won || e.stuck) return false;
       const r = slide(e.b, dir); if (!r.moved) return false;
       e.b = r.b; e.score += r.gained; e.moves++;
-      e.max = Math.max(...e.b);
+      e.max = Math.max(...e.b); e.best = Math.max(e.best, e.max);
       spawn();
-      if (e.max >= GOAL) { e.won = true; opt.onWin && opt.onWin(); }
-      else if (!canMove(e.b)) { opt.onStuck && opt.onStuck(); e.reset(true); return true; }
+      if (e.max >= goal) { e.won = true; opt.onWin && opt.onWin(); }
+      else if (!canMove(e.b)) {
+        if (opt.endOnStuck) { e.stuck = true; opt.onChange && opt.onChange(); opt.onStuck && opt.onStuck(); return true; }   // Ultimate mode: 막히면 그 판으로 끝
+        opt.onStuck && opt.onStuck(); e.reset(true); return true;
+      }
       opt.onChange && opt.onChange();
       return true;
     };
@@ -177,7 +181,7 @@
           <li>방향을 누르면 모든 숫자가 그쪽으로 밀리고, 같은 숫자가 부딪치면 합쳐져요.</li>
           <li><b>${GOAL}</b>를 가장 먼저 만든 사람이 1위예요.</li>
           <li>AI 대전·온라인 대결은 <b>${LIMIT / 60000}분</b> 제한! 시간이 끝나면 가장 큰 숫자(같으면 점수)를 만든 사람이 이겨요.</li>
-          <li>막힐 것 같으면 <b>Ctrl</b>(오프라인은 Shift)로 내 판을 처음부터 다시 시작할 수 있어요.</li>
+          <li>막힐 것 같으면 <b>Ctrl</b>(오프라인은 Shift)로 내 판을 처음부터 다시 시작할 수 있어요. 다시 시작해도 위쪽 <b>MAX</b>(이번 경기 최고 숫자)는 그대로 남고, 시간이 끝나면 이 최고 숫자로 순위를 정해요.</li>
           <li>더 움직일 수 없게 되면 자동으로 처음부터 다시 시작돼요.</li></ul></div>
         <div class="panel b-rules"><h3>조작 키</h3><ul class="rule-list">
           <li><b>혼자</b>: 방향키 또는 WASD 밀기 · Ctrl 다시 시작</li>
@@ -379,14 +383,14 @@
   const BOARD_EVERY = 700;
   function sendBoard(id) {
     const L = match && match.local[id]; if (!L) return;
-    match.others[id] = { t: 'board', id, b: L.eng.b.slice(), max: L.eng.max, score: L.eng.score, resets: L.eng.resets };
+    match.others[id] = { t: 'board', id, b: L.eng.b.slice(), max: L.eng.best, score: L.eng.score, resets: L.eng.resets };
     drawMini(id);
     if (room.local) return;
     const q = match.throttle[id] || (match.throttle[id] = { last: 0, timer: 0 }), m = match;
     const fire = () => { q.timer = 0; q.last = Date.now(); if (match === m && room) room.ch.send(m.others[id]); };
     if (Date.now() - q.last >= BOARD_EVERY) fire(); else if (!q.timer) q.timer = setTimeout(fire, BOARD_EVERY - (Date.now() - q.last));
   }
-  const maxOf = id => (match.local[id] ? match.local[id].eng.max : (match.others[id] && match.others[id].max) || 2);
+  const maxOf = id => (match.local[id] ? match.local[id].eng.best : (match.others[id] && match.others[id].max) || 2);
   const scoreOf = id => (match.local[id] ? match.local[id].eng.score : (match.others[id] && match.others[id].score) || 0);
   // 가장 큰 숫자 → 점수 순서 (winner 가 있으면 맨 앞)
   function ranking(winner) {
@@ -408,7 +412,7 @@
     match.timeUp = true; match.running = false; match.left = 0;
     if (room.local) return finish(null);
     const m = match;
-    Object.keys(m.local).forEach(id => { const e = m.local[id].eng; m.others[id] = { t: 'board', id, b: e.b.slice(), max: e.max, score: e.score, resets: e.resets }; room.ch.send(m.others[id]); });
+    Object.keys(m.local).forEach(id => { const e = m.local[id].eng; m.others[id] = { t: 'board', id, b: e.b.slice(), max: e.best, score: e.score, resets: e.resets }; room.ch.send(m.others[id]); });
     if (isHost()) setTimeout(() => { if (match !== m || m.ended) return; const order = ranking(null); room.ch.send({ t: 'end', order }); finish(null, order); }, 1500);
     setTimeout(() => { if (match === m && !m.ended) finish(null); }, 4500);   // 방장이 없을 때 대비
   }
@@ -421,7 +425,7 @@
     if (!Hub.user) return showResult();
     const m = match;
     try {
-      const r = await Hub.submitScore({ game_id: 'p512', score: eng.score, result: win ? 'win' : 'lose', points_delta: delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: m.play, place, players: m.n, max: eng.max, resets: eng.resets, moves: eng.moves, bots: m.roster.filter(x => x.bot).length } });
+      const r = await Hub.submitScore({ game_id: 'p512', score: eng.score, result: win ? 'win' : 'lose', points_delta: delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: m.play, place, players: m.n, max: eng.best, resets: eng.resets, moves: eng.moves, bots: m.roster.filter(x => x.bot).length } });
       m.saved = { ...m.saved, status: r.queued ? 'queued' : 'saved', gained: r.gained };
     } catch (e) { m.saved = { ...m.saved, status: 'error', msg: e.message }; }
     if (match === m) showResult();
@@ -480,14 +484,15 @@
     id = id || Hub.clientId;
     const L = match && match.local[id];
     if (!match || !match.running || match.ended || !L || L.bot) return;
-    if (a === 'reset') { L.eng.reset(true); A.toast((id === Hub.clientId ? (match.play === 'offline' ? '1P ' : '') : '2P ') + '판을 처음부터 다시 시작해요.'); return; }
+    if (a === 'reset') { L.eng.reset(true); A.toast((id === Hub.clientId ? (match.play === 'offline' ? '1P ' : '') : '2P ') + '판을 처음부터 다시 시작해요. (MAX 기록은 남아요)'); return; }
     L.eng.move(a);
   }
   function drawMain(id, dt) {
     const ctx = match.ctxs[id], L = match.local[id]; if (!ctx || !L) return;
     const e = L.eng;
     ctx.fillStyle = P.PANEL; ctx.fillRect(0, 0, W, TOP);
-    P.text(ctx, 'MAX', 14, 10, 9, P.DIM); P.text(ctx, e.max, 14, 26, 15, tileColor(e.max)[0]);
+    P.text(ctx, 'MAX', 14, 10, 9, P.DIM); P.text(ctx, e.best, 14, 26, 15, tileColor(e.best)[0]);   // 다시 시작해도 이번 경기 최고 기록 유지
+    if (e.resets && e.max < e.best) P.text(ctx, '지금 ' + e.max, 62, 26, 9, P.DIM);
     P.text(ctx, 'SCORE', 120, 10, 9, P.DIM); P.text(ctx, e.score, 120, 26, 13, P.INK);
     P.text(ctx, 'RESET', 214, 10, 9, P.DIM); P.text(ctx, e.resets, 214, 26, 13, e.resets ? '#FF9A3D' : P.INK);
     if (match.limit) {
@@ -566,7 +571,8 @@
       if (room) renderRoom(); else if (lobby) renderLobby(); else renderHome();
       return function cleanup() { document.removeEventListener('keydown', onKey); leaveRoom(true); closeLobby(); root = null; BGM.stop(); };
     },
-    _debug: () => ({ room, match, slide, bestMove, Engine })
+    _debug: () => ({ room, match, slide, bestMove, Engine }),
+    kit: { Engine, drawTiles, tileColor, slide, canMove, W, TOP, H }   // 다른 화면(Ultimate mode)에서 같은 규칙·그림을 쓰려고 내보냄
   };
 
   // 게임 카드 썸네일
