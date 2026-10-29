@@ -56,7 +56,7 @@
 
   function Engine(opt) {
     opt = opt || {};
-    const e = { b: null, score: 0, max: 2, best: 2, moves: 0, resets: 0, won: false, fresh: [] };   // max = 지금 판 가장 큰 숫자, best = 이번 경기 최고 기록 (다시 시작해도 남음)
+    const e = { b: null, score: 0, top: 0, max: 2, best: 2, moves: 0, resets: 0, won: false, fresh: [] };   // score = 지금 판 점수, top = 이번 경기에서 가장 높았던 한 판 점수   // max = 지금 판 가장 큰 숫자, best = 이번 경기 최고 기록 (다시 시작해도 남음)
     function spawn() {
       const empty = []; e.b.forEach((v, i) => { if (!v) empty.push(i); });
       if (!empty.length) return;
@@ -65,7 +65,8 @@
     }
     e.reset = function (count) {
       e.b = Array(N * N).fill(0); e.max = 2; e.fresh = [];
-      if (count) e.resets++;
+      if (count) { e.resets++; e.top = Math.max(e.top, e.score); }
+      e.score = 0;                       // 다시 시작하면 점수도 새로 (여러 판 점수가 쌓이지 않게)
       spawn(); spawn();
       opt.onChange && opt.onChange();
     };
@@ -84,6 +85,7 @@
       opt.onChange && opt.onChange();
       return true;
     };
+    e.bestScore = () => Math.max(e.top, e.score);   // 랭킹·기록에 쓰는 점수 = 이번 경기 한 판 최고 점수
     e.reset(false);
     return e;
   }
@@ -383,7 +385,7 @@
   const BOARD_EVERY = 700;
   function sendBoard(id) {
     const L = match && match.local[id]; if (!L) return;
-    match.others[id] = { t: 'board', id, b: L.eng.b.slice(), max: L.eng.best, score: L.eng.score, resets: L.eng.resets };
+    match.others[id] = { t: 'board', id, b: L.eng.b.slice(), max: L.eng.best, score: L.eng.bestScore(), resets: L.eng.resets };
     drawMini(id);
     if (room.local) return;
     const q = match.throttle[id] || (match.throttle[id] = { last: 0, timer: 0 }), m = match;
@@ -391,7 +393,7 @@
     if (Date.now() - q.last >= BOARD_EVERY) fire(); else if (!q.timer) q.timer = setTimeout(fire, BOARD_EVERY - (Date.now() - q.last));
   }
   const maxOf = id => (match.local[id] ? match.local[id].eng.best : (match.others[id] && match.others[id].max) || 2);
-  const scoreOf = id => (match.local[id] ? match.local[id].eng.score : (match.others[id] && match.others[id].score) || 0);
+  const scoreOf = id => (match.local[id] ? match.local[id].eng.bestScore() : (match.others[id] && match.others[id].score) || 0);
   // 가장 큰 숫자 → 점수 순서 (winner 가 있으면 맨 앞)
   function ranking(winner) {
     const rest = match.roster.filter(r => r.id !== winner).sort((a, b) => maxOf(b.id) - maxOf(a.id) || scoreOf(b.id) - scoreOf(a.id));
@@ -412,7 +414,7 @@
     match.timeUp = true; match.running = false; match.left = 0;
     if (room.local) return finish(null);
     const m = match;
-    Object.keys(m.local).forEach(id => { const e = m.local[id].eng; m.others[id] = { t: 'board', id, b: e.b.slice(), max: e.best, score: e.score, resets: e.resets }; room.ch.send(m.others[id]); });
+    Object.keys(m.local).forEach(id => { const e = m.local[id].eng; m.others[id] = { t: 'board', id, b: e.b.slice(), max: e.best, score: e.bestScore(), resets: e.resets }; room.ch.send(m.others[id]); });
     if (isHost()) setTimeout(() => { if (match !== m || m.ended) return; const order = ranking(null); room.ch.send({ t: 'end', order }); finish(null, order); }, 1500);
     setTimeout(() => { if (match === m && !m.ended) finish(null); }, 4500);   // 방장이 없을 때 대비
   }
@@ -421,11 +423,11 @@
     const win = place === 1, eng = L.eng;
     const humansAgainst = match.play === 'online' && match.roster.some(r => !r.bot && r.id !== Hub.clientId);
     const delta = window.GoSettings.pointsFor('p512', win, humansAgainst ? null : 'botsOnly').delta;
-    match.saved = { status: Hub.user ? 'saving' : 'guest', win, delta, score: eng.score };
+    match.saved = { status: Hub.user ? 'saving' : 'guest', win, delta, score: eng.bestScore() };
     if (!Hub.user) return showResult();
     const m = match;
     try {
-      const r = await Hub.submitScore({ game_id: 'p512', score: eng.score, result: win ? 'win' : 'lose', points_delta: delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: m.play, place, players: m.n, max: eng.best, resets: eng.resets, moves: eng.moves, bots: m.roster.filter(x => x.bot).length } });
+      const r = await Hub.submitScore({ game_id: 'p512', score: eng.bestScore(), result: win ? 'win' : 'lose', points_delta: delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: m.play, place, players: m.n, max: eng.best, resets: eng.resets, moves: eng.moves, bots: m.roster.filter(x => x.bot).length } });
       m.saved = { ...m.saved, status: r.queued ? 'queued' : 'saved', gained: r.gained };
     } catch (e) { m.saved = { ...m.saved, status: 'error', msg: e.message }; }
     if (match === m) showResult();
@@ -484,7 +486,7 @@
     id = id || Hub.clientId;
     const L = match && match.local[id];
     if (!match || !match.running || match.ended || !L || L.bot) return;
-    if (a === 'reset') { L.eng.reset(true); A.toast((id === Hub.clientId ? (match.play === 'offline' ? '1P ' : '') : '2P ') + '판을 처음부터 다시 시작해요. (MAX 기록은 남아요)'); return; }
+    if (a === 'reset') { L.eng.reset(true); A.toast((id === Hub.clientId ? (match.play === 'offline' ? '1P ' : '') : '2P ') + '판을 처음부터 다시 시작해요. (MAX·최고 점수는 남아요)'); return; }
     L.eng.move(a);
   }
   function drawMain(id, dt) {
@@ -493,7 +495,7 @@
     ctx.fillStyle = P.PANEL; ctx.fillRect(0, 0, W, TOP);
     P.text(ctx, 'MAX', 14, 10, 9, P.DIM); P.text(ctx, e.best, 14, 26, 15, tileColor(e.best)[0]);   // 다시 시작해도 이번 경기 최고 기록 유지
     if (e.resets && e.max < e.best) P.text(ctx, '지금 ' + e.max, 62, 26, 9, P.DIM);
-    P.text(ctx, 'SCORE', 120, 10, 9, P.DIM); P.text(ctx, e.score, 120, 26, 13, P.INK);
+    P.text(ctx, 'SCORE', 120, 10, 9, P.DIM); P.text(ctx, e.score, 120, 26, 13, P.INK); if (e.top > e.score) P.text(ctx, '최고 ' + e.top, 120, 40, 7, P.DIM);
     P.text(ctx, 'RESET', 214, 10, 9, P.DIM); P.text(ctx, e.resets, 214, 26, 13, e.resets ? '#FF9A3D' : P.INK);
     if (match.limit) {
       const sec = Math.max(0, Math.ceil(match.left / 1000)), low = sec <= 20 && (match.running ? Math.floor(performance.now() / 300) % 2 : 1);
