@@ -114,7 +114,7 @@
   const all = {};
   window.GoSettings = {
     // 카테고리 폴더 이름 → 화면에 보이는 이름 (games/ 아래 폴더와 같게 유지)
-    CATEGORIES: { puzzle: '퍼즐', arcade: '아케이드', board: '보드게임', sports: '스포츠', action: '액션', shooting: '슈팅' },
+    CATEGORIES: { puzzle: '퍼즐', arcade: '아케이드', board: '보드게임', sports: '스포츠', action: '액션', shooting: '슈팅', study: '공부?' },
     register(s) {
       s.points = Object.assign({ win: 2, lose: -1 }, s.points || {});
       all[s.id] = s;

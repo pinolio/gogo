@@ -987,3 +987,28 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 .ult-stage, .ult-side { min-width: 0; }
 @media (max-width: 860px) { .ult-grid { grid-template-columns: minmax(0, 1fr); } .ult-side { order: 2; } }
 .ult-nb { color: #FF3D8B; }
+
+/* ---------- v28: 공부? (끝말잇기 · 타자연습 · 사자성어) ---------- */
+.cabinet.cab-study { background: linear-gradient(180deg, #3DDC84, #1E9E5A); }
+.study-tag { background: #1E9E5A; }
+.study-under { width: 100%; max-width: 760px; display: grid; justify-items: center; }
+/* 끝말잇기 입력 칸: 게임 화면 아래쪽에 겹쳐 놓음 */
+.wc-form { position: absolute; left: 50%; bottom: 4%; transform: translateX(-50%); width: min(92%, 460px); display: flex; gap: 8px; z-index: 3; }
+.wc-form input, .ty-form input { flex: 1; min-width: 0; font: 700 20px/1.2 Galmuri11, Pretendard, sans-serif; padding: 10px 14px; border: 3px solid #0A0E24; border-radius: 10px; background: #FFFDF2; color: #1D2340; }
+.wc-form input:focus, .ty-form input:focus { outline: 3px solid #FFD23F; outline-offset: 1px; }
+.wc-form .btn, .ty-form .btn { flex: none; }
+@media (max-width: 560px) { .wc-form input { font-size: 16px; padding: 7px 10px; } .wc-form { bottom: 2%; } }
+/* 타자연습 입력 칸: 게임판 바로 아래 */
+.ty-form { display: flex; gap: 8px; width: min(100%, 560px); margin-top: 2px; }
+/* 사자성어 보기 4개 */
+.idm-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: min(100%, 720px); }
+.idm-choices.idm-long { grid-template-columns: 1fr; }
+.idm-btn { display: flex; align-items: center; gap: 10px; text-align: left; min-height: 54px; padding: 10px 14px; border: 3px solid var(--shadow); border-radius: 12px; background: var(--surface, #fff); color: var(--ink); font: 700 17px/1.35 Pretendard, sans-serif; box-shadow: 3px 3px 0 var(--shadow); cursor: pointer; }
+.idm-short .idm-btn { font-size: 22px; justify-content: flex-start; }
+.idm-btn b { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; background: #1D2340; color: #FFD23F; font: 400 13px/1 "Press Start 2P", monospace; }
+.idm-btn:hover:not([disabled]) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow); }
+.idm-btn.ok { background: #3DDC84; color: #0F1430; }
+.idm-btn.bad { background: #FF5A5F; color: #fff; }
+.idm-btn.dim { opacity: .5; }
+.idm-btn[disabled] { cursor: default; }
+@media (max-width: 560px) { .idm-choices { grid-template-columns: 1fr; } .idm-short .idm-btn { font-size: 19px; } .idm-btn { font-size: 15px; min-height: 46px; } }

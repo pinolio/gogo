@@ -720,14 +720,14 @@
         else if (s.status === 'saved') note = `<p class="ov-note ${s.gained > 0 ? 'ok' : ''}">${pointText(s.gained, s.delta)} · 전적에 저장했어요</p>`;
         else if (s.status === 'error') note = `<p class="ov-note bad">${esc(s.msg)}</p>`;
         else if (s.status === 'guest') note = `<p class="ov-note">로그인하면 이 기록과 포인트(${r.points_delta > 0 ? '+' : ''}${r.points_delta || 0}P)가 남아요.</p><button class="btn btn-primary" type="button" data-ov="save">로그인하고 기록 저장</button>`;
-      } else if (s.status === 'saved') note = '<p class="ov-note">둘이서 둔 판 · 전적에 기록했어요</p>';
+      } else if (s.status === 'saved') note = `<p class="ov-note">${((r.extra || {}).players || 2) > 2 ? (r.extra || {}).players + '명이' : '둘이서'} 한 판 · 전적에 기록했어요</p>`;
       const ex = r.extra || {}, multi = (ex.players || 2) > 2 && !cfg.teamLabels;
       const title = session.mode === 'local' ? '대국 끝!' : multi ? (ex.rank === 1 ? '1등!' : ex.rank + '등') : r.result === 'win' ? '승리!' : r.result === 'lose' ? '아쉬워요!' : '무승부';
       ov.innerHTML = `<div class="ov-box">
         ${avCanvas(Hub.user ? Hub.user.avatar : {}, 3, 'full', 'ov-avatar')}
         <div class="ov-title">${title}</div>
         <p class="ov-goal">${esc(r.message || '')}</p>
-        <p class="ov-hint">${session.mode === 'local' ? (multi ? ex.players + '명이서' : '둘이서') : session.mode === 'online' ? '온라인 · ' + esc(session.net ? session.net.oppNick : '상대') : '컴퓨터 ' + LEVEL_NAME[session.level] + (multi ? ' · ' + ex.players + '명' : '')} · ${r.moves ? r.moves + (cfg.category === 'sports' ? '랠리' : '수') + ' · ' : ''}${dur(r.duration_sec || 0)}</p>
+        <p class="ov-hint">${session.mode === 'local' ? (multi ? ex.players + '명이서' : '둘이서') : session.mode === 'online' ? '온라인 · ' + esc(session.net ? session.net.oppNick : '상대') : '컴퓨터 ' + LEVEL_NAME[session.level] + (multi ? ' · ' + ex.players + '명' : '')} · ${r.moves ? r.moves + (cfg.category === 'sports' ? '랠리' : cfg.category === 'study' ? '단어' : '수') + ' · ' : ''}${dur(r.duration_sec || 0)}</p>
         ${note}
         ${session.mode === 'online' && session.net
           ? `<div class="ov-btns">${session.net.hostId === Hub.clientId ? `<button class="btn btn-sun" type="button" data-net="start" ${session.net.peers.length >= 2 ? '' : 'disabled'}>한 판 더 ▶</button>` : ''}<button class="btn" type="button" data-net="leave">방 나가기</button></div>${session.net.hostId === Hub.clientId ? '' : '<p class="ov-hint">방장이 한 판 더를 누르면 바로 시작돼요.</p>'}`
