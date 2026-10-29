@@ -125,7 +125,18 @@
     k.add = v => { const nb = v > k.best; k.best = Math.max(k.best, v); if (!Hub.user) { try { if (v > local()) localStorage.setItem(key, String(v)); } catch (e) { /* noop */ } } return nb; };
     return k;
   }
+  // v34 (플레이어 입장 점검): 낮은 화면(학교 PC 1366×768 등)에서 게임판과 그 아래 버튼·입력칸이 한 화면에 보이게
+  //   아래 요소(bottomEl)가 화면 밖이거나 게임판 위가 맨 위 고정 메뉴에 가려지면, 게임판 위쪽을 메뉴 바로 아래로 맞춰 스크롤
+  function fitView(stageEl, bottomEl) {
+    requestAnimationFrame(() => {
+      if (!stageEl || !stageEl.isConnected) return;
+      const top = document.querySelector('.top'), th = top ? top.getBoundingClientRect().bottom : 0;
+      const sr = stageEl.getBoundingClientRect(), br = (bottomEl || stageEl).getBoundingClientRect();
+      if (br.bottom <= innerHeight - 4 && sr.top >= th) return;
+      window.scrollTo({ top: Math.max(0, sr.top + scrollY - th - 8), behavior: 'smooth' });
+    });
+  }
   const shuffle = (a, rnd) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor((rnd || Math.random)() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-  window.GoStudy = { isSyl, split, join, dueum, starts, dict, text, round, soloPage, bestKeeper, shuffle };
+  window.GoStudy = { isSyl, split, join, dueum, starts, dict, text, round, soloPage, bestKeeper, shuffle, fitView };
 })();

@@ -36,8 +36,10 @@
       function start() {
         if (st.phase === 'play') return;
         st = { phase: 'play', left: LIMIT, score: 0, streak: 0, maxStreak: 0, right: 0, wrong: 0, deck: T.shuffle(DATA().map((d, i) => i)), q: null, lock: 0, saved: null };
-        page.ov.hidden = true; next(); BGM.restart();
+        page.ov.hidden = true; next(); BGM.restart(); fitView();
       }
+      // v34 (플레이어 입장 점검): 낮은 화면에서 보기 버튼이 게임판 아래로 숨지 않게 (GoStudy.fitView)
+      const fitView = () => T.fitView(page.canvas.closest('.ult-stage'), box);
       function next() {
         const D = DATA();
         if (!st.deck.length) st.deck = T.shuffle(D.map((d, i) => i));

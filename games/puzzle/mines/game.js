@@ -149,12 +149,14 @@
             <div class="ov-btns"><button class="btn btn-sun" type="button" data-go>다시 도전 ▶</button><button class="btn" type="button" data-look>판 보기</button></div></div>`;
         }
         const go = ov.querySelector('[data-go]');
-        if (go) go.addEventListener('click', () => { if (st.phase === 'ready') { ov.hidden = true; st.phase = 'ready-go'; } else { fresh(); ov.hidden = true; st.phase = 'ready-go'; } });
+        if (go) go.addEventListener('click', () => { if (st.phase === 'ready') { ov.hidden = true; st.phase = 'ready-go'; } else { fresh(); ov.hidden = true; st.phase = 'ready-go'; } fit(); });
         const look = ov.querySelector('[data-look]'); if (look) look.addEventListener('click', () => { ov.hidden = true; });
         const sv = ov.querySelector('[data-st-save]');
         if (sv) sv.addEventListener('click', () => A.openAuth('login', () => { if (st.phase === 'won' && st.saved && st.saved.status === 'guest') { const s = st; s.saved = { status: 'saving' }; overlay(); save(s).then(r => { best.add(CFG.toScore(s.sec)); s.saved = r; if (st === s) overlay(); }); } }));
       }
-      function newGame() { fresh(); page.ov.hidden = true; st.phase = 'ready-go'; }
+      function newGame() { fresh(); page.ov.hidden = true; st.phase = 'ready-go'; fit(); }
+      // v34: 낮은 화면에서 게임판과 아래 '깃발 모드·새 판' 버튼이 한 화면에 보이게
+      const fit = () => T.fitView(page.canvas.closest('.ult-stage'), page.under);
 
       /* ---------- 입력 ---------- */
       const canPlay = () => st.phase === 'play' || st.phase === 'ready-go';

@@ -1054,3 +1054,8 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 .bn-admin .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .bn-admin .row .btn { width: auto; flex: 0 0 auto; }
 .bn-admin .bn-form input, .bn-admin .bn-form textarea { font-weight: 400; }
+
+/* ---------- v34: 사자성어 — 넓은 화면에서는 긴 뜻 보기도 2줄(2칸)로 (낮은 화면에서 게임판·보기가 한 화면에 들어오게) ---------- */
+@media (min-width: 900px) { .idm-choices.idm-long { grid-template-columns: 1fr 1fr; } .idm-long .idm-btn { font-size: 15px; min-height: 58px; } }
+/* v34: 사자성어 — 화면 높이가 낮으면 게임판을 조금 줄여서 아래 보기 버튼까지 한 화면에 (큰 화면은 그대로) */
+.ult-stage:has(.idm-choices) .cabinet { width: min(calc(var(--cw) + 40px), calc((100svh - 370px) * var(--ar) + 40px)); }

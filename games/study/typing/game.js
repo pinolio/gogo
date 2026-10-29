@@ -2,7 +2,8 @@
  * gogo?gogo! — 한글 타자연습 (공부?, 혼자 도전 + 랭킹)
  *  - 하늘에서 낱말이 떨어짐 → 아래 입력 칸에 똑같이 치고 Enter → 사라지며 점수
  *  - 바닥에 닿으면 방어막 -1, 방어막이 모두 없어지면 끝
- *  - 12개를 없앨 때마다 단계 +1 (빨라지고 긴 낱말, 6단계부터 속담)
+ *  - settings.js levelEvery(10)개를 없앨 때마다 단계 +1 (빨라지고 긴 낱말, 4단계부터 빨간 '빠른 낱말', 5단계부터 속담)
+ *  - v34: "너무 쉬워" → 처음부터 3글자 낱말이 섞이고 더 빨리·자주 떨어짐. 숫자는 settings.js 의 speed · gap · fastWord · proverbFrom
  *  - 점수 = 글자 수 × 10 × 단계 + 연속 보너스. 끝나면 분당 타수(자모 기준)·정확도
  */
 (function () {
@@ -32,7 +33,7 @@
       BGM.load('typing');
       const page = T.soloPage(el, A, {
         id: 'typing', title: '한글 타자연습', tag: '공부?', sub: '떨어지는 낱말을 입력해서 막기 · 분당 타수 측정', w: W, h: H, cab: 'cab-study',
-        rules: ['위에서 떨어지는 낱말을 아래 칸에 <b>똑같이</b> 치고 <b>Enter</b>.', '바닥에 닿으면 방어막이 하나 줄어요. 방어막 ' + CFG.lives + '개가 모두 없어지면 끝.', CFG.levelEvery + '개를 없앨 때마다 단계가 올라 더 빨라지고, 6단계부터는 속담도 나와요.', '점수 = 글자 수 × 10 × 단계 + 연속 보너스. 끝나면 분당 타수와 정확도를 알려 줘요.', '포인트는 없고, 가장 높은 점수가 랭킹에 올라가요. (로그인 필요)']
+        rules: ['위에서 떨어지는 낱말을 아래 칸에 <b>똑같이</b> 치고 <b>Enter</b>.', '바닥에 닿으면 방어막이 하나 줄어요. 방어막 ' + CFG.lives + '개가 모두 없어지면 끝.', CFG.levelEvery + '개를 없앨 때마다 단계가 올라 더 빨라져요. ' + (CFG.fastWord ? CFG.fastWord.from + '단계부터 <b style="color:#FF5A5F">빨간 낱말</b>은 더 빨리 떨어지고, ' : '') + (CFG.proverbFrom || 6) + '단계부터는 속담도 나와요.', '점수 = 글자 수 × 10 × 단계 + 연속 보너스. 끝나면 분당 타수와 정확도를 알려 줘요.', '포인트는 없고, 가장 높은 점수가 랭킹에 올라가요. (로그인 필요)']
       });
       page.under.innerHTML = '<form class="ty-form" autocomplete="off"><input type="text" maxlength="30" placeholder="떨어지는 낱말을 입력하고 Enter" aria-label="타자 입력" autocapitalize="off" spellcheck="false" enterkeyhint="send"><button class="btn btn-sun" type="submit">입력</button></form>';
       const form = page.under.querySelector('form'), inp = form.querySelector('input');
@@ -43,13 +44,15 @@
         if (st.phase === 'play') return;
         loadWords().then(() => {
           st = { phase: 'play', drops: [], fx: [], score: 0, level: 1, cleared: 0, lives: CFG.lives, combo: 0, spawn: 0.4, t0: performance.now(), hits: 0, tries: 0, keys: 0, saved: null };
-          page.ov.hidden = true; inp.value = ''; inp.focus(); BGM.restart();
+          page.ov.hidden = true; inp.value = ''; inp.focus({ preventScroll: true }); T.fitView(page.canvas.closest('.ult-stage'), inp); BGM.restart();   // v34: 입력칸으로 스크롤하면서 게임판 위(점수·방어막)가 맨 위 메뉴에 가려지던 문제
         });
       }
       function pool() {
         const L = st.level;
-        if (L >= 6 && Math.random() < Math.min(0.35, 0.08 * (L - 5))) return PROVERBS[Math.floor(Math.random() * PROVERBS.length)];
-        const len = L <= 2 ? 2 : L <= 4 ? (Math.random() < 0.6 ? 2 : 3) : L <= 6 ? (Math.random() < 0.6 ? 3 : 2) : (Math.random() < 0.5 ? 3 : Math.random() < 0.6 ? 4 : 2);
+        const PF = CFG.proverbFrom || 6, r = Math.random;
+        if (L >= PF && r() < Math.min(0.4, 0.08 * (L - PF + 1))) return PROVERBS[Math.floor(r() * PROVERBS.length)];
+        // v34: 1단계부터 3글자, 4단계부터 4글자가 섞임 (예전: 1~2단계 2글자만)
+        const len = L <= 1 ? (r() < 0.6 ? 2 : 3) : L <= 3 ? (r() < 0.5 ? 3 : 2) : L <= 5 ? (r() < 0.45 ? 3 : r() < 0.55 ? 4 : 2) : (r() < 0.45 ? 3 : r() < 0.6 ? 4 : 2);
         const list = words[len] || words[2];
         return list[Math.floor(Math.random() * list.length)];
       }
@@ -59,7 +62,9 @@
         ctx.font = '700 22px Galmuri11, Pretendard, sans-serif';
         const tw = ctx.measureText(w).width + 24;
         const x = 12 + Math.random() * Math.max(10, W - tw - 24);
-        st.drops.push({ w, x, y: 70, wpx: tw, v: 22 + st.level * 8 + Math.random() * 8, col: COLORS[(st.level - 1) % COLORS.length] });
+        const SP = CFG.speed || { base: 22, perLevel: 8, random: 8 }, FW = CFG.fastWord;
+        const fast = !!(FW && st.level >= FW.from && Math.random() < FW.chance);
+        st.drops.push({ w, x, y: 70, wpx: tw, fast, v: (SP.base + st.level * SP.perLevel + Math.random() * SP.random) * (fast ? FW.mul : 1), col: fast ? '#FF5A5F' : COLORS[(st.level - 1) % COLORS.length] });
       }
       function submit(raw) {
         const v = norm(raw); if (!v) return;
@@ -124,8 +129,9 @@
         if (st.phase !== 'play') return;
         // 떨어지는 낱말
         st.drops.forEach(d => {
-          T.round(ctx, d.x, d.y - 18, d.wpx, 36, 10, 'rgba(10,14,36,.85)', d.col, 2);
-          T.text(ctx, d.w, d.x + d.wpx / 2, d.y + 1, 22, '#FFFFFF', 'center');
+          T.round(ctx, d.x, d.y - 18, d.wpx, 36, 10, d.fast ? 'rgba(90,10,20,.9)' : 'rgba(10,14,36,.85)', d.col, d.fast ? 3 : 2);
+          T.text(ctx, d.w, d.x + d.wpx / 2, d.y + 1, 22, d.fast ? '#FFD0D2' : '#FFFFFF', 'center');
+          if (d.fast) { ctx.fillStyle = '#FF5A5F'; for (let k = 1; k <= 3; k++) ctx.fillRect(d.x + d.wpx / 2 - 1, d.y - 18 - k * 9, 2, 5); }   // 빠른 낱말 꼬리
         });
         st.fx.forEach(f => { ctx.globalAlpha = Math.max(0, 1 - f.t / 900); T.text(ctx, f.txt, f.x, f.y - f.t * 0.05, f.big ? 44 : 20, f.col, 'center'); ctx.globalAlpha = 1; });
         if (st.combo >= 3) T.text(ctx, st.combo + '연속!', W - 16, 80, 18, '#FF9A3D', 'right');
@@ -136,7 +142,8 @@
         const dt = Math.min(80, t - (last || t)); last = t;
         if (st.phase === 'play') {
           st.spawn -= dt / 1000;
-          if (st.spawn <= 0) { spawn(); st.spawn = Math.max(0.75, 2.4 - st.level * 0.17) * (0.8 + Math.random() * 0.4); }
+          const GP = CFG.gap || { start: 2.4, perLevel: 0.17, min: 0.75 };
+          if (st.spawn <= 0) { spawn(); st.spawn = Math.max(GP.min, GP.start - st.level * GP.perLevel) * (0.8 + Math.random() * 0.4); }
           st.drops.forEach(d => { d.y += d.v * dt / 1000; });
           const fell = st.drops.filter(d => d.y >= GROUND - 16);
           if (fell.length) { st.drops = st.drops.filter(d => !fell.includes(d)); st.lives -= fell.length; st.combo = 0; st.hurt = 1; fell.forEach(d => st.fx.push({ x: d.x + d.wpx / 2, y: GROUND - 30, t: 0, txt: '쿵!', col: '#FF5A5F' })); }

@@ -924,6 +924,20 @@
     if (st === 'playing' && act) { e.preventDefault(); session.inst.action(act); }
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden && session && !session.board && session.state === 'playing') session.inst.togglePause(); });
+  // v34 (플레이어 입장 점검): 게임판이 화면에 보이는 동안 방향키·스페이스·PageUp/Down 이 페이지를 스크롤하지 않게
+  //   (배구·격투·스네이크·지뢰찾기에서 ↓ 나 스페이스를 누르면 페이지가 1,000px 넘게 내려가 게임판이 사라지던 문제)
+  //   입력칸·버튼·링크에 포커스가 있을 때와, 게임판이 화면 밖으로 내려가 있을 때(랭킹·채팅을 보는 중)는 원래대로 스크롤
+  const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'PageUp', 'PageDown']);
+  document.addEventListener('keydown', e => {
+    if (!SCROLL_KEYS.has(e.code) || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target || {}, tag = (t.tagName || '').toLowerCase();
+    if (['input', 'textarea', 'select', 'button', 'a', 'summary'].includes(tag) || t.isContentEditable) return;
+    if (!$('#authModal').hidden || document.querySelector('.modal:not([hidden])')) return;
+    const gid = decodeURIComponent(location.hash.slice(1)); if (!SET.get(gid)) return;   // 게임 화면에서만 (홈의 작은 그림 캔버스 제외)
+    const view = $('#view'); if (!view) return;
+    const cv = [...view.querySelectorAll('canvas')].find(c => { const r = c.getBoundingClientRect(); if (r.width < 150 || r.height < 120) return false; const vis = Math.min(r.bottom, innerHeight) - Math.max(r.top, 0); return vis > r.height * 0.4; });
+    if (cv) e.preventDefault();
+  });
 
   /* ---------- 랭킹 ---------- */
   async function renderRank() {
