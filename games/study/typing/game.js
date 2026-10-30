@@ -112,8 +112,10 @@
         // 하늘 · 바닥
         const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#1B1F4A'); sky.addColorStop(1, '#2C2F6E');
         ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = 'rgba(255,255,255,.5)'; for (let i = 0; i < 40; i++) ctx.fillRect((i * 173) % W, 60 + (i * 97) % 380, 2, 2);
-        ctx.fillStyle = '#18204A'; for (let i = 0; i < 12; i++) { const bw = 60, bh = 30 + (i * 37) % 60; ctx.fillRect(i * 62, GROUND - bh, bw, bh); }
+        if (!T.scene(ctx, 'games/study/typing/img/bg.jpg', W, H, 0.25)) {   // v39 밤 도시 배경 (그림이 없으면 예전 그림)
+          ctx.fillStyle = 'rgba(255,255,255,.5)'; for (let i = 0; i < 40; i++) ctx.fillRect((i * 173) % W, 60 + (i * 97) % 380, 2, 2);
+          ctx.fillStyle = '#18204A'; for (let i = 0; i < 12; i++) { const bw = 60, bh = 30 + (i * 37) % 60; ctx.fillRect(i * 62, GROUND - bh, bw, bh); }
+        }
         ctx.fillStyle = st.hurt > 0 ? '#FF5A5F' : '#3DDC84'; ctx.fillRect(0, GROUND, W, 6);
         ctx.fillStyle = '#0F1430'; ctx.fillRect(0, GROUND + 6, W, H - GROUND - 6);
         // 위쪽 정보
@@ -164,8 +166,9 @@
   window.GoGames.typing = {
     id: 'typing',
     thumb(ctx, w, h) {
+      { const im = T.pic('games/study/typing/img/bg.jpg'); if (!(im.complete && im.naturalWidth)) im.addEventListener('load', () => { try { this.thumb(ctx, w, h); } catch (e) { /* noop */ } }, { once: true }); }   // v39 배경 그림이 오면 다시 그림
       ctx.save(); ctx.scale(w / W, h / H);
-      const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#1B1F4A'); sky.addColorStop(1, '#2C2F6E'); ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+      const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#1B1F4A'); sky.addColorStop(1, '#2C2F6E'); ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H); T.scene(ctx, 'games/study/typing/img/bg.jpg', W, H, 0.35);
       [['사과', 80, 120, '#FFD23F'], ['학교', 330, 220, '#7FE3FF'], ['무지개', 470, 90, '#7DFFC4'], ['연필', 180, 330, '#FF9A3D']].forEach(([wd, x, y, c]) => { T.round(ctx, x, y, 170, 70, 14, 'rgba(10,14,36,.85)', c, 4); T.text(ctx, wd, x + 85, y + 37, 40, '#FFFFFF', 'center'); });
       ctx.fillStyle = '#3DDC84'; ctx.fillRect(0, GROUND, W, 8);
       T.round(ctx, 160, GROUND - 4, 400, 52, 10, '#EEF1FF', '#0A0E24', 4); T.text(ctx, '학교|', 360, GROUND + 22, 32, '#1D2340', 'center');

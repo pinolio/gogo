@@ -107,11 +107,13 @@
       if (base[y][x]) continue;
       if ((y > 0 && base[y - 1][x]) || (y < SH - 1 && base[y + 1][x]) || (x > 0 && base[y][x - 1]) || (x < SW - 1 && base[y][x + 1])) out[y][x] = OUT;
     }
-    const c = document.createElement('canvas'); c.width = SW; c.height = SH;
+    // v39: 아바타와 같은 2배 정교한 그림 (부드러운 대각선 · 명암 · 반짝이는 눈)
+    const hi = AV.refine ? AV.refine(out, true) : out, K = AV.refine ? 2 : 1;
+    const c = document.createElement('canvas'); c.width = SW * K; c.height = SH * K;
     const cx = c.getContext('2d');
-    for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) if (out[y][x]) { cx.fillStyle = out[y][x]; cx.fillRect(x, y, 1, 1); }
+    for (let y = 0; y < SH * K; y++) for (let x = 0; x < SW * K; x++) if (hi[y][x]) { cx.fillStyle = hi[y][x]; cx.fillRect(x, y, 1, 1); }
     // 맞았을 때: 하얗게 번쩍
-    if (pose === 'hit') { cx.globalCompositeOperation = 'source-atop'; cx.fillStyle = 'rgba(255,255,255,.65)'; cx.fillRect(0, 0, SW, SH); }
+    if (pose === 'hit') { cx.globalCompositeOperation = 'source-atop'; cx.fillStyle = 'rgba(255,255,255,.65)'; cx.fillRect(0, 0, SW * K, SH * K); }
     cache.set(key, c);
     if (cache.size > 300) cache.delete(cache.keys().next().value);
     return c;

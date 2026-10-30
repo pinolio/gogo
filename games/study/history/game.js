@@ -49,7 +49,7 @@
     return orderQ(all) || descQ(all, used);
   }
   window.GoHistoryQuiz = Q.make({
-    id: 'history', title: '한국사 퀴즈', watermark: '韓國史', colors: { top: '#4A2A12', bottom: '#2A170A' },
+    id: 'history', bg: 'games/study/history/img/bg.jpg', title: '한국사 퀴즈', watermark: '韓國史', colors: { top: '#4A2A12', bottom: '#2A170A' },
     sub: s => `${s}초 · 4지선다 · 인물·사건·시대·순서`,
     goal: s => `${s}초 동안 한국사 문제를 맞혀요.<br>설명 · 시대 · 순서 문제가 섞여 나와요!`,
     rules: cfg => [`<b>${cfg.timeLimit || 60}초</b> 동안 최대한 많이 맞혀요.`, '① 설명을 보고 알맞은 <b>인물·사건·문화유산·제도</b> 고르기', '② 이름을 보고 <b>어느 시대</b>인지 고르기 (구석기 ~ 현대)', '③ 사건 네 개 중 <b>가장 먼저(나중에) 일어난 일</b> 고르기', '아래 보기를 누르거나 키보드 <b>1 · 2 · 3 · 4</b>. 틀리면 정답과 연도·설명을 보여 줘요.', `맞히면 ${cfg.scoreRight || 100}점 + 연속 보너스(${cfg.streakBonus || 20}점씩). 포인트는 없고 가장 높은 점수가 랭킹에 올라가요.`],
@@ -58,8 +58,9 @@
   window.GoGames.history = {
     id: 'history',
     thumb(ctx, w, h) {
+      { const im = T.pic('games/study/history/img/bg.jpg'); if (!(im.complete && im.naturalWidth)) im.addEventListener('load', () => { try { this.thumb(ctx, w, h); } catch (e) { /* noop */ } }, { once: true }); }   // v39 배경 그림이 오면 다시 그림
       const W = 720, H = 540; ctx.save(); ctx.scale(w / W, h / H);
-      const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#4A2A12'); bg.addColorStop(1, '#2A170A'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+      const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#4A2A12'); bg.addColorStop(1, '#2A170A'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); T.scene(ctx, 'games/study/history/img/bg.jpg', W, H, 0.35);
       T.text(ctx, '韓國史', W / 2, 120, 80, 'rgba(255,210,63,.35)', 'center', 400);
       T.text(ctx, '훈민정음을 만든 왕은?', W / 2, 230, 46, '#FFFFFF', 'center');
       ['① 세종', '② 정조', '③ 영조', '④ 광해군'].forEach((s, i) => { const x = 40 + (i % 2) * 330, y = 310 + Math.floor(i / 2) * 95; T.round(ctx, x, y, 310, 78, 14, i === 0 ? '#3DDC84' : '#5A3518', '#1A0E05', 4); T.text(ctx, s, x + 155, y + 40, 38, i === 0 ? '#0F1430' : '#FFF3E0', 'center'); });

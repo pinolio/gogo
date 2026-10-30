@@ -89,6 +89,7 @@
       function draw() {
         const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#2A1E4F'); bg.addColorStop(1, '#16193A');
         ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+        if (T.scene(ctx, 'games/study/idiom/img/bg.jpg', W, H, 0.12)) T.glass(ctx, 22, 74, W - 44, H - 92, st.phase === 'play' ? 0.74 : 0.35);   // v39 선비 서재 배경
         ctx.fillStyle = 'rgba(15,20,48,.92)'; ctx.fillRect(0, 0, W, 56);
         const sc = st.score || 0;
         T.text(ctx, '점수', 16, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, A.fmt(sc), 16, 38, 22, '#FFD23F', 'left');
@@ -97,7 +98,7 @@
         const sec = Math.max(0, Math.ceil((st.left == null ? LIMIT : st.left) / 1000));
         T.text(ctx, '남은 시간', 560, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, sec + '초', 560, 38, 22, sec <= 10 && st.phase === 'play' ? '#FF5A5F' : '#9AE6FF', 'left');
         ctx.fillStyle = '#0B0F28'; ctx.fillRect(0, 56, W, 6); ctx.fillStyle = '#FFD23F'; ctx.fillRect(0, 56, W * Math.max(0, (st.left == null ? LIMIT : st.left) / LIMIT), 6);
-        const q = st.q, D = DATA(); if (!q || st.phase !== 'play') { T.text(ctx, '四字成語', W / 2, 300, 72, 'rgba(255,255,255,.12)', 'center'); return; }
+        const q = st.q, D = DATA(); if (!q || st.phase !== 'play') { T.text(ctx, '四字成語', W / 2, 300, 72, 'rgba(255,255,255,.4)', 'center'); return; }
         const a = D[q.ans];
         T.round(ctx, W / 2 - 150, 84, 300, 34, 17, q.type === 'meaning' ? '#3B5BDB' : '#9C36B5');
         T.text(ctx, q.type === 'meaning' ? '이 뜻의 사자성어는?' : '이 사자성어의 뜻은?', W / 2, 102, 17, '#FFFFFF', 'center');
@@ -144,8 +145,9 @@
   window.GoGames.idiom = {
     id: 'idiom',
     thumb(ctx, w, h) {
+      { const im = T.pic('games/study/idiom/img/bg.jpg'); if (!(im.complete && im.naturalWidth)) im.addEventListener('load', () => { try { this.thumb(ctx, w, h); } catch (e) { /* noop */ } }, { once: true }); }   // v39 배경 그림이 오면 다시 그림
       ctx.save(); ctx.scale(w / W, h / H);
-      const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#2A1E4F'); bg.addColorStop(1, '#16193A'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+      const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#2A1E4F'); bg.addColorStop(1, '#16193A'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); T.scene(ctx, 'games/study/idiom/img/bg.jpg', W, H, 0.35);
       T.text(ctx, '苦盡甘來', W / 2, 150, 92, '#FFD23F', 'center', 400);
       T.text(ctx, '고진감래', W / 2, 260, 64, '#FFFFFF', 'center');
       ['① 일석이조', '② 고진감래', '③ 동문서답', '④ 작심삼일'].forEach((s, i) => { const x = 40 + (i % 2) * 330, y = 330 + Math.floor(i / 2) * 90; T.round(ctx, x, y, 310, 72, 14, i === 1 ? '#3DDC84' : '#26306A', '#0A0E24', 4); T.text(ctx, s, x + 155, y + 37, 34, i === 1 ? '#0F1430' : '#EEF1FF', 'center'); });

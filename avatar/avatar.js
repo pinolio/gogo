@@ -330,6 +330,70 @@
     }
     return outline;
   }
+  /* ---------------- v39: 2배 정교한 그림 ----------------
+   * 칸 그림(18×29)을 2배(36×58)로 다시 그림:
+   *  ① Scale2x(EPX) — 계단 모양 대각선을 부드럽게 (머리·옷 둥근 곳이 매끈해짐)
+   *  ② 명암 — 위쪽 테두리에 닿은 칸은 밝게, 아래·오른쪽에 닿은 칸은 어둡게 (입체감)
+   *  ③ 눈 — 세로로 길게 + 반짝이는 흰 점
+   *  옷·아이템 160종은 그대로 두고 그리는 방식만 바꿈 → 상점 아이템 모두 함께 정교해짐 */
+  const shadeCache = {};
+  const tone = (c, f) => { const k = c + f; return shadeCache[k] || (shadeCache[k] = shade(c, f)); };
+  function epx(c) {
+    const h = c.length, w = c[0].length, o = Array.from({ length: h * 2 }, () => Array(w * 2).fill(null));
+    const at = (x, y) => (y >= 0 && y < h && x >= 0 && x < w ? c[y][x] : null);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const P = c[y][x], A = at(x, y - 1), B = at(x + 1, y), C = at(x - 1, y), D = at(x, y + 1);
+      let e0 = P, e1 = P, e2 = P, e3 = P;
+      if (C === A && C !== D && A !== B) e0 = A;
+      if (A === B && A !== C && B !== D) e1 = B;
+      if (D === C && D !== B && C !== A) e2 = C;
+      if (B === D && B !== A && D !== C) e3 = D;
+      o[y * 2][x * 2] = e0; o[y * 2][x * 2 + 1] = e1; o[y * 2 + 1][x * 2] = e2; o[y * 2 + 1][x * 2 + 1] = e3;
+    }
+    return o;
+  }
+  function refine(c, face) {
+    const o = epx(c), h = o.length, w = o[0].length, src = o.map(r => r.slice());
+    const edge = v => v === null || v === OUT;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const v = src[y][x]; if (!v || v === OUT) continue;
+      if (y > 0 && edge(src[y - 1][x])) o[y][x] = tone(v, 0.22);
+      else if ((y < h - 1 && edge(src[y + 1][x])) || (x < w - 1 && edge(src[y][x + 1]))) o[y][x] = tone(v, -0.16);
+    }
+    // 테두리 얇게: 바깥쪽 테두리 줄(색칠된 칸과 닿지 않고 빈칸과 닿은 테두리)을 지움 → 2배 그림에서 1칸 두께
+    const t2 = o.map(r => r.slice()), colored = v => v && v !== OUT;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (t2[y][x] !== OUT) continue;
+      const n = [y > 0 ? t2[y - 1][x] : null, y < h - 1 ? t2[y + 1][x] : null, x > 0 ? t2[y][x - 1] : null, x < w - 1 ? t2[y][x + 1] : null];
+      if (!n.some(colored) && n.some(v => v === null)) o[y][x] = null;
+    }
+    if (face) {   // 눈: 원래 (6,7)·(9,7) 칸이 눈동자 그대로일 때만 (선글라스 등으로 가려지지 않았을 때)
+      [7, 10].forEach(ex => {
+        if (c[8][ex] !== OUT || !c[8][ex - 1] || c[8][ex - 1] === OUT) return;
+        const X = ex * 2, Y = 16;
+        if (o[Y - 1][X] && o[Y - 1][X] !== OUT) { o[Y - 1][X] = OUT; o[Y - 1][X + 1] = OUT; }
+        o[Y][X + 1] = '#FFFFFF';
+      });
+      // 입: 2배 그림에서 작은 웃는 입 (가운데 2칸 + 양끝 한 칸 위)
+      const sk = c[11][8], m = c[10][8];
+      if (sk && m && m !== sk && m !== OUT && c[10][9] === m && o[21] && o[21][17] === tone(m, -0.16) || (o[21] && o[21][17] === m)) {
+        for (let x = 16; x <= 19; x++) { o[20][x] = sk; o[21][x] = sk; }
+        o[21][17] = m; o[21][18] = m; o[20][16] = m; o[20][19] = m;
+      }
+    }
+    return o;
+  }
+  const hiCache = new Map();
+  function hires(av, frame) {
+    const key = JSON.stringify(normalize(av)) + '|' + (frame || 0);
+    if (hiCache.has(key)) return hiCache.get(key);
+    const cells = refine(grid(av, frame), true), cv = document.createElement('canvas');
+    cv.width = GW * 2; cv.height = GH * 2;
+    const g = cv.getContext('2d');
+    for (let y = 0; y < GH * 2; y++) for (let x = 0; x < GW * 2; x++) { const col = cells[y][x]; if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } }
+    hiCache.set(key, cv); if (hiCache.size > 300) hiCache.delete(hiCache.keys().next().value);
+    return cv;
+  }
   // ctx 에 (x, y) 위치부터 scale 배로 그림. crop: 'full' | 'bust'
   const CROP = { full: [0, 0, GW, GH], bust: [1, 0, 16, 16] };
   // 배경 그림 (18 × 29칸). 배경이 없으면 null
@@ -338,27 +402,26 @@
     if (!it || !it.scene) return null;
     const cells = Array.from({ length: GH }, () => Array(GW).fill(null));
     it.scene((x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const gx = x + i, gy = y + j; if (gx >= 0 && gy >= 0 && gx < GW && gy < GH) cells[gy][gx] = c; } });
-    return cells;
+    return epx(cells);
   }
   // opt.scene = true 이면 배경까지 그림 (옷장·상점·홈·내 전적의 내 아바타)
   function draw(ctx, av, x, y, scale, opt) {
     opt = opt || {};
-    const g = grid(av, opt.frame), [cx, cy, cw, ch] = CROP[opt.crop || 'full'];
+    const [cx, cy, cw, ch] = CROP[opt.crop || 'full'], half = scale / 2;
     const sc = opt.scene ? scene(normalize(av)) : null;
-    if (sc) for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
-      const col = sc[cy + j] && sc[cy + j][cx + i];
-      if (col) { ctx.fillStyle = col; ctx.fillRect(x + i * scale, y + j * scale, scale, scale); }
+    if (sc) for (let j = 0; j < ch * 2; j++) for (let i = 0; i < cw * 2; i++) {
+      const col = sc[cy * 2 + j] && sc[cy * 2 + j][cx * 2 + i];
+      if (col) { ctx.fillStyle = col; ctx.fillRect(x + i * half, y + j * half, Math.ceil(half), Math.ceil(half)); }
     }
-    for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
-      const col = g[cy + j] && g[cy + j][cx + i];
-      if (col) { ctx.fillStyle = col; ctx.fillRect(x + i * scale, y + j * scale, scale, scale); }
-    }
+    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(hires(av, opt.frame), cx * 2, cy * 2, cw * 2, ch * 2, x, y, cw * scale, ch * scale);
+    ctx.imageSmoothingEnabled = sm;
   }
   // 캔버스 크기를 맞춰서 그림
   function paint(canvas, av, opt) {
     opt = opt || {};
     const [, , cw, ch] = CROP[opt.crop || 'full'], s = opt.scale || 4;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = 2;   // v39: 2배 그림이 고르게 보이게 항상 2배 해상도
     canvas.width = cw * s * dpr; canvas.height = ch * s * dpr;
     if (!opt.keepCss) { canvas.style.width = cw * s + 'px'; canvas.style.height = ch * s + 'px'; }
     const ctx = canvas.getContext('2d');
@@ -389,7 +452,7 @@
   window.GoAvatar = {
     SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
-    normalize, grid, scene, draw, paint, paintAll, random, legs,
+    normalize, grid, scene, draw, paint, paintAll, random, legs, refine, hires, OUT,
     freeIds: () => I.filter(it => it.price === 0).map(it => it.id),
     attr: av => JSON.stringify(normalize(av)).replace(/"/g, '&quot;')   // HTML 속성용
   };

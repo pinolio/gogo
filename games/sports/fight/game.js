@@ -9,7 +9,7 @@
 (function () {
   'use strict';
   const S = window.GoSport;
-  const W = 960, H = 540, FLOOR = 492, BW = 48, BH = 112, SCALE = 4;
+  const W = 960, H = 540, FLOOR = 492, BW = 48, BH = 112, SCALE = 4.5;   // v39: 아바타 그림 4 → 4.5배 (판정 크기는 그대로)
   const SPEED = 4.6, JUMP = -13.2, GRAV = 0.78, DOUBLE_TAP = 400;
   const DIR = 'games/sports/fight/';
   const SKILLS = [

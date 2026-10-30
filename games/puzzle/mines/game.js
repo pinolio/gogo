@@ -208,6 +208,7 @@
       function draw() {
         const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#1C2457'); bg.addColorStop(1, '#10143A');
         ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+        T.scene(ctx, 'games/puzzle/mines/img/bg.jpg', W, H, 0.1);   // v39 풀밭 배경
         // 위쪽 상태 줄
         ctx.fillStyle = 'rgba(8,12,36,.9)'; ctx.fillRect(0, 0, W, 66);
         const left = MINES - st.flags, sec = elapsed();
@@ -220,20 +221,20 @@
           const i = idx(c, r), cell = st.cells[i], x = GX + c * CELL, y = GY + r * CELL, s = CELL;
           const pr = press && press.i === i && !press.done && !cell.open;
           if (cell.open) {
-            ctx.fillStyle = i === st.boom ? '#FF5A5F' : '#E9EDFB'; ctx.fillRect(x, y, s, s);
-            ctx.fillStyle = 'rgba(26,31,61,.18)'; ctx.fillRect(x, y, s, 1); ctx.fillRect(x, y, 1, s);
+            ctx.fillStyle = i === st.boom ? '#FF5A5F' : (r + c) % 2 ? '#EBDDB5' : '#E3D3A6'; ctx.fillRect(x, y, s, s);   // v39 연 칸 = 흙
+            ctx.fillStyle = 'rgba(90,60,20,.18)'; ctx.fillRect(x, y, s, 1); ctx.fillRect(x, y, 1, s);
             if (cell.mine) drawMine(ctx, x + s / 2, y + s / 2, s * 0.62);
             else if (cell.n) T.text(ctx, String(cell.n), x + s / 2, y + s / 2 + 2, Math.round(s * 0.56), NUMC[cell.n], 'center');
           } else {
-            ctx.fillStyle = pr ? '#9FB0E8' : '#7C91E0'; ctx.fillRect(x, y, s, s);
-            if (!pr) { ctx.fillStyle = '#B4C3FF'; ctx.fillRect(x, y, s, 4); ctx.fillRect(x, y, 4, s); ctx.fillStyle = '#4A5BB0'; ctx.fillRect(x, y + s - 4, s, 4); ctx.fillRect(x + s - 4, y, 4, s); }
+            ctx.fillStyle = pr ? '#86D873' : (r + c) % 2 ? '#5DBB4C' : '#56B246'; ctx.fillRect(x, y, s, s);   // v39 닫힌 칸 = 잔디
+            if (!pr) { ctx.fillStyle = '#9BE686'; ctx.fillRect(x, y, s, 4); ctx.fillRect(x, y, 4, s); ctx.fillStyle = '#2F7A2A'; ctx.fillRect(x, y + s - 4, s, 4); ctx.fillRect(x + s - 4, y, 4, s); }
             if (cell.flag) {
               drawFlag(ctx, x + s / 2, y + s / 2, s * 0.62);
               if (st.phase === 'lost' && !cell.mine) { ctx.strokeStyle = '#E8383E'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x + 8, y + 8); ctx.lineTo(x + s - 8, y + s - 8); ctx.moveTo(x + s - 8, y + 8); ctx.lineTo(x + 8, y + s - 8); ctx.stroke(); }   // 틀린 깃발
             }
           }
         }
-        ctx.strokeStyle = '#0A0E24'; ctx.lineWidth = 3; ctx.strokeRect(GX - 1.5, GY - 1.5, CELL * COLS + 3, CELL * ROWS + 3);
+        ctx.strokeStyle = '#4A2E14'; ctx.lineWidth = 6; ctx.strokeRect(GX - 3, GY - 3, CELL * COLS + 6, CELL * ROWS + 6);   // v39 나무 울타리 테두리
         if (cur && canPlay()) { ctx.strokeStyle = '#FFD23F'; ctx.lineWidth = 4; ctx.strokeRect(GX + cur.c * CELL + 2, GY + cur.r * CELL + 2, CELL - 4, CELL - 4); }
         // 아래 안내
         const by = GY + CELL * ROWS + 24;
@@ -261,13 +262,14 @@
   window.GoGames.mines = {
     id: 'mines',
     thumb(ctx, w, h) {
+      { const im = T.pic('games/puzzle/mines/img/bg.jpg'); if (!(im.complete && im.naturalWidth)) im.addEventListener('load', () => { try { this.thumb(ctx, w, h); } catch (e) { /* noop */ } }, { once: true }); }   // v39 배경 그림이 오면 다시 그림
       ctx.save(); ctx.scale(w / W, h / H);
-      ctx.fillStyle = '#1C2457'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#3E7A34'; ctx.fillRect(0, 0, W, H); T.scene(ctx, 'games/puzzle/mines/img/bg.jpg', W, H, 0.35);
       const demo = ['1100000111', 'F210001F21', '22F1001221', '1111000000', '000012210F', '01110F2F10', '01F1012110', '0111000000', '0000111110', '00001F11F1'];
       for (let r = 0; r < ROWS && r < 10; r++) for (let c = 0; c < COLS && c < 10; c++) {
         const ch = demo[r][c], x = GX + c * CELL, y = GY + r * CELL, s = CELL, closed = ch === 'F' || (r > 6 && c > 6);
-        if (closed) { ctx.fillStyle = '#7C91E0'; ctx.fillRect(x, y, s, s); ctx.fillStyle = '#B4C3FF'; ctx.fillRect(x, y, s, 4); ctx.fillRect(x, y, 4, s); ctx.fillStyle = '#4A5BB0'; ctx.fillRect(x, y + s - 4, s, 4); ctx.fillRect(x + s - 4, y, 4, s); if (ch === 'F') drawFlag(ctx, x + s / 2, y + s / 2, s * 0.62); }
-        else { ctx.fillStyle = '#E9EDFB'; ctx.fillRect(x, y, s, s); ctx.fillStyle = 'rgba(26,31,61,.18)'; ctx.fillRect(x, y, s, 1); ctx.fillRect(x, y, 1, s); if (ch !== '0') T.text(ctx, ch, x + s / 2, y + s / 2 + 2, 30, NUMC[+ch], 'center'); }
+        if (closed) { ctx.fillStyle = (r + c) % 2 ? '#5DBB4C' : '#56B246'; ctx.fillRect(x, y, s, s); ctx.fillStyle = '#9BE686'; ctx.fillRect(x, y, s, 4); ctx.fillRect(x, y, 4, s); ctx.fillStyle = '#2F7A2A'; ctx.fillRect(x, y + s - 4, s, 4); ctx.fillRect(x + s - 4, y, 4, s); if (ch === 'F') drawFlag(ctx, x + s / 2, y + s / 2, s * 0.62); }
+        else { ctx.fillStyle = (r + c) % 2 ? '#EBDDB5' : '#E3D3A6'; ctx.fillRect(x, y, s, s); ctx.fillStyle = 'rgba(90,60,20,.18)'; ctx.fillRect(x, y, s, 1); ctx.fillRect(x, y, 1, s); if (ch !== '0') T.text(ctx, ch, x + s / 2, y + s / 2 + 2, 30, NUMC[+ch], 'center'); }
       }
       drawMine(ctx, GX + 8.5 * CELL, GY + 8.5 * CELL, CELL * 0.62);
       T.text(ctx, '지뢰찾기', W / 2, 38, 34, '#FFD23F', 'center');

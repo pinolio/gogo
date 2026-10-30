@@ -17,8 +17,9 @@
   window.GoGames.wordchain = {
     id: 'wordchain', size: [W, H],
     thumb(ctx, w, h) {
+      { const im = T.pic('games/study/wordchain/img/bg.jpg'); if (!(im.complete && im.naturalWidth)) im.addEventListener('load', () => { try { this.thumb(ctx, w, h); } catch (e) { /* noop */ } }, { once: true }); }   // v39 배경 그림이 오면 다시 그림
       ctx.save(); ctx.scale(w / W, h / H);
-      ctx.fillStyle = '#141A3A'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#141A3A'; ctx.fillRect(0, 0, W, H); T.scene(ctx, 'games/study/wordchain/img/bg.jpg', W, H, 0.35);
       const words = ['사과', '과자', '자동차', '차표'];
       words.forEach((wd, i) => {
         const x = 70 + i * 215, y = 190 + (i % 2) * 70;
@@ -188,7 +189,8 @@
       /* ---------- 그리기 ---------- */
       function render() {
         ctx.fillStyle = '#121735'; ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = 'rgba(91,140,255,.06)'; for (let y = 0; y < H; y += 24) ctx.fillRect(0, y, W, 1);
+        if (T.scene(ctx, 'games/study/wordchain/img/bg.jpg', W, H, 0.2)) { if (g) T.glass(ctx, 60, 120, W - 120, H - 150, 0.62); }   // v39 밤 도서관 배경
+        else { ctx.fillStyle = 'rgba(91,140,255,.06)'; for (let y = 0; y < H; y += 24) ctx.fillRect(0, y, W, 1); }
         if (!g) { T.text(ctx, D ? '끝말잇기' : '사전을 불러오는 중…', W / 2, H / 2, 40, '#EEF1FF', 'center'); return; }
         // 위쪽: 참가자 카드
         const cw = (W - 40 - (n - 1) * 12) / n;

@@ -40,10 +40,16 @@
   function drawStadium(ctx) {
     // 위쪽 관중석 · 광고판
     const top = H0 + CAMH * F / (L + 6.5 + CAMD);   // 화면 위쪽 관중석 경계 (뒤집힌 화면에서도 같은 자리)
-    const sky = ctx.createLinearGradient(0, 0, 0, top); sky.addColorStop(0, '#141A44'); sky.addColorStop(1, '#2A3478');
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, top + 2);
-    for (let i = 0; i < 260; i++) { const x = (i * 97) % W, y = 8 + ((i * 53) % Math.max(10, top - 40)); ctx.fillStyle = ['#FFD23F', '#FF7EB6', '#7FE3FF', '#FFFFFF', '#3DDC84'][i % 5]; ctx.globalAlpha = 0.5; ctx.fillRect(x, y, 3, 3); }
-    ctx.globalAlpha = 1;
+    const stand = S.image(DIR + 'img/stand.jpg');
+    if (S.ready(stand)) {   // v39: Meshy 관중석 그림 (아래쪽이 광고판에 닿게)
+      const k = W / stand.naturalWidth, h = stand.naturalHeight * k;
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(stand, 0, top - h * 0.82, W, h); ctx.imageSmoothingEnabled = false;
+    } else {
+      const sky = ctx.createLinearGradient(0, 0, 0, top); sky.addColorStop(0, '#141A44'); sky.addColorStop(1, '#2A3478');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, top + 2);
+      for (let i = 0; i < 260; i++) { const x = (i * 97) % W, y = 8 + ((i * 53) % Math.max(10, top - 40)); ctx.fillStyle = ['#FFD23F', '#FF7EB6', '#7FE3FF', '#FFFFFF', '#3DDC84'][i % 5]; ctx.globalAlpha = 0.5; ctx.fillRect(x, y, 3, 3); }
+      ctx.globalAlpha = 1;
+    }
     ctx.fillStyle = '#1D3FA0'; ctx.fillRect(0, top - 30, W, 30);
     ctx.font = '700 18px Galmuri11, Pretendard, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     for (let x = 60; x < W; x += 190) { ctx.fillStyle = (x / 190 | 0) % 2 ? '#FFD23F' : '#FFFFFF'; ctx.fillText((x / 190 | 0) % 2 ? 'gogo?gogo!' : 'GOGO TENNIS', x, top - 15); }
@@ -561,7 +567,7 @@
       }
       function drawPlayer(p) {
         const t = now(), big = t < p.giantUntil, cold = t < p.slowUntil;
-        const g = proj(p.x, p.y, 0), sc = Math.max(0.9, 1.85 * g.s / S.SPRITE.h) * (big ? 1.5 : 1);
+        const g = proj(p.x, p.y, 0), sc = Math.max(1, 2.1 * g.s / S.SPRITE.h) * (big ? 1.5 : 1);
         S.shadow(ctx, g.x, g.y + 2, 0.9 * g.s);
         const pose = p.toss ? 'spike' : p.swing > 0 ? 'punch' : p.walk > 0 ? (Math.floor(p.walk) % 2 ? 'walk1' : 'walk2') : 'idle';
         S.drawFighter(ctx, p.av, pose, g.x, g.y, sc, p.face);

@@ -93,6 +93,7 @@
         function draw() {
           const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, spec.colors.top); bg.addColorStop(1, spec.colors.bottom);
           ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+          if (spec.bg && T.scene(ctx, spec.bg, W, H, 0.12)) T.glass(ctx, 22, 74, W - 44, H - 92, st.phase === 'play' ? 0.74 : 0.35);   // v39 배경 그림 + 유리판
           ctx.fillStyle = 'rgba(15,20,48,.92)'; ctx.fillRect(0, 0, W, 56);
           const sc = st.score || 0;
           T.text(ctx, '점수', 16, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, A.fmt(sc), 16, 38, 22, '#FFD23F', 'left');
@@ -102,7 +103,7 @@
           const sec = Math.max(0, Math.ceil((st.left == null ? LIMIT : st.left) / 1000));
           T.text(ctx, '남은 시간', 580, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, sec + '초', 580, 38, 22, sec <= 10 && st.phase === 'play' ? '#FF5A5F' : '#9AE6FF', 'left');
           ctx.fillStyle = '#0B0F28'; ctx.fillRect(0, 56, W, 6); ctx.fillStyle = '#FFD23F'; ctx.fillRect(0, 56, W * Math.max(0, (st.left == null ? LIMIT : st.left) / LIMIT), 6);
-          const q = st.q; if (!q || st.phase !== 'play') { T.text(ctx, spec.watermark, W / 2, 300, 72, 'rgba(255,255,255,.12)', 'center'); return; }
+          const q = st.q; if (!q || st.phase !== 'play') { T.text(ctx, spec.watermark, W / 2, 300, 72, spec.bg ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.12)', 'center'); return; }
           ctx.font = '700 17px Galmuri11, Pretendard, sans-serif'; const bw = Math.max(300, ctx.measureText(q.badge).width + 40);
           T.round(ctx, W / 2 - bw / 2, 84, bw, 34, 17, q.badgeColor || '#3B5BDB');
           T.text(ctx, q.badge, W / 2, 102, 17, '#FFFFFF', 'center');

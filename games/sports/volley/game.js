@@ -13,7 +13,7 @@
   //  공을 쳐 올리는 힘도 무게에 맞춰 줄여서, 공이 올라가는 높이는 원작과 같고 떨어지는 속도만 느려짐
   let BALL_G = 0.3, HIT_PAD = 0, LIFT = 1;
   function tune() { const s = (window.GoSettings.get('volley') || {}); BALL_G = s.ballGravity || 0.3; HIT_PAD = s.hitPad || 0; LIFT = Math.sqrt(BALL_G / 0.3); }
-  const SCALE = 3, PW = 46, PH = 80;                 // 아바타 3배, 몸 판정 크기
+  const SCALE = 3.5, PW = 46, PH = 80;               // 아바타 3.5배(v39: 3 → 3.5, 그림만 키움), 몸 판정 크기
   const DIR = 'games/sports/volley/';
   const SKILLS = [
     { id: 1, name: '순간이동', cd: 6, desc: '공이 있는 곳으로 순간이동 (공이 그물보다 낮을 때)', color: '#3BC8F5' },

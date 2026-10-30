@@ -30,7 +30,7 @@
     };
   }
   window.GoEnglish = Q.make({
-    id: 'english', title: '영어 단어 퀴즈', watermark: 'ABC', colors: { top: '#173A5E', bottom: '#10213D' },
+    id: 'english', bg: 'games/study/english/img/bg.jpg', title: '영어 단어 퀴즈', watermark: 'ABC', colors: { top: '#173A5E', bottom: '#10213D' },
     sub: s => `${s}초 · 4지선다 · 중학/고등 단계`,
     goal: s => `${s}초 동안 영어 단어 ↔ 뜻을 맞혀요.<br>아래에서 단계를 고르고 시작!`,
     modes: [{ id: 'mid', label: '중학', desc: '312단어 · 100점' }, { id: 'high', label: '고등', desc: '407단어 · 150점' }, { id: 'mix', label: '섞어서', desc: '719단어' }],
@@ -40,8 +40,9 @@
   window.GoGames.english = {
     id: 'english',
     thumb(ctx, w, h) {
+      { const im = T.pic('games/study/english/img/bg.jpg'); if (!(im.complete && im.naturalWidth)) im.addEventListener('load', () => { try { this.thumb(ctx, w, h); } catch (e) { /* noop */ } }, { once: true }); }   // v39 배경 그림이 오면 다시 그림
       const W = 720, H = 540; ctx.save(); ctx.scale(w / W, h / H);
-      const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#173A5E'); bg.addColorStop(1, '#10213D'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+      const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#173A5E'); bg.addColorStop(1, '#10213D'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); T.scene(ctx, 'games/study/english/img/bg.jpg', W, H, 0.35);
       T.text(ctx, 'opportunity', W / 2, 150, 80, '#FFD23F', 'center');
       T.text(ctx, '이 단어의 뜻은?', W / 2, 250, 44, '#FFFFFF', 'center');
       ['① 기회', '② 증거', '③ 전통', '④ 습관'].forEach((s, i) => { const x = 40 + (i % 2) * 330, y = 320 + Math.floor(i / 2) * 95; T.round(ctx, x, y, 310, 78, 14, i === 0 ? '#3DDC84' : '#26306A', '#0A0E24', 4); T.text(ctx, s, x + 155, y + 40, 38, i === 0 ? '#0F1430' : '#EEF1FF', 'center'); });

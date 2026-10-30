@@ -138,5 +138,17 @@
   }
   const shuffle = (a, rnd) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor((rnd || Math.random)() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-  window.GoStudy = { isSyl, split, join, dueum, starts, dict, text, round, soloPage, bestKeeper, shuffle, fitView };
+  // v39: Meshy 배경 그림 (게임 폴더 img/bg.jpg). 그림이 아직 안 왔으면 false → 원래 색으로 그림
+  const IMGS = {};
+  function pic(src) { if (!IMGS[src]) { const im = new Image(); im.decoding = 'async'; im.src = src; IMGS[src] = im; } return IMGS[src]; }
+  function scene(ctx, src, W, H, dim) {
+    const im = pic(src); if (!(im.complete && im.naturalWidth)) return false;
+    const k = Math.max(W / im.naturalWidth, H / im.naturalHeight), w = im.naturalWidth * k, h = im.naturalHeight * k;
+    ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
+    if (dim) { ctx.fillStyle = 'rgba(10,14,36,' + dim + ')'; ctx.fillRect(0, 0, W, H); }
+    ctx.restore(); return true;
+  }
+  // 글씨가 잘 보이게 반투명 유리판
+  function glass(ctx, x, y, w, h, a) { round(ctx, x, y, w, h, 18, 'rgba(12,16,40,' + (a == null ? 0.7 : a) + ')', 'rgba(255,255,255,.22)', 2); }
+  window.GoStudy = { isSyl, split, join, dueum, starts, dict, text, round, soloPage, bestKeeper, shuffle, fitView, pic, scene, glass };
 })();

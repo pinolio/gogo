@@ -51,7 +51,7 @@
   function rankItems(rows, valueKey, gid) {
     if (!rows.length) return '<li class="empty">아직 기록이 없어요. 첫 1위가 되어 보세요!</li>';
     const me = Hub.user && Hub.user.id;
-    return rows.map((r, i) => `<li class="${r.user_id === me ? 'mine' : ''}"><span class="rk">${i + 1}</span><span class="nm">${avCanvas(r.user_id === me ? Hub.user.avatar : r.avatar, 1, 'bust', 'rk-av')}<span class="nm-t">${esc(r.nickname)}</span>${r.sample ? '<span class="ex">예시</span>' : ''}</span><span class="sc">${valueKey === 'best_score' ? sfmt(gid, r[valueKey]) : fmt(r[valueKey])}${valueKey === 'earned' ? 'P' : ''}</span></li>`).join('');
+    return rows.map((r, i) => `<li class="${r.user_id === me ? 'mine' : ''}"><span class="rk">${i + 1}</span><span class="nm">${avCanvas(r.user_id === me ? Hub.user.avatar : r.avatar, 1.5, 'bust', 'rk-av')}<span class="nm-t">${esc(r.nickname)}</span>${r.sample ? '<span class="ex">예시</span>' : ''}</span><span class="sc">${valueKey === 'best_score' ? sfmt(gid, r[valueKey]) : fmt(r[valueKey])}${valueKey === 'earned' ? 'P' : ''}</span></li>`).join('');
   }
   function fillRank(el, rows, key, gid) { if (!el || !el.isConnected) return; el.innerHTML = rankItems(rows, key, gid); AV.paintAll(el); }
 
@@ -65,7 +65,7 @@
     const u = Hub.user, el = $('#userChip');
     const na = $('#navAdmin'); if (na) na.hidden = !Hub.isAdmin();
     if (u) {
-      el.innerHTML = `<a class="who" href="#my">${avCanvas(u.avatar, 2, 'bust', 'chip-av')}<span class="who-n">${esc(u.nickname)}</span><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="pt num">${fmt(u.points)}P</span></a>`;
+      el.innerHTML = `<a class="who" href="#my">${avCanvas(u.avatar, 2.5, 'bust', 'chip-av')}<span class="who-n">${esc(u.nickname)}</span><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="pt num">${fmt(u.points)}P</span></a>`;
       AV.paintAll(el);
     } else {
       el.innerHTML = '<button class="btn btn-sm" type="button" data-auth="login">로그인</button><button class="btn btn-sm btn-primary" type="button" data-auth="signup">회원가입</button>';
@@ -254,7 +254,7 @@
     const u = Hub.user;
     if (u) {
       box.innerHTML = `
-        <div class="me">${avCanvas(u.avatar, 3, 'full', 'me-av', true)}
+        <div class="me">${avCanvas(u.avatar, 4, 'full', 'me-av', true)}
           <div><b>${esc(u.nickname)}</b><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span>${levelBlock(u)}</div></div>
         <div class="row"><a class="btn btn-sun" href="#shop">아바타 꾸미기</a><a class="btn" href="#my">내 전적</a></div>
         <p class="small acct-links"><a class="btn btn-sm" href="#closet">옷장</a><button class="link" type="button" data-logout>로그아웃</button></p>`;
@@ -683,7 +683,7 @@
     const el = $('#playerCard'); if (!el || !session) return;
     const cfg = SET.get(session.id), u = Hub.user, pts = cfg.points, ls = cfg.levelScore || {};
     el.innerHTML = `
-      <div class="pc-top">${avCanvas(u ? u.avatar : {}, 3, 'full', 'pc-av')}
+      <div class="pc-top">${avCanvas(u ? u.avatar : {}, 4, 'full', 'pc-av')}
         <div class="pc-info"><b>${u ? esc(u.nickname) : '손님'}</b>${u ? `<span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="num pc-pt">${fmt(u.points)}P</span>` : '<span class="small">로그인하면 포인트를 모아요</span>'}</div></div>
       <dl class="rules">${cfg.cardRules ? cfg.cardRules() : `
         <dt>포인트</dt><dd>${(session.players || 2) > 2 && cfg.pointsByRank ? rankPointText(cfg, session.players) : `컴퓨터에게 승리 <b class="plus">+${pts.win}P</b> · 패배 <b class="minus">${pts.lose}P</b> · 무승부 0P`}</dd>
@@ -726,7 +726,7 @@
       const ex = r.extra || {}, multi = (ex.players || 2) > 2 && !cfg.teamLabels;
       const title = r.title ? r.title : session.mode === 'local' ? '대국 끝!' : multi ? (ex.rank === 1 ? '1등!' : ex.rank + '등') : r.result === 'win' ? '승리!' : r.result === 'lose' ? '아쉬워요!' : '무승부';
       ov.innerHTML = `<div class="ov-box">
-        ${avCanvas(Hub.user ? Hub.user.avatar : {}, 3, 'full', 'ov-avatar')}
+        ${avCanvas(Hub.user ? Hub.user.avatar : {}, 4, 'full', 'ov-avatar')}
         <div class="ov-title">${title}</div>
         <p class="ov-goal">${esc(r.message || '')}</p>
         <p class="ov-hint">${session.mode === 'local' ? (multi ? ex.players + '명이서' : '둘이서') : session.mode === 'online' ? '온라인 · ' + esc(session.net ? session.net.oppNick : '상대') : (cfg.aiLabel ? cfg.aiLabel + ' ' : '컴퓨터 ') + LEVEL_NAME[session.level] + (multi ? ' · ' + ex.players + '명' : '')} · ${r.moves ? r.moves + (cfg.category === 'sports' ? '랠리' : cfg.category === 'study' ? '단어' : '수') + ' · ' : ''}${dur(r.duration_sec || 0)}</p>
@@ -833,7 +833,7 @@
     const el = $('#playerCard'); if (!el || !session) return;
     const cfg = SET.get(session.id), u = Hub.user, pts = cfg.points;
     el.innerHTML = `
-      <div class="pc-top">${avCanvas(u ? u.avatar : {}, 3, 'full', 'pc-av')}
+      <div class="pc-top">${avCanvas(u ? u.avatar : {}, 4, 'full', 'pc-av')}
         <div class="pc-info"><b>${u ? esc(u.nickname) : '손님'}</b>${u ? `<span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="num pc-pt">${fmt(u.points)}P</span>` : '<span class="small">로그인하면 포인트를 모아요</span>'}</div></div>
       <dl class="rules">
         <dt>승리 조건</dt><dd>${esc(cfg.goalText ? cfg.goalText() : '-')}</dd>
@@ -866,7 +866,7 @@
       else if (s.status === 'guest') note = `<p class="ov-note">로그인하면 이 기록과 포인트(${r && r.result === 'win' ? '+' : ''}${r ? r.points_delta : 0}P)가 남아요.</p><button class="btn btn-primary" type="button" data-ov="save">로그인하고 기록 저장</button>`;
       const win = r && r.result === 'win', cfg = SET.get(session.id);
       ov.innerHTML = `<div class="ov-box">
-        ${avCanvas(Hub.user ? Hub.user.avatar : {}, 3, 'full', 'ov-avatar')}
+        ${avCanvas(Hub.user ? Hub.user.avatar : {}, 4, 'full', 'ov-avatar')}
         <div class="ov-title">${win ? '승리!' : '아쉬워요!'}</div>
         <p class="ov-goal">${win ? '목표 달성' : '목표'} · ${esc(cfg.goalText())}</p>
         <div class="ov-score">${fmt(r ? r.score : 0)}</div>
@@ -974,7 +974,7 @@
     view().innerHTML = `
       <div class="stack">
         <div class="panel profile">
-          ${avCanvas(u.avatar, 4, 'full', 'profile-av', true)}
+          ${avCanvas(u.avatar, 6, 'full', 'profile-av', true)}
           <div><h1>${esc(u.nickname)} <span class="lv">Lv.${L.level}</span></h1><div class="sub">@${esc(u.username)}</div>
             <a class="btn btn-sun btn-sm" href="#shop" style="margin-top:10px">아바타 꾸미기</a> <a class="btn btn-sm" href="#closet" style="margin-top:10px">옷장</a></div>
           ${levelBlock(u)}

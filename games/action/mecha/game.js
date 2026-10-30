@@ -128,23 +128,12 @@
     });
     ctx.restore();
   }
-  /* 경기 중 로봇: 8방향 (v26, 새 그림 없이 지금 그림으로)
-   *  → · ←  : 옆모습 그림 (m?_top.png, 왼쪽은 좌우 뒤집기)
-   *  ↓      : 정면 그림 (m?_card.png)
-   *  ↘ · ↙  : 정면 그림을 조금 좁히고 기울임 (↙ 는 뒤집기)
-   *  ↑      : 정면 그림을 뒤집고 어둡게 → 뒷모습 느낌
-   *  ↗ · ↖  : 뒷모습을 조금 좁히고 기울임
-   *  어색하면 USE_8DIR 을 false 로 바꾸면 예전처럼 좌·우만 봄 */
-  const USE_8DIR = true;
-  const backCache = {};
-  function backOf(rb, card) {   // 뒷모습: 정면 그림을 좌우로 뒤집고 어둡게
-    if (backCache[rb.id]) return backCache[rb.id];
-    const c = document.createElement('canvas'); c.width = card.naturalWidth; c.height = card.naturalHeight;
-    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-    g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(card, 0, 0);
-    g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(14,16,40,.42)'; g.fillRect(0, 0, c.width, c.height);
-    return (backCache[rb.id] = c);
-  }
+  /* 경기 중 로봇: 8방향 (v39, Meshy 로 방향별 그림을 새로 만듦)
+   *  그림 5장: m?_s(정면 ↓) · m?_fr(앞 대각 ↘) · m?_r(옆 →) · m?_br(뒤 대각 ↗) · m?_b(뒷모습 ↑)
+   *  ↙ · ← · ↖ 은 ↘ · → · ↗ 를 좌우로 뒤집어 씀
+   *  입체감: 발밑 그림자 · 걸을 때 위아래로 흔들림 · 빠르게 움직이면 가는 쪽으로 살짝 기울임 */
+  const FOOT = 1.2, HEAD = 3.3;   // 발 위치(가운데보다 아래) · 머리 위 글자 위치 (반지름의 몇 배)
+  const VIEW = [['r', 1], ['fr', 1], ['s', 1], ['fr', -1], ['r', -1], ['br', -1], ['b', 1], ['br', 1]];
   // 방향 0~7 (0 →, 1 ↘, 2 ↓, 3 ↙, 4 ←, 5 ↖, 6 ↑, 7 ↗). 경계에서 깜빡이지 않게 조금 버팀
   function faceOf(ang, prev) {
     const step = Math.PI / 4, d = ((Math.round(ang / step) % 8) + 8) % 8;
@@ -152,23 +141,21 @@
     return d;
   }
   function drawRobot(ctx, rb, x, y, ang, scale, alpha, f) {
-    const side = img('m' + rb.id + '_top.png'), card = img('m' + rb.id + '_card.png'), size = rb.r * 2.9 * (scale || 1);
+    const size = rb.r * 2.9 * (scale || 1), d = faceOf(ang, f ? f.face : null);
+    if (f) f.face = d;
+    const [v, flip] = VIEW[d], pic = img('m' + rb.id + '_' + v + '.png');
     ctx.save(); ctx.translate(x, y); if (alpha != null) ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = false;
-    if (S.ready(side)) {
-      const d = faceOf(ang, f ? f.face : null); if (f) f.face = d;
-      if (!USE_8DIR || !S.ready(card) || d === 0 || d === 4) {
-        const k = size * 1.45 / Math.max(side.naturalWidth, side.naturalHeight), w = side.naturalWidth * k, h = side.naturalHeight * k;
-        if (USE_8DIR ? d === 4 || (d !== 0 && Math.cos(ang) < 0) : Math.cos(ang) < 0) ctx.scale(-1, 1);
-        ctx.drawImage(side, -w / 2, -h / 2, w, h);
-      } else {
-        const up = d >= 5, pic = up ? backOf(rb, card) : card, diag = d % 2 === 1;
-        const pw = pic.naturalWidth || pic.width, ph = pic.naturalHeight || pic.height;
-        const k = size * 1.3 / ph, w = pw * k * (diag ? 0.84 : 1), h = ph * k;   // 정면·뒷모습은 옆모습보다 조금 작게 (돌 때 크기가 튀지 않게)
-        const left = d === 3 || d === 5;           // ↙ · ↖ 은 좌우 뒤집기
-        if (left) ctx.scale(-1, 1);
-        if (diag) ctx.rotate(up ? -0.09 : 0.09);   // 가는 방향으로 살짝 기울임
-        ctx.drawImage(pic, -w / 2, -h / 2, w, h);
-      }
+    if (S.ready(pic)) {
+      const h = size * 1.6, w = pic.naturalWidth * h / pic.naturalHeight, foot = rb.r * FOOT;
+      const spd = f ? Math.hypot(f.vx || 0, f.vy || 0) : 0, t = performance.now() / 1000;
+      const bob = spd > 0.4 ? Math.abs(Math.sin(t * 9 + (rb.id || 0))) * Math.min(4, spd) : Math.sin(t * 2.2 + (rb.id || 0)) * 1.2;
+      // 발밑 그림자 (바닥에 서 있는 느낌)
+      ctx.save(); ctx.globalAlpha = (alpha == null ? 1 : alpha) * 0.45; ctx.fillStyle = '#05060F';
+      ctx.beginPath(); ctx.ellipse(0, foot, Math.min(w * 0.42, rb.r * 1.5), rb.r * 0.36, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.translate(0, foot - bob);
+      if (f && spd > 1.5) ctx.rotate(Math.max(-0.12, Math.min(0.12, (f.vx || 0) * 0.02)));   // 빠르게 가면 살짝 기울임
+      if (flip < 0) ctx.scale(-1, 1);
+      ctx.drawImage(pic, -w / 2, -h, w, h);
     } else { ctx.rotate(ang); ctx.drawImage(fallbackSprite(rb), -size / 2, -size / 2, size, size); }
     ctx.restore();
   }
@@ -295,7 +282,7 @@
         if (o.root && !(t.rootT > 0) && !(t.rootImm > 0)) t.rootT = o.root;   // v32: 묶여 있는 동안 다시 맞아도 시간이 늘지 않고, 풀린 뒤 ROOT_IMM 동안은 다시 안 묶임 (거미줄 무한 속박 막기)
         if (o.drain) { t.en = Math.max(0, t.en - o.drain); if (from) from.en = Math.min(100, from.en + o.drain / 2); }
         if (o.knock && from) { const a = Math.atan2(t.y - from.y, t.x - from.x); t.vx += Math.cos(a) * o.knock; t.vy += Math.sin(a) * o.knock; }
-        if (!o.dot) addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r - 12, text: '-' + dmg, color: o.poison ? '#7DFF8A' : o.fire ? '#FF9A3D' : dmg >= 12 ? '#FF5A5F' : '#FFE48A', life: 34 });
+        if (!o.dot) addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r * HEAD - 12, text: '-' + dmg, color: o.poison ? '#7DFF8A' : o.fire ? '#FF9A3D' : dmg >= 12 ? '#FF5A5F' : '#FFE48A', life: 34 });
         if (dmg >= 12) shake = Math.max(shake, 8);
         if (t.hp <= 0) {
           t.hp = 0; t.dead = true; t.vx = t.vy = 0;
@@ -307,7 +294,7 @@
       function heal(t, amt) {
         if (t.dead || t.hp >= t.maxHp) return;
         const v = Math.min(t.maxHp - t.hp, amt); t.hp += v;
-        if (v >= 3) addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r - 12, text: '+' + Math.round(v), color: '#7DFFC4', life: 30 });
+        if (v >= 3) addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r * HEAD - 12, text: '+' + Math.round(v), color: '#7DFFC4', life: 30 });
       }
       // 폭발: 반지름 안의 상대 모두에게 피해
       function explodeAt(x, y, rad, dmg, team, from, o) {
@@ -326,10 +313,10 @@
         const w = f.rb.w[wi], cost = Math.round(w.en * (1 + 0.5 * lv));
         let mul = 1 + 0.5 * lv;
         if (f.cd[wi] > 0 || f.dead || f.stun > 0) return;
-        if (f.en < cost) { if (f.mine || (net && net.host && f.remote)) addFx({ kind: 'txt', x: f.x, y: f.y - f.rb.r - 26, text: '에너지 부족', color: '#BFC7E0', life: 30 }); return; }
+        if (f.en < cost) { if (f.mine || (net && net.host && f.remote)) addFx({ kind: 'txt', x: f.x, y: f.y - f.rb.r * HEAD - 26, text: '에너지 부족', color: '#BFC7E0', life: 30 }); return; }
         f.en -= cost; f.cd[wi] = w.cd;
         // 은신 중 첫 공격은 피해 2배, 공격하면 모습이 드러남
-        if (f.cloak > 0 && w.kind !== 'cloak') { f.cloak = 0; mul *= 2; addFx({ kind: 'txt', x: f.x, y: f.y - f.rb.r - 26, text: '기습 ×2!', color: '#E3B3FF', life: 34 }); }
+        if (f.cloak > 0 && w.kind !== 'cloak') { f.cloak = 0; mul *= 2; addFx({ kind: 'txt', x: f.x, y: f.y - f.rb.r * HEAD - 26, text: '기습 ×2!', color: '#E3B3FF', life: 34 }); }
         const tg = nearest(f), a = f.ang;
         if (w.kind === 'melee' || w.kind === 'spin' || w.kind === 'cone') {
           const range = w.range * (1 + 0.15 * lv), arc = w.arc * (w.kind === 'cone' ? 1 + 0.2 * lv : 1);
@@ -362,7 +349,7 @@
             addFx({ kind: 'line', x: f.x, y: f.y, x2: tg.x, y2: tg.y, color: w.col, life: 18 });
             tg.x += Math.cos(ang) * d * 0.8; tg.y += Math.sin(ang) * d * 0.8; tg.vx = tg.vy = 0;
             hurt(tg, w.dmg * mul, f, { stun: w.stun + 10 * lv });
-          } else addFx({ kind: 'txt', x: f.x, y: f.y - f.rb.r - 26, text: '너무 멀어요', color: '#BFC7E0', life: 30 });
+          } else addFx({ kind: 'txt', x: f.x, y: f.y - f.rb.r * HEAD - 26, text: '너무 멀어요', color: '#BFC7E0', life: 30 });
         } else if (w.kind === 'shield') {
           f.shield = w.time + 60 * lv;
         } else if (w.kind === 'leap') {
@@ -376,7 +363,7 @@
           const z = { x, y, r: w.r * (1 + 0.15 * lv), kind: w.zone, team: f.team, from: f.i, life: w.time + 60 * lv, mul };
           ZONES.push(z);
           addFx({ kind: 'ring', x, y, r: z.r * 0.6, color: w.col, life: 16 });
-          if (w.freeze) P.forEach(t => { if (!t.dead && t.team !== f.team && Math.hypot(t.x - x, t.y - y) < z.r + t.rb.r * 0.5) { hurt(t, 4 * mul, f, { stun: w.freeze + 15 * lv }); addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r - 28, text: '빙결!', color: '#BFF0FF', life: 34 }); } });
+          if (w.freeze) P.forEach(t => { if (!t.dead && t.team !== f.team && Math.hypot(t.x - x, t.y - y) < z.r + t.rb.r * 0.5) { hurt(t, 4 * mul, f, { stun: w.freeze + 15 * lv }); addFx({ kind: 'txt', x: t.x, y: t.y - t.rb.r * HEAD - 28, text: '빙결!', color: '#BFF0FF', life: 34 }); } });
         } else if (w.kind === 'chain') {
           // 연쇄 번개: 가까운 상대 → 그 옆 상대로 옮겨 감 (옮길수록 약해짐)
           const hits = []; let from = f;
@@ -387,7 +374,7 @@
             hurt(nx, w.dmg * mul * Math.pow(0.75, h), f, { stun: w.stun });
             hits.push(nx); from = nx;
           }
-          if (!hits.length) addFx({ kind: 'txt', x: f.x, y: f.y - f.rb.r - 26, text: '너무 멀어요', color: '#BFC7E0', life: 30 });
+          if (!hits.length) addFx({ kind: 'txt', x: f.x, y: f.y - f.rb.r * HEAD - 26, text: '너무 멀어요', color: '#BFC7E0', life: 30 });
         } else if (w.kind === 'cloak') {
           f.cloak = w.time + 60 * lv; burst(f.x, f.y, w.col, 12);
         } else if (w.kind === 'turret') {
@@ -698,8 +685,8 @@
           if (f.leap && !f.dead) { ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(f.x, f.y + f.rb.r, f.rb.r, f.rb.r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); }
           if (!hidden) {
             ctx.globalAlpha = f.dead ? 0.25 : 1;
-            ctx.strokeStyle = TEAM_COL[f.team]; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 6, 0, Math.PI * 2); ctx.stroke();
-            if (f.mine && !f.dead) { ctx.strokeStyle = 'rgba(255,210,63,' + (0.55 + 0.35 * Math.sin(frames / 8)) + ')'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 22, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+            ctx.strokeStyle = TEAM_COL[f.team]; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(f.x, f.y + f.rb.r * FOOT, f.rb.r + 8, (f.rb.r + 8) * 0.42, 0, 0, Math.PI * 2); ctx.stroke();   // 팀 고리: 바닥에 눕혀 그림 (v39)
+            if (f.mine && !f.dead) { ctx.strokeStyle = 'rgba(255,210,63,' + (0.55 + 0.35 * Math.sin(frames / 8)) + ')'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.ellipse(f.x, f.y + f.rb.r * FOOT, f.rb.r + 22, (f.rb.r + 22) * 0.42, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
             ctx.globalAlpha = 1;
           }
           drawRobot(ctx, f.rb, f.x, f.leap && !f.dead ? f.y - 22 : f.y, f.ang, f.leap && !f.dead ? 1.25 : 1, f.dead ? 0.35 : hidden ? 0.08 : f.cloak > 0 ? 0.45 : f.hitFlash % 4 >= 2 ? 0.5 : 1, f);
@@ -708,14 +695,14 @@
           if (f.rootT > 0) { ctx.strokeStyle = 'rgba(242,242,242,.8)'; ctx.lineWidth = 2; for (let k = 0; k < 4; k++) { const ra = k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(f.x - Math.cos(ra) * (f.rb.r + 8), f.y - Math.sin(ra) * (f.rb.r + 8)); ctx.lineTo(f.x + Math.cos(ra) * (f.rb.r + 8), f.y + Math.sin(ra) * (f.rb.r + 8)); ctx.stroke(); } }
           { const ax = f.x + Math.cos(f.ang) * (f.rb.r + 12), ay = f.y + Math.sin(f.ang) * (f.rb.r + 12); ctx.save(); ctx.translate(ax, ay); ctx.rotate(f.ang); ctx.fillStyle = TEAM_COL[f.team]; ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-4, -6); ctx.lineTo(-4, 6); ctx.closePath(); ctx.fill(); ctx.restore(); }   // 조준 방향
           if (f.shield > 0) { ctx.strokeStyle = 'rgba(201,161,90,.9)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 11, 0, Math.PI * 2); ctx.stroke(); }
-          if (f.stun > 0) S.text(ctx, '★', f.x + Math.cos(frames / 6) * 14, f.y - f.rb.r - 6, 17, '#FFE45C');
+          if (f.stun > 0) S.text(ctx, '★', f.x + Math.cos(frames / 6) * 14, f.y - f.rb.r * HEAD - 6, 17, '#FFE45C');
           if (f.poison > 0) { ctx.fillStyle = '#7DFF8A'; ctx.fillRect(f.x - f.rb.r, f.y + f.rb.r + 6, 6, 6); }
           const ch = Math.max(...f.chg);
           if (ch >= 0) { const lv = Math.min(2, Math.floor(ch / 30)), part = lv >= 2 ? 1 : (ch % 30) / 30; ctx.strokeStyle = ['#FFFFFF', '#FFD23F', '#FF5A5F'][lv]; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, f.rb.r + 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * part); ctx.stroke(); }
           // 머리 위 이름·체력
-          S.bar(ctx, f.x - 30, f.y - f.rb.r - 19, 60, 6, f.hp / f.maxHp, TEAM_COL[f.team]);
-          S.text(ctx, tagOf(f), f.x, f.y - f.rb.r - 34, f.mine ? 19 : 16, f.mine ? '#FFD23F' : '#FFFFFF');
-          if (f.mine) { const ty = f.y - f.rb.r - 50 + Math.sin(frames / 7) * 3; ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.moveTo(f.x - 7, ty - 6); ctx.lineTo(f.x + 7, ty - 6); ctx.lineTo(f.x, ty + 2); ctx.closePath(); ctx.fill(); }
+          S.bar(ctx, f.x - 30, f.y - f.rb.r * HEAD - 19, 60, 6, f.hp / f.maxHp, TEAM_COL[f.team]);
+          S.text(ctx, tagOf(f), f.x, f.y - f.rb.r * HEAD - 34, f.mine ? 19 : 16, f.mine ? '#FFD23F' : '#FFFFFF');
+          if (f.mine) { const ty = f.y - f.rb.r * HEAD - 50 + Math.sin(frames / 7) * 3; ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.moveTo(f.x - 7, ty - 6); ctx.lineTo(f.x + 7, ty - 6); ctx.lineTo(f.x, ty + 2); ctx.closePath(); ctx.fill(); }
         });
         // 내가 지금 자동 조준 중인 상대 표시 (가장 가까운, 보이는 상대)
         { const me = P.find(f => f.mine);

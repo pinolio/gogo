@@ -40,10 +40,11 @@
     if (!root) return;
     const u = Hub.user;
     root.innerHTML = `
-      <div class="page-head shop-head">
-        <div><h1>상점</h1><p>게임에서 이기면 포인트를 받아요. 아이템을 누르면 아래에서 미리 입어 볼 수 있어요. 산 옷은 <a href="#closet">옷장</a>에서 언제든 갈아입어요.</p></div>
+      <div class="page-head shop-head shop-hero">
+        <div><h1>상점</h1><p>게임에서 이기면 포인트를 받아요. 아이템을 누르면 옆에서 미리 입어 볼 수 있어요. 산 옷은 <a href="#closet">옷장</a>에서 언제든 갈아입어요.</p></div>
         <div class="wallet-big">${u ? `<span class="lbl">MY POINTS</span><b class="num">${A.fmt(u.points)}P</b>` : '<button class="btn btn-primary" type="button" data-auth="login">로그인하고 쇼핑하기</button>'}</div>
       </div>
+      <div class="shop-layout">
       <div class="panel shop-items">
         <div class="slot-tabs" role="tablist" aria-label="아이템 종류">
           ${AV.SLOTS.map(([id, name]) => `<button type="button" role="tab" aria-selected="${id === slot}" data-slot="${id}">${name}</button>`).join('')}
@@ -60,7 +61,7 @@
       <div class="panel shop-preview">
         <h3>미리보기</h3>
         <div class="pv-pair">
-          <figure><div class="pv-stage">${A.avCanvas(saved(), 5, 'full', 'pv-av', true)}</div><figcaption>지금 내 모습</figcaption></figure>
+          <figure><div class="pv-stage">${A.avCanvas(saved(), 6, 'full', 'pv-av', true)}</div><figcaption>지금 내 모습</figcaption></figure>
           <div class="pv-arrow" aria-hidden="true">▶</div>
           <figure><div class="pv-stage try"><canvas id="pvTry" aria-label="미리보기 아바타"></canvas></div><figcaption>입어 본 모습</figcaption></figure>
         </div>
@@ -69,6 +70,7 @@
           <button class="btn btn-sm btn-ghost" type="button" id="pvReset">미리보기 처음으로</button>
         </div>
         <div class="pv-info" id="pvInfo"></div>
+      </div>
       </div>`;
     AV.paintAll(root);
     paintTry(0);
@@ -85,8 +87,9 @@
     const it = id ? AV.byId[id] : null;
     const look = Object.assign({}, trial, { [slot]: id });
     const sel = picked === id;
-    return `<button type="button" class="item ${sel ? 'sel' : ''}" data-item="${id || ''}" aria-pressed="${sel}">
-      <canvas data-avatar="${AV.attr(look)}" data-scale="2" data-scene aria-hidden="true"></canvas>
+    const tier = !it ? '' : Hub.price(id) >= PREMIUM ? ' tier-premium' : Hub.price(id) === 0 ? ' tier-free' : '';
+    return `<button type="button" class="item${tier} ${sel ? 'sel' : ''}" data-item="${id || ''}" aria-pressed="${sel}">
+      <canvas data-avatar="${AV.attr(look)}" data-scale="3" data-scene aria-hidden="true"></canvas>
       <span class="it-name">${it ? A.esc(it.name) : '없음'}</span>${badge(id)}</button>`;
   }
 
@@ -97,13 +100,13 @@
     // 다른 칸 썸네일도 새 미리보기 기준으로 다시 그림
     $$('[data-item]', root).forEach(b => {
       const c = b.querySelector('canvas'), v = b.dataset.item || null;
-      AV.paint(c, Object.assign({}, trial, { [slot]: v }), { scale: 2, scene: true });
+      AV.paint(c, Object.assign({}, trial, { [slot]: v }), { scale: 3, scene: true });
     });
     paintTry(0);
     renderInfo();
   }
 
-  function paintTry(frame) { const c = $('#pvTry'); if (c) AV.paint(c, trial, { scale: 5, frame, scene: true }); }
+  function paintTry(frame) { const c = $('#pvTry'); if (c) AV.paint(c, trial, { scale: 6, frame, scene: true }); }
   function startWalk() {
     clearInterval(walkTimer);
     if (!walking || reduce) { paintTry(0); return; }

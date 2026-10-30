@@ -1088,3 +1088,35 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
   .study-page .ov-box.result .ov-hint, .study-page .ov-box.result .ov-note { font-size: 12px; margin: 0; }
   .study-page .ov-box.result .btn { padding: 6px 12px; }
 }
+
+/* ===== v39 상점 새 디자인 (Meshy 상점 그림 · 옆 미리보기 · 아이템 등급 테두리) ===== */
+.shop-hero { position: relative; padding: 28px 28px 24px; border-radius: 18px; border: 3px solid var(--shadow); box-shadow: var(--lift); overflow: hidden; min-height: 170px; align-items: flex-end;
+  background: linear-gradient(90deg, rgba(20,16,40,.92) 0%, rgba(20,16,40,.72) 38%, rgba(20,16,40,.05) 75%), url("../img/shop/banner.jpg") center 40% / cover no-repeat; color: #FFF6E8; }
+.shop-hero h1 { color: #FFE48A; text-shadow: 0 3px 0 rgba(0,0,0,.45); }
+.shop-hero p { color: #F3EAD8; max-width: 46ch; }
+.shop-hero p a { color: #FFD23F; }
+.shop-hero .wallet-big { background: rgba(20,16,40,.78); border: 2px solid #FFD23F; border-radius: 14px; padding: 10px 16px; }
+.shop-hero .wallet-big .lbl { color: #FFE48A; }
+.shop-hero .wallet-big b { color: #FFFFFF; font-size: 28px; }
+.shop-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+.shop-layout .shop-items { margin-bottom: 0; }
+.shop-layout .shop-preview { position: sticky; top: 84px; }
+.shop-layout .pv-pair { flex-direction: column; gap: 8px; }
+.shop-layout .pv-pair figure:first-child { display: none; }
+.shop-layout .pv-arrow { display: none; }
+.shop-layout .pv-stage { padding: 22px 40px 12px; background: radial-gradient(ellipse at 50% 92%, rgba(0,0,0,.22) 0 22%, transparent 23%), linear-gradient(180deg, #FFE9A8 0 74%, #E7B97A 74% 100%); }
+.item-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.item { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%); }
+.item canvas { border-radius: 8px; }
+.item.tier-premium { border-color: #C79BFF; background: linear-gradient(180deg, #FFF6FF 0%, #F1E6FF 100%); }
+.item.tier-premium::before { content: '★ 고급'; position: absolute; top: 6px; left: 6px; font-size: 10px; font-weight: 700; color: #FFFFFF; background: linear-gradient(135deg, #A66BFF, #FF7EB6); border-radius: 999px; padding: 1px 7px; }
+.item { position: relative; }
+.item.tier-free { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+:root[data-theme="dark"] .item.tier-premium { background: linear-gradient(180deg, #2A2148 0%, #221A3C 100%); }
+@media (max-width: 900px) {
+  .shop-layout { grid-template-columns: 1fr; }
+  .shop-layout .shop-preview { position: static; order: -1; }
+  .shop-layout .pv-pair { flex-direction: row; }
+  .shop-layout .pv-stage { padding: 12px 22px 8px; }
+  .shop-hero { padding: 20px 16px 16px; min-height: 140px; background-position: 70% 40%; }
+}
