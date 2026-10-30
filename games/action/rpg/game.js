@@ -43,7 +43,7 @@
   function newSave() {
     const s = { v: SAVE_V, lv: 1, exp: 0, gold: 50, hp: 0, mp: 0, map: 'v1', x: null, y: null, home: 'v1',
       inv: [{ id: 'hp1', n: 5 }, { id: 'mp1', n: 3 }, { id: 'scroll', n: 1 }], eq: {}, hide: false,
-      skills: ['magicarrow'], slots: ['magicarrow', null, null, null], visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0 };
+      stat: { str: 0, dex: 0, int: 0 }, sp: 0, skills: ['magicarrow'], slots: ['magicarrow', null, null, null], visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0 };
     return s;
   }
   function fixSave(s) {
@@ -57,6 +57,10 @@
     if (!s.skills.includes('magicarrow')) { s.skills.unshift('magicarrow'); if (Array.isArray(s.slots) && !s.slots.includes('magicarrow')) { const i = s.slots.indexOf(null); if (i >= 0) s.slots[i] = 'magicarrow'; } }   // v41 기본 마법
     s.slots = [0, 1, 2, 3].map(i => (s.slots && s.skills.includes(s.slots[i]) ? s.slots[i] : null));
     s.visited = (s.visited || []).filter(id => MAPBY[id]); if (!s.visited.includes('v1')) s.visited.unshift('v1');
+    // v43 스탯: 레벨에 맞는 포인트가 되도록 (예전 저장은 그동안 오른 레벨만큼 포인트를 받음)
+    const st = s.stat && typeof s.stat === 'object' ? s.stat : {}; s.stat = { str: Math.max(0, Math.floor(+st.str || 0)), dex: Math.max(0, Math.floor(+st.dex || 0)), int: Math.max(0, Math.floor(+st.int || 0)) };
+    const total = (s.lv - 1) * (CFG.statPerLevel || 3), used = s.stat.str + s.stat.dex + s.stat.int;
+    if (used > total) { s.stat = { str: 0, dex: 0, int: 0 }; s.sp = total; } else s.sp = total - used;
     return s;
   }
   const Store = {
@@ -137,6 +141,33 @@
   .rg-msg { position: absolute; left: 50%; top: 66%; transform: translateX(-50%); background: rgba(10,14,36,.85); color: #FFE45C; border: 2px solid #0A0E24; border-radius: 8px; padding: 6px 14px; font-size: 15px; pointer-events: none; z-index: 2; white-space: nowrap; font-family: var(--f-display); }
   .rg-msg[hidden] { display: none; }
   .rg-side { width: min(100%, 560px); display: grid; grid-template-columns: 1fr; gap: 12px; }
+  /* v43 크게 보기 */
+  .rg-full { position: absolute; top: 2%; right: 18.4%; width: 36px; height: 36px; z-index: 2; border-radius: 9px; background: rgba(10,14,36,.78); border: 2px solid #0A0E24; color: #FFFFFF; display: none; place-items: center; cursor: pointer; padding: 0; }
+  @media (pointer: coarse) { .rg-full { display: grid; } }
+  .rg-page .cabinet:fullscreen { max-width: none; width: 100vw; height: 100vh; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: #05081A; display: flex; align-items: center; justify-content: center; }
+  .rg-page .cabinet:-webkit-full-screen { max-width: none; width: 100vw; height: 100vh; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: #05081A; display: flex; align-items: center; justify-content: center; }
+  .rg-page .cabinet.rg-max { position: fixed; inset: 0; z-index: 200; max-width: none; width: 100vw; height: 100dvh; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: #05081A; display: flex; align-items: center; justify-content: center; }
+  .rg-page .cabinet:fullscreen .screen { width: min(100vw, calc(100vh * 1.7778)); border: 0; border-radius: 0; }
+  .rg-page .cabinet:-webkit-full-screen .screen { width: min(100vw, calc(100vh * 1.7778)); border: 0; border-radius: 0; }
+  .rg-page .cabinet.rg-max .screen { width: min(100vw, calc(100dvh * 1.7778)); border: 0; border-radius: 0; }
+  /* v43 스탯 창 */
+  .rg-statwin { display: grid; grid-template-columns: 200px 1fr; gap: 12px; align-items: stretch; }
+  .rg-statfig { display: grid; gap: 6px; justify-items: center; align-content: start; }
+  .rg-statfig .rg-fig { grid-area: auto; width: 100%; height: 156px; } .rg-statfig .rg-fig img { height: 140px; }
+  .rg-statfig .nm { font-family: var(--f-display); font-size: 17px; }
+  .rg-xp { width: 100%; height: 8px; background: #0A0E24; border-radius: 4px; overflow: hidden; } .rg-xp i { display: block; height: 100%; background: linear-gradient(90deg, #FFD23F, #FFF3B0); }
+  .rg-statfig small { color: #AEB7E0; font-size: 12px; }
+  .rg-alloc { display: grid; gap: 6px; align-content: start; } .rg-alloc .rg-srvact { margin: 2px 0 0; }
+  .rg-sp { font-size: 14px; color: #C9D0F0; } .rg-sp b { font-family: var(--f-display); font-size: 22px; color: #FFD23F; margin-left: 6px; }
+  .rg-st { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "lab btns" "ds btns"; gap: 0 10px; align-items: center; background: #141A3C; border: 2px solid #0A0E24; border-left: 5px solid var(--c); border-radius: 10px; padding: 5px 10px; }
+  .rg-st .lab { grid-area: lab; display: flex; align-items: baseline; gap: 10px; } .rg-st .lab b { color: var(--c); font-family: var(--f-display); font-size: 18px; } .rg-st .lab span { font-family: var(--f-display); font-size: 20px; color: #FFFFFF; }
+  .rg-st small { grid-area: ds; color: #AEB7E0; font-size: 12px; }
+  .rg-st .btns { grid-area: btns; display: flex; gap: 6px; } .rg-st .btns .rg-mini { font-size: 15px; padding: 6px 12px; }
+  .rg-detailgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
+  .rg-detailgrid div { background: #141A3C; border: 2px solid #0A0E24; border-radius: 10px; padding: 7px 9px; display: grid; gap: 1px; }
+  .rg-detailgrid span { font-size: 12px; } .rg-detailgrid b { font-family: var(--f-display); font-size: 19px; color: #FFFFFF; }
+  .rg-detailgrid small { font-size: 11px; color: #AEB7E0; line-height: 1.35; } .rg-detailgrid small.pt { color: #8A93C0; }
+  .rg-detailgrid em { font-style: normal; } .rg-detailgrid em.s { color: #FFD23F; } .rg-detailgrid em.g { color: #9AE6FF; }
   /* v42 서버 고르기 */
   .rg-srvs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
   .rg-srv { position: relative; display: grid; gap: 6px; text-align: left; background: linear-gradient(180deg, #2A3266, #182050); color: #EEF1FF; border: 2px solid #0A0E24; border-radius: 12px; padding: 10px 10px 8px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.3); transition: transform .1s, filter .1s; }
@@ -193,11 +224,14 @@
   .rg-detail em { font-style: normal; } .rg-detail em.up { color: #3DDC84; } .rg-detail em.dn { color: #FF8A8E; }
   .rg-side .panel { margin: 0; }
   @media (max-height: 520px) {   /* 휴대폰 가로: 게임판을 화면 높이에 꽉 차게 */
-    .rg-page .cabinet { max-width: min(100%, calc((100svh - 64px) * 1.7778 + 12px)); padding: 6px; border-radius: 10px; }
+    .rg-page .cabinet { max-width: min(100%, calc((100svh - 14px) * 1.7778 + 8px)); padding: 3px; border-radius: 8px; border-width: 2px; }
+    .rg-page .screen { border-width: 1px; }
+    .rg-detailgrid { grid-template-columns: repeat(4, 1fr); }
     .rg-panel { position: fixed; inset: 6px 8% 6px 8%; max-height: none; z-index: 60; }
   }
   @media (max-width: 760px) {
     .rg-inv { grid-template-columns: 1fr; } .rg-grid { grid-template-columns: repeat(6, 1fr); } .rg-srvs { grid-template-columns: repeat(2, 1fr); }
+    .rg-statwin { grid-template-columns: 1fr; } .rg-detailgrid { grid-template-columns: repeat(2, 1fr); }
     .rg-panel { position: fixed; inset: auto 0 0 0; max-height: 72svh; border-radius: 14px 14px 0 0; z-index: 60; }
     .rg-msg { font-size: 12px; }
   }`;
@@ -214,13 +248,16 @@
             <div class="cabinet cab-blue" style="--cw:960px;--ar:1.7778"><div class="screen" id="rgScreen" tabindex="0">
               <canvas id="rgCanvas" aria-label="${CFG.name} 게임 화면"></canvas>
               <div class="rg-msg" id="rgMsg" hidden></div>
+              <button type="button" class="rg-full" id="rgFull" aria-label="화면 크게 보기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
               <div class="rg-panel" id="rgPanel" hidden></div>
             </div></div>
             <div class="rg-bar">
+              <button type="button" class="btn" data-rg="stat">스탯 (C)</button>
               <button type="button" class="btn" data-rg="inv">가방 · 장비 (I)</button>
               <button type="button" class="btn" data-rg="skill">마법 (K)</button>
               <button type="button" class="btn" data-rg="servers">서버</button>
               <button type="button" class="btn" data-rg="help">도움말</button>
+              <button type="button" class="btn" data-rg="full">크게 보기</button>
               <button type="button" class="btn btn-sun" data-rg="save">지금 저장</button>
             </div>
             <div class="rg-side">
@@ -241,9 +278,17 @@
       Fx.onBoom = n => { G.shake = Math.max(G.shake, n); };
 
       /* ---------- 능력치 ---------- */
-      function stats() {
-        const F = D.F, lv = S.lv, st = { atk: F.atk(lv), mag: F.mag(lv), def: F.def(lv), hp: F.hp(lv), mp: F.mp(lv), spd: 0 };
-        Object.values(S.eq).forEach(id => { const it = ITEMS[id]; if (it && it.st) Object.keys(it.st).forEach(k => { st[k] += it.st[k]; }); });
+      // 능력치 = 레벨 기본 + 스탯(힘·민첩·지혜) + 장비.  part = 창에서 '기본 + 스탯 + 장비' 로 나눠 보여 줄 때
+      function stats(part) {
+        const F = D.F, T = D.STAT, lv = S.lv, a = S.stat || { str: 0, dex: 0, int: 0 };
+        const base = { atk: F.atk(lv), mag: F.mag(lv), def: F.def(lv), hp: F.hp(lv), mp: F.mp(lv), spd: 0, aspd: 0, crit: T.baseCrit };
+        const sta = { atk: a.str * T.str.atk, def: a.str * T.str.def, hp: a.str * T.str.hp, aspd: a.dex * T.dex.aspd, crit: a.dex * T.dex.crit, mag: a.int * T.int.mag, mp: a.int * T.int.mp };
+        const gear = {}; Object.values(S.eq).forEach(id => { const it = ITEMS[id]; if (it && it.st) Object.keys(it.st).forEach(k => { gear[k] = (gear[k] || 0) + it.st[k]; }); });
+        if (part) return { base, sta, gear };
+        const st = {}; Object.keys(base).forEach(k => { st[k] = base[k] + (sta[k] || 0) + (gear[k] || 0); });
+        ['atk', 'mag', 'def', 'hp', 'mp'].forEach(k => { st[k] = Math.round(st[k]); });
+        st.crit = Math.min(T.critMax, Math.round(st.crit * 10) / 10); st.aspd = Math.round(st.aspd * 10) / 10;
+        st.atkCd = Math.max(T.atkCdMin, T.atkCd / (1 + st.aspd / 100));
         return st;
       }
       let ST = null; const restat = () => { ST = stats(); S.hp = clamp(S.hp, 0, ST.hp); S.mp = clamp(S.mp, 0, ST.mp); };
@@ -354,7 +399,7 @@
         const diff = m.lvl - S.lv, lvF = diff > 0 ? Math.max(0.4, 1 - 0.06 * diff) : 1 + Math.min(0.3, -diff * 0.03);
         let dmg = (base * rand(0.9, 1.1) - m.mdef * 0.5) * lvF;
         if ((els || []).some(e => ELEM[e].fx === 'heavy')) dmg *= 1.2;
-        const crit = Math.random() < 0.08; if (crit) dmg *= 1.6;
+        const crit = Math.random() < ST.crit / 100; if (crit) dmg *= D.STAT.critDmg;   // v43 민첩 → 치명타 확률
         dmg = Math.max(1, Math.round(dmg));
         m.hp -= dmg; m.flash = 0.12; m.aggro = true; m.knock = (m.x < G.px ? -1 : 1) * (crit ? 6 : 3);
         const elc = els && els.length ? Fx.pal(els[0])[1] : '#FFFFFF';
@@ -373,7 +418,7 @@
         return dmg;
       }
       function killMon(m) {
-        m.dead = true; m.respawn = m.boss ? 60 : 9; S.kills++;
+        m.dead = true; m.respawn = m.boss ? (CFG.bossRespawnSec || 30) : (CFG.respawnSec || 3); S.kills++;   // v43 다시 나오는 시간 단축
         const low = m.lvl < S.lv - 10 ? 0.2 : 1;
         gainExp(Math.round(m.exp * low)); S.gold += m.gold; float(m.x, m.y - m.spr.h - 18, `+${fmtN(m.gold)}G`, '#FFD23F');
         Fx.death(m.x, m.y - m.spr.h / 2, m.def.colors, m.boss); Fx.coins(m.x, m.y - m.spr.h / 2, m.boss ? 14 : Math.min(6, 2 + Math.floor(m.gold / 40)));
@@ -395,7 +440,7 @@
         if (S.lv >= D.MAX_LV) return;
         S.exp += n;
         let up = false;
-        while (S.lv < D.MAX_LV && S.exp >= D.F.need(S.lv)) { S.exp -= D.F.need(S.lv); S.lv++; up = true; }
+        while (S.lv < D.MAX_LV && S.exp >= D.F.need(S.lv)) { S.exp -= D.F.need(S.lv); S.lv++; S.sp += CFG.statPerLevel || 3; up = true; }
         if (S.lv >= D.MAX_LV) S.exp = 0;
         if (up) {
           restat(); S.hp = ST.hp; S.mp = ST.mp;
@@ -403,6 +448,7 @@
           Fx.levelUp(G.px, G.py); G.flash = 0.25;
           const learnable = Object.values(SKILLS).filter(s => s.lv === S.lv);
           if (learnable.length) say(`Lv.${S.lv} — 마법 학교에서 '${learnable[0].name}'을(를) 배울 수 있어요!`, 3.5);
+          else say(`스탯 포인트 +${CFG.statPerLevel || 3}! 왼쪽 위 얼굴을 눌러 힘·민첩·지혜를 올려요`, 3.2);
           submitRank(); markDirty(true); if (net) net.retrack();
         }
       }
@@ -474,7 +520,7 @@
       }
       function basicAttack() {
         if (G.atkCd > 0 || G.dead) return;
-        G.atkCd = 0.42;
+        G.atkCd = ST.atkCd;   // v43 민첩 → 공격 속도
         const staff = S.eq.weapon && ITEMS[S.eq.weapon].look === 'staff';
         const [dx, dy] = aimDir(staff ? 150 : 70);
         G.face = dx < 0 ? -1 : 1;
@@ -877,6 +923,11 @@
         c.fillStyle = '#0A0E24'; rr(c, 14, 14, 70, 70, 8); c.fill();
         const pg = c.createLinearGradient(0, 16, 0, 82); pg.addColorStop(0, '#5C86FF'); pg.addColorStop(1, '#2F3FA0'); c.fillStyle = pg; rr(c, 16, 16, 66, 66, 7); c.fill();
         c.drawImage(getPortrait(), 17, 17, 64, 64);
+        if (S.sp > 0) {   // 올릴 스탯 포인트가 있으면 얼굴 오른쪽 위에 + 표시 (톡톡 튐)
+          const k2 = 1 + 0.12 * Math.abs(Math.sin(now / 250)); c.save(); c.translate(80, 18); c.scale(k2, k2);
+          c.fillStyle = '#0A0E24'; c.beginPath(); c.arc(0, 0, 11, 0, Math.PI * 2); c.fill(); c.fillStyle = '#FF5A5F'; c.beginPath(); c.arc(0, 0, 9, 0, Math.PI * 2); c.fill();
+          c.fillStyle = '#FFFFFF'; c.fillRect(-5, -1.5, 10, 3); c.fillRect(-1.5, -5, 3, 10); c.restore();
+        }
         c.fillStyle = '#FFD23F'; rr(c, 12, 70, 36, 18, 5); c.fill(); c.fillStyle = '#1D2340'; c.font = '12px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('Lv.' + S.lv, 30, 80);
         c.font = '14px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.fillStyle = '#FFFFFF'; c.fillText(Hub.user ? Hub.user.nickname : '손님', 92, 28);
         c.textAlign = 'right'; c.fillStyle = '#FFD23F'; c.fillText(fmtN(S.gold) + ' G', 270, 28);
@@ -1108,6 +1159,24 @@
           h += '<p class="sub" style="margin-top:8px">※ 퀘스트는 준비 중이에요. 나중에 마지막 마을의 성에서 나눠 줄 예정이에요.</p>';
         } else if (k === 'castle') {
           h = head('왕성', '퀘스트는 아직 준비 중이에요. 다음 업데이트에서 이곳에서 퀘스트를 받을 수 있어요.') + npcBox();
+        } else if (k === 'stat') {   // v43 스탯 창: 왼쪽 캐릭터 · 오른쪽 힘·민첩·지혜 올리기 · 아래 자세한 능력치
+          const T = D.STAT, a = S.stat, PT = stats(true), used = a.str + a.dex + a.int, per = CFG.statPerLevel || 3;
+          const av = Hub.user ? Hub.user.avatar : AV.normalize({}), fig = avatarSprite(av, S.eq, S.hide, 0).toDataURL(), ex = S.lv >= D.MAX_LV ? 100 : S.exp / D.F.need(S.lv) * 100;
+          h = head('스탯', `레벨이 오를 때마다 포인트 ${per}개 · 힘·민첩·지혜에 나눠 올려요`);
+          h += `<div class="rg-statwin"><section class="rg-doll rg-statfig"><div class="rg-fig"><img src="${fig}" alt="내 캐릭터"><span class="lv">Lv.${S.lv}</span></div><b class="nm">${Hub.user ? Hub.user.nickname : '손님'}</b><div class="rg-xp"><i style="width:${ex.toFixed(1)}%"></i></div><small>경험치 ${ex.toFixed(1)}%</small></section>`;
+          h += `<section class="rg-bag rg-alloc"><div class="rg-sp">남은 포인트 <b>${S.sp}</b></div>${['str', 'dex', 'int'].map(q => `<div class="rg-st" style="--c:${T[q].color}"><div class="lab"><b>${T[q].name}</b><span>${a[q]}</span></div><small>${T[q].desc}</small><div class="btns"><button type="button" class="rg-mini" data-addst="${q}:1" ${S.sp < 1 ? 'disabled' : ''}>+1</button><button type="button" class="rg-mini ghost" data-addst="${q}:5" ${S.sp < 5 ? 'disabled' : ''}>+5</button></div></div>`).join('')}<div class="rg-srvact"><button type="button" class="rg-mini ghost" data-streset ${used ? '' : 'disabled'}>포인트 다시 나누기 (무료)</button></div></section></div>`;
+          const fm = v => (Math.round(v * 10) / 10).toLocaleString('ko-KR'), pt = (k2, unit) => { const b = PT.base[k2] || 0, sv = PT.sta[k2] || 0, g = PT.gear[k2] || 0; return [b ? `기본 ${fm(b)}${unit}` : '', sv ? `<em class="s">스탯 +${fm(sv)}${unit}</em>` : '', g ? `<em class="g">장비 +${fm(g)}${unit}</em>` : ''].filter(Boolean).join(' · ') || '—'; };
+          const rows = [
+            ['공격력', ST.atk, '기본 공격 피해', pt('atk', ''), '#FF8A8E'],
+            ['마력', ST.mag, '마법 피해 (마법 위력 × 마력)', pt('mag', ''), '#C8A8FF'],
+            ['방어력', ST.def, `받는 피해 −${fm(ST.def * 0.5)}`, pt('def', ''), '#9AE6FF'],
+            ['최대 체력', ST.hp, '', pt('hp', ''), '#FF7A7E'],
+            ['최대 마나', ST.mp, '', pt('mp', ''), '#7FA0FF'],
+            ['공격 속도', '+' + fm(ST.aspd) + '%', `기본 공격 1초에 ${(1 / ST.atkCd).toFixed(2)}번`, pt('aspd', '%'), '#9AF0B0'],
+            ['치명타 확률', fm(ST.crit) + '%', `치명타 피해 ×${T.critDmg} · 최대 ${T.critMax}%`, pt('crit', '%'), '#FFD23F'],
+            ['이동 속도', '+' + (ST.spd || 0) + '%', '', pt('spd', '%'), '#C9D0F0']
+          ];
+          h += `<div class="rg-detailgrid">${rows.map(([n, v, d2, parts, c2]) => `<div><span style="color:${c2}">${n}</span><b>${v}</b>${d2 ? `<small>${d2}</small>` : ''}<small class="pt">${parts}</small></div>`).join('')}</div>`;
         } else if (k === 'servers') {   // v42 서버 고르기
           const cap = net.opt.cap, L = srvList;
           h = head('서버 고르기', '같은 서버의 같은 지도에 있는 사람이 보여요. 아이템·마법·레벨은 <b>계정에 저장</b>돼서 어느 서버에서나 그대로 이어져요.');
@@ -1197,6 +1266,8 @@
           S.gold -= price; S.skills.push(id); const free = S.slots.indexOf(null); if (free >= 0) S.slots[free] = id;
           say(`융합 성공! '${skill(id).name}'`, 3); markDirty(true);
         } else if (d.go) { const id = d.go; pane = null; panel.hidden = true; G.paused = false; enter(id, MAPBY[id].kind === 'village' ? 'door' : 'L'); return; }
+        else if (d.addst) { const [q, n0] = d.addst.split(':'), n = Math.min(+n0, S.sp); if (n > 0 && S.stat[q] != null) { S.stat[q] += n; S.sp -= n; const hr = S.hp / ST.hp; restat(); if (q === 'str') S.hp = Math.round(ST.hp * hr); markDirty(true); } }
+        else if ('streset' in d) { S.sp += S.stat.str + S.stat.dex + S.stat.int; S.stat = { str: 0, dex: 0, int: 0 }; restat(); markDirty(true); say('스탯 포인트를 모두 돌려받았어요. 다시 나눠 주세요', 2.4); }
         else if (d.srv) { joinServer(d.srv); return; }
         else if ('solo' in d) { if (net.joined) { net.leave(); say('혼자 하기로 바꿨어요', 2); } closePanel(); return; }
         else if ('savenow' in d) { save(true).then(ok => say(ok || !Store.online() ? '저장했어요' : '이 기기에 저장했어요 (서버 저장은 준비 중)')); return; }
@@ -1207,12 +1278,13 @@
         const b = e.target.closest('[data-rg]'); if (!b || !S) return; b.blur();
         const k = b.dataset.rg;
         if (k === 'save') { save(true).then(ok => say(ok || !Store.online() ? '저장했어요' : '이 기기에 저장했어요 (서버 저장은 준비 중)')); return; }
+        if (k === 'full') { toggleFull(); return; }
         if (G.dead) return;
         if (pane === k) closePanel(); else openPanel(k);
       });
 
       /* ================= 입력 ================= */
-      const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyJ', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyE', 'KeyI', 'KeyK', 'KeyF', 'Enter', 'Escape']);
+      const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyJ', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyE', 'KeyI', 'KeyK', 'KeyC', 'KeyF', 'Enter', 'Escape']);
       function onKey(e) {
         if (!S || !G.map) return;
         const tag = (e.target.tagName || '').toLowerCase();
@@ -1222,7 +1294,7 @@
         if (!GAME_KEYS.has(e.code)) return;
         const down = e.type === 'keydown';
         if (down && e.code === 'Escape') { if (pane) { e.preventDefault(); closePanel(); } return; }
-        if (down && (e.code === 'KeyI' || e.code === 'KeyK')) { e.preventDefault(); const k = e.code === 'KeyI' ? 'inv' : 'skill'; if (G.dead) return; if (pane === k) closePanel(); else if (!pane || pane === 'inv' || pane === 'skill' || pane === 'help') openPanel(k); return; }
+        if (down && (e.code === 'KeyI' || e.code === 'KeyK' || e.code === 'KeyC')) { e.preventDefault(); const k = e.code === 'KeyI' ? 'inv' : e.code === 'KeyK' ? 'skill' : 'stat'; if (G.dead) return; if (pane === k) closePanel(); else if (!pane || pane === 'inv' || pane === 'skill' || pane === 'stat' || pane === 'help') openPanel(k); return; }
         if (pane) { if (tag !== 'button') e.preventDefault(); return; }
         if (tag === 'button' && (e.code === 'Space' || e.code === 'Enter')) return;
         e.preventDefault();
@@ -1248,6 +1320,7 @@
       canvas.addEventListener('pointerdown', e => {
         if (!S || pane) return;
         if (e.pointerType === 'touch' || e.pointerType === 'pen') G.touch = true;
+        { const q = toC(e); if (q.x < 92 && q.y < 96 && !G.dead) { e.preventDefault(); openPanel('stat'); return; } }   // v43 왼쪽 위 얼굴 → 스탯 창
         if (!G.touch) { screenEl.focus({ preventScroll: true }); return; }
         e.preventDefault(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
         const p = toC(e), b = btnAt(p);
@@ -1268,6 +1341,27 @@
       window.addEventListener('pagehide', onUnload);
 
       // 휴대폰 가로(낮은 화면): 게임판 위쪽을 화면 맨 위에 맞춤 / 그 밖: 게임판과 아래 버튼이 한 화면에 보이게
+      // v43 크게 보기: 게임판만 화면 가득 (가능하면 브라우저 전체 화면 + 가로 고정, 안 되면 페이지 위에 가득)
+      const cabEl = () => el.querySelector('.cabinet');
+      const fsNow = () => document.fullscreenElement || document.webkitFullscreenElement;
+      function toggleFull() {
+        const cab = cabEl(); if (!cab) return;
+        if (fsNow() || cab.classList.contains('rg-max')) {
+          if (fsNow()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { /* noop */ } }
+          cab.classList.remove('rg-max'); setTimeout(onResize, 200); return;
+        }
+        const req = cab.requestFullscreen || cab.webkitRequestFullscreen;
+        const fallback = () => { cab.classList.add('rg-max'); setTimeout(onResize, 100); };
+        if (!req) { fallback(); return; }
+        try {
+          const pr = req.call(cab, { navigationUI: 'hide' });
+          if (pr && pr.then) pr.then(() => { try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* noop */ } setTimeout(onResize, 200); }, fallback);
+        } catch (e) { fallback(); }
+        try { screenEl.focus({ preventScroll: true }); } catch (e) { /* noop */ }
+      }
+      const onFs = () => { setTimeout(onResize, 150); const b = el.querySelector('[data-rg="full"]'); if (b) b.textContent = fsNow() ? '작게 보기' : '크게 보기'; };
+      document.addEventListener('fullscreenchange', onFs); document.addEventListener('webkitfullscreenchange', onFs);
+      $('#rgFull').addEventListener('click', e => { e.stopPropagation(); toggleFull(); });
       function fitScreen() {
         const cab = el.querySelector('.cabinet'); if (!cab || !cab.isConnected) return;
         if (innerHeight < 520) {
@@ -1290,6 +1384,7 @@
         G.paused = false; G.playMark = S.play;
         makeNet();
         fitScreen();
+        if (G.touch && innerHeight < 520 && !fsNow()) setTimeout(() => say('오른쪽 위 [ ] 버튼을 누르면 화면이 크게 보여요', 3.5), 1200);
         if (!S.help) openPanel('help');
         else if (Hub.user) { G.srvAsked = true; openPanel('servers'); }
         loadRank();
@@ -1305,7 +1400,8 @@
         if (net) net.leave();
         document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey);
         document.removeEventListener('visibilitychange', onHide);
-        window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onOrient); window.removeEventListener('blur', blurKeys); window.removeEventListener('pagehide', onUnload);
+        window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onOrient);
+        document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('webkitfullscreenchange', onFs); if (fsNow()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { /* noop */ } } window.removeEventListener('blur', blurKeys); window.removeEventListener('pagehide', onUnload);
         BGM.stop();
       };
     }

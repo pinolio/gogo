@@ -238,6 +238,14 @@
     monExp: m => Math.max(3, Math.round(F.need(m) / (22 + m * 0.4))), monGold: m => Math.round(3 + m * 1.4),
     boss: { hp: 12, atk: 1.6, exp: 15, gold: 10 }
   };
+  /* v43 스탯 (레벨 업마다 포인트 → 힘·민첩·지혜에 나눠 올림)
+   *  힘  = 기본 공격 피해 · 방어 · 체력    민첩 = 공격 속도 · 치명타    지혜 = 마법 피해(마력) · 마나 */
+  const STAT = {
+    str: { name: '힘', color: '#FF8A8E', desc: '기본 공격 피해 · 방어 · 체력', atk: 0.7, def: 0.25, hp: 5 },
+    dex: { name: '민첩', color: '#9AF0B0', desc: '공격 속도 · 치명타 확률', aspd: 1.2, crit: 0.3 },
+    int: { name: '지혜', color: '#C8A8FF', desc: '마법 피해(마력) · 마나', mag: 0.8, mp: 4 },
+    baseCrit: 8, critMax: 60, critDmg: 1.6, atkCd: 0.42, atkCdMin: 0.18
+  };
 
   /* ---------------- 장비 ----------------
    *  부위: weapon(무기) · helmet(투구) · armor(갑옷) · boots(신발) · ring(장신구)
@@ -392,5 +400,5 @@
     { name: '대장장이 철수', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' }, lines: ['정예 장비는 반짝반짝 빛나지.', '레벨이 모자라면 장비를 못 입어.', '가방이 꽉 차면 포션 가게에서 팔게.'] }
   ];
 
-  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS };
+  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS };
 })();
