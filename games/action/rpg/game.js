@@ -137,6 +137,20 @@
   .rg-msg { position: absolute; left: 50%; top: 66%; transform: translateX(-50%); background: rgba(10,14,36,.85); color: #FFE45C; border: 2px solid #0A0E24; border-radius: 8px; padding: 6px 14px; font-size: 15px; pointer-events: none; z-index: 2; white-space: nowrap; font-family: var(--f-display); }
   .rg-msg[hidden] { display: none; }
   .rg-side { width: min(100%, 560px); display: grid; grid-template-columns: 1fr; gap: 12px; }
+  /* v42 서버 고르기 */
+  .rg-srvs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .rg-srv { position: relative; display: grid; gap: 6px; text-align: left; background: linear-gradient(180deg, #2A3266, #182050); color: #EEF1FF; border: 2px solid #0A0E24; border-radius: 12px; padding: 10px 10px 8px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.3); transition: transform .1s, filter .1s; }
+  .rg-srv:hover:not([disabled]) { transform: translateY(-2px); filter: brightness(1.12); }
+  .rg-srv[disabled] { opacity: .5; cursor: default; }
+  .rg-srv.cur { border-color: #9AE6FF; box-shadow: 0 0 0 2px #9AE6FF inset, 0 3px 0 rgba(0,0,0,.3); }
+  .rg-srv b { font-family: var(--f-display); font-size: 18px; }
+  .rg-srv em { position: absolute; right: 6px; top: 6px; font-style: normal; font-size: 11px; background: #3DDC84; color: #0A0E24; border-radius: 6px; padding: 0 6px; }
+  .rg-srv em.me { background: #9AE6FF; }
+  .rg-srv .bar { height: 8px; background: #0A0E24; border-radius: 4px; overflow: hidden; }
+  .rg-srv .bar i { display: block; height: 100%; border-radius: 4px; }
+  .rg-srv small { font-size: 12px; color: #C9D0F0; }
+  .rg-srvact { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px; }
+  .rg-srvact .rg-mini { font-size: 15px; padding: 8px 16px; }
   /* v41 가게 사람 (초상화 + 말풍선) */
   .rg-npc { display: flex; gap: 12px; align-items: center; background: linear-gradient(90deg, rgba(255,255,255,.09), rgba(255,255,255,.02)); border: 2px solid #0A0E24; border-radius: 12px; padding: 8px 12px; margin: 0 0 10px; }
   .rg-npc img { width: 64px; height: 64px; flex: none; image-rendering: pixelated; border-radius: 10px; background: radial-gradient(circle at 50% 30%, #5C86FF, #2F3FA0); border: 2px solid #0A0E24; }
@@ -183,7 +197,7 @@
     .rg-panel { position: fixed; inset: 6px 8% 6px 8%; max-height: none; z-index: 60; }
   }
   @media (max-width: 760px) {
-    .rg-inv { grid-template-columns: 1fr; } .rg-grid { grid-template-columns: repeat(6, 1fr); }
+    .rg-inv { grid-template-columns: 1fr; } .rg-grid { grid-template-columns: repeat(6, 1fr); } .rg-srvs { grid-template-columns: repeat(2, 1fr); }
     .rg-panel { position: fixed; inset: auto 0 0 0; max-height: 72svh; border-radius: 14px 14px 0 0; z-index: 60; }
     .rg-msg { font-size: 12px; }
   }`;
@@ -205,6 +219,7 @@
             <div class="rg-bar">
               <button type="button" class="btn" data-rg="inv">가방 · 장비 (I)</button>
               <button type="button" class="btn" data-rg="skill">마법 (K)</button>
+              <button type="button" class="btn" data-rg="servers">서버</button>
               <button type="button" class="btn" data-rg="help">도움말</button>
               <button type="button" class="btn btn-sun" data-rg="save">지금 저장</button>
             </div>
@@ -260,7 +275,7 @@
         if (!S.visited.includes(id)) S.visited.push(id);
         if (M.kind === 'village') { S.home = id; spawnNone(); }
         else { spawnAll(); if (M.rec > S.lv + 6) say(`권장 Lv.${M.rec} — 지금 레벨로는 위험해요!`, 3); }
-        G.onDoor = null; markDirty(!quiet);
+        G.onDoor = null; markDirty(!quiet); netRoom();
       }
       // v41 건물 안: 문으로 걸어 들어가면 실내 지도 · 아래 가운데 문으로 나가면 그 건물 문 앞
       function enterRoom(b) {
@@ -270,6 +285,32 @@
         G.px = room.startL.x; G.py = room.startL.y; G.fx = 0; G.fy = -1; G.onDoor = null; G.keys = {};
         const main = G.npcs.find(n => !n.guard);
         G.title = null; say(main ? `${main.def.name}에게 가까이 가면 이야기할 수 있어요` : room.M.name, 2.6);
+        netRoom();
+      }
+      /* ---------- v42 온라인 (net.js) ---------- */
+      const roomKey = () => (G.room ? 'r-' + G.room.type + '-' + G.map.M.region : S.map);
+      const netRoom = () => { if (net && net.joined) net.setRoom(roomKey()); };
+      let net = null;
+      function makeNet() {
+        net = window.GoRPGNet.create({
+          me: () => ({ nick: Hub.user ? Hub.user.nickname : '손님', lv: S.lv, av: Hub.user ? Hub.user.avatar : AV.normalize({}), eq: S.eq, hide: S.hide, x: G.px, y: G.py }),
+          onPeers: () => {},
+          onFx: (m, p) => peerFx(m, p),
+          onKick: why => { say(why === 'full' ? '서버 인원이 가득 차서 나왔어요. 다른 서버를 골라 주세요' : '서버 연결이 끊겼어요. 다시 골라 주세요', 4); if (!pane) openPanel('servers'); }
+        });
+      }
+      // 다른 사람이 쓴 마법: 그림만 (피해 없음)
+      function peerFx(m, p) {
+        const sk = skill(m.id); if (!sk) return;
+        const els = sk.els, x = m.x, y = m.y, dx = m.dx || 1, dy = m.dy || 0, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light;
+        Fx.castCircle(p.x, p.y, els, !!sk.fusion);
+        if (sk.kind === 'bolt') { const n = sk.count || 1, sp = 430 * (sk.speed || 1); for (let i = 0; i < n; i++) { const a = Math.atan2(dy, dx) + (i - (n - 1) / 2) * 0.18; G.shots.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, dmg: 0, els, pierce: true, hit: new Set(), r: 9, color: col, color2: col2, mine: false, ghost: true }); } }
+        else if (sk.kind === 'nova') Fx.nova(x, y, sk.radius || 120, els);
+        else if (sk.kind === 'beam') Fx.beam(x, y, dx, dy, sk.len || 300, sk.w || 30, els);
+        else if (sk.kind === 'rain') { for (let i = 0; i < (sk.count || 5); i++) Fx.fall(x + dx * 160 + rand(-90, 90), y + dy * 160 + rand(-60, 60), sk.radius || 60, els, i * 0.1); }
+        else if (sk.kind === 'pool') Fx.nova(x + dx * 120, y + dy * 120, (sk.radius || 90) * 0.7, els);
+        else if (sk.kind === 'heal') Fx.heal(p.x, p.y - 28, sk.pow > 0.4);
+        else if (sk.kind === 'shield') Fx.burst(p.x, p.y - 28, 16, Fx.pal(els[0]), { min: 60, max: 140, shape: 'star', lmin: 0.4, lmax: 0.7 });
       }
       function leaveRoom() {
         const r = G.room; if (!r) return;
@@ -348,7 +389,7 @@
         }
         drops.forEach((id, i) => { if (addItem(id, 1)) setTimeout(() => float(m.x, m.y - m.spr.h - 34 - i * 14, '획득: ' + ITEMS[id].name, ITEMS[id].rare ? '#C8A8FF' : '#9AE6FF'), i * 150); });
         if (drops.some(id => ITEMS[id].slot)) say('장비를 얻었어요! 가방(I)에서 입어 보세요');
-        markDirty();
+        markDirty(drops.length > 0);   // 얻은 물건은 곧 계정에 저장 (다른 서버·기기에서도 그대로)
       }
       function gainExp(n) {
         if (S.lv >= D.MAX_LV) return;
@@ -362,7 +403,7 @@
           Fx.levelUp(G.px, G.py); G.flash = 0.25;
           const learnable = Object.values(SKILLS).filter(s => s.lv === S.lv);
           if (learnable.length) say(`Lv.${S.lv} — 마법 학교에서 '${learnable[0].name}'을(를) 배울 수 있어요!`, 3.5);
-          submitRank(); markDirty(true);
+          submitRank(); markDirty(true); if (net) net.retrack();
         }
       }
       function hitPlayer(dmg0, lvl) {
@@ -399,6 +440,7 @@
         if ((G.cds[id] || 0) > 0) return;
         if (S.mp < sk.mp) { say('마나가 부족해요 (E: 마나 포션)'); return; }
         S.mp -= sk.mp; G.cds[id] = sk.cd; Fx.castCircle(G.px, G.py, sk.els, !!sk.fusion);
+        if (net && net.joined) { const [adx, ady] = aimDir(sk.len || 420); net.cast({ id, x: Math.round(G.px), y: Math.round(G.py - 22), dx: +adx.toFixed(2), dy: +ady.toFixed(2) }); }
         const els = sk.els, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light, base = ST.mag * sk.pow;
         const ox = G.px, oy = G.py - 22;
         if (sk.kind === 'bolt') {
@@ -520,6 +562,7 @@
           movePlayer(G.fx * sp, G.fy * sp); G.moving = true; G.walk += dt; if (Math.floor(G.walk * 8) !== Math.floor((G.walk - dt) * 8)) Fx.dust(G.px, G.py, M.region === 5 ? 'rgba(255,255,255,.8)' : 'rgba(255,240,210,.55)');
         } else { G.moving = false; G.walk = 0; }
         if (K.Space || K.KeyJ || G.btnDown.atk) basicAttack();
+        if (net) { const vx = (G.px - (G.lpx == null ? G.px : G.lpx)) / dt, vy = (G.py - (G.lpy == null ? G.py : G.lpy)) / dt; G.lpx = G.px; G.lpy = G.py; net.tick(dt, { x: G.px, y: G.py, vx, vy, face: G.face, lv: S.lv }); }
 
         // 출구 (v41: 벽 판정 때문에 끝 6px 까지 못 가서 안 넘어가던 것 → 끝 16px 안에 들어오면 넘어감)
         if (G.px < 16 && map.exitL) { enter(map.exitL, 'R'); return; }
@@ -573,6 +616,7 @@
         G.shots = G.shots.filter(s => {
           s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; Fx.trail(s, dt);
           if (s.life <= 0 || solidAt(map, s.x, s.y + 16) && map.at(Math.floor(s.x / TS), Math.floor((s.y + 16) / TS)) !== 4) return false;
+          if (s.ghost) return true;   // 다른 사람 마법 그림 (피해 없음)
           if (s.mine) {
             for (const m of G.mons) {
               if (m.dead || s.hit.has(m)) continue;
@@ -639,9 +683,10 @@
         for (const o of map.objs) { if (o.x > cx + W + 40 || o.x + o.img.width < cx - 40 || o.y > cy + H + 40 || o.y + o.img.height < cy - 40) continue; list.push({ y: o.sy, o }); }
         G.mons.forEach(m => { if (!m.dead) list.push({ y: m.y, m }); });
         (G.npcs || []).forEach(n => list.push({ y: n.y, n }));
+        if (net) net.peers.forEach(pp => list.push({ y: pp.y, pp }));
         if (G.room) drawRoomFx(c, now, false);   // 벽난로 불·촛불 등은 사람보다 먼저 (머리 위 느낌표·말풍선이 가려지지 않게)
         list.push({ y: G.py, me: true }); list.sort((a, b) => a.y - b.y);
-        list.forEach(e => (e.me ? drawMe(c, now) : e.m ? drawMon(c, e.m, now) : e.n ? drawNpc(c, e.n, now) : drawObj(c, e.o, now)));
+        list.forEach(e => (e.me ? drawMe(c, now) : e.m ? drawMon(c, e.m, now) : e.n ? drawNpc(c, e.n, now) : e.pp ? drawPeer(c, e.pp, now) : drawObj(c, e.o, now)));
         if (G.room) {
           const ex = map.exit, dx = (ex.x0 + ex.x1 + 1) / 2 * TS, dy = (ex.y + 0.5) * TS, k = Math.abs(Math.sin(now / 300));
           c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = '#1D2340'; c.strokeText('▼ 나가기', dx, dy - 22 + k * 3); c.fillStyle = '#FFF6C2'; c.fillText('▼ 나가기', dx, dy - 22 + k * 3);
@@ -762,6 +807,16 @@
           c.fillStyle = '#1D2340'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(n.say, bx + 10, by + 14); c.restore();
         }
       }
+      // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
+      function drawPeer(c, p, now) {
+        if (!p.av) return;
+        const fr = p.moving ? [1, 0, 3, 0][Math.floor(p.walk * 8) % 4] : 0, img = avatarSprite(AV.normalize(p.av), p.eq || {}, p.hide, fr);
+        const k = img.width > AV.size.w ? 1 : 2, w = img.width * k, h = img.height * k, x = Math.round(p.x - w / 2), y = Math.round(p.y - h + 2);
+        c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(p.x, p.y, 16, 5, 0, 0, Math.PI * 2); c.fill();
+        if (p.face < 0) { c.save(); c.translate(x + w, y); c.scale(-1, 1); c.drawImage(img, 0, 0, w, h); c.restore(); } else c.drawImage(img, x, y, w, h);
+        c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
+        const nm = p.nick + ' Lv.' + p.lv; c.strokeText(nm, p.x, y - 6); c.fillStyle = '#9AE6FF'; c.fillText(nm, p.x, y - 6);
+      }
       // 건물 안 움직이는 장식 (마법진 · 벽난로 불 · 촛불 · 가마솥 거품 · 떠다니는 책)
       function drawRoomFx(c, now, floor) {
         (G.map.fx || []).forEach(f => {
@@ -841,6 +896,11 @@
         panelBox(c, W / 2 - tw / 2, 8, tw, 38, 10);
         c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF'; c.fillText(t, W / 2, 21);
         c.font = '11px "Jua", sans-serif'; c.fillStyle = M.kind !== 'field' ? '#9AE6FF' : M.rec > S.lv + 6 ? '#FF8A8E' : M.rec > S.lv + 2 ? '#FFD23F' : '#9AF0B0'; c.fillText(rec + (M.kind !== 'village' && M.rec > S.lv + 6 ? ' · 위험!' : ''), W / 2, 37);
+        // 서버 표시 (위 가운데 이름 아래)
+        if (net && net.joined) {
+          const st = `${net.server}서버 · 여기 ${net.peers.size + 1}명`; c.font = '12px "Jua", "Malgun Gothic", sans-serif'; const sw = c.measureText(st).width + 18;
+          c.fillStyle = 'rgba(10,14,36,.78)'; rr(c, W / 2 - sw / 2, 50, sw, 20, 8); c.fill(); c.fillStyle = '#9AE6FF'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(st, W / 2, 61);
+        }
         // 오른쪽 위: 작은 지도
         if (!G.room) drawMini(c, now);
         // 보스 체력 (큰 막대)
@@ -875,6 +935,7 @@
         panelBox(c, x0 - 4, y0 - 4, mw + 8, mh + 8, 6);
         c.save(); c.globalAlpha = 0.9; c.imageSmoothingEnabled = false; c.drawImage(map.mini, x0, y0, mw, mh); c.restore();
         G.mons.forEach(m => { if (m.dead) return; c.fillStyle = m.boss ? '#FF3D4A' : m.aggro ? '#FF8A3D' : '#FFD8D8'; const s = m.boss ? 5 : 3; c.fillRect(x0 + m.x / TS * k - s / 2, y0 + m.y / TS * k - s / 2, s, s); });
+        if (net) net.peers.forEach(p => { c.fillStyle = '#9AE6FF'; c.fillRect(x0 + p.x / TS * k - 2, y0 + p.y / TS * k - 2, 4, 4); });
         map.buildings.forEach(b => { c.fillStyle = '#FFD27A'; c.fillRect(x0 + (b.door.x + 0.5) * k - 2, y0 + (b.door.y + 0.5) * k - 2, 4, 4); });
         const bl = Math.floor(now / 300) % 2; c.fillStyle = bl ? '#FFFFFF' : '#3DDC84'; c.fillRect(x0 + G.px / TS * k - 3, y0 + G.py / TS * k - 3, 6, 6); c.strokeStyle = '#0A0E24'; c.lineWidth = 1; c.strokeRect(x0 + G.px / TS * k - 3, y0 + G.py / TS * k - 3, 6, 6);
         c.strokeStyle = 'rgba(255,255,255,.6)'; c.strokeRect(x0 + cam.x / TS * k, y0 + cam.y / TS * k, W / TS * k, H / TS * k);
@@ -960,11 +1021,17 @@
 
       /* ================= 창 ================= */
       let pane = null, paneArg = null, tab = {};
-      function openPanel(kind, arg) { pane = kind; paneArg = arg || null; G.paused = true; G.keys = {}; G.btnDown = {}; G.joy = null; renderPanel(); panel.hidden = false; }
+      function openPanel(kind, arg) {
+        pane = kind; paneArg = arg || null; G.keys = {}; G.btnDown = {}; G.joy = null;
+        G.paused = !(net && net.joined && kind !== 'help');   // 온라인이면 창을 열어도 세상은 계속 (다른 사람이 계속 움직임)
+        if (kind === 'servers') { srvList = null; loadServers(); clearInterval(srvTimer); srvTimer = setInterval(() => { if (pane === 'servers') loadServers(); else clearInterval(srvTimer); }, 5000); }
+        renderPanel(); panel.hidden = false;
+      }
       function closePanel() {
         if (pane === 'dead') return;
         const wasDoor = ['potion', 'school', 'chief', 'castle'].includes(pane);
-        pane = null; panel.hidden = true; G.paused = false;
+        const was = pane; pane = null; panel.hidden = true; G.paused = false;
+        if (was === 'help' && Hub.user && net && !net.joined && !G.srvAsked) { G.srvAsked = true; openPanel('servers'); return; }
         if (wasDoor && G.onDoor) { const b = G.onDoor; G.px = (b.door.x + 0.5) * TS; G.py = (b.door.y + 1.9) * TS; G.onDoor = null; }
         if (!S.help) { S.help = true; markDirty(); }
         try { screenEl.focus({ preventScroll: true }); } catch (e) { /* noop */ }
@@ -1041,6 +1108,20 @@
           h += '<p class="sub" style="margin-top:8px">※ 퀘스트는 준비 중이에요. 나중에 마지막 마을의 성에서 나눠 줄 예정이에요.</p>';
         } else if (k === 'castle') {
           h = head('왕성', '퀘스트는 아직 준비 중이에요. 다음 업데이트에서 이곳에서 퀘스트를 받을 수 있어요.') + npcBox();
+        } else if (k === 'servers') {   // v42 서버 고르기
+          const cap = net.opt.cap, L = srvList;
+          h = head('서버 고르기', '같은 서버의 같은 지도에 있는 사람이 보여요. 아이템·마법·레벨은 <b>계정에 저장</b>돼서 어느 서버에서나 그대로 이어져요.');
+          if (!Hub.user) h += `<div class="rg-fuse">로그인하면 다른 사람과 함께 모험할 수 있어요. 손님은 혼자 하기로 이어져요.</div><button type="button" class="btn btn-primary" data-x>혼자 하기</button>`;
+          else if (!L) h += '<p class="sub">서버 인원을 불러오는 중…</p>';
+          else if (L.error) h += `<div class="rg-fuse">${L.error === 'sql' ? '온라인 서버 준비가 아직 안 됐어요. (관리자: supabase/rpg_online_v42.sql 실행 필요)' : '서버 인원을 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.'}</div><button type="button" class="btn btn-primary" data-solo>혼자 하기</button>`;
+          else {
+            const rows = L.rows, low = rows.reduce((a, r) => (r.players != null && r.players < cap && (a == null || r.players < a.players) ? r : a), null);
+            h += `<div class="rg-srvs">${rows.map(r => { const n = r.players, full = n != null && n >= cap, pct = n == null ? 0 : Math.round(n / cap * 100), cur = net.joined && net.server === r.server;
+              const lab = n == null ? '체험 모드' : full ? '가득' : n >= cap * 2 / 3 ? '혼잡' : n >= cap / 3 ? '보통' : '여유', col = full ? '#FF5A5F' : n >= cap * 2 / 3 ? '#FF9A3D' : n >= cap / 3 ? '#FFD23F' : '#3DDC84';
+              return `<button type="button" class="rg-srv${cur ? ' cur' : ''}" data-srv="${r.server}" ${full && !cur ? 'disabled' : ''}><b>${r.server}서버</b>${low && low.server === r.server && !cur ? '<em>추천</em>' : ''}${cur ? '<em class="me">지금</em>' : ''}<span class="bar"><i style="width:${pct}%;background:${col}"></i></span><small>${n == null ? lab : `${n} / ${cap}명 · <span style="color:${col}">${lab}</span>`}</small></button>`; }).join('')}</div>`;
+            h += `<div class="rg-srvact"><button type="button" class="rg-mini" data-srv="auto">가장 한산한 서버로 들어가기</button><button type="button" class="rg-mini ghost" data-solo>${net.joined ? '서버에서 나와 혼자 하기' : '혼자 하기'}</button></div>`;
+            h += `<p class="sub">한 서버에 ${cap}명까지 · 서버 ${rows.length}개. 몬스터와 떨어진 물건은 각자 따로예요. ${L.demo ? '(체험 모드: 같은 브라우저의 다른 탭끼리만 연결돼요)' : ''}</p>`;
+          }
         } else if (k === 'dead') {
           h = `<h3>쓰러졌어요…</h3><p class="sub">경험치를 ${fmtN(paneArg.loss)} 잃었어요. (레벨은 그대로)<br>마지막으로 들른 마을(${MAPBY[S.home].name})의 이장 집 앞에서 다시 시작해요.</p><button type="button" class="btn btn-primary" data-revive>마을에서 다시 시작</button>`;
         } else if (k === 'help') {
@@ -1061,11 +1142,28 @@
       function equipNow(id) {
         const it = ITEMS[id]; if (!it || !it.slot || S.lv < it.req || !takeItem(id)) return false;
         const old = S.eq[it.slot]; if (old) addItem(old, 1);
-        S.eq[it.slot] = id; restat(); markDirty(); say(`${it.name} 착용!`, 1.4); return true;
+        S.eq[it.slot] = id; restat(); markDirty(true); if (net) net.retrack(); say(`${it.name} 착용!`, 1.4); return true;
+      }
+      let srvList = null, srvTimer = 0;
+      async function loadServers() {
+        if (!Hub.user) return;
+        const L = await net.list(); srvList = L; if (pane === 'servers') renderPanel();
+      }
+      async function joinServer(v) {
+        if (!Hub.user) return;
+        if (!srvList || srvList.error) await loadServers();
+        const rows = (srvList && srvList.rows) || [], cap = net.opt.cap;
+        let n = +v;
+        if (v === 'auto') { const ok = rows.filter(r => r.players == null || r.players < cap).sort((a, b) => (a.players || 0) - (b.players || 0)); if (!ok.length) { say('모든 서버가 가득 찼어요. 잠시 뒤 다시 해 주세요', 3); return; } n = ok[0].server; }
+        if (net.joined && net.server === n) { closePanel(); return; }
+        say(`${n}서버에 들어가는 중…`, 2); save(true);
+        const r = await net.join(n, roomKey(), S.lv);
+        if (r.ok) { say(`${n}서버에 들어왔어요!${r.players ? ` (지금 ${r.players}명)` : ''}`, 2.6); closePanel(); }
+        else { say(r.reason === 'full' ? `${n}서버는 가득 찼어요 (${cap}명). 다른 서버를 골라 주세요` : r.reason === 'sql' ? '온라인 서버 준비가 아직 안 됐어요' : r.reason === 'banned' ? '이 계정은 지금 온라인에 들어갈 수 없어요' : '서버에 들어가지 못했어요. 잠시 뒤 다시 해 주세요', 3.5); loadServers(); }
       }
       panel.addEventListener('change', e => {
         const t = e.target;
-        if (t.matches('[data-hide]')) { S.hide = t.checked; markDirty(); renderPanel(); }
+        if (t.matches('[data-hide]')) { S.hide = t.checked; markDirty(); if (net) net.retrack(); renderPanel(); }
         else if (t.matches('[data-fa]')) { tab.fa = t.value; if (tab.fb === t.value || (SKILLS[tab.fb] && SKILLS[tab.fb].el === SKILLS[t.value].el)) tab.fb = null; renderPanel(); }
         else if (t.matches('[data-fb]')) { tab.fb = t.value; renderPanel(); }
       });
@@ -1078,7 +1176,7 @@
         if (d.filt) { tab.invF = d.filt; renderPanel(); return; }
         if (d.equip) { if (equipNow(d.equip)) tab.invSel = 'eq:' + ITEMS[d.equip].slot; }
         else if (d.unequip) {
-          const id = S.eq[d.unequip]; if (!id) return; if (!addItem(id, 1)) return; delete S.eq[d.unequip]; restat(); markDirty(); tab.invSel = id;
+          const id = S.eq[d.unequip]; if (!id) return; if (!addItem(id, 1)) return; delete S.eq[d.unequip]; restat(); markDirty(true); if (net) net.retrack(); tab.invSel = id;
         } else if (d.use) { useItem(d.use); if (!count(d.use)) tab.invSel = null; }
         else if (d.slot) {
           const [i, id] = d.slot.split(':'); const n = +i;
@@ -1099,6 +1197,8 @@
           S.gold -= price; S.skills.push(id); const free = S.slots.indexOf(null); if (free >= 0) S.slots[free] = id;
           say(`융합 성공! '${skill(id).name}'`, 3); markDirty(true);
         } else if (d.go) { const id = d.go; pane = null; panel.hidden = true; G.paused = false; enter(id, MAPBY[id].kind === 'village' ? 'door' : 'L'); return; }
+        else if (d.srv) { joinServer(d.srv); return; }
+        else if ('solo' in d) { if (net.joined) { net.leave(); say('혼자 하기로 바꿨어요', 2); } closePanel(); return; }
         else if ('savenow' in d) { save(true).then(ok => say(ok || !Store.online() ? '저장했어요' : '이 기기에 저장했어요 (서버 저장은 준비 중)')); return; }
         else if ('revive' in d) { G.dead = false; pane = null; panel.hidden = true; G.paused = false; restat(); S.hp = ST.hp; S.mp = ST.mp; enter(S.home, 'door'); return; }
         renderPanel();
@@ -1188,18 +1288,21 @@
         enter(S.map, S.x ? 'pos' : 'L');
         if (MAPBY[S.map].kind === 'field' && S.x) { /* 그 자리에서 이어서 */ }
         G.paused = false; G.playMark = S.play;
+        makeNet();
         fitScreen();
         if (!S.help) openPanel('help');
+        else if (Hub.user) { G.srvAsked = true; openPanel('servers'); }
         loadRank();
         if (Hub.user) Hub.myBest(GAME).then(b => { if ((b || 0) < S.lv) submitRank(); }).catch(() => {});
-        window.__rpg = { S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel() };   // 점검(테스트)용
+        window.__rpg = { net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel() };   // 점검(테스트)용
       })();
       raf = requestAnimationFrame(loop);
       BGM.play();
 
       return () => {
-        alive = false; cancelAnimationFrame(raf);
+        alive = false; cancelAnimationFrame(raf); clearInterval(srvTimer);
         if (S) save(true);
+        if (net) net.leave();
         document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey);
         document.removeEventListener('visibilitychange', onHide);
         window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onOrient); window.removeEventListener('blur', blurKeys); window.removeEventListener('pagehide', onUnload);
