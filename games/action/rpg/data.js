@@ -305,6 +305,7 @@
   // [id, 이름, 원소, 배우는 레벨, kind, 위력, 마나, 재사용(초), 추가 값]
   const SK = [
     // (배우는 레벨에 따라 마을이 정해짐: Lv1~10 마을1 … Lv71~80 마을8, Lv81~100 마을9)
+    ['magicarrow', '마법 화살', 'light', 1, 'bolt', 1.25, 3, 0.8, {}],   // v41 처음부터 가진 기본 마법
     ['fireball', '파이어볼', 'fire', 3, 'bolt', 1.6, 6, 1.2, {}],
     ['watershot', '물방울 탄', 'water', 6, 'bolt', 1.3, 6, 1.0, { count: 2 }],
     ['heal1', '회복의 물', 'water', 10, 'heal', 0.25, 14, 8, {}],
@@ -368,5 +369,28 @@
   ];
   const CASTLE = { type: 'castle', name: '성', x: 23, y: 12, w: 10, h: 6, roof: '#5A5A70' };
 
-  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE };
+  /* ---------------- 사람(NPC) · v41 ----------------
+   *  av = 사이트 아바타 옷 그대로 (avatar/avatar.js 의 아이템 id) → 플레이어와 같은 그림체
+   *  hello = 창을 열 때 하는 말 (아무거나 하나) · lines = 근처에 가면 머리 위 말풍선 */
+  const NPCS = {
+    potion: { name: '물약 상인 미나', color: '#FF9AA0', av: { skin: 's2', hair: 'h_bun', face: 'f_glasses', top: 't_doctor', bottom: 'b_skirt', shoes: 'sh_red' },
+      hello: ['어서 와요! 오늘 끓인 물약이 아주 잘 됐어요.', '사냥 가기 전에 물약은 넉넉히! 쓰러지면 손해예요.', '안 쓰는 물건은 여기서 팔아도 돼요. 값은 좀 깎이지만요.'] },
+    school: { name: '대마법사 루멘', color: '#D8B8FF', av: { skin: 's1', hair: 'h_long', hat: 'hat_wizard', face: 'f_beard', top: 't_robe', bottom: 'b_ninja', shoes: 'sh_black' },
+      hello: ['마법은 원소의 대화란다. 두 원소를 섞으면 새 마법이 태어나지.', '레벨이 오르면 다시 오너라. 더 강한 마법을 가르쳐 주마.', '같은 원소끼리는 섞이지 않는단다. 서로 다른 것이 만나야 새것이 되지.'] },
+    chief: { name: '이장님', color: '#9AF0B0', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+      hello: ['어서 오게! 여기가 자네의 귀환 장소일세.', '가 본 곳이면 어디든 보내 주지. 이동은 무료라네.', '무리하지 말게. 쓰러지면 이 집 앞에서 다시 깨어날 걸세.'] },
+    castle: { name: '불꽃왕', color: '#FFE45C', av: { skin: 's1', hair: 'h_curly', hat: 'hat_emperor', face: 'f_beard', top: 't_suit', bottom: 'b_armor', shoes: 'sh_gold', back: 'bk_cape' },
+      hello: ['용사여, 잘 왔다. 마왕 용이 깨어나고 있다…', '곧 그대에게 맡길 일이 많을 것이다. 힘을 길러 두어라.'] },
+    guard: { name: '왕성 경비병', color: '#C9D0F0', av: { skin: 's4', hair: 'h_short', hat: 'hat_darkhelm', top: 't_armor', bottom: 'b_armor', shoes: 'sh_black' },
+      lines: ['폐하께 예를 갖추시오.', '왕성은 안전하오.', '용암 지대는 조심하시오!'] }
+  };
+  // 마을을 돌아다니는 사람 (마을마다 2명씩 번갈아)
+  const VILLAGERS = [
+    { name: '꼬마 콩이', av: { skin: 's2', hair: 'h_twin', top: 't_pe', bottom: 'b_shorts', shoes: 'sh_red' }, lines: ['분수 물 진짜 시원해!', '오른쪽 끝으로 가면 사냥터래!', '나도 커서 마법사 될 거야!'] },
+    { name: '나무꾼 아저씨', av: { skin: 's3', hair: 'h_short_brown', hat: 'hat_straw', face: 'f_mustache', top: 't_overall', bottom: 'b_jeans', shoes: 'sh_boots' }, lines: ['숲에 슬라임이 많아졌어.', '포션 가게 물약은 정말 잘 들어.', '이장님 댁에 들르면 멀리 갈 수 있다네.'] },
+    { name: '여행자 하늘', av: { skin: 's1', hair: 'h_ponytail', hat: 'hat_elfhood', top: 't_elf', bottom: 'b_cargo', shoes: 'sh_hightop', back: 'bk_bag2' }, lines: ['다음 마을까지 사냥터가 10개래.', '보스는 꼭 장비를 떨어뜨린대!', '마법 학교에서 융합을 배워 봐.'] },
+    { name: '대장장이 철수', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' }, lines: ['정예 장비는 반짝반짝 빛나지.', '레벨이 모자라면 장비를 못 입어.', '가방이 꽉 차면 포션 가게에서 팔게.'] }
+  ];
+
+  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS };
 })();
