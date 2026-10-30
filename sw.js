@@ -2,7 +2,7 @@
  * gogo?gogo! 서비스 워커 — 앱 설치와 오프라인 플레이를 담당합니다.
  * 파일을 고친 뒤 배포할 때는 VERSION 숫자를 올려 주세요. (설치된 앱이 새 버전을 받습니다)
  */
-const VERSION = 'gogogogo-v37';
+const VERSION = 'gogogogo-v38';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css',
@@ -44,6 +44,8 @@ const SHELL = [
   './games/sports/fight/game.js',
   './games/action/mecha/settings.js',
   './games/action/mecha/game.js',
+  './games/shooting/sky/settings.js',
+  './games/shooting/sky/game.js',
   './games/study/common.js',
   './games/study/wordchain/settings.js',
   './games/study/wordchain/game.js',
