@@ -33,7 +33,7 @@
     id: 'english', title: '영어 단어 퀴즈', watermark: 'ABC', colors: { top: '#173A5E', bottom: '#10213D' },
     sub: s => `${s}초 · 4지선다 · 중학/고등 단계`,
     goal: s => `${s}초 동안 영어 단어 ↔ 뜻을 맞혀요.<br>아래에서 단계를 고르고 시작!`,
-    modes: [{ id: 'mid', label: '중학', desc: '160단어 · 100점' }, { id: 'high', label: '고등', desc: '159단어 · 150점' }, { id: 'mix', label: '섞어서', desc: '319단어' }],
+    modes: [{ id: 'mid', label: '중학', desc: '312단어 · 100점' }, { id: 'high', label: '고등', desc: '407단어 · 150점' }, { id: 'mix', label: '섞어서', desc: '719단어' }],
     rules: cfg => [`<b>${cfg.timeLimit || 60}초</b> 동안 최대한 많이 맞혀요.`, '① 영어 단어를 보고 알맞은 <b>뜻</b> 고르기, ② 뜻을 보고 알맞은 <b>영어 단어</b> 고르기가 섞여 나와요.', `시작 화면에서 단계를 골라요: <b>중학</b>(${cfg.scoreMid || 100}점) · <b>고등</b>(${cfg.scoreHigh || 150}점) · <b>섞어서</b>.`, '아래 보기를 누르거나 키보드 <b>1 · 2 · 3 · 4</b>.', `연속으로 맞히면 ${cfg.streakBonus || 20}점씩 보너스. 틀리면 정답을 보여 줘요.`, '포인트는 없고, 가장 높은 점수가 랭킹에 올라가요. (로그인 필요)'],
     make
   });

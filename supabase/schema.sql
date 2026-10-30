@@ -557,3 +557,102 @@ revoke execute on function public.admin_overview()                   from public
 grant  execute on function public.admin_members()                    to authenticated;
 grant  execute on function public.admin_update_member(uuid, text, text) to authenticated;
 grant  execute on function public.admin_overview()                   to authenticated;
+
+-- =====================================================================
+-- v32) 관리자 '반영여부' 체크 (supabase/feedback_v32.sql 과 같음)
+-- =====================================================================
+alter table public.comments      add column if not exists resolved boolean not null default false;
+alter table public.chat_messages add column if not exists resolved boolean not null default false;
+grant update (resolved) on public.comments      to authenticated;
+grant update (resolved) on public.chat_messages to authenticated;
+drop policy if exists "chat_admin_update" on public.chat_messages;
+create policy "chat_admin_update" on public.chat_messages for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- =====================================================================
+-- v33) 로그인 팝업 배너 (supabase/banner_v33.sql 과 같음)
+-- =====================================================================
+create table if not exists public.site_banner (
+  id          int primary key default 1 check (id = 1),                   -- 배너는 한 개 (id = 1 한 줄)
+  enabled     boolean not null default false,
+  title       text not null default '' check (char_length(title) <= 40),
+  body        text not null default '' check (char_length(body) <= 200),
+  image       text check (image is null or (image ~ '^data:image/(png|jpeg|webp|gif);base64,' and char_length(image) <= 400000)),
+  link        text check (link is null or link = '' or (link ~* '^https?://' and char_length(link) <= 500)),
+  updated_at  timestamptz not null default now()
+);
+alter table public.site_banner enable row level security;
+
+drop policy if exists "banner_select_all" on public.site_banner;
+create policy "banner_select_all" on public.site_banner for select using (true);
+drop policy if exists "banner_admin_insert" on public.site_banner;
+create policy "banner_admin_insert" on public.site_banner for insert to authenticated with check (public.is_admin());
+drop policy if exists "banner_admin_update" on public.site_banner;
+create policy "banner_admin_update" on public.site_banner for update to authenticated using (public.is_admin()) with check (public.is_admin());
+
+grant select on public.site_banner to anon, authenticated;
+grant insert, update on public.site_banner to authenticated;
+
+-- =====================================================================
+-- v35) 실시간 접속자 — 1분마다 기록 (supabase/online_v35.sql 과 같음)
+-- =====================================================================
+create table if not exists public.site_online (
+  client_id   text primary key check (client_id ~ '^[a-z0-9]{6,24}$'),   -- 창 번호 (브라우저 탭마다, 새로고침해도 유지)
+  user_id     uuid references public.profiles(id) on delete cascade,   -- 회원이면 회원 id, 손님이면 null (서버가 auth.uid() 로 넣음)
+  game        text not null default '' check (game = '' or game ~ '^[a-z0-9_-]{2,30}$'),
+  mobile      boolean not null default false,
+  started_at  timestamptz not null default now(),                       -- 사이트에 들어온 시각 (서버 시계)
+  game_at     timestamptz not null default now(),                       -- 지금 게임 화면에 들어온 시각 (서버 시계)
+  last_seen   timestamptz not null default now()
+);
+create index if not exists site_online_seen on public.site_online (last_seen desc);
+alter table public.site_online enable row level security;   -- 정책 없음 = 직접 읽기·쓰기 불가 (아래 함수로만)
+revoke all on public.site_online from anon, authenticated;
+
+-- 창이 1분마다 부름 (게임을 바꿨을 때는 바로)
+create or replace function public.online_ping(p_client text, p_game text, p_mobile boolean)
+returns void language plpgsql security definer set search_path = public as $$
+declare g text := coalesce(p_game, '');
+begin
+  if p_client is null or p_client !~ '^[a-z0-9]{6,24}$' then return; end if;
+  if g <> '' and g !~ '^[a-z0-9_-]{2,30}$' then g := ''; end if;
+  insert into public.site_online as o (client_id, user_id, game, mobile, started_at, game_at, last_seen)
+  values (p_client, auth.uid(), g, coalesce(p_mobile, false), now(), now(), now())
+  on conflict (client_id) do update
+     set user_id   = auth.uid(),
+         mobile    = coalesce(p_mobile, false),
+         game_at   = case when o.game is distinct from excluded.game then now() else o.game_at end,
+         game      = excluded.game,
+         -- 10분 넘게 소식이 없다가 다시 오면 새로 들어온 것으로 셈
+         started_at = case when o.last_seen < now() - interval '10 minutes' then now() else o.started_at end,
+         last_seen = now()
+   where o.last_seen < now() - interval '5 seconds' or o.game is distinct from excluded.game;   -- 너무 잦은 호출은 무시
+  -- 오래된 줄 정리 (가끔만)
+  if random() < 0.05 then delete from public.site_online where last_seen < now() - interval '10 minutes'; end if;
+end; $$;
+
+-- 창을 닫을 때 (실패해도 2분 뒤에는 목록에서 빠짐)
+create or replace function public.online_leave(p_client text)
+returns void language sql security definer set search_path = public as $$
+  delete from public.site_online where client_id = p_client;
+$$;
+
+-- 관리자: 최근 2분 안에 소식이 있는 창 목록 + 서버 지금 시각
+create or replace function public.admin_online()
+returns table (client_id text, user_id uuid, nickname text, game text, mobile boolean, started_at timestamptz, game_at timestamptz, last_seen timestamptz, server_now timestamptz)
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception '관리자만 볼 수 있어요'; end if;
+  return query
+    select o.client_id, o.user_id, coalesce(p.nickname, '손님'), o.game, o.mobile, o.started_at, o.game_at, o.last_seen, now()
+      from public.site_online o left join public.profiles p on p.id = o.user_id
+     where o.last_seen > now() - interval '2 minutes'
+     order by o.started_at;
+end; $$;
+
+revoke all on function public.online_ping(text, text, boolean) from public;
+revoke all on function public.online_leave(text) from public;
+revoke all on function public.admin_online() from public;
+grant execute on function public.online_ping(text, text, boolean) to anon, authenticated;
+grant execute on function public.online_leave(text) to anon, authenticated;
+grant execute on function public.admin_online() to authenticated;
