@@ -1059,3 +1059,32 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 @media (min-width: 900px) { .idm-choices.idm-long { grid-template-columns: 1fr 1fr; } .idm-long .idm-btn { font-size: 15px; min-height: 58px; } }
 /* v34: 사자성어 — 화면 높이가 낮으면 게임판을 조금 줄여서 아래 보기 버튼까지 한 화면에 (큰 화면은 그대로) */
 .ult-stage:has(.idm-choices) .cabinet { width: min(calc(var(--cw) + 40px), calc((100svh - 370px) * var(--ar) + 40px)); }
+
+/* ---------- v35: 관리자 실시간 접속자 ---------- */
+.live-tiles .num { font-size: 30px; }
+.live-games { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.lv-chip { display: inline-flex; gap: 6px; align-items: center; padding: 3px 10px; border: 2px solid var(--border, #1A1F3D); border-radius: 999px; background: #F4F6FF; font-size: 13px; font-weight: 700; }
+.lv-chip b { color: #1E9E5A; }
+.live-tbl tr.is-me td { background: rgba(255,210,63,.18); }
+.live-tbl td.n, .live-tbl th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.live-tbl td.c, .live-tbl th.c { text-align: center; }
+.live-note { margin-top: 8px; }
+.live-tbl td.n { font-size: 15px; font-weight: 700; }
+.live-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .live-head h3 { margin-right: auto; }
+
+/* ---------- v36: 영어 단어·한국사 퀴즈 (games/study/quiz.js) — 게임판 아래 단계 고르기 (시작 전·끝난 뒤) ---------- */
+.qz-modes-wrap { display: flex; align-items: center; gap: 10px; justify-content: center; width: min(100%, 720px); margin-bottom: 6px; }
+.qz-modes-wrap[hidden] { display: none; }
+.qz-modes-lbl { font-weight: 800; color: var(--ink, #1A1F3D); }
+.qz-modes { display: flex; gap: 8px; flex: 1; }
+.qz-modes .btn { display: grid; gap: 2px; flex: 1; min-width: 0; padding: 8px 10px; line-height: 1.2; }
+.qz-modes .btn small { font-size: 11px; font-weight: 400; opacity: .85; }
+@media (max-width: 560px) { .qz-modes .btn { padding: 6px 6px; font-size: 14px; } .qz-modes .btn small { font-size: 10px; } }
+/* v36: 휴대폰(좁은 화면)에서 '공부?' 결과 칸을 촘촘하게 — 다시 도전 버튼까지 게임판 안에 보이게 (사자성어·타자·영어·한국사·지뢰찾기 공통) */
+@media (max-width: 560px) {
+  .study-page .ov-box.result { gap: 5px; }
+  .study-page .ov-box.result .ov-title { font-size: 22px; }
+  .study-page .ov-box.result .ult-score { font-size: 24px; }
+  .study-page .ov-box.result .ov-hint, .study-page .ov-box.result .ov-note { font-size: 12px; margin: 0; }
+  .study-page .ov-box.result .btn { padding: 6px 12px; }
+}

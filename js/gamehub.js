@@ -333,6 +333,24 @@
         if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
         return overviewFrom(Object.values(db().users), db().records, db().comments || [], db().chat || []);
       },
+      /* ---- v35 실시간 접속자 (체험: 이 브라우저 안 저장소 'gogogogo.demo.online' — 탭끼리 같이 보도록 매번 새로 읽음) ---- */
+      async onlinePing(c, game, mobile) {
+        const OK = 'gogogogo.demo.online'; let o = {}; try { o = JSON.parse(localStorage.getItem(OK) || '{}') || {}; } catch (e) { o = {}; }
+        const now = Date.now(), r = o[c], g = /^[a-z0-9_-]{2,30}$/.test(game || '') ? game : '';
+        if (!r || now - r.last_seen > 600000) o[c] = { client_id: c, user_id: Hub.user ? Hub.user.id : null, game: g, mobile: !!mobile, started_at: now, game_at: now, last_seen: now };
+        else Object.assign(r, { user_id: Hub.user ? Hub.user.id : null, mobile: !!mobile, game_at: r.game !== g ? now : r.game_at, game: g, last_seen: now });
+        Object.keys(o).forEach(k => { if (now - o[k].last_seen > 600000) delete o[k]; });
+        try { localStorage.setItem(OK, JSON.stringify(o)); } catch (e) { /* noop */ }
+      },
+      async onlineLeave(c) { const OK = 'gogogogo.demo.online'; try { const o = JSON.parse(localStorage.getItem(OK) || '{}') || {}; delete o[c]; localStorage.setItem(OK, JSON.stringify(o)); } catch (e) { /* noop */ } },
+      async adminOnline() {
+        if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
+        let o = {}; try { o = JSON.parse(localStorage.getItem('gogogogo.demo.online') || '{}') || {}; } catch (e) { o = {}; }
+        const d = db(), now = Date.now(), iso = t => new Date(t).toISOString();
+        let users = d.users; try { users = (JSON.parse(localStorage.getItem('gogogogo.demo.v2')) || d).users || d.users; } catch (e) { /* noop */ }
+        return Object.values(o).filter(r => now - r.last_seen < 120000).sort((a, b) => a.started_at - b.started_at)
+          .map(r => ({ client_id: r.client_id, user_id: r.user_id, nickname: r.user_id && users[r.user_id] ? users[r.user_id].nickname : '손님', game: r.game, mobile: r.mobile, started_at: iso(r.started_at), game_at: iso(r.game_at), last_seen: iso(r.last_seen), server_now: iso(now) }));
+      },
       /* ---- v33 로그인 팝업 배너 (한 개) ---- */
       async getBanner() { return db().banner || null; },
       async saveBanner(b) {
@@ -404,8 +422,10 @@
     return {
       async init() {
         const { data } = await sb.auth.getSession();
+        Hub._token = data.session ? data.session.access_token : null;   // v35: 창을 닫을 때 보내는 요청에 씀
         await loadProfile(data.session && data.session.user.id);
         sb.auth.onAuthStateChange((ev, session) => {
+          Hub._token = session ? session.access_token : null;
           if (ev === 'SIGNED_OUT') { lsSet(PKEY, null); setUser(null); }
           else if (ev === 'SIGNED_IN' && session && (!Hub.user || Hub.user.id !== session.user.id)) setTimeout(() => loadProfile(session.user.id), 0);
         });
@@ -592,6 +612,24 @@
         const { data, error } = await sb.rpc('admin_overview');
         if (error) throw new Error(friendly(error, '집계를 불러오지 못했어요'));
         return data;
+      },
+      /* ---- v35 실시간 접속자: 1분마다 기록 (supabase/online_v35.sql 의 online_ping · online_leave · admin_online) ---- */
+      async onlinePing(c, game, mobile) {
+        const { error } = await sb.rpc('online_ping', { p_client: c, p_game: game || '', p_mobile: !!mobile });
+        if (error && /online_ping|function|schema cache/i.test(error.message || '')) Hub.noOnline = true;   // SQL 실행 전
+      },
+      // 창을 닫을 때: 페이지가 사라져도 끝까지 보내지도록 keepalive (실패해도 2분 뒤 목록에서 빠짐)
+      onlineLeave(c) {
+        try {
+          fetch(cfg.supabaseUrl + '/rest/v1/rpc/online_leave', { method: 'POST', keepalive: true,
+            headers: { apikey: cfg.supabaseAnonKey, Authorization: 'Bearer ' + (Hub._token || cfg.supabaseAnonKey), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_client: c }) }).catch(() => {});
+        } catch (e) { /* noop */ }
+      },
+      async adminOnline() {
+        const { data, error } = await sb.rpc('admin_online');
+        if (error) throw new Error(/admin_online|function|schema cache/i.test(error.message || '') ? '실시간 접속자 기능이 아직 서버에 없어요. supabase/online_v35.sql 을 먼저 실행해 주세요.' : friendly(error, '접속자를 불러오지 못했어요'));
+        return data || [];
       },
       /* ---- v33 로그인 팝업 배너 (한 개, site_banner 표의 id = 1 줄) ---- */
       async getBanner() {

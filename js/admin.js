@@ -1,7 +1,7 @@
 /*
  * gogo?gogo! — 관리자 설정 (GoAdmin)
  *  - 관리자(role = 'admin')에게만 맨 위 메뉴에 보입니다.
- *  - 탭: 전적 종합 · 회원 관리 · 댓글·피드백 · 채팅 기록 · 배너(v33, 로그인 팝업)
+ *  - 탭: 전적 종합 · 실시간 접속자(v35) · 회원 관리 · 댓글·피드백 · 채팅 기록 · 배너(v33, 로그인 팝업)
  *  - 실제 권한 확인은 서버(Supabase 함수·보안 규칙)가 합니다. 이 화면은 보기 좋게 보여 주는 역할만 해요.
  */
 (function () {
@@ -9,7 +9,7 @@
   const Hub = window.GameHub, F = window.GoFilter, AV = window.GoAvatar;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-  const TABS = [['stats', '전적 종합'], ['members', '회원 관리'], ['comments', '댓글·피드백'], ['chat', '채팅 기록'], ['banner', '배너']];
+  const TABS = [['stats', '전적 종합'], ['live', '실시간 접속자'], ['members', '회원 관리'], ['comments', '댓글·피드백'], ['chat', '채팅 기록'], ['banner', '배너']];
   let tab = 'stats';
 
   function csv(name, head, rows) {
@@ -40,7 +40,7 @@
     $$('[data-tab]', root).forEach(b => b.addEventListener('click', () => {
       tab = b.dataset.tab; $$('[data-tab]', root).forEach(x => x.setAttribute('aria-selected', String(x === b))); show();
     }));
-    function show() { body.innerHTML = '<p class="empty">불러오는 중…</p>'; ({ stats, members, comments, chat, banner })[tab]().catch(fail); }
+    function show() { body.innerHTML = '<p class="empty">불러오는 중…</p>'; ({ stats, live, members, comments, chat, banner })[tab]().catch(fail); }
 
     /* ---------- 전적 종합 ---------- */
     async function stats() {
@@ -232,6 +232,71 @@
       });
     }
 
+    /* ---------- v35: 실시간 접속자 ----------
+     * 위: 지금 접속한 사람 수(회원·손님), 게임 중인 사람 수, 게임별 인원
+     * 아래: 지금 게임 화면에 있는 사람 중 사이트에 오래 접속해 있는 순서로 30명
+     * 자료: 창마다 1분에 한 번 서버에 기록(js/presence.js → online_ping), 여기서는 15초마다 admin_online() 으로 다시 읽음 · 시간은 1초마다 갱신
+     *       (실시간 연결을 쓰지 않아 무료 요금제 동시 연결 200개 제한과 상관없음. 대신 숫자가 최대 1~2분 늦을 수 있음) */
+    let liveStop = null;
+    const durTxt = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60; return h ? `${h}시간 ${m}분` : m ? `${m}분 ${String(ss).padStart(2, '0')}초` : `${ss}초`; };
+    async function live() {
+      if (liveStop) liveStop();
+      body.innerHTML = `
+        <div class="tiles admin-tiles live-tiles">
+          <div class="tile"><span class="lbl">지금 접속</span><b class="num" id="lvNow">-</b><span class="small" id="lvSplit"></span></div>
+          <div class="tile"><span class="lbl">게임 중</span><b class="num" id="lvPlay">-</b><span class="small" id="lvDev"></span></div>
+          <div class="tile"><span class="lbl">열린 창</span><b class="num" id="lvTabs">-</b><span class="small">한 사람이 여러 창을 열면 1명으로 셈</span></div>
+        </div>
+        <div class="panel">
+          <div class="live-head"><h3>지금 플레이 중 <small>접속 시간이 긴 사람부터 30명</small></h3><span class="small" id="lvAt"></span><button class="btn btn-sm" type="button" id="lvRefresh">새로고침</button></div>
+          <div id="lvNote"></div>
+          <div class="live-games" id="lvGames"></div>
+          <div class="tbl-wrap"><table class="admin-tbl live-tbl"><thead><tr><th class="c">순위</th><th>닉네임</th><th>게임</th><th class="n">접속 시간</th><th class="n">이 게임에서</th><th class="c">기기</th></tr></thead><tbody id="lvRows"><tr><td colspan="6" class="empty">불러오는 중…</td></tr></tbody></table></div>
+          <p class="small live-note">사이트를 연 창(손님 포함)이 1분마다 자동으로 알려 주고, 이 화면은 15초마다 새로 읽어요. 최근 2분 안에 소식이 있는 창만 세므로 숫자가 1~2분 늦을 수 있어요. 창을 닫으면 바로(늦어도 2분 안에) 빠져요.${Hub.mode === 'demo' ? ' (체험 모드: 이 브라우저의 다른 탭만 보여요)' : ''}</p>
+        </div>`;
+      let people = [], skew = 0, fetchedAt = 0, timer = 0;
+      const group = rows => {
+        const by = new Map();
+        rows.forEach(x => {
+          const st = Date.parse(x.started_at), gt = Date.parse(x.game_at);
+          const k = x.user_id ? 'u:' + x.user_id : 'c:' + x.client_id, p = by.get(k) || { k, n: x.nickname, u: x.user_id, tabs: 0, t0: st, g: '', gt: 0, m: x.mobile, me: false };
+          p.tabs++; p.t0 = Math.min(p.t0, st); p.me = p.me || (window.GoPresence && x.client_id === window.GoPresence.id());
+          if (x.game && gt >= p.gt) { p.g = x.game; p.gt = gt; p.m = x.mobile; }
+          by.set(k, p);
+        });
+        return [...by.values()];
+      };
+      const paint = () => {
+        if (!alive || tab !== 'live' || !$('#lvRows')) return stop();
+        const now = Date.now() + skew, members = people.filter(p => p.u).length, play = people.filter(p => p.g);
+        $('#lvNow').textContent = people.length + '명';
+        $('#lvSplit').textContent = `회원 ${members} · 손님 ${people.length - members}`;
+        $('#lvPlay').textContent = play.length + '명';
+        $('#lvDev').textContent = `PC ${play.filter(p => !p.m).length} · 휴대폰 ${play.filter(p => p.m).length}`;
+        $('#lvTabs').textContent = people.reduce((a, p) => a + p.tabs, 0) + '개';
+        if (fetchedAt) $('#lvAt').textContent = Math.round((Date.now() - fetchedAt) / 1000) + '초 전에 읽음';
+        const per = {}; play.forEach(p => { per[p.g] = (per[p.g] || 0) + 1; });
+        $('#lvGames').innerHTML = Object.entries(per).sort((a, b) => b[1] - a[1]).map(([g, n]) => `<span class="lv-chip">${ui.esc(ui.nameOf(g))} <b>${n}</b></span>`).join('');
+        const top = play.slice().sort((a, b) => a.t0 - b.t0).slice(0, 30);
+        $('#lvRows').innerHTML = top.map((p, i) => `<tr class="${p.me ? 'is-me' : ''}"><td class="c">${i + 1}</td><td><b>${ui.esc(p.n || '?')}</b>${p.u ? '' : ' <span class="small">(손님)</span>'}${p.me ? ' <span class="small">(나)</span>' : ''}${p.tabs > 1 ? ` <span class="small">· 창 ${p.tabs}개</span>` : ''}</td><td><a href="#${ui.esc(p.g)}">${ui.esc(ui.nameOf(p.g))}</a></td><td class="n">${durTxt(now - p.t0)}</td><td class="n">${durTxt(now - p.gt)}</td><td class="c">${p.m ? '휴대폰' : 'PC'}</td></tr>`).join('')
+          || '<tr><td colspan="6" class="empty">지금 게임 화면에 있는 사람이 없어요.</td></tr>';
+      };
+      async function load() {
+        try {
+          if (window.GoPresence) window.GoPresence.ping();   // 관리자 자신도 바로 기록
+          const rows = await Hub.adminOnline(); if (!alive || tab !== 'live') return;
+          fetchedAt = Date.now(); skew = rows.length && rows[0].server_now ? Date.parse(rows[0].server_now) - fetchedAt : 0;
+          people = group(rows); $('#lvNote').innerHTML = ''; paint();
+        } catch (e) { if ($('#lvNote')) $('#lvNote').innerHTML = `<p class="res-note">${ui.esc(e.message)}</p>`; }
+      }
+      const iv = setInterval(paint, 1000);
+      timer = setInterval(load, 15000);
+      function stop() { clearInterval(iv); clearInterval(timer); if (liveStop === stop) liveStop = null; }
+      liveStop = stop;
+      $('#lvRefresh').addEventListener('click', load);
+      await load();
+    }
+
     /* ---------- v33: 배너 (로그인하면 뜨는 작은 팝업, 한 개) ---------- */
     async function banner() {
       let b = null;
@@ -333,7 +398,7 @@
     }
 
     show();
-    return () => { alive = false; };
+    return () => { alive = false; if (liveStop) liveStop(); };
   }
 
   window.GoAdmin = { render };
