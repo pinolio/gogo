@@ -629,7 +629,7 @@
     const opp = players.find(p => p.id !== Hub.clientId) || {};
     n.oppId = opp.id || null; n.oppNick = opp.nick || '상대';
     s.result = null; s.save = null;
-    s.inst.start({ mode: 'online', side: n.side }); BGM.restart();
+    s.inst.start({ mode: 'online', side: n.side, oppAvatar: opp.avatar || null, oppNick: n.oppNick }); BGM.restart();
     netAdvertise();
   }
   // 'room' 방식: 방장이 들어온 순서대로 자리를 정해 모두에게 보냄 (빈자리는 방장 기기의 컴퓨터)

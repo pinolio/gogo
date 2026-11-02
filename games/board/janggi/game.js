@@ -7,7 +7,9 @@
 (function () {
   'use strict';
   const B = window.GoBoard;
-  const COLS = 9, ROWS = 10, C = 46, MX = 34, MY = 30, W = MX * 2 + C * (COLS - 1), H = MY * 2 + C * (ROWS - 1);
+  const COLS = 9, ROWS = 10, C = 46, MX = 34, MY = 30, BW = MX * 2 + C * (COLS - 1), H = MY * 2 + C * (ROWS - 1);
+  // v52: 판 양옆에 아바타 자리 (초 왼쪽 아래 · 한 오른쪽 위). 아바타가 걸어가 말을 집어 옮김
+  const SIDE = 100, W = BW + SIDE * 2;                                  // 화면 636 × 474
   const CHO = 0, HAN = 1;                        // 초(아래, 먼저) / 한(위)
   const VAL = { K: 0, C: 13, P: 7, H: 5, E: 3, A: 3, S: 2 };
   const NAME_KO = { K: ['초', '한'], C: ['차', '차'], P: ['포', '포'], H: ['마', '마'], E: ['상', '상'], A: ['사', '사'], S: ['졸', '병'] };
@@ -175,14 +177,14 @@
   }
   const ANIM_MS = 300;   // v32: 말이 움직이는 시간(밀리초). 0 이면 예전처럼 바로 옮김
   function drawBoard(ctx, st, labels) {
-    B.wood(ctx, 0, 0, W, H);
+    B.wood(ctx, 0, 0, BW, H);
     for (let y = 0; y < ROWS; y++) B.line(ctx, px(0), py(y), px(COLS - 1), py(y), B.LINE, 2);
     for (let x = 0; x < COLS; x++) B.line(ctx, px(x), py(0), px(x), py(ROWS - 1), B.LINE, 2);
     for (const [y0, y1] of [[0, 2], [7, 9]]) { B.line(ctx, px(3), py(y0), px(5), py(y1), B.LINE, 2); B.line(ctx, px(5), py(y0), px(3), py(y1), B.LINE, 2); }
     if (st.last) { ctx.fillStyle = 'rgba(255,210,63,.45)'; [[st.last[0], st.last[1]], [st.last[2], st.last[3]]].forEach(([x, y]) => ctx.fillRect(px(x) - 22, py(y) - 22, 44, 44)); ctx.strokeStyle = '#FF9A1F'; ctx.lineWidth = 3; ctx.strokeRect(px(st.last[2]) - 23, py(st.last[3]) - 23, 46, 46); }   // v32: 방금 움직인 자리 주황 테두리
     // v32 (학생 의견 '말이 순간이동해서 뭘 움직이는지 모르겠어요'): 움직인 말이 0.3초 동안 미끄러져 감
     const an = st.anim, k = an ? Math.min(1, (performance.now() - an.t0) / ANIM_MS) : 1, moving = an && k < 1;
-    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const p = st.b[y][x]; if (p && !(moving && an.m[2] === x && an.m[3] === y)) drawPiece(ctx, p, px(x), py(y), labels, st.sel && st.sel[0] === x && st.sel[1] === y); }
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const p = st.b[y][x]; if (p && !(st.hide && st.hide[0] === x && st.hide[1] === y) && !(moving && an.m[2] === x && an.m[3] === y)) drawPiece(ctx, p, px(x), py(y), labels, st.sel && st.sel[0] === x && st.sel[1] === y); }
     if (moving) {
       if (an.cap) { ctx.globalAlpha = 1 - k; drawPiece(ctx, an.cap, px(an.m[2]), py(an.m[3]), labels, false); ctx.globalAlpha = 1; }
       const e = 1 - Math.pow(1 - k, 3), m = an.m;
@@ -210,7 +212,28 @@
       const name = s => (s === CHO ? '초' : '한');
       const human = () => mode === 'local' || (mode === 'online' ? st.turn === side : st.turn === CHO);
       const send = m => { if (mode === 'online' && hooks.onMove) hooks.onMove(m); };
-      const draw = () => drawBoard(ctx, st, labels);
+      const cfg = (window.GoSettings && GoSettings.get('janggi')) || {}, MO = cfg.motion || {};
+      let names = {};
+      const homes = {};
+      const mv = B.porter({ redraw: () => draw(), scale: MO.scale || 2.5, speed: MO.speed, backSpeed: MO.backSpeed, pickMs: MO.pickMs, placeMs: MO.placeMs, homes });
+      homes[CHO] = [SIDE / 2 - 4, H - 24 - mv.size.h * 0.42]; homes[HAN] = [W - SIDE / 2 + 4, mv.size.h * 0.58 + 34];
+      const cellXY = (x, y) => [SIDE + px(x), py(y)];
+      const draw = () => {
+        B.table(ctx, W, H);
+        B.tag(ctx, '초', homes[CHO][0], homes[CHO][1] - mv.size.h * 0.58 - 22, 14); if (names[CHO]) B.tag(ctx, names[CHO], homes[CHO][0], homes[CHO][1] - mv.size.h * 0.58 - 6, 11);
+        B.tag(ctx, '한', homes[HAN][0], 22, 14); if (names[HAN]) B.tag(ctx, names[HAN], homes[HAN][0], homes[HAN][1] + mv.size.h * 0.42 + 16, 11);
+        ctx.save(); ctx.translate(SIDE, 0); drawBoard(ctx, st, labels); ctx.restore();
+        mv.draw(ctx);
+      };
+      // 말 하나를 아바타가 옮김: 집는 순간 원래 자리에서 사라지고, 내려놓는 순간 수가 둬짐
+      function carry(m, done) {
+        busy = true;
+        const p = st.b[m[1]][m[0]];
+        mv.add({ who: String(p.s), from: cellXY(m[0], m[1]), to: cellXY(m[2], m[3]), piece: (cx, x2, y2) => drawPiece(cx, p, x2, y2 - 4, labels, false),
+          onPick: () => { st.hide = [m[0], m[1]]; st.sel = null; st.targets = []; draw(); },
+          onPlace: () => { st.hide = null; doMove(m, true); draw(); },
+          onDone: () => { busy = mv.busy(); if (!over) done(); } });
+      }
       function buttons() { hooks.onButtons([]); }
       function turnText() {
         if (over) return;
@@ -220,9 +243,9 @@
       }
       let raf = 0;
       function animate() { cancelAnimationFrame(raf); const tick = () => { draw(); if (st.anim && performance.now() - st.anim.t0 < ANIM_MS) raf = requestAnimationFrame(tick); else { st.anim = null; draw(); } }; raf = requestAnimationFrame(tick); }
-      function doMove(m) {
+      function doMove(m, carried) {
         const cap = st.b[m[3]][m[2]];
-        st.anim = ANIM_MS > 0 ? { t0: performance.now(), m, p: st.b[m[1]][m[0]], cap } : null;
+        st.anim = ANIM_MS > 0 && !carried ? { t0: performance.now(), m, p: st.b[m[1]][m[0]], cap } : null;
         st.b = applyMove(st.b, m); st.last = m; st.moves++; st.sel = null; st.targets = [];
         st.turn = 1 - st.turn;
         if (st.anim) animate();
@@ -239,19 +262,19 @@
         turnText();
         if (mode === 'ai' && st.turn === HAN) {
           busy = true;
-          timer = B.think(() => { const m = aiMove(st.b, HAN, level); if (m) doMove(m); busy = false; after(); }, 300);
+          timer = B.think(() => { const m = aiMove(st.b, HAN, level); if (!m) { busy = false; return after(); } carry(m, after); }, 300);
         }
       }
       function end(w, msg) {
-        over = true; clock.stop(); draw();
+        over = true; mv.clear(); busy = false; st.hide = null; clock.stop(); draw();
         hooks.onTurn({ text: msg, side: -1 });
         hooks.onOver({ winner: w, message: msg, moves: st.moves, duration_sec: clock.sec(), extra: { moves: st.moves } });
       }
       const off = B.pointer(canvas, W, H, (t, x, y) => {
         if (t !== 'up' || over || busy || !human()) return;
-        const gx = Math.round((x - MX) / C), gy = Math.round((y - MY) / C); if (!inB(gx, gy)) return;
+        const gx = Math.round((x - SIDE - MX) / C), gy = Math.round((y - MY) / C); if (!inB(gx, gy)) return;
         const p = st.b[gy][gx];
-        if (st.sel && st.targets.some(([a, c]) => a === gx && c === gy)) { const mv = [st.sel[0], st.sel[1], gx, gy]; doMove(mv); send(mv); return after(); }
+        if (st.sel && st.targets.some(([a, c]) => a === gx && c === gy)) { const m = [st.sel[0], st.sel[1], gx, gy]; send(m); st.sel = null; st.targets = []; carry(m, after); return turnText(); }
         if (p && p.s === st.turn) { st.sel = [gx, gy]; st.targets = legalFrom(st.b, gx, gy); if (!st.targets.length && hooks.onToast) hooks.onToast('그 기물은 지금 움직일 수 없어요'); }
         else { st.sel = null; st.targets = []; }
         draw();
@@ -262,17 +285,18 @@
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
           clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || CHO;
-          st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0 }; over = false; busy = false;
+          mv.clear(); { const pl = B.players(mode, o, side, 'janggi', level); mv.setAvatars({ [CHO]: pl.av[0], [HAN]: pl.av[1] }); names = { [CHO]: pl.name[0], [HAN]: pl.name[1] }; }
+          st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0, hide: null }; over = false; busy = false;
           clock.reset(); clock.start(); hooks.onState('playing'); buttons(); after();
         },
-        press(id) { if (id === 'resign' && !over) { clearTimeout(timer); busy = false; const loser = mode === 'ai' ? CHO : mode === 'online' ? side : st.turn; send({ resign: 1 }); end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
+        press(id) { if (id === 'resign' && !over) { clearTimeout(timer); mv.clear(); busy = false; const loser = mode === 'ai' ? CHO : mode === 'online' ? side : st.turn; send({ resign: 1 }); end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
         remote(m) {
           if (over) return;
           if (m && m.resign) { const loser = 1 - side; return end(side, (m.left ? '상대가 나갔어요 · ' : name(loser) + ' 기권 · ') + name(side) + ' 승'); }
-          if (Array.isArray(m) && m.length === 4) { const p = st.b[m[1]] && st.b[m[1]][m[0]]; if (p && p.s === st.turn && legalFrom(st.b, m[0], m[1]).some(([a, c]) => a === m[2] && c === m[3])) { doMove(m); after(); } }
+          if (Array.isArray(m) && m.length === 4) { const p = st.b[m[1]] && st.b[m[1]][m[0]]; if (p && p.s === st.turn && legalFrom(st.b, m[0], m[1]).some(([a, c]) => a === m[2] && c === m[3])) carry(m, after); }
         },
         togglePause() {}, action() {},
-        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); cancelAnimationFrame(raf); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); cancelAnimationFrame(raf); mv.clear(); off(); }
       };
     }
   };

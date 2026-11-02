@@ -270,5 +270,129 @@
     shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; },
     LEVELS: { easy: '쉬움', normal: '보통', hard: '어려움' }
   };
+
+  /* ---------- v52: 아바타가 돌·말을 옮기는 움직임 (오목·바둑·장기·체스) ----------
+   * const mv = B.porter({ redraw, scale, speed, backSpeed, pickMs, placeMs, homes: { a: [x, y], b: [x, y] } });
+   *   homes : 아바타가 기다리는 자리 (손 위치). 평소엔 여기 서 있음
+   * mv.setAvatars({ a: av, b: av })
+   * mv.add({ who: 'a', pot: [x, y] | from: [x, y], to: [x, y], piece(ctx, x, y), onPick(), onPlace(), onDone() })
+   *   집에서 → 통(pot) 또는 말 자리(from) 로 가서 집고(onPick) → to 로 가서 내려놓고(onPlace) → 집으로 돌아옴(onDone)
+   * mv.draw(ctx) : 판을 그린 뒤 위에 그림 / mv.busy() / mv.clear()
+   */
+  B.porter = function (o) {
+    o = o || {};
+    const S = o.scale || 1.8, SP = o.speed || 190, BACK = o.backSpeed || 240;
+    const PICK = o.pickMs || 550, PLACE = o.placeMs || 550, homes = o.homes || {};
+    const AW = 18 * S, AH = 29 * S;                 // 아바타 그림 크기 (가로 18칸 · 세로 29칸)
+    const HX = AW * 0.86, HY = AH * 0.58;           // 오른손 위치 (그림 왼쪽 위 기준)
+    let avs = {};
+    const q = []; let cur = null, raf = 0, t0 = 0;
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const walkMs = (a, b, sp) => Math.max(450, dist(a, b) / sp * 1000);
+    const midX = () => { const xs = Object.values(homes).map(h => h[0]); return xs.length ? (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 : 0; };
+    function plan(j) {
+      const home = homes[j.who] || [0, 0], grab = j.pot || j.from, st = [];
+      st.push({ k: 'walk', a: home, b: grab, ms: walkMs(home, grab, SP) });
+      st.push({ k: 'pick', at: grab, ms: PICK });
+      st.push({ k: 'walk', a: grab, b: j.to, ms: walkMs(grab, j.to, SP), carry: true });
+      st.push({ k: 'place', at: j.to, ms: PLACE });
+      st.push({ k: 'walk', a: j.to, b: home, ms: walkMs(j.to, home, BACK) });
+      return st;
+    }
+    function next() {
+      cur = q.shift() || null; if (!cur) return;
+      cur.st = plan(cur); cur.i = 0; cur.picked = false; cur.placed = false; t0 = performance.now();
+      cur.facing = cur.to[0] >= (homes[cur.who] || [0])[0] ? 1 : -1;
+      loop();
+    }
+    function fire(now) {
+      const s = cur.st[cur.i]; if (!s) return;
+      const k = (now - t0) / s.ms;
+      if (s.k === 'pick' && !cur.picked && k >= 0.5) { cur.picked = true; cur.onPick && cur.onPick(); }
+      if (s.k === 'place' && !cur.placed && k >= 0.45) { cur.placed = true; cur.onPlace && cur.onPlace(); }
+    }
+    function loop() {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(now => {
+        if (!cur) return;
+        let s = cur.st[cur.i];
+        while (s && now - t0 >= s.ms) { fire(t0 + s.ms); t0 += s.ms; cur.i++; s = cur.st[cur.i]; }
+        if (!s) { const d = cur; cur = null; o.redraw && o.redraw(); d.onDone && d.onDone(); if (!cur) next(); return; }
+        fire(now); o.redraw && o.redraw(); loop();
+      });
+    }
+    function state(now) {
+      const s = cur.st[cur.i]; if (!s) return null;
+      const k = Math.min(1, (now - t0) / s.ms);
+      if (s.k === 'walk') {
+        const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;     // 천천히 출발 · 천천히 멈춤
+        const x = s.a[0] + (s.b[0] - s.a[0]) * e, y = s.a[1] + (s.b[1] - s.a[1]) * e;
+        const face = Math.abs(s.b[0] - s.a[0]) > 2 ? Math.sign(s.b[0] - s.a[0]) : cur.facing;
+        return { x, y, walk: true, face, hold: s.carry ? 1 : 0 };
+      }
+      if (s.k === 'pick') return { x: s.at[0], y: s.at[1], walk: false, face: cur.facing, hold: k >= 0.5 ? 1 : 0, lift: k };
+      if (s.k === 'place') return { x: s.at[0], y: s.at[1], walk: false, face: cur.facing, hold: k < 0.45 ? 1 : 0, drop: k };
+      return null;
+    }
+    // 아바타 하나 그리기: 손이 (x, y) 에 오도록
+    function person(ctx, av, x, y, face, frame, dip) {
+      const AV = window.GoAvatar; if (!AV || !av) return;
+      const ox = x - HX, oy = y - HY - dip;
+      ctx.save();
+      ctx.globalAlpha = 0.28; ctx.fillStyle = '#1A0E05';
+      ctx.beginPath(); ctx.ellipse(x - face * AW * 0.36, y - HY + AH - 2, AW * 0.36, AW * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      if (face < 0) { ctx.translate(x * 2, 0); ctx.scale(-1, 1); }
+      AV.draw(ctx, av, ox, oy, S, { frame });
+      ctx.restore();
+    }
+    return {
+      size: { w: AW, h: AH, hand: [HX, HY] },
+      setAvatars(a) { avs = a || {}; },
+      add(job) { q.push(job); if (!cur) next(); },
+      busy: () => !!cur || q.length > 0,
+      clear() { q.length = 0; cur = null; cancelAnimationFrame(raf); },
+      draw(ctx) {
+        const now = performance.now(), mx = midX();
+        // 기다리는 아바타 (집에 서서 판 쪽을 봄)
+        Object.keys(homes).forEach(w => { if (cur && cur.who === w) return; const h = homes[w]; person(ctx, avs[w], h[0], h[1], h[0] < mx ? 1 : -1, 0, 0); });
+        if (!cur) return;
+        const st = state(now); if (!st) return;
+        const frame = st.walk ? [1, 0, 3, 0][Math.floor(now / 170) % 4] : 0;
+        const bob = st.walk && frame ? 1 : 0;
+        const dip = st.drop != null ? Math.sin(Math.min(1, st.drop / 0.45) * Math.PI) * 3 : st.lift != null ? Math.sin(Math.min(1, st.lift / 0.5) * Math.PI) * 3 : 0;
+        person(ctx, avs[cur.who], st.x, st.y, st.face, frame, bob + dip);
+        if (st.hold && cur.piece) cur.piece(ctx, st.x, st.y - bob - dip - (cur.pot ? 0 : 4));
+      }
+    };
+  };
+  // 판 옆 탁자 (오목·바둑·장기·체스 공통)
+  B.table = function (ctx, W, H) {
+    ctx.fillStyle = '#5A3A22'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; for (let y = 6; y < H; y += 12) ctx.fillRect(0, y, W, 1);
+  };
+  // 돌 통 (r = 돌 반지름)
+  B.pot = function (ctx, x, y, black, r) {
+    const rx = r * 2.5, ry = r * 0.95;
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x, y + ry * 1.9, rx * 1.05, ry * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7A4A26'; ctx.beginPath(); ctx.ellipse(x, y + ry * 0.3, rx, ry * 1.7, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#9B6234'; ctx.beginPath(); ctx.ellipse(x, y, rx, ry * 1.05, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3B2312'; ctx.beginPath(); ctx.ellipse(x, y, rx * 0.84, ry * 0.78, 0, 0, Math.PI * 2); ctx.fill();
+    const sr = Math.max(5, r * 0.55);
+    [[-0.9, -0.1], [0, -0.25], [0.85, 0], [-0.4, 0.25], [0.45, 0.25]].forEach(([dx, dy]) => B.stone(ctx, x + dx * rx * 0.55, y + dy * ry, sr, black));
+  };
+  // 이름표 (통·자리 아래)
+  B.tag = function (ctx, text, x, y, size, color) {
+    ctx.fillStyle = color || 'rgba(243,207,138,.92)'; ctx.font = '700 ' + (size || 12) + 'px "Noto Sans KR", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(String(text || '').slice(0, 8), x, y);
+  };
+  // 게임 시작 때 아바타 정하기: 나 · 컴퓨터 · 온라인 상대
+  B.players = function (mode, o, mySide, game, level) {
+    const SP = window.GoSport, me = SP ? SP.myAvatar() : {}, cpu = n => (SP ? SP.cpuAvatar(game + '-' + n) : {});
+    const myName = SP ? SP.myName() : '나';
+    if (mode === 'ai') return { av: [me, cpu(level || 'normal')], name: [myName, '컴퓨터'] };
+    if (mode === 'online') { const av = [], nm = []; av[mySide] = me; nm[mySide] = myName; av[1 - mySide] = (o && o.oppAvatar) || cpu('opp'); nm[1 - mySide] = (o && o.oppNick) || '상대'; return { av, name: nm }; }
+    return { av: [me, cpu('local')], name: ['1P', '2P'] };
+  };
   window.GoBoard = B;
 })();

@@ -7,7 +7,10 @@
 (function () {
   'use strict';
   const B = window.GoBoard;
-  const N = 9, M = 40, C = 50, W = M * 2 + C * (N - 1), H = W;      // 480 × 480
+  const N = 9, M = 40, C = 50, BW = M * 2 + C * (N - 1), H = BW;    // 판 480 × 480
+  // v52: 판 양옆에 돌 통 (흑 왼쪽 · 백 오른쪽). 아바타가 통 아래에서 기다리다 돌을 집어 와서 둠
+  const SIDE = 116, W = BW + SIDE * 2;                                  // 화면 712 × 480
+  const POT = { 1: [SIDE / 2, 150], 2: [W - SIDE / 2, 150] };
   const KOMI = 6.5;
 
   /* ---------- 규칙 ---------- */
@@ -147,8 +150,12 @@
 
   /* ---------- 화면 ---------- */
   const px = k => M + k * C;
+  function drawTable(ctx, names) {
+    B.table(ctx, W, H);
+    [1, 2].forEach(c => { const [x, y] = POT[c]; B.tag(ctx, c === 1 ? '흑' : '백', x, y - 34, 14); B.pot(ctx, x, y, c === 1, 20); if (names && names[c]) B.tag(ctx, names[c], x, H - 8, 12); });
+  }
   function drawBoard(ctx, g, hover, showTerr) {
-    B.wood(ctx, 0, 0, W, H);
+    B.wood(ctx, 0, 0, BW, H);
     for (let k = 0; k < N; k++) { B.line(ctx, px(0), px(k), px(N - 1), px(k), B.INK, 2); B.line(ctx, px(k), px(0), px(k), px(N - 1), B.INK, 2); }
     ctx.strokeStyle = 'rgba(52,28,8,.6)'; ctx.lineWidth = 3; ctx.strokeRect(px(0) - 1, px(0) - 1, px(N - 1) - px(0) + 2, px(N - 1) - px(0) + 2);
     [[2, 2], [6, 2], [4, 4], [2, 6], [6, 6]].forEach(([x, y]) => B.star(ctx, px(x), px(y), 4));
@@ -185,7 +192,18 @@
         hooks.onTurn({ text: (extra ? extra + ' · ' : '') + who + ' · ' + capsText(), side: g.turn - 1 });
       }
       function buttons() { hooks.onButtons([{ id: 'pass', label: '수 넘기기', disabled: over || busy || !human() }]); }
-      const draw = () => drawBoard(ctx, g, hover, over);
+      const cfg = (window.GoSettings && GoSettings.get('baduk')) || {}, MO = cfg.motion || {};
+      let names = {};
+      const homes = {};
+      const mv = B.porter({ redraw: () => draw(), scale: MO.scale || 3, speed: MO.speed, backSpeed: MO.backSpeed, pickMs: MO.pickMs, placeMs: MO.placeMs, homes });
+      [1, 2].forEach(c => { homes[c] = [POT[c][0] + (c === 1 ? -4 : 4), H - 22 - mv.size.h * 0.42]; });
+      const draw = () => { drawTable(ctx, names); ctx.save(); ctx.translate(SIDE, 0); drawBoard(ctx, g, busy ? null : hover, over); ctx.restore(); mv.draw(ctx); };
+      // 돌 하나를 아바타가 옮겨서 둠: 내려놓는 순간 판에 놓임
+      function carry(c, i, done) {
+        busy = true; buttons();
+        mv.add({ who: String(c), pot: POT[c], to: [SIDE + px(i % N), px((i / N) | 0)], piece: (cx, x2, y2) => B.stone(cx, x2, y2, 22, c === 1),
+          onPlace: () => { g.play(i); draw(); }, onDone: () => { busy = mv.busy(); buttons(); if (!over) done(); } });
+      }
       function after(note) {
         draw(); buttons();
         if (g.over) return finish();
@@ -195,8 +213,8 @@
           timer = B.think(() => {
             const m = aiMove(g, level);
             let n = '';
-            if (m < 0) { g.pass(); n = '컴퓨터가 수를 넘겼어요'; } else g.play(m);
-            busy = false; after(n);
+            if (m < 0) { g.pass(); n = '컴퓨터가 수를 넘겼어요'; busy = false; return after(n); }
+            carry(2, m, () => after());
           }, 450);
         }
       }
@@ -205,17 +223,17 @@
         end(w, `계가 결과 흑 ${s.black}집 : 백 ${s.white}집 (덤 ${KOMI}) — ${w === 0 ? '흑' : '백'} 승`, s);
       }
       function end(w, msg, s) {
-        over = true; g.over = true; clock.stop(); draw(); buttons();
+        over = true; g.over = true; mv.clear(); busy = false; clock.stop(); draw(); buttons();
         hooks.onTurn({ text: msg, side: -1 });
         hooks.onOver({ winner: w, message: msg, moves: g.moves, duration_sec: clock.sec(), extra: { moves: g.moves, black: s && s.black, white: s && s.white } });
       }
       const off = B.pointer(canvas, W, H, (t, x, y) => {
-        const gx = Math.round((x - M) / C), gy = Math.round((y - M) / C), ok = gx >= 0 && gy >= 0 && gx < N && gy < N;
+        const gx = Math.round((x - SIDE - M) / C), gy = Math.round((y - M) / C), ok = gx >= 0 && gy >= 0 && gx < N && gy < N;
         const i = ok ? gy * N + gx : null;
         if (t === 'move') { if (i !== hover) { hover = i; draw(); } }
         else if (t === 'leave') { hover = null; draw(); }
         else if (t === 'up' && ok && !over && !busy && human()) {
-          if (g.play(i)) { send(i); after(); } else if (g.b[i] === 0) hooks.onToast && hooks.onToast('그곳은 둘 수 없어요 (자충수 또는 패)');
+          if (g.tryPlay(i)) { hover = null; send(i); carry(g.turn, i, () => after()); turnText(); } else if (g.b[i] === 0) hooks.onToast && hooks.onToast('그곳은 둘 수 없어요 (자충수 또는 패)');
         }
       });
       draw();
@@ -223,12 +241,13 @@
       return {
         get state() { return over ? 'over' : 'playing'; },
         start(o) {
-          clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || 0;
+          clearTimeout(timer); mv.clear(); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || 0;
+          { const pl = B.players(mode, o, side, 'baduk', level); mv.setAvatars({ 1: pl.av[0], 2: pl.av[1] }); names = { 1: pl.name[0], 2: pl.name[1] }; }
           g = Rules(); over = false; busy = false; clock.reset(); clock.start(); hooks.onState('playing'); after();
         },
         press(id) {
-          if (over || busy) return;
-          if (id === 'pass' && human()) { g.pass(); send('pass'); after(name(3 - g.turn) + '이(가) 수를 넘겼어요'); }
+          if (over) return;
+          if (id === 'pass' && !busy && human()) { g.pass(); send('pass'); after(name(3 - g.turn) + '이(가) 수를 넘겼어요'); }
           if (id === 'resign') { clearTimeout(timer); const loser = mode === 'ai' ? 1 : mode === 'online' ? side + 1 : g.turn; send({ resign: 1 }); end(loser === 1 ? 1 : 0, name(loser) + ' 기권 · ' + name(3 - loser) + ' 승'); }
         },
         // 온라인: 상대가 둔 수
@@ -236,10 +255,10 @@
           if (over) return;
           if (m && m.resign) { const loser = 2 - side; return end(loser === 1 ? 1 : 0, (m.left ? '상대가 나갔어요 · ' : name(loser) + ' 기권 · ') + name(3 - loser) + ' 승'); }
           if (m === 'pass') { g.pass(); return after('상대가 수를 넘겼어요'); }
-          if (g.play(m)) after();
+          if (typeof m === 'number' && g.tryPlay(m)) carry(g.turn, m, () => after());
         },
         togglePause() {}, action() {},
-        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); mv.clear(); off(); }
       };
     }
   };

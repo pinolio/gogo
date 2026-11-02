@@ -27,6 +27,16 @@ GoSettings.register({
   levelScore: { easy: 100, normal: 200, hard: 300 },
   goalText() { return '컴퓨터를 이기면 승리'; },
 
+  /* ---- 아바타가 돌·말을 옮기는 움직임 (v52) ---- */
+  // 아바타가 자리(통 아래)에서 기다리다가 → 돌(말)을 집어 → 판으로 걸어가 → 내려놓고 → 자리로 돌아옴
+  motion: {
+    scale: 2.5,        // 아바타 크기 (돌·말 지름의 약 2배)
+    speed: 190,        // 걷는 빠르기 (px/초) — 들고 갈 때
+    backSpeed: 240,    // 자리로 돌아올 때 빠르기 (px/초)
+    pickMs: 550,       // 집는 시간 (1000 = 1초)
+    placeMs: 550       // 내려놓는 시간
+  },
+
   /* ---- 배경음악 ---- */
   bgm: { file: 'bgm/bgm.mp3', volume: 0.4 }
 });
