@@ -4,7 +4,7 @@
  *  파일 3개: data.js (숫자·목록) · world.js (지도 만들기·그림) · game.js (이 파일: 움직임·전투·창·저장)
  *  캐릭터: 사이트 아바타 그대로 + 장비를 위에 겹쳐 그림. 가방 창 '장비 안보이기' = 그림만 숨김 (능력치 그대로)
  *  저장: 이 기기(localStorage) + 로그인하면 서버 game_saves 표 (supabase/rpg_v40.sql). 더 최근 것을 불러옴
- *  조작: WASD/방향키 이동 · Space/J 공격 · 1~4 마법 · Q/E 포션 · I 가방 · K 마법 · F/Enter 들어가기 · Esc 닫기
+ *  조작: 방향키 이동 · Space/J 공격 · 1~4 기본 마법 · Q W E R 융합 마법 · Z/X 포션 · I 가방 · K 마법 · F/Enter 들어가기 · Esc 닫기 (v53)
  *        휴대폰: 왼쪽 조이스틱 + 오른쪽 버튼 (캔버스 위)
  */
 (function () {
@@ -43,7 +43,7 @@
   function newSave() {
     const s = { v: SAVE_V, lv: 1, exp: 0, gold: 50, hp: 0, mp: 0, map: 'v1', x: null, y: null, home: 'v1',
       inv: [{ id: 'hp1', n: 5 }, { id: 'mp1', n: 3 }, { id: 'scroll', n: 1 }], eq: {}, hide: false,
-      stat: { str: 0, dex: 0, int: 0, vit: 0 }, statV: 2, sp: 0, skills: ['magicarrow'], slots: ['magicarrow', null, null, null], visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0 };
+      stat: { str: 0, dex: 0, int: 0, vit: 0 }, statV: 2, sp: 0, skills: ['magicarrow'], slots: ['magicarrow', null, null, null], fslots: [null, null, null, null], visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0 };
     return s;
   }
   function fixSave(s) {
@@ -56,7 +56,11 @@
     Object.keys(s.eq || {}).forEach(k => { if (!ITEMS[s.eq[k]] || ITEMS[s.eq[k]].slot !== k) delete s.eq[k]; });
     s.skills = (s.skills || []).filter(id => skill(id));
     if (!s.skills.includes('magicarrow')) { s.skills.unshift('magicarrow'); if (Array.isArray(s.slots) && !s.slots.includes('magicarrow')) { const i = s.slots.indexOf(null); if (i >= 0) s.slots[i] = 'magicarrow'; } }   // v41 기본 마법
-    s.slots = [0, 1, 2, 3].map(i => (s.slots && s.skills.includes(s.slots[i]) ? s.slots[i] : null));
+    // v53: 1~4 = 기본 마법 칸, Q W E R = 융합 마법 칸. 예전 저장의 1~4 칸에 있던 융합 마법은 융합 칸으로 옮김
+    const oldF = (s.slots || []).filter(id => id && String(id).startsWith('fu:'));
+    s.slots = [0, 1, 2, 3].map(i => (s.slots && s.skills.includes(s.slots[i]) && !String(s.slots[i]).startsWith('fu:') ? s.slots[i] : null));
+    s.fslots = [0, 1, 2, 3].map(i => (s.fslots && s.skills.includes(s.fslots[i]) && String(s.fslots[i]).startsWith('fu:') ? s.fslots[i] : null));
+    oldF.forEach(id => { if (s.skills.includes(id) && !s.fslots.includes(id)) { const j = s.fslots.indexOf(null); if (j >= 0) s.fslots[j] = id; } });
     s.visited = (s.visited || []).filter(id => MAPBY[id]); if (!s.visited.includes('v1')) s.visited.unshift('v1');
     // v44 스탯 4가지 · 레벨당 2포인트 · 스탯마다 최대 50. v43(힘·민첩·지혜, 레벨당 3) 저장은 한 번 모두 돌려받아 다시 나눔
     const st = s.stat && typeof s.stat === 'object' && oldStatV === 2 ? s.stat : {}; if (oldStatV !== 2) { s.statV = 2; if (s.lv > 1) s.statReset = true; }
@@ -100,6 +104,7 @@
   /* ================= 화면 모양 (이 게임 전용 CSS) ================= */
   const CSS = `
   .rg-page .rg-wrap { display: grid; gap: 12px; justify-items: center; }
+  .rg-page .rg-cm { max-width: 960px; margin: 14px auto 0; }
   .rg-page .cabinet { max-width: min(calc(960px + 32px), max(320px, calc((100svh - 190px) * 1.7778 + 32px))); padding: 12px; }
   .rg-page .screen { outline: none; }
   .rg-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
@@ -274,9 +279,11 @@
               <button type="button" class="btn btn-sun" data-rg="save">지금 저장</button>
             </div>
             <div class="rg-side">
+              <div id="rgChatBox"></div>
               <div class="panel"><h3>레벨 랭킹</h3><ol class="rank" id="rgRank"><li class="empty">불러오는 중…</li></ol><p class="small" id="rgMine"></p></div>
             </div>
           </div>
+          <div class="rg-cm">${window.GoSocial ? window.GoSocial.commentsHTML(CFG.name) : ''}</div>
         </div>`;
       const $ = s => el.querySelector(s);
       const canvas = $('#rgCanvas'), screenEl = $('#rgScreen'), panel = $('#rgPanel'), msgEl = $('#rgMsg');
@@ -558,12 +565,15 @@
         const m = nearest(range); if (m) { const a = Math.atan2(m.y - m.spr.h / 2 - (G.py - 20), m.x - G.px); return [Math.cos(a), Math.sin(a)]; }
         const l = Math.hypot(G.fx, G.fy) || 1; return [G.fx / l, G.fy / l];
       }
+      const FKEY = ['Q', 'W', 'E', 'R'];
+      // slot: 0~3 = 기본 마법(1~4), 4~7 = 융합 마법(Q W E R)
       function cast(slot) {
-        const id = S.slots[slot]; if (!id) { say(`${slot + 1}번 칸이 비어 있어요. 마법 창(K)에서 넣어 주세요`); return; }
+        const fu = slot >= 4, id = fu ? S.fslots[slot - 4] : S.slots[slot];
+        if (!id) { say(fu ? `${FKEY[slot - 4]} 칸이 비어 있어요. 마법 창(K)에서 융합 마법을 넣어 주세요` : `${slot + 1}번 칸이 비어 있어요. 마법 창(K)에서 넣어 주세요`); return; }
         const sk = skill(id); if (!sk) return;
         if (G.map.M.kind !== 'field' && sk.kind !== 'heal' && sk.kind !== 'shield') { say(G.room ? '건물 안에서는 공격 마법을 쓸 수 없어요' : '마을에서는 공격 마법을 쓸 수 없어요'); return; }
         if ((G.cds[id] || 0) > 0) return;
-        if (S.mp < sk.mp) { say('마나가 부족해요 (E: 마나 포션)'); return; }
+        if (S.mp < sk.mp) { say('마나가 부족해요 (X: 마나 포션)'); return; }
         S.mp -= sk.mp; G.cds[id] = sk.cd; Fx.castCircle(G.px, G.py, sk.els, !!sk.fusion);
         if (net && net.joined) { const [adx, ady] = aimDir(sk.len || 420); net.cast({ id, x: Math.round(G.px), y: Math.round(G.py - 22), dx: +adx.toFixed(2), dy: +ady.toFixed(2) }); }
         const els = sk.els, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light, base = ST.mag * sk.pow;
@@ -674,7 +684,7 @@
 
         // 입력 → 이동
         let mx = 0, my = 0; const K = G.keys;
-        if (K.ArrowLeft || K.KeyA) mx--; if (K.ArrowRight || K.KeyD) mx++; if (K.ArrowUp || K.KeyW) my--; if (K.ArrowDown || K.KeyS) my++;
+        if (K.ArrowLeft) mx--; if (K.ArrowRight) mx++; if (K.ArrowUp) my--; if (K.ArrowDown) my++;   // v53: 이동은 방향키 (W 는 융합 마법)
         if (G.joy && G.joy.on) { mx = G.joy.vx; my = G.joy.vy; }
         const ml = Math.hypot(mx, my);
         if (G.dash) {
@@ -1054,11 +1064,12 @@
           c.restore();
         }
         if (G.touch || G.room) return;   // 건물 안에서는 아래 마법 칸을 숨김 (나가는 문이 보이게)
-        // 아래 가운데: 마법 4칸 + 포션 2칸
-        const x0 = W / 2 - 186, y0 = H - 66;
-        panelBox(c, x0 - 8, y0 - 8, 372 + 16, 64, 12);
-        for (let i = 0; i < 4; i++) skillSlot(c, x0 + i * 58, y0, 50, i, now);
-        potionSlot(c, x0 + 4 * 58 + 14, y0, 50, 'hp', 'Q'); potionSlot(c, x0 + 5 * 58 + 14, y0, 50, 'mp', 'E');
+        // 아래 가운데: 기본 마법 4칸(1~4) + 융합 마법 4칸(Q W E R) + 포션 2칸(Z X)
+        const bw = 10 * 54 + 2 * 12 - 4, x0 = Math.round(W / 2 - bw / 2), y0 = H - 62;
+        panelBox(c, x0 - 8, y0 - 8, bw + 16, 60, 12);
+        for (let i = 0; i < 4; i++) skillSlot(c, x0 + i * 54, y0, 46, i, now);
+        for (let i = 0; i < 4; i++) skillSlot(c, x0 + 4 * 54 + 12 + i * 54, y0, 46, 4 + i, now);
+        potionSlot(c, x0 + 8 * 54 + 24, y0, 46, 'hp', 'Z'); potionSlot(c, x0 + 9 * 54 + 24, y0, 46, 'mp', 'X');
       }
       function drawMini(c, now) {
         const map = G.map, mw = 150, k = mw / map.w, mh = Math.round(map.h * k), x0 = W - mw - 14, y0 = 12;
@@ -1071,8 +1082,8 @@
         c.strokeStyle = 'rgba(255,255,255,.6)'; c.strokeRect(x0 + cam.x / TS * k, y0 + cam.y / TS * k, W / TS * k, H / TS * k);
       }
       function skillSlot(c, x, y, s, i, now) {
-        const id = S.slots[i], sk = skill(id);
-        c.fillStyle = '#0A0E24'; rr(c, x - 1, y - 1, s + 2, s + 2, 7); c.fill(); c.fillStyle = '#1A2148'; rr(c, x, y, s, s, 6); c.fill();
+        const fu = i >= 4, id = fu ? S.fslots[i - 4] : S.slots[i], sk = skill(id);
+        c.fillStyle = '#0A0E24'; rr(c, x - 1, y - 1, s + 2, s + 2, 7); c.fill(); c.fillStyle = fu ? '#2A1A48' : '#1A2148'; rr(c, x, y, s, s, 6); c.fill();
         if (sk) {
           c.save(); rr(c, x + 1, y + 1, s - 2, s - 2, 5); c.clip(); c.drawImage(Fx.icon(sk, 48), x + 1, y + 1, s - 2, s - 2);
           const cd = G.cds[id] || 0;
@@ -1081,7 +1092,7 @@
           if (S.mp < sk.mp) { c.fillStyle = 'rgba(40,60,160,.6)'; c.fillRect(x, y, s, s); }
           c.restore();
         }
-        c.fillStyle = '#0A0E24'; rr(c, x - 3, y - 3, 15, 15, 4); c.fill(); c.font = '11px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFD23F'; c.fillText(String(i + 1), x + 4.5, y + 5);
+        c.fillStyle = '#0A0E24'; rr(c, x - 3, y - 3, 15, 15, 4); c.fill(); c.font = '11px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = fu ? '#E7A6FF' : '#FFD23F'; c.fillText(fu ? FKEY[i - 4] : String(i + 1), x + 4.5, y + 5);
       }
       function potionSlot(c, x, y, s, kind, key) {
         const n = POT_T.reduce((a, t) => a + count(kind + t), 0);
@@ -1094,7 +1105,7 @@
       }
       const potionImgs = {};
       // 휴대폰 버튼 (캔버스 좌표)
-      const TB = { atk: { x: 880, y: 456, r: 48 }, s0: { x: 768, y: 482, r: 31 }, s1: { x: 778, y: 398, r: 31 }, s2: { x: 836, y: 346, r: 31 }, s3: { x: 914, y: 334, r: 31 }, hp: { x: 688, y: 500, r: 25 }, mp: { x: 636, y: 500, r: 25 } };
+      const TB = { atk: { x: 880, y: 456, r: 48 }, s0: { x: 768, y: 482, r: 31 }, s1: { x: 778, y: 398, r: 31 }, s2: { x: 836, y: 346, r: 31 }, s3: { x: 914, y: 334, r: 31 }, f0: { x: 694, y: 420, r: 26 }, f1: { x: 712, y: 346, r: 26 }, f2: { x: 768, y: 290, r: 26 }, f3: { x: 842, y: 262, r: 26 }, hp: { x: 688, y: 500, r: 25 }, mp: { x: 636, y: 500, r: 25 } };
       function drawTouch(c) {
         if (G.joy && G.joy.on) { c.globalAlpha = 0.3; c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(G.joy.cx, G.joy.cy, 62, 0, Math.PI * 2); c.fill(); c.globalAlpha = 0.85; const g = c.createRadialGradient(G.joy.cx + G.joy.vx * 50, G.joy.cy + G.joy.vy * 50, 4, G.joy.cx + G.joy.vx * 50, G.joy.cy + G.joy.vy * 50, 28); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#9AA8E0'); c.fillStyle = g; c.beginPath(); c.arc(G.joy.cx + G.joy.vx * 50, G.joy.cy + G.joy.vy * 50, 28, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; }
         else { c.globalAlpha = 0.3; c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.beginPath(); c.arc(110, 436, 62, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.arc(110, 436, 24, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1; }
@@ -1102,10 +1113,10 @@
           c.globalAlpha = G.btnDown[k] ? 0.9 : 0.62; c.fillStyle = '#0A0E24'; c.beginPath(); c.arc(b.x, b.y, b.r, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1;
           if (k === 'atk') { const g = c.createRadialGradient(b.x, b.y - 10, 4, b.x, b.y, b.r); g.addColorStop(0, '#FFE45C'); g.addColorStop(1, '#C88A10'); c.fillStyle = g; c.beginPath(); c.arc(b.x, b.y, b.r - 5, 0, Math.PI * 2); c.fill(); c.font = '18px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#1D2340'; c.fillText('공격', b.x, b.y + 1); return; }
           if (k === 'hp' || k === 'mp') { const n = POT_T.reduce((a, t) => a + count(k + t), 0); c.fillStyle = k === 'hp' ? '#D2343A' : '#2F55D9'; c.beginPath(); c.arc(b.x, b.y, b.r - 4, 0, Math.PI * 2); c.fill(); c.font = '13px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF'; c.fillText(String(n), b.x, b.y + 1); return; }
-          const i = +k[1], sk = skill(S.slots[i]);
+          const fu = k[0] === 'f', i = +k[1], sk = skill(fu ? S.fslots[i] : S.slots[i]);
           c.save(); c.beginPath(); c.arc(b.x, b.y, b.r - 4, 0, Math.PI * 2); c.clip();
           if (sk) { c.drawImage(Fx.icon(sk, 64), b.x - b.r, b.y - b.r, b.r * 2, b.r * 2); const cd = G.cds[sk.id] || 0; if (cd > 0) { c.fillStyle = 'rgba(10,14,36,.7)'; c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cd / sk.cd); c.fill(); c.font = '14px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF'; c.fillText(cd.toFixed(1), b.x, b.y + 1); } }
-          else { c.fillStyle = '#2A325E'; c.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2); c.font = '14px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#8A93C0'; c.fillText(String(i + 1), b.x, b.y + 1); }
+          else { c.fillStyle = '#2A325E'; c.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2); c.font = '14px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#8A93C0'; c.fillText(fu ? FKEY[i] : String(i + 1), b.x, b.y + 1); }
           c.restore();
         });
         c.globalAlpha = 1;
@@ -1200,9 +1211,10 @@
           } else h += `<div class="rg-detail hint">칸을 누르면 자세히 보여요. 장비는 <b>입기</b>, 물약은 <b>쓰기</b>. 사냥터 몬스터가 장비를 떨어뜨려요 (보스는 꼭!)</div>`;
           h += '</section></div>';
         } else if (k === 'skill') {
-          h = head('마법', '마법을 누른 뒤 1~4 칸 버튼으로 넣어요. 같은 마법을 다른 칸에 넣으면 옮겨져요. 새 마법은 마을의 <b>도술 서원</b>에서 배워요.');
+          h = head('마법', '기본 마법은 <b>1~4</b> 칸, 융합 마법은 <b>Q W E R</b> 칸에 넣어요. 같은 마법을 다른 칸에 넣으면 옮겨져요. 새 마법은 마을의 <b>도술 서원</b>에서 배워요.');
           h += `<div class="rg-slots">${[0, 1, 2, 3].map(i => { const sk = skill(S.slots[i]); return `<span class="rg-slot"><b>${i + 1}</b>${sk ? `<img class="rg-sk" src="${Fx.iconURL(sk)}" alt="">${sk.name}` : '<i>비어 있음</i>'}</span>`; }).join('')}</div>`;
-          h += `<ul class="rg-list">${S.skills.length ? S.skills.map(id => { const sk = skill(id); return `<li class="rg-row"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${sk.fusion ? '융합 · ' : ''}${sk.name} <small style="color:#AEB7E0">Lv.${sk.lv}</small></span><span class="ds">${describe(sk)}</span></span>${[0, 1, 2, 3].map(i => `<button type="button" class="rg-mini${S.slots[i] === id ? ' on' : ' ghost'}" data-slot="${i}:${id}">${i + 1}</button>`).join('')}</li>`; }).join('') : '<li class="rg-row">아직 배운 마법이 없어요. Lv.3이 되면 솔뫼 마을 도술 서원에서 파이어볼을 배울 수 있어요.</li>'}</ul>`;
+          h += `<div class="rg-slots">${[0, 1, 2, 3].map(i => { const sk = skill(S.fslots[i]); return `<span class="rg-slot" style="border-color:#B57BFF"><b style="color:#E7A6FF">${FKEY[i]}</b>${sk ? `<img class="rg-sk" src="${Fx.iconURL(sk)}" alt="">${sk.name}` : '<i>융합 마법</i>'}</span>`; }).join('')}</div>`;
+          h += `<ul class="rg-list">${S.skills.length ? S.skills.map(id => { const sk = skill(id); return `<li class="rg-row"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${sk.fusion ? '융합 · ' : ''}${sk.name} <small style="color:#AEB7E0">Lv.${sk.lv}</small></span><span class="ds">${describe(sk)}</span></span>${[0, 1, 2, 3].map(i => sk.fusion ? `<button type="button" class="rg-mini${S.fslots[i] === id ? ' on' : ' ghost'}" data-slot="f${i}|${id}">${FKEY[i]}</button>` : `<button type="button" class="rg-mini${S.slots[i] === id ? ' on' : ' ghost'}" data-slot="${i}|${id}">${i + 1}</button>`).join('')}</li>`; }).join('') : '<li class="rg-row">아직 배운 마법이 없어요. Lv.3이 되면 솔뫼 마을 도술 서원에서 파이어볼을 배울 수 있어요.</li>'}</ul>`;
         } else if (k === 'potion') {
           const ri = G.map.M.region, t = tab.potion || 'buy';
           h = head('약방', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 이 마을은 ${ri + 1}단계 포션까지 팔아요`) + npcBox() + tabs('potion', [['buy', '사기'], ['sell', '팔기']]);
@@ -1293,7 +1305,7 @@
         } else if (k === 'help') {
           h = head('도움말', '내 아바타로 떠나는 도트 RPG — 혼자 플레이 첫 버전') + (imgOk('key') ? `<img src="${imgOk('key').src}" alt="" style="width:100%;border-radius:10px;border:2px solid #0A0E24;margin:4px 0 10px;display:block">` : '');
           h += `<ul class="ult-rules">
-            <li><b>이동</b> WASD·방향키 · <b>공격</b> Space·J · <b>마법</b> 1~4 · <b>포션</b> Q(체력) E(마나) · <b>가방</b> I · <b>마법 창</b> K · <b>창 닫기</b> Esc</li>
+            <li><b>이동</b> 방향키 · <b>공격</b> Space·J · <b>기본 마법</b> 1~4 · <b>융합 마법</b> Q W E R · <b>포션</b> Z(체력) X(마나) · <b>가방</b> I · <b>마법 창</b> K · <b>창 닫기</b> Esc</li>
             <li>휴대폰은 화면 왼쪽을 끌면 이동(조이스틱), 오른쪽 버튼으로 공격·마법·포션. 가로로 돌리면 더 커요.</li>
             <li>지도 <b>오른쪽 끝 → 다음 지도</b>, 왼쪽 끝 → 이전 지도. 마을 → 사냥터 10곳 → 다음 마을 … 마을 하나가 10레벨씩(솔뫼 마을 Lv.1~10 … 구름절 마을 Lv.71~80), 마지막 도원수 진영은 Lv.80~100.</li>
             <li>문으로 걸어 들어가면 <b>건물 안</b>이에요. 안에 있는 사람에게 가까이 가면 이야기해요: <b>약방</b> 미나 · <b>도술 서원</b> 루멘(마법 배우기·융합) · <b>이장 댁</b> 이장님(무료 이동·저장). 아래 가운데 문으로 나가요.</li>
@@ -1348,8 +1360,11 @@
           const id = S.eq[d.unequip]; if (!id) return; if (!addItem(id, 1)) return; delete S.eq[d.unequip]; restat(); markDirty(true); if (net) net.retrack(); tab.invSel = id;
         } else if (d.use) { useItem(d.use); if (!count(d.use)) tab.invSel = null; }
         else if (d.slot) {
-          const [i, id] = d.slot.split(':'); const n = +i;
-          if (S.slots[n] === id) S.slots[n] = null; else { S.slots = S.slots.map(x => (x === id ? null : x)); S.slots[n] = id; }
+          // v53: 융합 마법 id 에 ':' 가 들어 있어(fu:a+b) 예전엔 칸에 안 들어갔음 → '|' 로 나눔
+          const cut = d.slot.indexOf('|'), key = d.slot.slice(0, cut), id = d.slot.slice(cut + 1), fu = key[0] === 'f', n = +key.replace('f', '');
+          const arr = fu ? 'fslots' : 'slots';
+          if (fu !== String(id).startsWith('fu:')) return;
+          if (S[arr][n] === id) S[arr][n] = null; else { S[arr] = S[arr].map(x => (x === id ? null : x)); S[arr][n] = id; }
           markDirty();
         } else if (d.buy) {
           const [id, n] = d.buy.split(':'), it = ITEMS[id], cost = it.price * +n; if (S.gold < cost) return;
@@ -1363,8 +1378,8 @@
         } else if (d.fuse) {
           const [a, bb] = d.fuse.split('+'), id = fuseId(a, bb), price = fusePrice(a, bb);
           if (S.gold < price || S.skills.includes(id) || !skill(id)) return;
-          S.gold -= price; S.skills.push(id); const free = S.slots.indexOf(null); if (free >= 0) S.slots[free] = id;
-          say(`융합 성공! '${skill(id).name}'`, 3); markDirty(true);
+          S.gold -= price; S.skills.push(id); const free = S.fslots.indexOf(null); if (free >= 0) S.fslots[free] = id;
+          say(`융합 성공! '${skill(id).name}'${free >= 0 ? ` ${FKEY[free]} 키로 써 보세요` : ' 마법 창(K)에서 Q W E R 칸에 넣어요'}`, 3); markDirty(true);
         } else if (d.go) { const id = d.go; pane = null; panel.hidden = true; G.paused = false; enter(id, MAPBY[id].kind === 'village' ? 'door' : 'L'); return; }
         else if (d.addst) { const [q, n0] = d.addst.split(':'), n = Math.min(+n0, S.sp, D.STAT.max - (S.stat[q] || 0)); if (n > 0 && S.stat[q] != null) { S.stat[q] += n; S.sp -= n; const hr = S.hp / ST.hp; restat(); if (q === 'vit') S.hp = Math.round(ST.hp * hr); markDirty(true); } }
         else if ('streset' in d) { D.STAT.keys.forEach(q => { S.sp += S.stat[q]; S.stat[q] = 0; }); restat(); markDirty(true); say('스탯 포인트를 모두 돌려받았어요. 다시 나눠 주세요', 2.4); }
@@ -1391,7 +1406,7 @@
       });
 
       /* ================= 입력 ================= */
-      const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyJ', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyE', 'KeyI', 'KeyK', 'KeyC', 'KeyF', 'Enter', 'Escape']);
+      const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyJ', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyZ', 'KeyX', 'KeyI', 'KeyK', 'KeyC', 'KeyF', 'Enter', 'Escape']);
       function onKey(e) {
         if (!S || !G.map) return;
         const tag = (e.target.tagName || '').toLowerCase();
@@ -1408,8 +1423,9 @@
         G.keys[e.code] = down;
         if (!down || e.repeat) return;
         if (e.code.startsWith('Digit')) cast(+e.code.slice(5) - 1);
-        else if (e.code === 'KeyQ') usePotion('hp');
-        else if (e.code === 'KeyE') usePotion('mp');
+        else if (e.code === 'KeyQ' || e.code === 'KeyW' || e.code === 'KeyE' || e.code === 'KeyR') cast(4 + 'QWER'.indexOf(e.code[3]));
+        else if (e.code === 'KeyZ') usePotion('hp');
+        else if (e.code === 'KeyX') usePotion('mp');
         else if (e.code === 'KeyF' || e.code === 'Enter') {
           if (net && net.peers.size) { let pp = null, bd = 70; net.peers.forEach(q => { const dd = Math.hypot(G.px - q.x, G.py - q.y); if (dd < bd) { bd = dd; pp = q; } }); if (pp) { askTrade(pp); return; } }
           if (G.room) { const n = (G.npcs || []).find(q => Math.hypot(G.px - q.talk.x, G.py - q.talk.y) < q.talk.r * 1.4); if (n) talk(n); return; }
@@ -1433,7 +1449,7 @@
         if (!G.touch) { screenEl.focus({ preventScroll: true }); return; }
         e.preventDefault(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
         const p = toC(e), b = btnAt(p);
-        if (b) { pts[e.pointerId] = { btn: b }; G.btnDown[b] = true; if (b[0] === 's') cast(+b[1]); else if (b === 'hp' || b === 'mp') usePotion(b); return; }
+        if (b) { pts[e.pointerId] = { btn: b }; G.btnDown[b] = true; if (b[0] === 's') cast(+b[1]); else if (b[0] === 'f') cast(4 + +b[1]); else if (b === 'hp' || b === 'mp') usePotion(b); return; }
         if (p.x < W * 0.55) { pts[e.pointerId] = { joy: true }; G.joy = { on: true, cx: p.x, cy: p.y, vx: 0, vy: 0 }; }
       }, { passive: false });
       canvas.addEventListener('pointermove', e => {
@@ -1504,8 +1520,27 @@
       raf = requestAnimationFrame(loop);
       BGM.play();
 
+      /* ---------- v53 댓글·피드백 + 서버 채팅 (같은 서버 사람끼리만) ---------- */
+      const SOC = window.GoSocial, sui = { toast: A.toast, esc: A.esc, openAuth: A.openAuth, ago: A.ago || (x => x), avCanvas: A.avCanvas || (() => '') };
+      const offComments = SOC ? SOC.mountComments(GAME, sui) : () => {};
+      let chatSrv = -1, offChat = () => {};
+      function chatSync() {
+        const box = $('#rgChatBox'); if (!box || !SOC) return;
+        const srv = net && net.joined ? net.server : 0; if (srv === chatSrv) return;
+        chatSrv = srv; offChat(); offChat = () => {};
+        if (!srv) {
+          box.innerHTML = `<div class="panel chat-panel"><h3>서버 채팅</h3><p class="chat-note" style="margin:6px 0 10px">서버에 들어가면 <b>같은 서버</b>에 있는 사람끼리 채팅할 수 있어요.</p>${Hub.user ? '<button type="button" class="btn btn-sm btn-block" data-rg="servers">서버 고르기</button>' : '<button type="button" class="btn btn-sm btn-block" data-auth="login">로그인하고 서버 들어가기</button>'}</div>`;
+          return;
+        }
+        box.innerHTML = SOC.chatHTML();
+        const h3 = box.querySelector('h3'); if (h3 && h3.firstChild) h3.firstChild.textContent = srv + '서버 채팅 ';
+        offChat = SOC.mountChat('rpg-s' + srv, sui);
+      }
+      chatSync(); const chatT = setInterval(chatSync, 1200);
+      $('#rgChatBox').addEventListener('click', e => { if (e.target.closest('[data-rg="servers"]') && S) openPanel('servers'); });
+
       return () => {
-        alive = false; cancelAnimationFrame(raf); clearInterval(srvTimer);
+        alive = false; cancelAnimationFrame(raf); clearInterval(srvTimer); clearInterval(chatT); offChat(); offComments();
         if (S) save(true);
         if (net) net.leave();
         document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey);

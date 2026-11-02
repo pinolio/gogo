@@ -1028,7 +1028,7 @@
     else if (h === '2048' || h === 'p1024') { location.replace('#p512'); return; }   // 2048 → 퍼즐512
     else if (SET.get(h) && SET.get(h).page && window[SET.get(h).page]) {
       current = h; setNav('home');
-      cleanups.push(window[SET.get(h).page].render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText, rankItems }));
+      cleanups.push(window[SET.get(h).page].render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText, rankItems, ago, avCanvas }));
     }
     else if (gameById(h)) renderPlay(h);
     else if (h === 'rank') renderRank();
