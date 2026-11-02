@@ -86,7 +86,7 @@
       e.over = false; e.acc = 0; e.pending = []; e.elapsed = 0;
       spawn();
     };
-    e.interval = () => Math.max(90, 800 - (e.level - 1) * 65);
+    e.interval = () => Math.max(90, 800 - (e.level - 1) * 65) / (opt.speed || 1);   // v58: opt.speed = 빠르기 배수 (랭킹 대전 1.5)
     e.move = function (dx, dy) {
       if (e.over || e.hit(e.cur.m, e.cur.x + dx, e.cur.y + dy)) return false;
       e.cur.x += dx; e.cur.y += dy; return true;

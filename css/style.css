@@ -885,6 +885,9 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 .play-mode:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--shadow); }
 .play-mode:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; }
 .pm-ai { background: linear-gradient(180deg, #4C7DFF, #2F55C9); }
+/* v57: 랭킹 대전 카드 — 노랑 바탕 + 진한 남색 글자 (회색으로 보이던 것) */
+.pm-rank { background: linear-gradient(180deg, #FFD84A, #F2AE12); color: #1D2340; }
+.pm-rank .pm-pts { background: #1D2340; color: #FFD84A; }
 .pm-offline { background: linear-gradient(180deg, #3DBE7A, #21894F); }
 .pm-online { background: linear-gradient(180deg, var(--grape), #7E4DE0); }
 .pm-name { font-family: var(--f-display); font-size: 26px; }

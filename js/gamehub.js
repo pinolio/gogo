@@ -719,6 +719,11 @@
   const online = !!(cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase);
   Hub.mode = online ? 'online' : 'demo';
   Object.assign(Hub, online ? Online() : Demo());
+  // v58: 게임 랭킹을 다른 기록 이름으로 보여 줄 때 (settings.js 의 rankId). 예: 블록 대전 랭킹 = 랭킹 대전 점수('battle-rank')
+  ['leaderboard', 'myBest'].forEach(k => {
+    const f = Hub[k];
+    Hub[k] = function (game, ...rest) { const s = window.GoSettings && window.GoSettings.get(game); return f.call(this, (s && s.rankId) || game, ...rest); };
+  });
   Hub.channel = online ? (n, h) => supaChannel(Hub._sb, n, h) : localChannel;
   window.GameHub = Hub;
 })();

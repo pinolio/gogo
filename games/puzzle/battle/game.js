@@ -16,7 +16,14 @@
   const C = 24, HOLDW = 72, METER = 14, SIDE = 132, BX = HOLDW + METER, W = BX + B.COLS * C + SIDE, H = B.ROWS * C, MINI = 9;
   const levelFn = e => Math.min(15, Math.max(1 + Math.floor(e.lines / 10), 1 + Math.floor(e.elapsed / 30000))); // 30초마다 빨라짐
   // v56 랭킹 대전: 혼자 점수 쌓기. 처음부터 빠르고(온라인 대전보다) 더 자주 빨라짐 — 숫자는 settings.js 의 rank
-  const RK = () => Object.assign({ startLevel: 5, levelEverySec: 20, linesPerLevel: 8, maxLevel: 15, pointsPer: 5000, maxPoints: 5 }, (window.GoSettings.get('battle') || {}).rank || {});
+  const RK = () => Object.assign({ speed: 1.5, startLevel: 5, levelEverySec: 20, linesPerLevel: 8, maxLevel: 15, pointsPer: 50, maxPoints: 5, lineScore: { 1: 1, 2: 2, 3: 6, 4: 10 }, tetrisChain: [10, 20, 30, 40] }, (window.GoSettings.get('battle') || {}).rank || {});
+  const RANK_ID = () => (window.GoSettings.get('battle') || {}).rankId || 'battle-rank';
+  // v58 랭킹 대전 점수: 1줄 1 · 2줄 2 · 3줄 6 · 4줄 10, 4줄을 연달아 지우면 20 → 30 → 40
+  function rankPoints(n, st) {
+    const r = RK();
+    if (n >= 4) { st.chain = (st.chain || 0) + 1; return r.tetrisChain[Math.min(r.tetrisChain.length, st.chain) - 1]; }
+    st.chain = 0; return r.lineScore[n] || 0;
+  }
   const rankLevelFn = e => { const r = RK(); return Math.min(r.maxLevel, Math.max(r.startLevel + Math.floor(e.lines / r.linesPerLevel), r.startLevel + Math.floor(e.elapsed / (r.levelEverySec * 1000)))); };
   // v56 좌우·아래 키를 누르고 있으면: 0.13초 뒤부터 0.035초마다 한 칸 (예전: 키보드 자동 반복 약 0.5초 뒤 · 초당 30번 → 처음이 느렸음)
   const DAS = 130, ARR = 35, SOFT = 35;
@@ -32,7 +39,7 @@
   const KEY_2P = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', Slash: 'rotateL', Enter: 'drop', NumpadEnter: 'drop', Numpad0: 'drop', ShiftRight: 'hold', Period: 'hold' };
   const P2 = 'local-2p';
   const PLAY = {
-    rank: { name: '랭킹 대전', desc: '혼자 하며 점수를 쌓아 랭킹에 올라요. 처음부터 빠르고 점점 더 빨라져요!', pts: '점수 5,000점마다 +1P (한 판 최대 +5P)' },
+    rank: { name: '랭킹 대전', desc: '혼자 하며 점수를 쌓아 랭킹에 올라요. 처음부터 빠르고 점점 더 빨라져요! 4줄을 연달아 지우면 점수가 커져요.', pts: '50점마다 +1P (한 판 최대 +5P)' },
     offline: { name: '오프라인 대결', desc: '한 컴퓨터에서 키보드를 나눠 2명이 겨뤄요. 컴퓨터도 더할 수 있어요.', pts: '승리 +1P · 패배 -1P (1P 기록)' },
     online: { name: '온라인 대결', desc: '방 코드로 다른 기기의 친구와 실시간으로 겨뤄요.', pts: '사람과 대결 승리 +2P · 패배 -1P' }
   };
@@ -402,7 +409,7 @@
     };
     const rank = room.local && room.play === 'rank';
     const mk = id => ({
-      seed, levelFn: rank ? rankLevelFn : levelFn,
+      seed, levelFn: rank ? rankLevelFn : levelFn, speed: rank ? RK().speed : 1,
       onClear: n => onClear(id, n),
       onLock: () => sendBoard(id),
       onTopOut: () => { sendBoard(id, true); ko(id); }
@@ -433,6 +440,12 @@
   const mainIds = () => match ? [Hub.clientId].concat(match.roster.filter(r => r.human && match.local[r.id]).map(r => r.id)) : [];
 
   function onClear(id, n) {
+    if (match.play === 'rank') {   // 랭킹 대전: 공격 없음, 점수만
+      const st = match.rk || (match.rk = { score: 0, chain: 0, tetris: 0 }), add = rankPoints(n, st);
+      st.score += add; if (n >= 4) st.tetris++;
+      (match.popups[id] = match.popups[id] || []).push({ text: n + '줄! +' + add + (n >= 4 && st.chain > 1 ? ' (' + st.chain + '연속)' : ''), t: 0, hot: n >= 3 });
+      return;
+    }
     const atk = ATTACK[n] || 0;
     if (mainIds().includes(id)) (match.popups[id] = match.popups[id] || []).push({ text: n + '줄!' + (atk ? ' 공격 +' + atk : ''), t: 0, hot: !!atk });
     if (!atk) return;
@@ -509,13 +522,13 @@
 
   // 랭킹 대전 기록: 점수 = 줄 지우기 점수(빠를수록 큼), 포인트 = 5,000점마다 +1P (최대 +5P), 승패는 남기지 않음
   async function saveRank(eng) {
-    const r = RK(), m = match, score = eng.score, delta = Math.min(r.maxPoints, Math.floor(score / r.pointsPer));
-    const best = Hub.user ? await Hub.myBest('battle').catch(() => null) : null;
+    const r = RK(), m = match, score = (m.rk && m.rk.score) || 0, delta = Math.min(r.maxPoints, Math.floor(score / r.pointsPer));
+    const best = Hub.user ? await Hub.myBest('battle').catch(() => null) : null;   // myBest('battle') → 랭킹 대전 기록(rankId)
     m.saved = { status: Hub.user ? 'saving' : 'guest', score, delta, rank: true, newBest: best == null || score > best };
     if (match === m) showResult();
     if (!Hub.user) return;
     try {
-      const res = await Hub.submitScore({ game_id: 'battle', score, result: null, points_delta: delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: 'rank', lines: eng.lines, level: eng.level } });
+      const res = await Hub.submitScore({ game_id: RANK_ID(), score, result: null, points_delta: delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: 'rank', lines: eng.lines, level: eng.level, tetris: (m.rk && m.rk.tetris) || 0 } });
       m.saved = { ...m.saved, status: res.queued ? 'queued' : 'saved', gained: res.gained };
     } catch (e) { m.saved = { ...m.saved, status: 'error', msg: e.message }; }
     if (match === m) showResult();
@@ -597,7 +610,7 @@
     const ov = $('#btOv'); let n = 3;
     const hint = () => match.play === 'offline'
       ? '1P: WASD · Space 한 번에 · 왼쪽 Shift 저장<br>2P: 방향키 · Enter 한 번에 · 오른쪽 Shift 저장'
-      : match.play === 'rank' ? '랭킹 대전 · 혼자 점수 쌓기 · 20초마다 빨라져요 · Ctrl 블록 저장' : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
+      : match.play === 'rank' ? '랭킹 대전 · 1줄 1점 · 2줄 2점 · 3줄 6점 · 4줄 10점 (연속 20·30·40) · Ctrl 블록 저장' : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
     const step = () => {
       if (!match || !ov.isConnected) return;
       if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${hint()}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
@@ -625,7 +638,7 @@
     ctx.fillStyle = P.PANEL; ctx.fillRect(0, 0, HOLDW, H);
     P.text(ctx, 'HOLD', 10, 18, 10, P.DIM);
     B.drawBox(ctx, eng.hold, 8, 36, HOLDW - 16, 52, 12, !eng.canHold);
-    P.text(ctx, match.play === 'offline' ? (id === Hub.clientId ? 'L-SHIFT' : 'R-SHIFT') : 'CTRL', 10, 98, 7, '#5D6699');
+    P.text(ctx, match.play === 'offline' ? (id === Hub.clientId ? 'L-SHIFT' : 'R-SHIFT') : 'CTRL', 10, 98, 7, '#8FD3FF');
     // 받을 공격 막대
     ctx.fillStyle = '#0B0F28'; ctx.fillRect(HOLDW, 0, METER, H);
     const pend = eng.pendingLines();
@@ -643,10 +656,17 @@
     ctx.fillStyle = '#2A3366'; ctx.fillRect(x0, 0, 2, H);
     P.text(ctx, 'NEXT', cx, 14, 10, P.DIM);
     B.drawQueue(ctx, eng, cx, 30, 96, 5);
-    if (match.play === 'rank') { P.text(ctx, 'SCORE', cx, 250, 9, P.DIM); P.text(ctx, A.fmt(eng.score), cx, 264, 13, P.PIECE.O); }
-    else { P.text(ctx, 'ATTACK', cx, 290, 9, P.DIM); P.text(ctx, eng.sent, cx, 304, 13, '#FF5A5F'); }
-    P.text(ctx, 'LINES', cx + 56, 290, 9, P.DIM); P.text(ctx, eng.lines, cx + 56, 304, 13, P.INK);
-    P.text(ctx, 'SPEED', cx, 336, 9, P.DIM); P.text(ctx, eng.level, cx, 350, 13, P.PIECE.O);
+    if (match.play === 'rank') {   // v58: 다음 블록 5칸(아래 끝 y=272) 아래로 — 예전엔 SCORE 가 5번째 칸과 겹쳤음
+      const rk = match.rk || {};
+      P.text(ctx, 'SCORE', cx, 292, 9, P.DIM); P.text(ctx, A.fmt(rk.score || 0), cx, 308, 15, P.PIECE.O);
+      P.text(ctx, 'LINES', cx, 340, 9, P.DIM); P.text(ctx, eng.lines, cx, 354, 13, P.INK);
+      P.text(ctx, 'SPEED', cx + 56, 340, 9, P.DIM); P.text(ctx, eng.level, cx + 56, 354, 13, P.PIECE.O);
+      if ((rk.chain || 0) > 0) { P.text(ctx, '4LINE', cx, 386, 9, P.DIM); P.text(ctx, rk.chain + ' COMBO', cx, 400, 11, P.PIECE.I); }
+    } else {
+      P.text(ctx, 'ATTACK', cx, 290, 9, P.DIM); P.text(ctx, eng.sent, cx, 304, 13, '#FF5A5F');
+      P.text(ctx, 'LINES', cx + 56, 290, 9, P.DIM); P.text(ctx, eng.lines, cx + 56, 304, 13, P.INK);
+      P.text(ctx, 'SPEED', cx, 336, 9, P.DIM); P.text(ctx, eng.level, cx, 350, 13, P.PIECE.O);
+    }
     if (match.play === 'rank') { /* 혼자: 생존 표시 없음 */ }
     else if (match.mode === 'team') {
       const c = { blue: 0, red: 0 }; match.alive.forEach(i => { c[match.teamOf[i]]++; });
@@ -695,8 +715,8 @@
     ov.hidden = false;
     ov.innerHTML = `<div class="ov-box result">
       <canvas class="ov-avatar" data-avatar="${AV.attr(myAvatar())}" data-scale="3" aria-hidden="true"></canvas>
-      <div class="ov-title">${A.fmt(eng ? eng.score : 0)}점</div>${s.newBest && Hub.user ? '<span class="ov-best">NEW BEST</span>' : ''}
-      <p class="ov-hint">지운 줄 ${eng ? eng.lines : 0} · 최고 속도 ${eng ? eng.level : 1} · ${A.dur(match.clock.sec())}</p>
+      <div class="ov-title">${A.fmt((match.rk && match.rk.score) || 0)}점</div>${s.newBest && Hub.user ? '<span class="ov-best">NEW BEST</span>' : ''}
+      <p class="ov-hint">지운 줄 ${eng ? eng.lines : 0} · 4줄 ${(match.rk && match.rk.tetris) || 0}번 · 최고 속도 ${eng ? eng.level : 1} · ${A.dur(match.clock.sec())}</p>
       ${note}
       <div class="ov-btns"><button class="btn btn-sun" type="button" id="btAgain">한 판 더 ▶</button><button class="btn" type="button" id="btBack">대결 방식 고르기</button></div>
     </div>`;

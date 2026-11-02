@@ -5,7 +5,8 @@
 
   const P = {
     // 게임 화면은 테마와 관계없이 '어두운 오락실 스크린'으로 통일합니다.
-    BOARD: '#161C3A', PANEL: '#0F1430', GRID: '#20294F', INK: '#EEF1FF', DIM: '#8A93C0',
+    BOARD: '#161C3A', PANEL: '#0F1430', GRID: '#20294F', INK: '#EEF1FF', DIM: '#8FD3FF',   // v58: DIM 회색빛(#8A93C0) → 밝은 하늘색 (선생님: 회색 쓰지 않기)
+   
     PIECE: { I: '#3BC8F5', O: '#FFD23F', T: '#A66BFF', S: '#3DDC84', Z: '#FF5A5F', J: '#4C7DFF', L: '#FF9A3D' },
 
     setup(canvas, w, h) {
