@@ -45,7 +45,7 @@
   function spell(a, b) {   // a, b = 원소 (b 없으면 기본 마법)
     if (!b) return Object.assign({ els: [a], name: SK[a].n, count: 1, fused: false }, SK[a]);
     const A = SK[a], B = SK[b], same = a === b;
-    return { els: same ? [a] : [a, b], name: FU[fuseKey(a, b)], fused: true, count: same ? 1 : 3, dmg: Math.round((A.dmg + B.dmg) * (same ? 1.05 : 0.5)), mp: Math.round((A.mp + B.mp) * 0.85), cd: Math.max(A.cd, B.cd) + 0.6, spd: (A.spd + B.spd) / 2, r: Math.max(A.r, B.r) * (same ? 1.5 : 1.1) };
+    return { els: same ? [a] : [a, b], name: FU[fuseKey(a, b)], fused: true, count: 1, dmg: Math.round((A.dmg + B.dmg) * (same ? 1.05 : 1.0)), mp: Math.round((A.mp + B.mp) * 0.85), cd: Math.max(A.cd, B.cd) + 0.6, spd: (A.spd + B.spd) / 2, r: Math.max(A.r, B.r) * (same ? 1.5 : 1.4) };   // v55: 융합은 언제나 큰 한 발 (예전: 다른 원소면 작은 세 발 · 합쳐 피해 ×0.5)
   }
 
   /* ================= 스탯 ================= */
@@ -61,14 +61,14 @@
   }
 
   /* ================= 저장 ================= */
-  const newSave = () => ({ v: 1, stat: {}, skills: ['fire', 'cold', 'bolt', 'earth'], wins: 0, losses: 0, view: 1, mode: 2, savedAt: 0 });
+  const newSave = () => ({ v: 1, stat: {}, skills: ['fire', 'cold', 'bolt', 'earth'], wins: 0, losses: 0, view: 1, mode: 2, diff: 'normal', savedAt: 0 });
   function fixSave(s, lv) {
     const n = newSave(); if (!s || typeof s !== 'object') s = n;
     const st = {}; let used = 0; STATS.forEach(([k]) => { st[k] = clamp(Math.floor(+((s.stat || {})[k]) || 0), 0, MAXS); used += st[k]; });
     const total = (lv - 1) * PER; if (used > total) STATS.forEach(([k]) => { st[k] = 0; });
     s.stat = st; s.sp = total - STATS.reduce((a, [k]) => a + st[k], 0);
     s.skills = (Array.isArray(s.skills) ? s.skills : []).filter(e => SK[e]).slice(0, 4); ELS.forEach(e => { if (s.skills.length < 4 && !s.skills.includes(e)) s.skills.push(e); });
-    s.wins = Math.max(0, +s.wins || 0); s.losses = Math.max(0, +s.losses || 0); s.view = s.view === 3 ? 3 : 1; s.mode = s.mode === 4 ? 4 : 2;
+    s.wins = Math.max(0, +s.wins || 0); s.losses = Math.max(0, +s.losses || 0); s.view = s.view === 3 ? 3 : 1; s.mode = s.mode === 4 ? 4 : 2; s.diff = ['easy', 'normal', 'hard'].includes(s.diff) ? s.diff : 'normal';
     return s;
   }
   const online = () => Hub.mode === 'online' && Hub.user && Hub._sb;
@@ -126,6 +126,11 @@
   .sf-me canvas { width: 54px; height: 54px; image-rendering: pixelated; border-radius: 10px; background: radial-gradient(circle at 50% 30%, #5C86FF, #2F3FA0); border: 2px solid #0A0E24; flex: none; }
   .sf-me b { font-family: var(--f-display); font-size: 18px; } .sf-me small { display: block; color: #AEB7E0; font-size: 12px; }
   .sf-rooms { display: grid; gap: 8px; }
+  .sf-go { width: 100%; margin-top: 4px; padding: 14px 16px; border: 3px solid #0A0E24; border-radius: 12px; background: #3DDC84; color: #0A0E24; font: 700 20px/1.2 inherit; font-family: inherit; cursor: pointer; box-shadow: 0 4px 0 #0A0E24; }
+  .sf-go small { display: block; font-size: 13px; font-weight: 600; opacity: .8; margin-top: 2px; }
+  .sf-go:hover:not([disabled]) { filter: brightness(1.06); }
+  .sf-go:active:not([disabled]) { transform: translateY(3px); box-shadow: 0 1px 0 #0A0E24; }
+  .sf-go[disabled] { background: #3A4170; color: #C7CDEB; cursor: default; box-shadow: none; }
   .sf-room { display: flex; align-items: center; gap: 10px; background: #1A2148; border: 2px solid #0A0E24; border-radius: 12px; padding: 10px 12px; }
   .sf-room .grow { flex: 1; min-width: 0; } .sf-room b { font-size: 15px; } .sf-room small { display: block; color: #AEB7E0; font-size: 12px; }
   .sf-room.cpu { background: linear-gradient(90deg, #3A2050, #1A2148); }
@@ -145,8 +150,8 @@
   .sf-stage { position: relative; width: min(100%, calc((100svh - 150px) * 1.7778)); margin: 0 auto; aspect-ratio: 16 / 9; background: #05081A; border: 3px solid #0A0E24; border-radius: 14px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
   .sf-stage canvas { display: block; width: 100%; height: 100%; }
   .sf-hud { position: absolute; inset: 0; pointer-events: none; font-family: var(--f-display); color: #FFFFFF; }
-  .sf-bar { position: absolute; height: 16px; background: rgba(10,14,36,.8); border: 2px solid #0A0E24; border-radius: 8px; overflow: hidden; }
-  .sf-bar i { display: block; height: 100%; transition: width .15s; } .sf-bar span { position: absolute; inset: 0; font-size: 11px; display: grid; place-items: center; text-shadow: 0 1px 2px #000; }
+  .sf-bar { position: absolute; height: 18px; background: rgba(10,14,36,.8); border: 2px solid #0A0E24; border-radius: 8px; overflow: hidden; }
+  .sf-bar i { display: block; height: 100%; transition: width .15s; } .sf-bar span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 700 11px/1 "Noto Sans KR", "Malgun Gothic", sans-serif; letter-spacing: 0; color: #fff; text-shadow: 0 0 2px #000, 0 1px 1px #000; white-space: nowrap; }   /* v55: 글자가 막대 아래로 삐져나가던 것 (제목 글꼴 줄 높이) */
   .sf-name { position: absolute; font-size: 15px; text-shadow: 0 2px 2px #000; }
   .sf-nums { position: absolute; left: 50%; bottom: 3%; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: auto; }
   .sf-num { position: relative; width: 64px; height: 64px; border-radius: 14px; border: 3px solid #0A0E24; background: radial-gradient(circle at 35% 30%, var(--c2), var(--c) 70%); color: #1D2340; font-family: var(--f-display); font-size: 28px; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,.4); touch-action: manipulation; }
@@ -177,7 +182,7 @@
   .sf-ulist { position: absolute; width: 30%; display: grid; gap: 5px; }
   .sf-ulist.foe { text-align: right; }
   .sf-urow .nm { font-size: 14px; text-shadow: 0 2px 2px #000; } .sf-urow .nm small { font-size: 11px; }
-  .sf-urow .sf-bar { position: relative; height: 14px; } .sf-urow.ally i { background: linear-gradient(#9FC4FF,#3E6AD9); } .sf-urow.foe i { background: linear-gradient(#FFB86B,#C86A2A); }
+  .sf-urow .sf-bar { position: relative; height: 16px; } .sf-urow.ally i { background: linear-gradient(#9FC4FF,#3E6AD9); } .sf-urow.foe i { background: linear-gradient(#FFB86B,#C86A2A); }
   .sf-urow.ally .nm { color: #BFD6FF; } .sf-urow.dead { opacity: .5; }
   .sf-tag { position: absolute; transform: translate(-50%, -100%); font-size: 13px; padding: 1px 7px; border-radius: 6px; background: rgba(10,14,36,.62); white-space: nowrap; }
   .sf-tag.ally { color: #9FC4FF; } .sf-tag.foe { color: #FFA58A; }
@@ -215,12 +220,12 @@
         const members = roomPeers.slice().sort((a, b) => (a.at || 0) - (b.at || 0));
         const tcount = t => members.filter(p => p.team === t).length;
         const myRoomHtml = myRoom ? (roomSize === 4
-          ? `<div class="sf-room sf-teamroom"><div class="grow"><b>${isHost ? '내 방' : '들어간 방'} ${myRoom} · 2:2 (${members.length}/4)</b><small>${isHost ? '편을 고른 뒤 [시작]을 누르세요. 빈자리는 컴퓨터가 채워요' : '편을 고르고 기다려 주세요. 방장이 [시작]을 누르면 시작해요'}</small>
+          ? `<div class="sf-room sf-teamroom"><div class="grow"><b>${isHost ? '내 방' : '들어간 방'} ${myRoom} · 2:2 (${members.length}/4)</b><small>${isHost ? '편을 고른 뒤 아래 [대결 시작]을 누르세요. 빈자리는 컴퓨터가 채워요' : '편을 고르고 기다려 주세요. 방장이 [대결 시작]을 누르면 시작해요'}</small>
               <div class="sf-teams">${[0, 1].map(t => `<div class="sf-tcol t${t}"><b>${TEAM[t]} (${tcount(t)}/2)</b>${members.filter(p => p.team === t).map(p => `<span class="${p.id === Hub.clientId ? 'mine' : ''}">${p.nick}${p.id === roomHostId ? ' (방장)' : ''}${p.id === Hub.clientId ? ' · 나' : ''}</span>`).join('')}${Array.from({ length: Math.max(0, 2 - tcount(t)) }, () => '<span class="empty">빈자리 (컴퓨터)</span>').join('')}${myPick !== t ? `<button type="button" class="sf-btn ghost" data-team="${t}" ${tcount(t) >= 2 ? 'disabled' : ''}>${TEAM[t]}으로 옮기기</button>` : ''}</div>`).join('')}</div></div>
-              <div class="sf-diff" style="flex-direction:column;align-items:stretch">${isHost ? `<button type="button" class="sf-btn" data-fill ${members.length < 2 ? 'disabled' : ''}>시작</button>` : ''}<button type="button" class="sf-btn ghost" data-close>${isHost ? '방 닫기' : '나가기'}</button></div></div>`
+              <div class="sf-diff" style="flex-direction:column;align-items:stretch"><button type="button" class="sf-btn ghost" data-close>${isHost ? '방 닫기' : '나가기'}</button></div></div>`
           : `<div class="sf-room"><div class="grow"><b>${isHost ? '내 방' : '들어간 방'} ${myRoom} · 1:1 (${members.length}/2)</b>
             <small>${members.map(p => p.nick + (p.id === roomHostId ? ' (방장)' : '')).join(', ') || '연결 중…'}</small>
-            <small>${isHost ? '상대가 들어오면 바로 시작해요' : '곧 시작해요…'}</small></div>
+            <small>${isHost ? (members.length >= 2 ? '상대가 들어왔어요! 아래 [대결 시작]을 누르세요' : '상대가 들어오기를 기다리는 중…') : '방장이 [대결 시작]을 누르면 시작해요'}</small></div>
             <div class="sf-diff"><button type="button" class="sf-btn ghost" data-close>${isHost ? '방 닫기' : '나가기'}</button></div></div>`)
           : `<div class="sf-room"><div class="grow"><b>온라인 방 만들기</b><small>${Hub.mode === 'online' ? '친구가 아래 방 목록에서 들어와요 · 2:2 는 같은 편끼리 서로 안 맞아요' : '체험 모드: 같은 브라우저의 다른 탭끼리'}</small></div><div class="sf-diff"><button type="button" class="sf-btn" data-make="2">1:1 방</button><button type="button" class="sf-btn" data-make="4">2:2 방</button></div></div>`;
         body.innerHTML = `<div class="sf-lobby">
@@ -229,14 +234,15 @@
             <div class="sf-rooms">
               <div class="sf-room cpu"><div class="grow"><b>Skillcom 컴퓨터와 대결</b><small>혼자 연습 · ${cm === 4 ? '2:2 는 내 편 컴퓨터 1명 + 상대 컴퓨터 2명' : '1:1'} · 쉬움 Lv.${Math.max(1, LV - 3)} · 보통 Lv.${LV} · 어려움 Lv.${Math.min(100, LV + 3)}</small>
                 <div class="sf-diff" style="justify-content:flex-start;margin-top:6px"><button type="button" class="sf-btn${cm === 2 ? ' on' : ' ghost'}" data-cpumode="2">1:1</button><button type="button" class="sf-btn${cm === 4 ? ' on' : ' ghost'}" data-cpumode="4">2:2</button></div></div>
-                <div class="sf-diff">${[['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']].map(([k, n]) => `<button type="button" class="sf-btn${k === 'normal' ? '' : ' ghost'}" data-cpu="${k}">${n}</button>`).join('')}</div></div>
+                <div class="sf-diff">${[['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']].map(([k, n]) => `<button type="button" class="sf-btn${k === S.diff ? ' on' : ' ghost'}" data-diff="${k}" aria-pressed="${k === S.diff}">${n}</button>`).join('')}</div></div>
               ${myRoomHtml}
+              ${startBar(members)}
               ${roomList.length ? roomList.map(r => { const full = (r.n || 1) >= (r.size || 2); return `<div class="sf-room"><div class="grow"><b>${r.nick}의 방 · ${modeName(r.size || 2)}</b><small>Lv.${r.lv} · ${r.code} · ${r.n || 1}/${r.size || 2}명</small></div><button type="button" class="sf-btn" data-join="${r.code}" ${myRoom || full ? 'disabled' : ''}>${full ? '가득 참' : '들어가기'}</button></div>`; }).join('') : '<p class="sub" style="margin:4px 0 0">지금 열린 방이 없어요.</p>'}
             </div>
           </section>
           <section class="sf-card"><h3>스킬 고르기</h3><p class="sub">원소 6개 중 4개를 눌러 1~4 칸에 넣어요. 대결에서 숫자를 누르면 차지, 차지 중에 숫자를 하나 더 누르면 융합 차지(같은 숫자도 돼요). 마우스 왼쪽 = 발사, 오른쪽 = 취소</p>
             <div class="sf-skills">${ELS.map(e => { const i = sel.indexOf(e); return `<button type="button" class="sf-sk${i >= 0 ? ' sel' : ''}" style="--c:${EL[e].c}" data-sk="${e}">${i >= 0 ? `<span class="no">${i + 1}</span>` : ''}<b>${SK[e].n}</b><small>${EL[e].n} · 피해 ${SK[e].dmg} · 마나 ${SK[e].mp}</small><small>${SK[e].fx}</small></button>`; }).join('')}</div>
-            <details class="sf-fu"${S.fuOpen ? ' open' : ''}><summary>내 융합 마법 ${sel.length * (sel.length + 1) / 2}가지 보기</summary><div class="sf-fugrid">${sel.flatMap((a, i) => sel.slice(i).map((b, j) => { const sp = spell(a, b); return `<div style="--c:${EL[a].c};--c2:${EL[b].c}"><b>${i + 1}+${i + j + 1}</b> ${sp.name}<small>${a === b ? '강화 한 발' : '세 발'} · 피해 ${sp.dmg} · 마나 ${sp.mp}</small></div>`; })).join('')}</div></details>
+            <details class="sf-fu"${S.fuOpen ? ' open' : ''}><summary>내 융합 마법 ${sel.length * (sel.length + 1) / 2}가지 보기</summary><div class="sf-fugrid">${sel.flatMap((a, i) => sel.slice(i).map((b, j) => { const sp = spell(a, b); return `<div style="--c:${EL[a].c};--c2:${EL[b].c}"><b>${i + 1}+${i + j + 1}</b> ${sp.name}<small>${a === b ? '강화 한 발' : '융합 한 발'} · 피해 ${sp.dmg} · 마나 ${sp.mp}</small></div>`; })).join('')}</div></details>
             <h3 style="margin-top:12px">스탯</h3>
             <div class="sf-sp">남은 포인트 <b>${S.sp}</b><span>레벨당 ${PER}개 · 스탯마다 최대 ${MAXS}</span><button type="button" class="sf-btn ghost" data-reset style="margin-left:auto" ${S.sp === (LV - 1) * PER ? 'disabled' : ''}>다시 나누기</button></div>
             <div class="sf-stats">${STATS.map(([k, n, c, d]) => `<div class="sf-st" style="--c:${c}"><div class="grow"><b>${n}</b><span>${S.stat[k]}</span><small>${d}</small></div><button type="button" class="sf-btn" data-st="${k}:1" ${S.sp < 1 || S.stat[k] >= MAXS ? 'disabled' : ''}>+1</button><button type="button" class="sf-btn ghost" data-st="${k}:5" ${S.sp < 1 || S.stat[k] >= MAXS ? 'disabled' : ''}>+5</button></div>`).join('')}</div>
@@ -244,6 +250,14 @@
           <div class="panel" style="margin-top:14px"><h3>랭킹 (승리 수)</h3><ol class="rank" id="sfRank"><li class="empty">불러오는 중…</li></ol></div>`;
         const cv = body.querySelector('#sfMe'); if (cv) { const x = cv.getContext('2d'); x.imageSmoothingEnabled = false; AV.draw(x, av, 0, 0, 3, { crop: 'bust' }); }
         loadRank();
+      }
+      // v55: 맨 아래 큰 [시작] 버튼 — 방이 없으면 컴퓨터와 대결, 방에 있으면 방장이 대결 시작
+      function startBar(members) {
+        const DN = { easy: '쉬움', normal: '보통', hard: '어려움' }, cm = S.mode === 4 ? '2:2' : '1:1';
+        if (!myRoom) return `<button type="button" class="sf-go" data-go>▶ 컴퓨터와 대결 시작 <small>${cm} · ${DN[S.diff] || '보통'}</small></button>`;
+        if (!isHost) return `<button type="button" class="sf-go" disabled>방장이 시작하기를 기다리는 중…</button>`;
+        const ok = members.length >= 2;
+        return `<button type="button" class="sf-go" data-fill ${ok ? '' : 'disabled'}>${ok ? '▶ 대결 시작' : '상대를 기다리는 중…'} <small>${modeName(roomSize)} · ${members.length}/${roomSize}명${roomSize === 4 && members.length < 4 ? ' · 빈자리는 컴퓨터' : ''}</small></button>`;
       }
       async function loadRank() {
         const rk = body.querySelector('#sfRank'); if (!rk) return;
@@ -257,7 +271,8 @@
         else if (d.st) { const [k, n0] = d.st.split(':'), n = Math.min(+n0, S.sp, MAXS - S.stat[k]); if (n > 0) { S.stat[k] += n; S.sp -= n; saveRow(S); } renderLobby(); }
         else if ('reset' in d) { STATS.forEach(([k]) => { S.stat[k] = 0; }); S.sp = (LV - 1) * PER; saveRow(S); renderLobby(); }
         else if (d.cpumode) { S.mode = +d.cpumode === 4 ? 4 : 2; saveRow(S); renderLobby(); }
-        else if ('cpu' in d) { if (need4()) startCpu(d.cpu || 'normal'); }
+        else if (d.diff) { S.diff = d.diff; saveRow(S); renderLobby(); }
+        else if ('go' in d) { if (need4()) startCpu(S.diff || 'normal'); }
         else if (d.make) makeRoom(+d.make === 4 ? 4 : 2);
         else if ('fill' in d) hostStart();
         else if (d.team) pickTeam(+d.team);
@@ -313,7 +328,7 @@
               const same = roomPeers.filter(p => p.team === myPick).sort((x, y) => (x.at || 0) - (y.at || 0));
               if (same.length > 2 && same.slice(2).some(p => p.id === Hub.clientId) && roomPeers.filter(p => p.team === 1 - myPick).length < 2) { myPick = 1 - myPick; roomCh.track(myInfo()); }
             }
-            if (isHost) { lobbyCh.track(roomInfo()); if (roomSize === 2 && roomPeers.length >= 2) { hostStart(); return; } }
+            if (isHost) lobbyCh.track(roomInfo());   // v55: 1:1 도 방장이 [대결 시작] 을 눌러야 시작
             else { const hostHere = roomPeers.some(p => p.id === roomHostId); if (hostHere) seenHost = true; else if (seenHost) { A.toast('방장이 방을 닫았어요'); closeRoom(); return; } }
             renderLobby();
           },
@@ -371,7 +386,7 @@
       function makeBattle(THREE, opt) {
         body.innerHTML = `<div class="sf-stage" id="sfStage" tabindex="0"><canvas id="sfCv"></canvas><div class="sf-hud">
           <div class="sf-name" style="left:2%;top:3%">${nick()} <small>Lv.${LV}</small></div><div class="sf-bar" style="left:2%;top:9%;width:30%"><i id="sfHp" style="background:linear-gradient(#FF7A7E,#D2343A);width:100%"></i><span id="sfHpT"></span></div>
-          <div class="sf-bar" style="left:2%;top:14%;width:24%;height:12px"><i id="sfMp" style="background:linear-gradient(#7FA0FF,#2F55D9);width:100%"></i><span id="sfMpT"></span></div>
+          <div class="sf-bar" style="left:2%;top:14.5%;width:24%;height:15px"><i id="sfMp" style="background:linear-gradient(#7FA0FF,#2F55D9);width:100%"></i><span id="sfMpT"></span></div>
           <div class="sf-ulist" id="sfAllies" style="left:2%;top:19%"></div><div class="sf-ulist foe" id="sfFoes" style="right:2%;top:3%"></div><div id="sfTags"></div>
           <div class="sf-hurt" id="sfHurt"></div><div class="sf-cross" id="sfCross"></div><div class="sf-combo" id="sfCombo"></div><div class="sf-msg" id="sfMsg"></div>
           <button type="button" class="sf-btn ghost sf-view" id="sfView">시점: ${(S.view || 1)}인칭 (V)</button>
@@ -698,10 +713,10 @@
           renderer.render(scene, cam);
           // HUD
           $h('sfHp').style.width = (me.hp / me.F.hp * 100) + '%'; $h('sfHpT').textContent = me.dead ? '쓰러짐' : `체력 ${Math.ceil(me.hp)} / ${me.F.hp}`;
-          $h('sfMp').style.width = (me.mp / me.F.mp * 100) + '%'; $h('sfMpT').textContent = `마나 ${Math.floor(me.mp)}`;
+          $h('sfMp').style.width = (me.mp / me.F.mp * 100) + '%'; $h('sfMpT').textContent = `마나 ${Math.floor(me.mp)} / ${me.F.mp}`;
           units.forEach(U => {
             if (U.me) return;
-            U.bar.style.width = (Math.max(0, U.hp) / U.F.hp * 100) + '%'; U.barT.textContent = U.dead ? '쓰러짐' : `${Math.ceil(U.hp)} / ${U.F.hp}`; U.row.classList.toggle('dead', U.dead);
+            U.bar.style.width = (Math.max(0, U.hp) / U.F.hp * 100) + '%'; U.barT.textContent = U.dead ? '쓰러짐' : `체력 ${Math.ceil(U.hp)} / ${U.F.hp}`; U.row.classList.toggle('dead', U.dead);
             const v = new THREE.Vector3(U.x, U.y + 2.15, U.z).project(cam);
             if (U.dead || v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) U.tag.style.display = 'none';
             else { U.tag.style.display = ''; U.tag.style.left = ((v.x + 1) / 2 * 100) + '%'; U.tag.style.top = ((1 - v.y) / 2 * 100) + '%'; }

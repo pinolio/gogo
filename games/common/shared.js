@@ -112,6 +112,9 @@
 (function () {
   'use strict';
   const all = {};
+  const CAT_ORDER = ['puzzle', 'arcade', 'board', 'sports', 'action', 'shooting', 'study'];
+  const catIdx = c => { const i = CAT_ORDER.indexOf(c); return i < 0 ? 99 : i; };
+  const byCat = (a, b) => catIdx(a.category) - catIdx(b.category) || (a.order || 99) - (b.order || 99);
   window.GoSettings = {
     // 카테고리 폴더 이름 → 화면에 보이는 이름 (games/ 아래 폴더와 같게 유지)
     CATEGORIES: { puzzle: '퍼즐', arcade: '아케이드', board: '보드게임', sports: '스포츠', action: '액션', shooting: '슈팅', study: '공부?' },
@@ -121,8 +124,9 @@
       return s;
     },
     get: id => all[id] || null,
-    list: () => Object.values(all).filter(s => !s.hidden).sort((a, b) => (a.order || 99) - (b.order || 99)),
-    listAll: () => Object.values(all).sort((a, b) => (a.order || 99) - (b.order || 99)),
+    // v55: '전체' 목록도 분류 순서(퍼즐 → 아케이드 → 보드게임 → 스포츠 → 액션 → 슈팅 → 공부?) 대로, 같은 분류 안에서는 order 순
+    list: () => Object.values(all).filter(s => !s.hidden).sort(byCat),
+    listAll: () => Object.values(all).sort(byCat),
     ids: () => Object.keys(all),
     // 한 판 결과 → { win, delta }  (delta = 이번 판 포인트 변화. 실제 지급은 최하 0P 규칙 적용)
     pointsFor(id, win, variant) {

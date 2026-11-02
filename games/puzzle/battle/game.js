@@ -15,11 +15,16 @@
   const MAX = CFG.maxPlayers || 6;                      // 한 방 최대 인원 (컴퓨터 포함)
   const C = 24, HOLDW = 72, METER = 14, SIDE = 132, BX = HOLDW + METER, W = BX + B.COLS * C + SIDE, H = B.ROWS * C, MINI = 9;
   const levelFn = e => Math.min(15, Math.max(1 + Math.floor(e.lines / 10), 1 + Math.floor(e.elapsed / 30000))); // 30초마다 빨라짐
+  // v56 랭킹 대전: 혼자 점수 쌓기. 처음부터 빠르고(온라인 대전보다) 더 자주 빨라짐 — 숫자는 settings.js 의 rank
+  const RK = () => Object.assign({ startLevel: 5, levelEverySec: 20, linesPerLevel: 8, maxLevel: 15, pointsPer: 5000, maxPoints: 5 }, (window.GoSettings.get('battle') || {}).rank || {});
+  const rankLevelFn = e => { const r = RK(); return Math.min(r.maxLevel, Math.max(r.startLevel + Math.floor(e.lines / r.linesPerLevel), r.startLevel + Math.floor(e.elapsed / (r.levelEverySec * 1000)))); };
+  // v56 좌우·아래 키를 누르고 있으면: 0.13초 뒤부터 0.035초마다 한 칸 (예전: 키보드 자동 반복 약 0.5초 뒤 · 초당 30번 → 처음이 느렸음)
+  const DAS = 130, ARR = 35, SOFT = 35;
   const battleScore = (n, place, sent) => (n - place) * 100 + sent * 10;
   const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   const newCode = () => Array.from({ length: 4 }, () => CODE_CHARS[Math.random() * CODE_CHARS.length | 0]).join('');
   const BOT_NAMES = ['블록봇', '테트봇', '쌓기봇', '고고봇', '줄삭봇'];
-  // 혼자 조작 (AI 대전·온라인): 방향키·WASD, Ctrl = 블록 저장/바꾸기
+  // 혼자 조작 (랭킹 대전·온라인): 방향키·WASD, Ctrl = 블록 저장/바꾸기
   const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', KeyA: 'left', KeyD: 'right', KeyW: 'rotate', KeyS: 'down', KeyX: 'rotate', KeyZ: 'rotateL', Space: 'drop', ControlLeft: 'hold', ControlRight: 'hold', KeyC: 'hold' };
   // 오프라인 대결 (한 키보드에 2명)
   // (Ctrl+W 를 같이 누르면 브라우저 탭이 닫혀서, 오프라인에서는 저장 키를 Shift 로 둠)
@@ -27,7 +32,7 @@
   const KEY_2P = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', Slash: 'rotateL', Enter: 'drop', NumpadEnter: 'drop', Numpad0: 'drop', ShiftRight: 'hold', Period: 'hold' };
   const P2 = 'local-2p';
   const PLAY = {
-    ai: { name: 'AI 대전', desc: '컴퓨터 1~5명과 바로 대결해요.', pts: '승리 +1P · 패배 -1P' },
+    rank: { name: '랭킹 대전', desc: '혼자 하며 점수를 쌓아 랭킹에 올라요. 처음부터 빠르고 점점 더 빨라져요!', pts: '점수 5,000점마다 +1P (한 판 최대 +5P)' },
     offline: { name: '오프라인 대결', desc: '한 컴퓨터에서 키보드를 나눠 2명이 겨뤄요. 컴퓨터도 더할 수 있어요.', pts: '승리 +1P · 패배 -1P (1P 기록)' },
     online: { name: '온라인 대결', desc: '방 코드로 다른 기기의 친구와 실시간으로 겨뤄요.', pts: '사람과 대결 승리 +2P · 패배 -1P' }
   };
@@ -157,11 +162,12 @@
       else createLocal(k);
     }));
   }
-  // AI 대전 · 오프라인 대결: 서버 없이 이 기기 안에서만 도는 방
+  // 랭킹 대전 · 오프라인 대결: 서버 없이 이 기기 안에서만 도는 방
   function createLocal(play) {
     leaveRoom(true);
     const me = { id: Hub.clientId, nick: myNick(), avatar: myAvatar(), joinedAt: Date.now(), team: null };
     room = { code: '', local: true, play, ch: fakeCh, peers: [me], bots: [], status: 'waiting', mode: 'solo', myTeam: null, hostId: Hub.clientId, joinedAt: me.joinedAt, checkedFull: true };
+    if (play === 'rank') { startRank(); return; }
     if (play === 'offline') room.bots.push({ id: P2, nick: '2P', human: true, owner: Hub.clientId, team: null, avatar: AV.random('2p-friend') });
     else room.bots.push({ id: 'bot-' + Math.random().toString(36).slice(2, 8), nick: BOT_NAMES[0], level: 'normal', owner: Hub.clientId, team: null, avatar: AV.random('bot-a') });
     renderRoom();
@@ -374,6 +380,11 @@
     startMatch(seed, roster, mode);
   }
 
+  function startRank() {
+    const me = room.peers[0];
+    startMatch((Math.random() * 2147483647) | 0, [{ id: me.id, nick: me.nick, team: null, avatar: me.avatar }], 'solo');
+  }
+
   /* ================= 경기 ================= */
   function startMatch(seed, roster, mode) {
     if (!room) return;
@@ -389,8 +400,9 @@
       running: false, ended: false, raf: 0, last: 0, clock: P.clock(), flash: {}, popups: {}, saved: null, play: room.local ? room.play : 'online',
       local: {} // 이 기기에서 돌리는 참가자: 나 + (방장이면) 컴퓨터 + (오프라인이면) 2P
     };
+    const rank = room.local && room.play === 'rank';
     const mk = id => ({
-      seed, levelFn,
+      seed, levelFn: rank ? rankLevelFn : levelFn,
       onClear: n => onClear(id, n),
       onLock: () => sendBoard(id),
       onTopOut: () => { sendBoard(id, true); ko(id); }
@@ -407,6 +419,7 @@
   }
 
   function stopMatch() {
+    stopAllHolds();
     if (!match) return;
     BGM.pause();
     cancelAnimationFrame(match.raf);
@@ -459,7 +472,8 @@
     match.places[id] = match.alive.size;
     match.alive.delete(id);
     const r = match.roster.find(x => x.id === id);
-    if (id === Hub.clientId) { match.clock.stop(); A.toast(match.mode === 'team' ? '탈락! 남은 팀원을 응원해 주세요.' : '탈락! ' + match.places[id] + '위 · 다른 사람 경기를 지켜볼 수 있어요.'); }
+    if (id === Hub.clientId && match.play === 'rank') match.clock.stop();
+    else if (id === Hub.clientId) { match.clock.stop(); A.toast(match.mode === 'team' ? '탈락! 남은 팀원을 응원해 주세요.' : '탈락! ' + match.places[id] + '위 · 다른 사람 경기를 지켜볼 수 있어요.'); }
     else if (r && match.running) A.toast(r.nick + (left ? ' 님이 나갔어요' : ' 님 탈락') + ' · ' + aliveText());
     drawMini(id);
     checkEnd();
@@ -480,7 +494,7 @@
       match.ended = true; match.running = false;
       match.alive.forEach(id => { if (match.local[id]) sendBoard(id, true); });
     } else {
-      if (match.alive.size > 1) return;
+      if (match.alive.size > (match.play === 'rank' ? 0 : 1)) return;
       match.ended = true; match.running = false;
       const winner = Array.from(match.alive)[0];
       if (winner) match.places[winner] = 1;
@@ -493,9 +507,23 @@
     showResult();
   }
 
+  // 랭킹 대전 기록: 점수 = 줄 지우기 점수(빠를수록 큼), 포인트 = 5,000점마다 +1P (최대 +5P), 승패는 남기지 않음
+  async function saveRank(eng) {
+    const r = RK(), m = match, score = eng.score, delta = Math.min(r.maxPoints, Math.floor(score / r.pointsPer));
+    const best = Hub.user ? await Hub.myBest('battle').catch(() => null) : null;
+    m.saved = { status: Hub.user ? 'saving' : 'guest', score, delta, rank: true, newBest: best == null || score > best };
+    if (match === m) showResult();
+    if (!Hub.user) return;
+    try {
+      const res = await Hub.submitScore({ game_id: 'battle', score, result: null, points_delta: delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: 'rank', lines: eng.lines, level: eng.level } });
+      m.saved = { ...m.saved, status: res.queued ? 'queued' : 'saved', gained: res.gained };
+    } catch (e) { m.saved = { ...m.saved, status: 'error', msg: e.message }; }
+    if (match === m) showResult();
+  }
   async function saveResult() {
     const eng = myEng(); const place = match.places[Hub.clientId];
     if (!eng || !place) return;
+    if (match.play === 'rank') return saveRank(eng);
     const team = match.mode === 'team', win = team ? match.teamOf[Hub.clientId] === match.winTeam : place === 1;
     const res = { place, win, score: team ? (win ? 200 : 0) + eng.sent * 10 : battleScore(match.n, place, eng.sent), sent: eng.sent };
     // 포인트: settings.js — 상대가 모두 컴퓨터이거나 같은 기기(AI·오프라인)면 botsOnly 값 사용
@@ -546,7 +574,7 @@
       const stop = () => { clearTimeout(t1); clearInterval(t2); };
       b.addEventListener('pointerdown', e => {
         e.preventDefault(); act(b.dataset.act);
-        if (['left', 'right', 'down'].includes(b.dataset.act)) t1 = setTimeout(() => { t2 = setInterval(() => act(b.dataset.act), 70); }, 200);
+        if (['left', 'right', 'down'].includes(b.dataset.act)) t1 = setTimeout(() => { t2 = setInterval(() => act(b.dataset.act), b.dataset.act === 'down' ? SOFT : ARR); }, b.dataset.act === 'down' ? 0 : DAS);
       });
       ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, stop));
     });
@@ -569,7 +597,7 @@
     const ov = $('#btOv'); let n = 3;
     const hint = () => match.play === 'offline'
       ? '1P: WASD · Space 한 번에 · 왼쪽 Shift 저장<br>2P: 방향키 · Enter 한 번에 · 오른쪽 Shift 저장'
-      : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
+      : match.play === 'rank' ? '랭킹 대전 · 혼자 점수 쌓기 · 20초마다 빨라져요 · Ctrl 블록 저장' : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
     const step = () => {
       if (!match || !ov.isConnected) return;
       if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${hint()}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
@@ -615,10 +643,12 @@
     ctx.fillStyle = '#2A3366'; ctx.fillRect(x0, 0, 2, H);
     P.text(ctx, 'NEXT', cx, 14, 10, P.DIM);
     B.drawQueue(ctx, eng, cx, 30, 96, 5);
-    P.text(ctx, 'ATTACK', cx, 290, 9, P.DIM); P.text(ctx, eng.sent, cx, 304, 13, '#FF5A5F');
+    if (match.play === 'rank') { P.text(ctx, 'SCORE', cx, 250, 9, P.DIM); P.text(ctx, A.fmt(eng.score), cx, 264, 13, P.PIECE.O); }
+    else { P.text(ctx, 'ATTACK', cx, 290, 9, P.DIM); P.text(ctx, eng.sent, cx, 304, 13, '#FF5A5F'); }
     P.text(ctx, 'LINES', cx + 56, 290, 9, P.DIM); P.text(ctx, eng.lines, cx + 56, 304, 13, P.INK);
     P.text(ctx, 'SPEED', cx, 336, 9, P.DIM); P.text(ctx, eng.level, cx, 350, 13, P.PIECE.O);
-    if (match.mode === 'team') {
+    if (match.play === 'rank') { /* 혼자: 생존 표시 없음 */ }
+    else if (match.mode === 'team') {
       const c = { blue: 0, red: 0 }; match.alive.forEach(i => { c[match.teamOf[i]]++; });
       P.text(ctx, 'ALIVE', cx, 382, 9, P.DIM);
       P.text(ctx, 'B' + c.blue, cx, 396, 13, '#6F95FF'); P.text(ctx, 'R' + c.red, cx + 50, 396, 13, '#FF6B70');
@@ -634,7 +664,7 @@
     if (eng.over && !match.ended) {
       ctx.fillStyle = 'rgba(10,14,36,.7)'; ctx.fillRect(BX, 0, B.COLS * C, H);
       P.text(ctx, 'K.O.', BX + B.COLS * C / 2, 200, 22, '#FF5A5F', 'center');
-      P.text(ctx, match.mode === 'team' ? 'CHEER!' : (match.places[id] || '-') + '위', BX + B.COLS * C / 2, 236, 13, P.INK, 'center');
+      P.text(ctx, match.play === 'rank' ? 'GAME OVER' : match.mode === 'team' ? 'CHEER!' : (match.places[id] || '-') + '위', BX + B.COLS * C / 2, 236, 13, P.INK, 'center');
     }
   }
 
@@ -654,8 +684,29 @@
     else k.hidden = true;
   }
 
+  function showRankResult() {
+    const ov = $('#btOv'), s = match.saved || {}, eng = myEng();
+    let note = '';
+    if (s.status === 'saving') note = '<p class="ov-note">기록 저장 중…</p>';
+    else if (s.status === 'saved') note = `<p class="ov-note ${s.gained > 0 ? 'ok' : ''}">${A.pointText(s.gained, s.delta)} · 랭킹에 저장했어요</p>`;
+    else if (s.status === 'queued') note = '<p class="ov-note">오프라인이라 연결되면 저장돼요.</p>';
+    else if (s.status === 'error') note = `<p class="ov-note bad">${esc(s.msg)}</p>`;
+    else if (s.status === 'guest') note = '<p class="ov-note">손님 플레이 · 로그인하면 랭킹에 올라가요</p>';
+    ov.hidden = false;
+    ov.innerHTML = `<div class="ov-box result">
+      <canvas class="ov-avatar" data-avatar="${AV.attr(myAvatar())}" data-scale="3" aria-hidden="true"></canvas>
+      <div class="ov-title">${A.fmt(eng ? eng.score : 0)}점</div>${s.newBest && Hub.user ? '<span class="ov-best">NEW BEST</span>' : ''}
+      <p class="ov-hint">지운 줄 ${eng ? eng.lines : 0} · 최고 속도 ${eng ? eng.level : 1} · ${A.dur(match.clock.sec())}</p>
+      ${note}
+      <div class="ov-btns"><button class="btn btn-sun" type="button" id="btAgain">한 판 더 ▶</button><button class="btn" type="button" id="btBack">대결 방식 고르기</button></div>
+    </div>`;
+    AV.paintAll(ov);
+    $('#btAgain').addEventListener('click', () => { stopMatch(); startRank(); });
+    $('#btBack').addEventListener('click', () => { stopMatch(); leaveRoom(true); renderHome(); });
+  }
   function showResult() {
     const ov = $('#btOv'); if (!ov || !match) return;
+    if (match.play === 'rank') return showRankResult();
     match.roster.forEach(r => drawMini(r.id));
     const order = match.roster.slice().sort((a, b) => (match.places[a.id] || 99) - (match.places[b.id] || 99));
     const myPlace = match.places[Hub.clientId], s = match.saved || {};
@@ -698,19 +749,33 @@
     } else a = KEYMAP[e.code];
     if (!a) return;
     e.preventDefault();
-    if (e.repeat && (a === 'hold' || a === 'drop')) return;
+    if (e.type === 'keyup') { stopHold(e.code); return; }
+    if (e.repeat) return;   // 누르고 있기는 아래 자체 반복으로 (키보드 자동 반복은 처음이 0.5초쯤 느림)
     act(a, id);
+    if (a === 'left' || a === 'right' || a === 'down') startHold(e.code, a, id);
   }
+  // v56 누르고 있으면 빨리 움직이기 (DAS·ARR)
+  const holds = {};
+  function startHold(code, a, id) {
+    stopHold(code);
+    // 반대 방향을 누르면 먼저 누른 쪽은 멈춤
+    Object.keys(holds).forEach(k => { const h = holds[k]; if (h.id === id && ((a === 'left' && h.a === 'right') || (a === 'right' && h.a === 'left'))) stopHold(k); });
+    const h = holds[code] = { a, id, t1: 0, t2: 0 };
+    h.t1 = setTimeout(() => { h.t2 = setInterval(() => { if (!match || !match.running) return stopHold(code); act(a, id); }, a === 'down' ? SOFT : ARR); }, a === 'down' ? SOFT : DAS);
+  }
+  function stopHold(code) { const h = holds[code]; if (!h) return; clearTimeout(h.t1); clearInterval(h.t2); delete holds[code]; }
+  function stopAllHolds() { Object.keys(holds).forEach(stopHold); }
+  const onBlur = () => stopAllHolds();
 
   /* ================= 진입점 ================= */
   window.GoBattle = {
     render(el, app) {
       A = app; root = el;
       BGM.load('battle');
-      document.addEventListener('keydown', onKey);
+      document.addEventListener('keydown', onKey); document.addEventListener('keyup', onKey); window.addEventListener('blur', onBlur);
       if (room) renderRoom(); else if (lobby) renderLobby(); else renderHome();
       return function cleanup() {
-        document.removeEventListener('keydown', onKey);
+        document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); stopAllHolds();
         leaveRoom(true); closeLobby(); root = null; BGM.stop();
       };
     },
