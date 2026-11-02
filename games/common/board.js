@@ -288,7 +288,7 @@
     let avs = {};
     const q = []; let cur = null, raf = 0, t0 = 0;
     const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-    const walkMs = (a, b, sp) => Math.max(450, dist(a, b) / sp * 1000);
+    const walkMs = (a, b, sp) => Math.max(350, dist(a, b) / sp * 1000);
     const midX = () => { const xs = Object.values(homes).map(h => h[0]); return xs.length ? (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 : 0; };
     function plan(j) {
       const home = homes[j.who] || [0, 0], grab = j.pot || j.from, st = [];
