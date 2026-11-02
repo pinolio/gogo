@@ -530,7 +530,7 @@
               ${mains.map((id, i) => `<div class="main-col">${mains.length > 1 ? `<div class="main-tag">${i ? '2P · 방향키' : '1P · WASD'} <b>${esc(nameOfMain(id))}</b></div>` : ''}<div class="cabinet ${team ? 'cab-' + match.teamOf[id] : ''}" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas data-main="${esc(id)}" aria-label="${i ? '2P' : '내'} 게임 화면"></canvas></div></div></div>`).join('')}
               <div class="overlay" id="btOv"></div>
             </div>
-            <div class="pad pad6" id="pad"><button type="button" data-act="hold" aria-label="블록 저장">HOLD</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟳</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button></div>
+            <div class="pad pad6" id="pad"><button type="button" data-act="hold" aria-label="블록 저장">HOLD</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟲</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button></div>
           </div>
           <div class="minis side-r" style="--n:${sides[1].length}">${sides[1].map(miniHTML).join('')}</div>
         </div>

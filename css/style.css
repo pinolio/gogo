@@ -99,6 +99,9 @@ button, input { font: inherit; color: inherit; }
 
 .userchip { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .userchip .who { display: flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 600; }
+/* v50: 좁은 화면(휴대폰·옆 창)에서는 내 정보 칸이 아래로 내려가 로그아웃이 안 보여 위쪽에도 둠 */
+.userchip .chip-out { display: none; padding: 4px 8px; font-size: 11px; }
+@media (max-width: 960px) { .userchip .chip-out { display: inline-flex; } }
 .userchip canvas { width: 28px; height: 28px; border-radius: 6px; border: 2px solid var(--border); image-rendering: pixelated; }
 
 /* ---------- 버튼 ---------- */

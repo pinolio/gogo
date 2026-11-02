@@ -93,7 +93,8 @@
     };
     e.rotate = function (ccw) {
       if (e.over) return;
-      let m = rotCW(e.cur.m); if (ccw) m = rotCW(rotCW(m));
+      // v50: 기본 회전(↑·W·탭)은 반시계방향, 반대 키(Z·Q·/)는 시계방향 (선생님 요청)
+      let m = rotCW(rotCW(rotCW(e.cur.m))); if (ccw) m = rotCW(rotCW(m));
       for (const [ox, oy] of KICKS) if (!e.hit(m, e.cur.x + ox, e.cur.y + oy)) { e.cur.m = m; e.cur.x += ox; e.cur.y += oy; return; }
     };
     // 받은 공격 줄을 바닥에서 밀어 올림 (한 번의 공격마다 빈칸 위치는 무작위)

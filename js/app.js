@@ -65,7 +65,7 @@
     const u = Hub.user, el = $('#userChip');
     const na = $('#navAdmin'); if (na) na.hidden = !Hub.isAdmin();
     if (u) {
-      el.innerHTML = `<a class="who" href="#my">${avCanvas(u.avatar, 2.5, 'bust', 'chip-av')}<span class="who-n">${esc(u.nickname)}</span><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="pt num">${fmt(u.points)}P</span></a>`;
+      el.innerHTML = `<a class="who" href="#my">${avCanvas(u.avatar, 2.5, 'bust', 'chip-av')}<span class="who-n">${esc(u.nickname)}</span><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="pt num">${fmt(u.points)}P</span></a><button class="btn btn-sm chip-out" type="button" data-logout>로그아웃</button>`;
       AV.paintAll(el);
     } else {
       el.innerHTML = '<button class="btn btn-sm" type="button" data-auth="login">로그인</button><button class="btn btn-sm btn-primary" type="button" data-auth="signup">회원가입</button>';
@@ -399,7 +399,7 @@
     const g = gameById(id), cfg = SET.get(id); current = 'play'; setNav('home');
     BGM.load(id);
     const pad = id === 'blocks'
-      ? `<div class="pad" id="pad"><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟳</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button></div>`
+      ? `<div class="pad" id="pad"><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟲</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button></div>`
       : `<div class="pad cross" id="pad"><span class="sp"></span><button type="button" data-act="up" aria-label="위">▲</button><span class="sp"></span><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="down" aria-label="아래">▼</button><button type="button" data-act="right" aria-label="오른쪽">▶</button></div>`;
     view().innerHTML = `
       <div class="play">
