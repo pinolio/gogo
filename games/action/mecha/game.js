@@ -92,6 +92,14 @@
   const LV = { easy: { think: 22, err: 0.35, dodge: 0.08, charge: 0.1, aggro: 0.55 }, normal: { think: 12, err: 0.14, dodge: 0.35, charge: 0.35, aggro: 0.8 }, hard: { think: 6, err: 0.04, dodge: 0.7, charge: 0.6, aggro: 1 } };
   const cfg = () => window.GoSettings.get('mecha') || {};
   const img = name => S.image(DIR + 'img/' + name);
+  const failed = im => !!im && im.complete && !im.naturalWidth;   // 받기 실패(파일 없음 등)
+  // v50: 로봇 그림(카드·5방향)을 처음에 한꺼번에 받아 둠 → 고르기·스킬 중 도트 로봇이 끼어들지 않게
+  let preloaded = false;
+  function preload() {
+    if (preloaded) return; preloaded = true;
+    img('arena.jpg');
+    ROBOTS.forEach(rb => ['card', 's', 'fr', 'r', 'br', 'b'].forEach(v => img('m' + rb.id + '_' + v + '.png')));
+  }
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
@@ -143,7 +151,10 @@
   function drawRobot(ctx, rb, x, y, ang, scale, alpha, f) {
     const size = rb.r * 2.9 * (scale || 1), d = faceOf(ang, f ? f.face : null);
     if (f) f.face = d;
-    const [v, flip] = VIEW[d], pic = img('m' + rb.id + '_' + v + '.png');
+    const [v, flip] = VIEW[d];
+    // v50: 이 방향 그림이 아직 안 왔으면 이미 받은 다른 방향 그림을 대신 씀 (예전 도트 로봇이 잠깐 보이던 문제)
+    let pic = img('m' + rb.id + '_' + v + '.png');
+    if (!S.ready(pic)) pic = ['s', 'fr', 'r', 'br', 'b'].map(k => img('m' + rb.id + '_' + k + '.png')).find(S.ready) || pic;
     ctx.save(); ctx.translate(x, y); if (alpha != null) ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = false;
     if (S.ready(pic)) {
       const h = size * 1.6, w = pic.naturalWidth * h / pic.naturalHeight, foot = rb.r * FOOT;
@@ -156,13 +167,14 @@
       if (f && spd > 1.5) ctx.rotate(Math.max(-0.12, Math.min(0.12, (f.vx || 0) * 0.02)));   // 빠르게 가면 살짝 기울임
       if (flip < 0) ctx.scale(-1, 1);
       ctx.drawImage(pic, -w / 2, -h, w, h);
-    } else { ctx.rotate(ang); ctx.drawImage(fallbackSprite(rb), -size / 2, -size / 2, size, size); }
+    } else if (failed(pic)) { ctx.rotate(ang); ctx.drawImage(fallbackSprite(rb), -size / 2, -size / 2, size, size); }   // 그림 파일을 못 받았을 때만 도트
+    // 아직 받는 중이면 아무것도 그리지 않음 (곧 그림이 옴)
     ctx.restore();
   }
   function drawCard(ctx, rb, x, y, w, h) {
     const card = img('m' + rb.id + '_card.png');
     if (S.ready(card)) { const k = Math.min(w / card.naturalWidth, h / card.naturalHeight); ctx.imageSmoothingEnabled = false; ctx.drawImage(card, x + (w - card.naturalWidth * k) / 2, y + (h - card.naturalHeight * k) / 2, card.naturalWidth * k, card.naturalHeight * k); }
-    else drawRobot(ctx, rb, x + w / 2, y + h / 2, -Math.PI / 2, Math.min(w, h) / (rb.r * 3.2));
+    else if (failed(card)) drawRobot(ctx, rb, x + w / 2, y + h / 2, -Math.PI / 2, Math.min(w, h) / (rb.r * 3.2));
   }
 
   window.GoGames.mecha = {
@@ -178,6 +190,7 @@
       paint(); S.onImages(paint);
     },
     create(canvas, hooks) {
+      preload();
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
       const bg = img('arena.jpg');
       let mode = 'ai', level = 'normal', phase = 'idle', raf = 0, last = 0, frames = 0, timeLeft = 120, n = 2;
