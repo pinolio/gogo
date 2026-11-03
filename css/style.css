@@ -1147,3 +1147,26 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
   .shop-layout .pv-stage { padding: 12px 22px 8px; }
   .shop-hero { padding: 20px 16px 16px; min-height: 140px; background-position: 70% 40%; }
 }
+
+/* ---------- v66 전체 점검 고침 ---------- */
+/* 휴대폰 세로: 홈 큰 배너의 점(24개)이 화면을 넘어 ▶ 버튼이 밖으로 밀리던 것 → 점을 작게 */
+@media (max-width: 560px) {
+  .hero-dots { gap: 3px; flex-wrap: wrap; max-width: calc(100vw - 150px); }
+  .hero-dots button { width: 7px; height: 7px; border-width: 1px; border-radius: 2px; }
+  .hero-dots button[aria-selected="true"] { width: 14px; }
+}
+/* 휴대폰 세로: 정사각형 게임(바둑·오목·장기·체스·알까기·숫자 코드·닷지·스네이크 등) 안내 칸이 판 안에서 잘려 [시작] 버튼이 안 보이던 것
+   → 가로로 긴 게임처럼 안내 칸을 판 아래에 펼침 (판은 그대로 보임) */
+@media (max-width: 560px) and (orientation: portrait) {
+  .board-play .cabinet .overlay { position: static; overflow: visible; border-top: 3px solid #0A0E24; }
+  .board-play .cabinet .overlay[hidden] { display: none; }
+}
+/* 휴대폰 가로(낮은 화면): 공부? 게임 화면이 우표만 하게 작아지던 것 · 스네이크 판 아래가 화면 밖으로 나가던 것 */
+@media (max-height: 500px) {
+  .ult-stage .cabinet, .ult-stage:has(.idm-choices) .cabinet { min-width: min(100%, 420px); }
+  .main-col .cabinet, .match-grid.v2.two .main-col .cabinet { min-width: 0; }
+  .mode-btns.steps .btn { font-size: 11px; padding: 4px 0; letter-spacing: -0.04em; }
+  .mode-btns.steps .btn.locked small { display: none; }
+}
+/* 글자 대비 (흐려서 잘 안 보이던 것) */
+.cat { color: #2F55D9; }

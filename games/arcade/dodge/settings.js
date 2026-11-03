@@ -48,7 +48,7 @@ GoSettings.register({
   noteText(mode) { return mode === 'local' ? '한 기기 둘이서 · 포인트 없이 기록만 남아요' : mode === 'online' ? '협동 = 같이 버틴 시간 · 대결 이기면 +' + this.points.win + 'P' : '10초 +1P · 30초 +2P · 60초 +3P · 노란 총알에 맞아야 기록 (빨강 = 기록 없음)'; },
   cardRules() {
     return '<dt>목표</dt><dd>날아오는 총알을 피해 오래 버티기</dd>'
-      + '<dt>총알</dt><dd><b style="color:#E0A800">노랑</b>에 맞으면 버틴 시간 기록 · <b style="color:#E03040">빨강</b>에 맞으면 그 판은 기록·포인트 없음</dd>'
+      + '<dt>총알</dt><dd><b style="background:#FFD23F;color:#1D2340;padding:0 5px;border-radius:5px">노랑</b>에 맞으면 버틴 시간 기록 · <b style="background:#D9303A;color:#FFFFFF;padding:0 5px;border-radius:5px">빨강</b>에 맞으면 그 판은 기록·포인트 없음</dd>'
       + '<dt>포인트</dt><dd>10초 <b class="plus">+1P</b> · 30초 <b class="plus">+2P</b> · 60초 <b class="plus">+3P</b> · 온라인 대결 승리 <b class="plus">+' + this.points.win + 'P</b></dd>'
       + '<dt>랭킹</dt><dd>가장 오래 버틴 시간</dd>'
       + '<dt>둘이서</dt><dd>협동 = 한 명이라도 맞으면 끝 · 대결 = 먼저 맞으면 짐</dd>';
