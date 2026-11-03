@@ -298,15 +298,18 @@
     monExp: m => Math.max(3, Math.round(F.need(m) / (22 + m * 0.4))), monGold: m => Math.round(3 + m * 1.4),
     boss: { hp: 12, atk: 1.6, exp: 15, gold: 10 }
   };
-  /* v44 스탯 4가지 (레벨 업마다 포인트 2개 → 원하는 곳에 · 스탯마다 최대 50)
-   *  힘 = 피해(기본 공격·마법 모두) · 민첩 = 이동 속도 · 지혜 = 마나 회복 · 체력 = 최대 체력 */
+  /* v44 스탯 4가지 → v60 5가지 (레벨 업마다 포인트 2개 → 원하는 곳에 · 스탯마다 최대 50)
+   *  힘 = 피해(기본 공격·마법 모두) · 민첩 = 이동 속도 · 지혜 = 마나 회복 · 체력 = 최대 체력
+   *  v60 저항 = 1포인트마다 물리 방어 +0.5% · 속성 방어(불·물·바람·땅·번개·빛 모두) +0.5% */
   const STAT = {
-    keys: ['str', 'dex', 'int', 'vit'],
+    keys: ['str', 'dex', 'int', 'vit', 'res'],
     str: { name: '힘', color: '#FF8A8E', desc: '주는 피해 +2% (기본 공격·마법 모두)', dmg: 2 },
     dex: { name: '민첩', color: '#9AF0B0', desc: '이동 속도 +1%', spd: 1 },
     int: { name: '지혜', color: '#C8A8FF', desc: '마나 회복 +4%', mpRegen: 4 },
     vit: { name: '체력', color: '#FFB86B', desc: '최대 체력 +2% (기본 체력 기준)', hpPct: 2 },
-    max: 50, baseCrit: 8, critDmg: 1.6, atkCd: 0.42
+    res: { name: '저항', color: '#7FE0F0', desc: '물리 방어 +0.5% · 속성 방어 +0.5% (불·물·바람·땅·번개·빛)', pdef: 0.5, edef: 0.5 },
+    max: 50, baseCrit: 8, critDmg: 1.6, atkCd: 0.42,
+    defCap: 75   // 물리·속성 방어 % 최대 (저항 + 장비 옵션 합)
   };
 
   /* ---------------- 장비 ----------------
@@ -323,22 +326,67 @@
     { name: '얼음 수정', color: '#8ADCF5', dark: '#3E8EC0', gem: '#FFFFFF' },
     { name: '자수정', color: '#A880F0', dark: '#6440B0', gem: '#7FE0F0' },
     { name: '하늘 깃털', color: '#F3F6FF', dark: '#9AA8D0', gem: '#FFE45C' },
-    { name: '불꽃 용', color: '#E2483C', dark: '#8A1E22', gem: '#FFD23F' }
+    { name: '불꽃 용', color: '#E2483C', dark: '#8A1E22', gem: '#FFD23F' },
+    { name: '전설의', color: '#FFC83D', dark: '#B07A10', gem: '#FFFFFF', legend: true }   // v60 Lv.100 · 마지막 보스(사냥터 90)와 마지막 사냥터에서만
   ];
   const SLOT_NAME = { weapon: '무기', helmet: '투구', armor: '갑옷', boots: '신발', ring: '장신구' };
   const ITEMS = {};
+  /* v60 착용 레벨을 부위마다 다르게 (같은 단계라도 무기가 가장 먼저, 갑옷이 가장 늦게)
+   *  부위 순서(+레벨): 검 0 · 신발 +1 · 투구 +2 · 지팡이 +2 · 반지 +3 · 갑옷 +4
+   *  마을 1~8 단계: 보통 = 지역 첫 레벨 + 순서 (1~5 … 71~75), 정예 = 지역 중간 + 순서 (6~10 … 76~80)
+   *  마을 9 단계(불꽃 용): 보통 81~89, 정예 90~98 (2씩) · 전설 단계: 모두 Lv.100 */
+  const REQ_OFF = { sw: 0, bt: 1, hm: 2, st: 2, rg: 3, ar: 4 };
+  const reqOf = (t, rare, sid) => { const o = REQ_OFF[sid]; return t >= 9 ? 100 : t < 8 ? t * 10 + (rare ? 6 : 1) + o : (rare ? 90 : 81) + o * 2; };
+  const GEAR_BASE = [];   // 떨어뜨릴 수 있는 기본 장비 id (단계 t, 정예 여부로 고름)
   TIER.forEach((T, t) => {
-    [0, 1].forEach(rare => {
-      const req = t < 8 ? t * 10 + (rare ? 6 : 1) : (rare ? 91 : 81), q = rare ? '정예 ' : '', id = (s) => `${s}${t + 1}${rare ? 'r' : ''}`;
-      const add = (slot, sid, name, st, extra) => { ITEMS[id(sid)] = Object.assign({ id: id(sid), slot, name: q + T.name + ' ' + name, tier: t, rare: !!rare, req, st, price: Math.round(20 + req * req * 0.9) }, extra || {}); };
-      add('weapon', 'sw', '검', { atk: Math.round(4 + req * 1.6) }, { look: 'sword' });
-      add('weapon', 'st', '지팡이', { atk: Math.round(2 + req * 0.7), mag: Math.round(4 + req * 1.5) }, { look: 'staff' });
-      add('helmet', 'hm', '투구', { def: Math.round(1 + req * 0.5), hp: Math.round(req * 3) });
-      add('armor', 'ar', '갑옷', { def: Math.round(2 + req * 0.9), hp: Math.round(req * 5) });
-      add('boots', 'bt', '신발', { def: Math.round(1 + req * 0.4), spd: 3 + Math.round(t * 0.75) });
-      add('ring', 'rg', '반지', { mp: Math.round(10 + req * 2), mag: Math.round(req * 0.5) });
+    (T.legend ? [0] : [0, 1]).forEach(rare => {
+      const q = rare ? '정예 ' : '', id = (s) => `${s}${t + 1}${rare ? 'r' : ''}`, boost = T.legend ? 1.18 : 1;
+      const add = (slot, sid, name, stf, extra) => { const req = reqOf(t, rare, sid), st = stf(req); Object.keys(st).forEach(k => { if (k !== 'spd') st[k] = Math.round(st[k] * boost); });
+        ITEMS[id(sid)] = Object.assign({ id: id(sid), slot, name: q + T.name + ' ' + name, tier: t, rare: !!rare || !!T.legend, legend: !!T.legend, req, st, price: Math.round((20 + req * req * 0.9) * (T.legend ? 3 : 1)) }, extra || {}); GEAR_BASE.push(id(sid)); };
+      add('weapon', 'sw', '검', r => ({ atk: Math.round(4 + r * 1.6) }), { look: 'sword' });
+      add('weapon', 'st', '지팡이', r => ({ atk: Math.round(2 + r * 0.7), mag: Math.round(4 + r * 1.5) }), { look: 'staff' });
+      add('helmet', 'hm', '투구', r => ({ def: Math.round(1 + r * 0.5), hp: Math.round(r * 3) }));
+      add('armor', 'ar', '갑옷', r => ({ def: Math.round(2 + r * 0.9), hp: Math.round(r * 5) }));
+      add('boots', 'bt', '신발', r => ({ def: Math.round(1 + r * 0.4), spd: 3 + Math.round(t * 0.75) }));
+      add('ring', 'rg', '반지', r => ({ mp: Math.round(10 + r * 2), mag: Math.round(r * 0.5) }));
     });
   });
+
+  /* ---------------- v60 장비 옵션 (떨어질 때 무작위로 붙음) ----------------
+   *  max = 가장 높은 단계(전설)에서 나올 수 있는 최댓값(%). 낮은 단계일수록 작게: max × (0.15 + 0.85 × 단계/9) × (0.2~1)
+   *  25% 확률로 마이너스 옵션(값 절반) — 예) 번개 속성 방어 +0.1% · 물리 방어 −0.1%
+   *  옵션 개수 → 등급: 1 일반 · 2 고급 · 3 희귀 · 4 영웅 · 전설 단계 = 전설 (4개) */
+  const OPTS = {
+    pdef: { name: '물리 방어', max: 5 },
+    e_fire: { name: '불 속성 방어', max: 8, el: 'fire' },
+    e_water: { name: '물 속성 방어', max: 8, el: 'water' },
+    e_wind: { name: '바람 속성 방어', max: 8, el: 'wind' },
+    e_earth: { name: '땅 속성 방어', max: 8, el: 'earth' },
+    e_thunder: { name: '전기(번개) 속성 방어', max: 8, el: 'thunder' },
+    e_light: { name: '빛 속성 방어', max: 8, el: 'light' },
+    e_all: { name: '모든 속성 방어', max: 3 },
+    atkP: { name: '공격력', max: 6 },
+    magP: { name: '마력', max: 6 },
+    dmg: { name: '주는 피해', max: 5 },
+    hpP: { name: '최대 체력', max: 8 },
+    mpP: { name: '최대 마나', max: 8 },
+    spdP: { name: '이동 속도', max: 4 },
+    crit: { name: '치명타 확률', max: 3 },
+    critD: { name: '치명타 피해', max: 10 },
+    mpReg: { name: '마나 회복', max: 10 },
+    goldP: { name: '골드 획득', max: 10 },
+    expP: { name: '경험치 획득', max: 6 }
+  };
+  const GRADE = [
+    { name: '일반', color: '#FFFFFF' }, { name: '고급', color: '#9AF0B0' }, { name: '희귀', color: '#7FC8FF' },
+    { name: '영웅', color: '#D8A8FF' }, { name: '전설', color: '#FFD23F' }
+  ];
+  /* v60 강화 (마을 대장장이): +0 → +10. 실패하면 장비가 부서짐(사라짐)
+   *  rate[n] = +n → +n+1 성공 확률(%) · cost(n) = 100 × 2^n 골드 (1강 100 … 10강 51,200 · 모두 102,300)
+   *  per = 1강마다 기본 능력치(공격·마력·방어·체력·마나) +10% (+10 = 2배). 옵션은 그대로 */
+  const ENH = { max: 10, rate: [95, 90, 85, 80, 70, 60, 50, 40, 35, 30], cost: n => 100 * Math.pow(2, n), per: 0.1 };
+  // v60 지역마다 몬스터 속성 (원거리 탄 · 보스 내려찍기가 이 속성 → 속성 방어로 줄어듦. 몸통 박치기는 물리)
+  const RG_EL = ['wind', 'earth', 'water', 'fire', 'earth', 'water', 'light', 'thunder', 'fire'];
 
   /* ---------------- 소모품 (포션 가게) ---------------- */
   // 마을 n 의 포션 가게는 1 ~ n 단계 포션을 팜
@@ -459,8 +507,12 @@
     { name: '꼬마 콩이', av: { skin: 's2', hair: 'h_twin', top: 't_pe', bottom: 'b_shorts', shoes: 'sh_red' }, lines: ['분수 물 진짜 시원해!', '오른쪽 끝으로 가면 사냥터래!', '나도 커서 마법사 될 거야!'] },
     { name: '나무꾼 아저씨', av: { skin: 's3', hair: 'h_short_brown', hat: 'hat_straw', face: 'f_mustache', top: 't_overall', bottom: 'b_jeans', shoes: 'sh_boots' }, lines: ['숲에 슬라임이 많아졌어.', '약방 물약은 정말 잘 들어.', '이장님 댁에 들르면 멀리 갈 수 있다네.'] },
     { name: '여행자 하늘', av: { skin: 's1', hair: 'h_ponytail', hat: 'hat_elfhood', top: 't_elf', bottom: 'b_cargo', shoes: 'sh_hightop', back: 'bk_bag2' }, lines: ['왜군이 사냥터마다 숨어 있대!', '보스는 꼭 장비를 떨어뜨린대!', '도술 서원에서 융합을 배워 봐.'] },
-    { name: '대장장이 철수', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' }, lines: ['정예 장비는 반짝반짝 빛나지.', '레벨이 모자라면 장비를 못 입어.', '가방이 꽉 차면 약방에서 팔게.'] }
+    { name: '떠돌이 장인 철수', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' }, lines: ['정예 장비는 반짝반짝 빛나지.', '레벨이 모자라면 장비를 못 입어.', '마을 대장간에서 장비를 강화해 봐!'] }
   ];
+  // v60 마을 대장간 (마을마다 한 명 · 서 있음 · 가까이 가면 강화 창)
+  const SMITH = { name: '대장장이 무쇠', color: '#FFB86B', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
+    hello: ['불이 잘 달궈졌네! 뭘 두드려 볼까?', '강화는 운이야. 실패하면 장비가 산산조각 나니 각오하게!', '+10 까지 가면 전설이 되는 거지. 허허!', '높이 올라갈수록 망치가 무거워진다네. 골드도 두 배씩!'],
+    lines: ['땅! 땅! 땅!', '강화하러 왔나?', '불꽃이 좋구먼!'] };
 
-  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS };
+  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, GEAR_BASE, OPTS, GRADE, ENH, RG_EL, SMITH, reqOf };
 })();

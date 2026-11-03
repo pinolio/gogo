@@ -37,8 +37,8 @@
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; return [c, x]; };
 
   /* ================= 지도 만들기 =================
-   * 칸 값: 0 땅 · 1 길 · 2 장애물(큰) · 3 장애물(작은) · 4 물 · 5 꽃(지나갈 수 있음) · 6 건물 · 7 문 · 8 분수 */
-  const SOLID = { 2: 1, 3: 1, 4: 1, 6: 1, 8: 1 };
+   * 칸 값: 0 땅 · 1 길 · 2 장애물(큰) · 3 장애물(작은) · 4 물 · 5 꽃(지나갈 수 있음) · 6 건물 · 7 문 · 8 분수 · 9 대장간(v60) */
+  const SOLID = { 2: 1, 3: 1, 4: 1, 6: 1, 8: 1, 9: 1 };   // 9 = v60 대장간
   const mapCache = {};
   function getMap(id) {
     if (mapCache[id]) return mapCache[id];
@@ -72,6 +72,13 @@
       if (!R.castle) { set(17, 14, 8); set(18, 14, 8); set(17, 15, 8); set(18, 15, 8); for (let x = 15; x <= 20; x++) { set(x, 13, 1); set(x, 16, 1); } for (let y = 13; y <= 16; y++) { set(15, y, 1); set(20, y, 1); } for (let y = mid + 2; y < 13; y++) set(17, y, 1); }
       // 나무 몇 그루 · 꽃
       for (let i = 0; i < 70; i++) { const x = 1 + Math.floor(rnd() * (w - 2)), y = 1 + Math.floor(rnd() * (h - 2)); if (at(x, y) === 0 && Math.abs(y - mid) > 2 && !nearDoor(map, x, y)) set(x, y, rnd() < 0.35 ? 2 : 5); }
+      // v60 대장간 (마을마다 하나 · 3×2 칸) + 큰길에서 내려오는 작은 길. 대장장이는 대장간 앞에 섬 (game.js)
+      const fx0 = R.castle ? 16 : 27, fy0 = 14;
+      for (let y = fy0 - 1; y <= fy0 + 4; y++) for (let x = fx0 - 2; x <= fx0 + 4; x++) if ([2, 3, 5].includes(at(x, y))) set(x, y, 0);
+      for (let y = fy0; y < fy0 + 2; y++) for (let x = fx0; x < fx0 + 3; x++) set(x, y, 9);
+      for (let y = mid + 2; y <= fy0 + 3; y++) set(fx0 - 1, y, 1);
+      for (let x = fx0 - 1; x <= fx0 + 3; x++) set(x, fy0 + 3, 1);
+      map.forge = { x: fx0, y: fy0, w: 3, h: 2 };
     } else {
       // 굽은 길 (왼쪽 → 오른쪽)
       let y = mid;
@@ -208,6 +215,12 @@
       map.objs.push({ img: spr.c, x: b.x * TS - spr.ox, y: b.y * TS - spr.oy, sy: (b.y + b.h) * TS - 1, b });
       map.glows.push({ x: (b.door.x + 0.5) * TS, y: (b.y + b.h - 1) * TS, r: 70, col: '#FFD27A' });
     });
+    if (map.forge) {   // v60 대장간
+      const f = map.forge, spr = forgeSprite(R);
+      x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(f.x * TS - 4, (f.y + f.h) * TS - 10, f.w * TS + 8, 12);
+      map.objs.push({ img: spr, x: f.x * TS + (f.w * TS - spr.width) / 2, y: (f.y + f.h) * TS - spr.height + 4, sy: (f.y + f.h) * TS - 1, forge: f });
+      map.glows.push({ x: (f.x + 0.7) * TS, y: (f.y + 1.2) * TS, r: 80, col: '#FF8A3D' });
+    }
     if (map.at(17, 14) === 8) {
       x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.ellipse(17 * TS + 32, 16 * TS - 2, 34, 10, 0, 0, Math.PI * 2); x.fill();
       map.objs.push({ img: fountainSprite(R), x: 17 * TS - 8, y: 14 * TS - 40, sy: 16 * TS - 1, fountain: true });
@@ -222,7 +235,7 @@
   }
   // 작은 지도 (1칸 = 1점)
   function paintMini(map) {
-    const { w, h, R, at } = map, [c, x] = mk(w, h), col = { 0: R.ground[0], 1: R.path, 2: shade(R.ground[0], -0.45), 3: shade(R.ground[0], -0.35), 4: R.water, 5: R.ground[0], 6: '#B8A080', 7: '#FFD27A', 8: '#9AD8F5' };
+    const { w, h, R, at } = map, [c, x] = mk(w, h), col = { 0: R.ground[0], 1: R.path, 2: shade(R.ground[0], -0.45), 3: shade(R.ground[0], -0.35), 4: R.water, 5: R.ground[0], 6: '#B8A080', 7: '#FFD27A', 8: '#9AD8F5', 9: '#FF8A3D' };
     for (let y = 0; y < h; y++) for (let i = 0; i < w; i++) { x.fillStyle = col[at(i, y)] || R.ground[0]; x.fillRect(i, y, 1, 1); }
     return c;
   }
@@ -298,6 +311,39 @@
   }
   /* ---------- 건물 그림 조각 ---------- */
   const bldC = {};
+  /* v60 대장간 도트 그림 (Meshy 그림 img/bld_forge.png 이 있으면 game.js 가 그것을 씀)
+   *  왼쪽 돌 화덕(불 · 굴뚝) · 나무 차양 · 오른쪽 모루 · 물통 · 걸린 망치 */
+  const forgeC = {};
+  function forgeSprite(R) {
+    const key = R.name; if (forgeC[key]) return forgeC[key];
+    const W2 = 128, H2 = 118, [c, x] = mk(W2, H2), K = '#1D2340', p = (a, b, w, h, col) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
+    const st = '#8A8FA8', sl = '#AEB4CC', sd = '#5E6380', wood = '#9A6A3E', wl = '#C08A52', wd = '#6A4424';
+    // 굴뚝
+    p(14, 4, 22, 46, K); p(16, 6, 18, 44, st); p(16, 6, 5, 44, sl); p(30, 6, 4, 44, sd); for (let yy = 12; yy < 48; yy += 9) p(16, yy, 18, 2, sd);
+    p(12, 2, 26, 6, K); p(14, 3, 22, 3, sl);
+    // 차양 (나무 기둥 + 천막)
+    p(8, 40, 4, 74, K); p(9, 41, 2, 72, wd); p(116, 40, 4, 74, K); p(117, 41, 2, 72, wd);
+    p(2, 30, 124, 16, K);
+    for (let i = 0; i < 8; i++) p(4 + i * 15, 32, 15, 12, i % 2 ? '#D2343A' : '#FFE8C8');
+    for (let i = 0; i < 8; i++) { p(4 + i * 15, 44, 15, 4, K); p(5 + i * 15, 44, 13, 3, i % 2 ? '#A0202A' : '#E8CFA8'); }
+    // 화덕 (돌 · 불 입구)
+    p(4, 62, 62, 52, K); p(6, 64, 58, 48, st);
+    for (let yy = 66; yy < 110; yy += 10) for (let xx = 6 + ((yy / 10) % 2) * 8; xx < 62; xx += 16) { p(xx, yy, 14, 8, ((xx + yy) % 3) ? st : sl); p(xx, yy + 8, 14, 2, sd); }
+    p(18, 80, 34, 26, K); p(20, 82, 30, 24, '#3A1A10');
+    p(22, 92, 26, 14, '#FF6A3D'); p(26, 88, 18, 10, '#FF9A3D'); p(30, 86, 10, 8, '#FFD23F'); p(33, 84, 4, 6, '#FFF6C2');
+    p(22, 104, 26, 2, '#FFD23F');
+    // 모루 (받침 나무통 + 쇠)
+    p(76, 92, 26, 22, K); p(78, 94, 22, 20, wood); p(78, 94, 6, 20, wl); p(94, 94, 6, 20, wd); p(78, 100, 22, 2, wd);
+    p(70, 78, 40, 16, K); p(72, 80, 36, 6, '#6A7088'); p(72, 80, 36, 2, '#C8CEE8'); p(80, 86, 20, 6, '#4A5068'); p(106, 80, 8, 4, K); p(106, 81, 6, 2, '#6A7088');
+    p(88, 74, 6, 4, '#FF9A3D'); p(90, 72, 2, 2, '#FFE45C');   // 달궈진 쇠
+    // 망치 (모루 위에 비스듬히)
+    p(96, 60, 3, 18, K); p(97, 61, 1, 16, wl); p(91, 56, 14, 8, K); p(92, 57, 12, 6, '#9AA3C7'); p(92, 57, 12, 2, '#E0E6FF');
+    // 물통
+    p(108, 98, 16, 16, K); p(110, 100, 12, 14, wd); p(110, 100, 12, 3, '#4FA8E8'); p(110, 106, 12, 2, K);
+    // 간판 (망치 그림)
+    p(46, 48, 34, 14, K); p(48, 50, 30, 10, '#3A2A1A'); p(56, 52, 2, 7, '#FFD23F'); p(52, 51, 10, 3, '#FFD23F'); p(64, 53, 9, 2, '#FFD23F'); p(66, 51, 2, 6, '#FFD23F');
+    return (forgeC[key] = c);
+  }
   function buildingSprite(b, R) {
     const key = b.type + b.w + b.h + R.name; if (bldC[key]) return bldC[key];
     const ox = 40, oy = 90, w = b.w * TS, h = b.h * TS, [c, x] = mk(w + ox * 2, h + oy + 10), K = '#1D2340';
@@ -365,7 +411,7 @@
    *  img/ 폴더의 그림을 불러 두었다가 있으면 쓰고, 없으면(또는 늦으면) 코드로 그린 그림을 씀
    *  bld_potion·bld_school·bld_chief·bld_castle / boss_r0~8 / mon_r0~8 (9칸 × 64px) / obj_r0~8_1·2 / key.jpg */
   const RIMG = {}, IMG_DIR = 'games/action/rpg/img/';
-  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
+  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
   let imgPromise = null;
   function loadImages(timeoutMs) {
     if (!imgPromise) imgPromise = Promise.all(IMG_LIST.concat(['key']).map(n => new Promise(res => {
@@ -452,8 +498,12 @@
   // 창에 쓰는 작은 그림 (아이템 아이콘): 장비는 그 장비만 따로 그려서 확대, 포션은 병 그림
   const icC = {};
   function itemImg(id) {
+    const it = D.ITEMS[id]; if (!it) return '';
+    if (it.base) return itemImg(it.base);   // v60 장비 하나하나(g:…) 는 기본 장비 그림을 같이 씀
     if (icC[id]) return icC[id];
-    const it = D.ITEMS[id], S = 36, [c, x] = mk(S, S); x.imageSmoothingEnabled = false;
+    const S = 36, [c, x] = mk(S, S); x.imageSmoothingEnabled = false;
+    const leg = it.legend && imgOk(it.slot === 'weapon' ? 'ic_leg_sw' : it.slot === 'armor' ? 'ic_leg_ar' : '');   // v60 전설 무기·갑옷 = Meshy 그림
+    if (leg && !(it.slot === 'weapon' && it.look === 'staff')) { const k = Math.min((S - 2) / leg.naturalWidth, (S - 2) / leg.naturalHeight), ww = leg.naturalWidth * k, hh = leg.naturalHeight * k; x.imageSmoothingEnabled = true; x.drawImage(leg, (S - ww) / 2, (S - hh) / 2, ww, hh); return (icC[id] = c.toDataURL()); }
     if (it.stack) {
       const col = it.kind === 'hp' ? D.TIER[0] && ['#FF5A5F', '#FF8A3D', '#E8402A', '#FF6A8A', '#D2143A', '#B0102A', '#A040C0', '#FFB3D1', '#FF9A3D'][it.tier] : it.kind === 'mp' ? ['#4C7DFF', '#5AB8F5', '#2EC0B8', '#3E4AC0', '#2F55D9', '#7FA0FF', '#8A6AF0', '#BDE8FF', '#3BC8F5'][it.tier] : null;
       const p = (a, b, w, h, cc) => { x.fillStyle = cc; x.fillRect(a, b, w, h); };
@@ -480,7 +530,7 @@
   function itemIcon(id) {
     const it = D.ITEMS[id]; if (!it) return '';
     const t = it.slot ? D.TIER[it.tier] : { color: '#5A64A0', gem: '#FFFFFF' };
-    return `<img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}" src="${itemImg(id)}" alt="">`;
+    return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
   }
 
   window.__GoRPGParts = { loadImages, imgOk, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
