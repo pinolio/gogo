@@ -62,9 +62,25 @@
     }
     return out;
   }
-  const LV = { easy: { def: 0.6, noise: 0.5, pick: 4 }, normal: { def: 0.95, noise: 0.08, pick: 2 }, hard: { def: 1.05, noise: 0, pick: 1 } };
-  function aiMove(g, level) {
-    const L = LV[level] || LV.normal, me = g.turn, op = 3 - me;
+  /* v61 단계 1~10
+   *  1~3단계 = 예전 쉬움·보통·어려움 (한 수만 보고 점수가 높은 곳)
+   *  4단계부터 = 몇 수 앞까지 읽기(알파베타) + 사(4) 연속 공격 읽기(VCF) + 상대 VCF 막기
+   *   depth = 읽는 수, k = 한 번에 살펴볼 후보 수, vcf = 연속 4 공격을 몇 번까지 읽나, ms = 생각 시간 한도, noise = 일부러 흔드는 정도 */
+  const LV = [null,
+    { def: 0.6, noise: 0.5, pick: 4 },
+    { def: 0.95, noise: 0.08, pick: 2 },
+    { def: 1.05, noise: 0, pick: 1 },
+    { depth: 2, k: 10, vcf: 2, ms: 500, noise: 0.15 },
+    { depth: 2, k: 12, vcf: 3, ms: 600, noise: 0.08 },
+    { depth: 3, k: 10, vcf: 4, ms: 800, noise: 0.03 },
+    { depth: 4, k: 8, vcf: 5, ms: 1000, noise: 0 },
+    { depth: 4, k: 10, vcf: 6, ms: 1400, noise: 0 },
+    { depth: 4, k: 12, vcf: 8, ms: 1800, noise: 0 },
+    { depth: 4, k: 14, vcf: 12, ms: 2500, noise: 0 },
+    { depth: 4, k: 18, vcf: 16, ms: 4000, noise: 0 }     // 11 = AI 대전 (10단계를 이기면 열림 · 지금은 가장 깊게 읽는 컴퓨터, 나중에 학습한 AI 로 바꿀 자리)
+  ];
+  function greedy(g, L) {
+    const me = g.turn, op = 3 - me;
     const list = candidates(g).map(([x, y]) => {
       const atk = pointScore(g, x, y, me), def = pointScore(g, x, y, op);
       let s = atk + def * L.def + (7 - Math.max(Math.abs(x - 7), Math.abs(y - 7))) * 2;
@@ -74,8 +90,105 @@
       return { x, y, s };
     }).sort((a, b) => b.s - a.s);
     if (!list.length) return null;
-    const top = list[0].s >= 5e8 ? 1 : Math.min(L.pick, list.length);
+    let top = list[0].s >= 5e8 ? 1 : Math.min(L.pick, list.length);
+    if (top === 1) while (top < list.length && list[top].s >= list[0].s * 0.97) top++;   // v61 거의 같은 수는 그중 하나
     return list[B.rand(top)];
+  }
+  // 판 전체 점수: 다섯 칸 창마다 한 색만 있으면 그 개수로 점수 (막힌 3·띈 3 도 함께 셈)
+  const WIN = [0, 1, 12, 160, 2600, 1e6];
+  function evalBoard(g, me) {
+    const b = g.b; let s = 0;
+    for (const [dx, dy] of DIRS) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const ex = x + dx * 4, ey = y + dy * 4; if (ex < 0 || ex >= N || ey >= N) continue;
+      let c1 = 0, c2 = 0;
+      for (let k = 0; k < 5; k++) { const v = b[(y + dy * k) * N + x + dx * k]; if (v === 1) c1++; else if (v === 2) c2++; }
+      if (c1 && !c2) s += me === 1 ? WIN[c1] : -WIN[c1] * 1.15; else if (c2 && !c1) s += me === 2 ? WIN[c2] : -WIN[c2] * 1.15;
+    }
+    return s;
+  }
+  const fiveAt = (g, x, y, c) => DIRS.some(([dx, dy]) => g.run(x, y, dx, dy, c) + g.run(x, y, -dx, -dy, c) + 1 >= 5);
+  // 놓으면 다섯이 되는 빈 곳들
+  function winSpots(g, c) { const out = []; for (const [x, y] of candidates(g)) if (g.at(x, y) === 0 && fiveAt(g, x, y, c)) out.push([x, y]); return out; }
+  // 사(4)를 만드는 곳: 놓은 뒤 이기는 곳이 생김
+  function fourMoves(g, c) {
+    const out = [];
+    for (const [x, y] of candidates(g)) {
+      if (g.at(x, y) !== 0) continue;
+      let ok = false;
+      for (const [dx, dy] of DIRS) { const a = g.run(x, y, dx, dy, c), b2 = g.run(x, y, -dx, -dy, c); if (a + b2 + 1 >= 3) { ok = true; break; } const a2 = g.at(x + dx * (a + 1), y + dy * (a + 1)) === 0 ? g.run(x + dx * (a + 1), y + dy * (a + 1), dx, dy, c) : 0, b3 = g.at(x - dx * (b2 + 1), y - dy * (b2 + 1)) === 0 ? g.run(x - dx * (b2 + 1), y - dy * (b2 + 1), -dx, -dy, c) : 0; if (a + b2 + 1 + a2 + b3 >= 4) { ok = true; break; } }
+      if (!ok) continue;
+      g.b[y * N + x] = c; const w = winSpots(g, c); g.b[y * N + x] = 0;
+      if (w.length) out.push([x, y, w]);
+    }
+    return out;
+  }
+  // VCF: c 가 계속 '사'를 두어 이길 수 있나 (상대는 막을 수밖에 없음). 이기면 첫 수
+  function vcf(g, c, depth, stop) {
+    if (depth <= 0 || stop()) return null;
+    for (const [x, y, w] of fourMoves(g, c)) {
+      if (w.length >= 2) return [x, y];                          // 사가 두 군데 → 못 막음
+      g.b[y * N + x] = c; const [bx, by] = w[0];
+      // 상대가 막는 자리에서 상대가 다섯이 되면 실패
+      let ok = !fiveAt(g, bx, by, 3 - c);
+      if (ok) { g.b[by * N + bx] = 3 - c; ok = !winSpots(g, 3 - c).length || winSpots(g, c).length > 0; if (ok) ok = !!vcf(g, c, depth - 1, stop); g.b[by * N + bx] = 0; }
+      g.b[y * N + x] = 0;
+      if (ok) return [x, y];
+    }
+    return null;
+  }
+  function ordered(g, c, k) {
+    const op = 3 - c;
+    return candidates(g).map(([x, y]) => ({ x, y, s: pointScore(g, x, y, c) + pointScore(g, x, y, op) * 0.9 })).sort((a, b) => b.s - a.s).slice(0, k);
+  }
+  function negamax(g, depth, alpha, beta, k, stop) {
+    const me = g.turn, op = 3 - me;
+    const mine = winSpots(g, me); if (mine.length) return 9e5 + depth;   // 내 차례에 다섯 → 이김
+    const theirs = winSpots(g, op);
+    if (theirs.length > 1) return -9e5 - depth;                 // 상대 사(4)가 두 곳 → 못 막음
+    if (depth === 0 || stop()) return evalBoard(g, me) - (theirs.length ? 2000 : 0);
+    const list = theirs.length ? theirs.map(([x, y]) => ({ x, y })) : ordered(g, me, k);
+    let best = -1e9;
+    for (const m of list) {
+      g.b[m.y * N + m.x] = me; g.turn = op;
+      const v = -negamax(g, depth - 1, -beta, -alpha, k, stop);
+      g.b[m.y * N + m.x] = 0; g.turn = me;
+      if (v > best) best = v; if (v > alpha) alpha = v; if (alpha >= beta) break;
+    }
+    return best;
+  }
+  function aiMove(g, level) {
+    const st = B.step(level), L = LV[st];
+    if (st <= 3) return greedy(g, L);
+    const me = g.turn, op = 3 - me;
+    if (!g.moves.length) return { x: 7, y: 7 };
+    const w = winSpots(g, me); if (w.length) return { x: w[0][0], y: w[0][1] };     // 바로 이김
+    const t = winSpots(g, op); if (t.length) return { x: t[0][0], y: t[0][1] };     // 바로 막음
+    const stop = B.deadline(L.ms);
+    if (L.vcf) { const v = vcf(g, me, L.vcf, stop); if (v) return { x: v[0], y: v[1] }; }
+    let root = ordered(g, me, L.k + 4);
+    // 상대가 VCF 로 이길 수 있으면 그것을 깨는 수만 고름
+    if (L.vcf && vcf(g, op, L.vcf, B.deadline(L.ms / 3))) {
+      const safe = root.filter(m => { g.b[m.y * N + m.x] = me; const r = !vcf(g, op, L.vcf, B.deadline(L.ms / 6)); g.b[m.y * N + m.x] = 0; return r; });
+      if (safe.length) root = safe;
+    }
+    let best = root[0], vals = null;
+    for (let d = 1; d <= L.depth; d++) {                        // 한 수씩 더 깊이 (시간이 다 되면 그 전 결과)
+      let bd = null, alpha = -1e9; const vs = [];
+      for (const m of root) {                                   // 가장 좋은 수와 비슷한지만 알면 되므로 창을 좁힘
+        g.b[m.y * N + m.x] = me; g.turn = op;
+        const raw = -negamax(g, d - 1, -1e9, -alpha, L.k, stop), v = raw * (1 + (Math.random() - 0.5) * L.noise);
+        if (raw - 16 - Math.abs(raw) * (0.03 + L.noise) > alpha) alpha = raw - 16 - Math.abs(raw) * (0.03 + L.noise);
+        g.b[m.y * N + m.x] = 0; g.turn = me;
+        if (stop() && d > 1) { bd = null; break; }
+        vs.push({ x: m.x, y: m.y, v }); if (!bd || v > bd.v) bd = { x: m.x, y: m.y, v };
+      }
+      if (!bd) break;
+      best = bd; vals = vs; root.sort((a, b2) => (a.x === bd.x && a.y === bd.y ? -1 : b2.x === bd.x && b2.y === bd.y ? 1 : 0));
+      if (bd.v >= 9e5) break;
+    }
+    // 같은 판이면 늘 같은 수를 두지 않게: 가장 좋은 수와 거의 같은 수들 중 하나 (외워서 이기기 어렵게)
+    if (vals && Math.abs(best.v) < 9e5) { const tol = Math.max(15, Math.abs(best.v) * 0.03), near = vals.filter(m => m.v >= best.v - tol); best = near[B.rand(near.length)]; }
+    return { x: best.x, y: best.y };
   }
 
   /* ---------- 화면 ---------- */
@@ -160,7 +273,7 @@
         mv.clear(); busy = false; draw();
         const msg = w === -1 ? '판이 가득 차서 무승부!' : resignSide ? (left ? '상대가 나갔어요 · ' : name(resignSide) + ' 기권 · ') + name(3 - resignSide) + ' 승' : name(g.winner) + ' 다섯 줄 완성! ' + name(g.winner) + ' 승';
         hooks.onTurn({ text: msg, side: -1 });
-        hooks.onOver({ winner: w, message: msg, moves: g.moves.length, duration_sec: clock.sec(), extra: { moves: g.moves.length } });
+        hooks.onOver({ winner: w, message: msg, moves: g.moves.length, duration_sec: clock.sec(), extra: { moves: g.moves.length }, record: { side, moves: g.moves.map(m => [m[0], m[1]]) } });   // v62 기보 (x, y)
       }
       const off = B.pointer(canvas, W, H, (t, x, y) => {
         const gx = Math.round((x - SIDE - M) / C), gy = Math.round((y - M) / C);

@@ -14,9 +14,10 @@
   const ATTACK = CFG.attack || { 3: 1, 4: 3 };          // 지운 줄 수 → 상대에게 보내는 줄 수
   const MAX = CFG.maxPlayers || 6;                      // 한 방 최대 인원 (컴퓨터 포함)
   const C = 24, HOLDW = 72, METER = 14, SIDE = 132, BX = HOLDW + METER, W = BX + B.COLS * C + SIDE, H = B.ROWS * C, MINI = 9;
-  const levelFn = e => Math.min(15, Math.max(1 + Math.floor(e.lines / 10), 1 + Math.floor(e.elapsed / 30000))); // 30초마다 빨라짐
+  const EVERY = () => ((window.GoSettings.get('battle') || {}).speedEverySec || 20) * 1000;
+  const levelFn = e => Math.min(15, Math.max(1 + Math.floor(e.lines / 10), 1 + Math.floor(e.elapsed / EVERY()))); // v62: 20초마다 빨라짐 (예전 30초)
   // v56 랭킹 대전: 혼자 점수 쌓기. 처음부터 빠르고(온라인 대전보다) 더 자주 빨라짐 — 숫자는 settings.js 의 rank
-  const RK = () => Object.assign({ speed: 1.5, startLevel: 5, levelEverySec: 20, linesPerLevel: 8, maxLevel: 15, pointsPer: 50, maxPoints: 5, lineScore: { 1: 1, 2: 2, 3: 6, 4: 10 }, tetrisChain: [10, 20, 30, 40] }, (window.GoSettings.get('battle') || {}).rank || {});
+  const RK = () => Object.assign({ speed: 1.5, startLevel: 5, levelEverySec: 20, linesPerLevel: 8, maxLevel: 15, pointsPer: 50, maxPoints: 5, lineScore: { 1: 1, 2: 2, 3: 6, 4: 10 }, tetrisChain: [10, 20, 30, 40], stepBonus: 0.2 }, (window.GoSettings.get('battle') || {}).rank || {});
   const RANK_ID = () => (window.GoSettings.get('battle') || {}).rankId || 'battle-rank';
   // v58 랭킹 대전 점수: 1줄 1 · 2줄 2 · 3줄 6 · 4줄 10, 4줄을 연달아 지우면 20 → 30 → 40
   function rankPoints(n, st) {
@@ -24,6 +25,8 @@
     if (n >= 4) { st.chain = (st.chain || 0) + 1; return r.tetrisChain[Math.min(r.tetrisChain.length, st.chain) - 1]; }
     st.chain = 0; return r.lineScore[n] || 0;
   }
+  // v62 랭킹 대전 단계: 시작 속도 = 1단계, 빨라질 때마다 +1단계. 점수 배율 = 1 + 0.2 × (단계 − 1) → 1단계 ×1 · 2단계 ×1.2 · 3단계 ×1.4 …
+  const rankStep = e => Math.max(1, e.level - RK().startLevel + 1), rankMult = e => Math.round((1 + RK().stepBonus * (rankStep(e) - 1)) * 10) / 10;
   const rankLevelFn = e => { const r = RK(); return Math.min(r.maxLevel, Math.max(r.startLevel + Math.floor(e.lines / r.linesPerLevel), r.startLevel + Math.floor(e.elapsed / (r.levelEverySec * 1000)))); };
   // v56 좌우·아래 키를 누르고 있으면: 0.13초 뒤부터 0.035초마다 한 칸 (예전: 키보드 자동 반복 약 0.5초 뒤 · 초당 30번 → 처음이 느렸음)
   const DAS = 130, ARR = 35, SOFT = 35;
@@ -39,7 +42,7 @@
   const KEY_2P = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', Slash: 'rotateL', Enter: 'drop', NumpadEnter: 'drop', Numpad0: 'drop', ShiftRight: 'hold', Period: 'hold' };
   const P2 = 'local-2p';
   const PLAY = {
-    rank: { name: '랭킹 대전', desc: '혼자 하며 점수를 쌓아 랭킹에 올라요. 처음부터 빠르고 점점 더 빨라져요! 4줄을 연달아 지우면 점수가 커져요.', pts: '50점마다 +1P (한 판 최대 +5P)' },
+    rank: { name: '랭킹 대전', desc: '혼자 하며 점수를 쌓아 랭킹에 올라요. 처음부터 빠르고 20초마다 더 빨라져요! 빨라질수록(단계) 점수 ×1.2 · ×1.4 … 4줄을 연달아 지우면 점수가 커져요.', pts: '50점마다 +1P (한 판 최대 +5P)' },
     // v59: 오프라인 대결(한 키보드 2명)은 뺌 (선생님 결정 2026-11-03) — 관련 코드는 남아 있지만 고를 수 없음
     online: { name: '온라인 대결', desc: '방 코드로 다른 기기의 친구와 실시간으로 겨뤄요.', pts: '사람과 대결 승리 +2P · 패배 -1P' }
   };
@@ -99,7 +102,7 @@
             <li><b>개인전</b>: 공격이 살아 있는 모든 상대에게 동시에 올라가요.</li>
             <li><b>팀전 (블루 vs 레드)</b>: 공격은 상대 팀에게만 가요. 한 팀이 모두 탈락하면 끝!</li>
             <li>올라오는 줄은 빈칸 위치가 <b>무작위</b>예요. 왼쪽 빨간 막대가 받을 줄 수예요.</li>
-            <li>모두 같은 순서로 블록이 나오고, 30초마다 빨라져요.</li>
+            <li>모두 같은 순서로 블록이 나오고, 20초마다 빨라져요.</li>
             <li>개인전 점수 = (참가자 수 − 순위) × 100 + 보낸 공격 줄 × 10</li>
             <li>팀전 점수 = 승리 팀 200 + 보낸 공격 줄 × 10</li>
           </ul>
@@ -151,7 +154,7 @@
           <h3>공격 규칙</h3>
           <table class="atk-table"><thead><tr><th>한 번에 지운 줄</th><th class="n">상대에게</th></tr></thead>
             <tbody><tr><td>1~2줄</td><td class="n">-</td></tr><tr><td>3줄</td><td class="n hot">1줄</td></tr><tr><td>4줄</td><td class="n hot">3줄</td></tr></tbody></table>
-          <ul class="rule-list"><li>다음 블록 5개가 미리 보여요.</li><li><b>Ctrl</b>을 누르면 지금 블록을 저장하고, 다시 누르면 저장한 블록과 바꿔요. (블록 하나당 1번)</li><li>30초마다 빨라져요.</li></ul>
+          <ul class="rule-list"><li>다음 블록 5개가 미리 보여요.</li><li><b>Ctrl</b>을 누르면 지금 블록을 저장하고, 다시 누르면 저장한 블록과 바꿔요. (블록 하나당 1번)</li><li>20초마다 빨라져요. <b>랭킹 대전</b>은 빨라질 때마다 단계가 올라 점수가 늘어나요: 1단계 ×1 · 2단계 ×1.2 · 3단계 ×1.4 · 4단계 ×1.6 · 5단계 ×1.8 …</li></ul>
         </div>
         <div class="panel b-rules">
           <h3>조작 키</h3>
@@ -437,11 +440,12 @@
   // 이 기기에서 사람이 조작하는 판 (나 + 오프라인 2P)
   const mainIds = () => match ? [Hub.clientId].concat(match.roster.filter(r => r.human && match.local[r.id]).map(r => r.id)) : [];
 
+  window.__GOGO_QA = Object.assign(window.__GOGO_QA || {}, { battle: { match: () => match, rankStep: e => rankStep(e), rankMult: e => rankMult(e), clear: (id, n) => onClear(id, n) } });   // v62 점검용
   function onClear(id, n) {
     if (match.play === 'rank') {   // 랭킹 대전: 공격 없음, 점수만
-      const st = match.rk || (match.rk = { score: 0, chain: 0, tetris: 0 }), add = rankPoints(n, st);
-      st.score += add; if (n >= 4) st.tetris++;
-      (match.popups[id] = match.popups[id] || []).push({ text: n + '줄! +' + add + (n >= 4 && st.chain > 1 ? ' (' + st.chain + '연속)' : ''), t: 0, hot: n >= 3 });
+      const st = match.rk || (match.rk = { score: 0, chain: 0, tetris: 0 }), L0 = match.local[id], mul = L0 ? rankMult(L0.eng) : 1, add = Math.round(rankPoints(n, st) * mul * 10) / 10;
+      st.score = Math.round((st.score + add) * 10) / 10; if (n >= 4) st.tetris++;
+      (match.popups[id] = match.popups[id] || []).push({ text: n + '줄! +' + add + (mul > 1 ? ' (×' + mul + ')' : '') + (n >= 4 && st.chain > 1 ? ' ' + st.chain + '연속' : ''), t: 0, hot: n >= 3 });
       return;
     }
     const atk = ATTACK[n] || 0;
@@ -520,7 +524,8 @@
 
   // 랭킹 대전 기록: 점수 = 줄 지우기 점수(빠를수록 큼), 포인트 = 5,000점마다 +1P (최대 +5P), 승패는 남기지 않음
   async function saveRank(eng) {
-    const r = RK(), m = match, score = (m.rk && m.rk.score) || 0, delta = Math.min(r.maxPoints, Math.floor(score / r.pointsPer));
+    const r = RK(), m = match, score = Math.floor((m.rk && m.rk.score) || 0),   // v62 배율로 소수점이 생기면 버림
+      delta = Math.min(r.maxPoints, Math.floor(score / r.pointsPer));
     const best = Hub.user ? await Hub.myBest('battle').catch(() => null) : null;   // myBest('battle') → 랭킹 대전 기록(rankId)
     m.saved = { status: Hub.user ? 'saving' : 'guest', score, delta, rank: true, newBest: best == null || score > best };
     if (match === m) showResult();
@@ -608,7 +613,7 @@
     const ov = $('#btOv'); let n = 3;
     const hint = () => match.play === 'offline'
       ? '1P: WASD · Space 한 번에 · 왼쪽 Shift 저장<br>2P: 방향키 · Enter 한 번에 · 오른쪽 Shift 저장'
-      : match.play === 'rank' ? '랭킹 대전 · 1줄 1점 · 2줄 2점 · 3줄 6점 · 4줄 10점 (연속 20·30·40) · Ctrl 블록 저장' : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
+      : match.play === 'rank' ? '랭킹 대전 · 1줄 1점 · 2줄 2점 · 3줄 6점 · 4줄 10점 (연속 20·30·40) · 20초마다 빨라지고 점수 ×1.2·×1.4…' : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
     const step = () => {
       if (!match || !ov.isConnected) return;
       if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${hint()}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
@@ -656,9 +661,9 @@
     B.drawQueue(ctx, eng, cx, 30, 96, 5);
     if (match.play === 'rank') {   // v58: 다음 블록 5칸(아래 끝 y=272) 아래로 — 예전엔 SCORE 가 5번째 칸과 겹쳤음
       const rk = match.rk || {};
-      P.text(ctx, 'SCORE', cx, 292, 9, P.DIM); P.text(ctx, A.fmt(rk.score || 0), cx, 308, 15, P.PIECE.O);
+      P.text(ctx, 'SCORE', cx, 292, 9, P.DIM); P.text(ctx, A.fmt(Math.floor(rk.score || 0)), cx, 308, 15, P.PIECE.O);
       P.text(ctx, 'LINES', cx, 340, 9, P.DIM); P.text(ctx, eng.lines, cx, 354, 13, P.INK);
-      P.text(ctx, 'SPEED', cx + 56, 340, 9, P.DIM); P.text(ctx, eng.level, cx + 56, 354, 13, P.PIECE.O);
+      P.text(ctx, 'STAGE', cx + 56, 340, 9, P.DIM); P.text(ctx, rankStep(eng) + ' ×' + rankMult(eng), cx + 56, 354, 11, P.PIECE.O);   // v62 단계 · 점수 배율
       if ((rk.chain || 0) > 0) { P.text(ctx, '4LINE', cx, 386, 9, P.DIM); P.text(ctx, rk.chain + ' COMBO', cx, 400, 11, P.PIECE.I); }
     } else {
       P.text(ctx, 'ATTACK', cx, 290, 9, P.DIM); P.text(ctx, eng.sent, cx, 304, 13, '#FF5A5F');
@@ -713,8 +718,8 @@
     ov.hidden = false;
     ov.innerHTML = `<div class="ov-box result">
       <canvas class="ov-avatar" data-avatar="${AV.attr(myAvatar())}" data-scale="3" aria-hidden="true"></canvas>
-      <div class="ov-title">${A.fmt((match.rk && match.rk.score) || 0)}점</div>${s.newBest && Hub.user ? '<span class="ov-best">NEW BEST</span>' : ''}
-      <p class="ov-hint">지운 줄 ${eng ? eng.lines : 0} · 4줄 ${(match.rk && match.rk.tetris) || 0}번 · 최고 속도 ${eng ? eng.level : 1} · ${A.dur(match.clock.sec())}</p>
+      <div class="ov-title">${A.fmt(Math.floor((match.rk && match.rk.score) || 0))}점</div>${s.newBest && Hub.user ? '<span class="ov-best">NEW BEST</span>' : ''}
+      <p class="ov-hint">지운 줄 ${eng ? eng.lines : 0} · 4줄 ${(match.rk && match.rk.tetris) || 0}번 · 최고 ${eng ? rankStep(eng) : 1}단계(×${eng ? rankMult(eng) : 1}) · ${A.dur(match.clock.sec())}</p>
       ${note}
       <div class="ov-btns"><button class="btn btn-sun" type="button" id="btAgain">한 판 더 ▶</button><button class="btn" type="button" id="btBack">대결 방식 고르기</button></div>
     </div>`;

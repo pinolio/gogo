@@ -530,6 +530,11 @@
     mountSocial(id);
     session = { id, board: true, state: 'ready', mode: 'ai', level: 'normal', result: null, save: null };
     try { const last = JSON.parse(localStorage.getItem('gogo_board_pick') || '{}'); if (last.mode && last.mode !== 'online' && !(cfg.noLocal && last.mode === 'local')) { session.mode = last.mode; session.level = last.level || 'normal'; } } catch (e) { /* noop */ }
+    // v61: 단계는 게임마다 따로 기억 · 이 게임에 없는 단계면 바꿈 (예전 쉬움·보통·어려움 → 1·2·3단계)
+    { const AL = cfg.aiLevels || ['easy', 'normal', 'hard']; let lv = session.level; try { const g = localStorage.getItem('gogo_lv_' + id); if (g) lv = g; } catch (e) { /* noop */ }
+      if (!AL.includes(lv)) { const OLD = { easy: 'l1', normal: 'l2', hard: 'l3' }; lv = AL.includes(OLD[lv]) ? OLD[lv] : AL.includes(cfg.defaultLevel) ? cfg.defaultLevel : AL[Math.min(1, AL.length - 1)]; }
+      session.level = lv; fixLockedLevel(cfg); }
+    if (cfg.unlockFree) loadBeaten(id);
     if (cfg.players) { session.players = 2; try { const n = +localStorage.getItem('gogo_players_' + id); if (cfg.players.includes(n)) session.players = n; } catch (e) { /* noop */ } }
     if (cfg.subModes) { session.sub = cfg.subModes[0][0]; try { const v = localStorage.getItem('gogo_sub_' + id); if (cfg.subModes.some(m => m[0] === v)) session.sub = v; } catch (e) { /* noop */ } }   // v49: 둘이서·온라인의 '방식' (예: 닷지 협동/대결)
     session.inst = window.GoGames[id].create($('#gameCanvas'), hooks);
@@ -688,7 +693,7 @@
         <div class="pc-info"><b>${u ? esc(u.nickname) : '손님'}</b>${u ? `<span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="num pc-pt">${fmt(u.points)}P</span>` : '<span class="small">로그인하면 포인트를 모아요</span>'}</div></div>
       <dl class="rules">${cfg.cardRules ? cfg.cardRules() : `
         <dt>포인트</dt><dd>${(session.players || 2) > 2 && cfg.pointsByRank ? rankPointText(cfg, session.players) : `컴퓨터에게 승리 <b class="plus">+${pts.win}P</b> · 패배 <b class="minus">${pts.lose}P</b> · 무승부 0P`}</dd>
-        <dt>랭킹 점수</dt><dd>이긴 난이도 · 쉬움 ${ls.easy || 100} / 보통 ${ls.normal || 200} / 어려움 ${ls.hard || 300}</dd>
+        <dt>랭킹 점수</dt><dd>${cfg.stepLevels ? `이긴 단계 × 100 · 1단계 ${ls.l1} … ${cfg.stepLevels}단계 ${fmt(ls['l' + cfg.stepLevels])}${ls['l' + (cfg.stepLevels + 1)] ? ` · AI 대전 ${fmt(ls['l' + (cfg.stepLevels + 1)])}` : ''} (랭킹에는 'N단계'로 보여요)` : `이긴 난이도 · 쉬움 ${ls.easy || 100} / 보통 ${ls.normal || 200} / 어려움 ${ls.hard || 300}`}</dd>
         ${cfg.noLocal ? '' : '<dt>오프라인</dt><dd>한 기기로 번갈아 두기 · 포인트 없음</dd>'}
         ${cfg.online ? `<dt>온라인</dt><dd>방 코드로 다른 기기 친구와 · 승리 <b class="plus">+${pts.win}P</b> · 패배 <b class="minus">${pts.lose}P</b></dd>` : ''}`}
       </dl>`;
@@ -703,13 +708,17 @@
     const np = session.players || 2;
     if (st === 'ready') {
       const lvName = l => (cfg.levelNames && cfg.levelNames[l]) || LEVEL_NAME[l];
-      const lv = (cfg.aiLevels || ['easy', 'normal', 'hard']).map(l => `<button class="btn ${session.mode === 'ai' && session.level === l ? 'btn-sun' : ''}" type="button" data-pick="ai:${l}">${lvName(l)}</button>`).join('');
+      fixLockedLevel(cfg);
+      const lv = (cfg.aiLevels || ['easy', 'normal', 'hard']).map(l => { const open = levelOpen(cfg, session.id, l), n = stepOf(l), ai = cfg.stepLevels && n > cfg.stepLevels;
+        return `<button class="btn ${session.mode === 'ai' && session.level === l ? 'btn-sun' : ''}${open ? '' : ' locked'}${ai ? ' ai-lv' : ''}" type="button" data-pick="ai:${l}" ${open ? '' : `disabled title="${ai ? cfg.stepLevels + '단계' : (n - 1) + '단계'}를 이기면 열려요"`}>${lvName(l)}${open ? '' : '<small>잠김</small>'}</button>`; }).join('');
+      const openTo = Math.min((cfg.aiLevels || []).length, Math.max(cfg.unlockFree, beaten(session.id) + 1));   // AI 대전이 없으면 10단계까지
+      const lockNote = cfg.unlockFree ? `<p class="lv-note">1~${cfg.unlockFree}단계 자유 · 이기면 다음 단계가 열려요 · 지금 <b>${openTo > cfg.stepLevels ? 'AI 대전' : openTo + '단계'}</b>까지</p>` : '';
       const subName = v => ((cfg.subModes || []).find(m => m[0] === v) || [, ''])[1];
       const inRoom = session.mode === 'online' && session.net, roomHost = inRoom && session.net.hostId === Hub.clientId;   // 방 안: 꼭 필요한 것만 (시작 버튼이 화면 밖으로 밀리지 않게)
       ov.innerHTML = `<div class="ov-box ov-board"><div class="ov-title">${g.name}</div>
         ${inRoom ? '' : `<p class="ov-goal">${esc(g.blurb)}</p>`}
         <div class="mode-pick">
-          ${inRoom ? '' : `<div class="mode-row"><span class="mode-lbl">${cfg.aiLabel || 'AI 대전'}</span><div class="mode-btns">${lv}</div></div>`}
+          ${inRoom ? '' : `<div class="mode-row"><span class="mode-lbl">${cfg.aiLabel || 'AI 대전'}</span><div class="mode-btns${cfg.stepLevels ? ' steps' : ''}">${lv}</div></div>${lockNote}`}
           ${cfg.noLocal || inRoom ? '' : `<div class="mode-row"><span class="mode-lbl">오프라인</span><div class="mode-btns"><button class="btn ${session.mode === 'local' ? 'btn-sun' : ''}" type="button" data-pick="local">${np > 2 ? np + '명이' : '둘이서'} 한 기기</button></div></div>`}
           ${cfg.online && !inRoom ? `<div class="mode-row"><span class="mode-lbl">온라인</span><div class="mode-btns"><button class="btn ${session.mode === 'online' ? 'btn-sun' : ''}" type="button" data-pick="online">${cfg.onlineBtn || '다른 기기 친구와'}</button></div></div>` : ''}
           ${cfg.subModes && session.mode !== 'ai' && (!inRoom || roomHost) ? `<div class="mode-row"><span class="mode-lbl">방식</span><div class="mode-btns">${cfg.subModes.map(([v, t]) => `<button class="btn ${session.sub === v ? 'btn-sun' : ''}" type="button" data-sub="${v}">${esc(t)}</button>`).join('')}</div></div>` : ''}
@@ -775,7 +784,7 @@
       const [m, l] = b.dataset.pick.split(':');
       if (m !== 'online') netLeave(); else netLobby();
       session.mode = m; if (l) session.level = l;
-      try { localStorage.setItem('gogo_board_pick', JSON.stringify({ mode: session.mode, level: session.level })); } catch (e) { /* noop */ }
+      try { localStorage.setItem('gogo_board_pick', JSON.stringify({ mode: session.mode, level: session.level })); if (l) localStorage.setItem('gogo_lv_' + session.id, l); } catch (e) { /* noop */ }
       renderOverlay();
     }));
     $$('[data-ov]', ov).forEach(b => b.addEventListener('click', () => {
@@ -822,12 +831,44 @@
     if (online) netAdvertise();
     renderOverlay();
     if (Hub.user) saveResult();
+    if (ai && cfg.records && res.record) saveRecord(session.id, session.level, res);
+    if (ai && cfg.unlockFree && res.winner === 0) {   // v63 이기면 다음 단계 열림
+      const n = stepOf(session.level);
+      if (setBeaten(session.id, n)) { const next = (cfg.aiLevels || [])[n]; if (n >= cfg.unlockFree && n <= cfg.stepLevels) toast(!next ? `${n}단계 승리! 모든 단계를 깼어요` : n >= cfg.stepLevels ? `${n}단계 승리! AI 대전이 열렸어요` : `${n}단계 승리! ${n + 1}단계가 열렸어요`); }
+    }
+  }
+  /* v63 단계 열기: 1~unlockFree 단계는 자유, 그 위는 바로 아래 단계를 이겨야 열림 (10단계를 이기면 AI 대전)
+   *  이긴 가장 높은 단계 = max(이 기기 기록, 서버 최고 점수 ÷ 100). 랭킹 점수 = 이긴 단계 × 100 이라 서버 기록으로 알 수 있음 */
+  const beatKey = id => 'gogo_beat_' + id + '_' + (Hub.user ? Hub.user.id : 'guest'), beatSrv = {};
+  function beaten(id) { let v = 0; try { v = +localStorage.getItem(beatKey(id)) || 0; } catch (e) { /* noop */ } return Math.max(v, beatSrv[(Hub.user ? Hub.user.id : 'guest') + id] || 0); }
+  function setBeaten(id, n) { if (n <= beaten(id)) return false; try { localStorage.setItem(beatKey(id), String(n)); } catch (e) { /* noop */ } return true; }
+  async function loadBeaten(id) {
+    if (!Hub.user) return;
+    try { const b = await Hub.myBest(id), n = Math.floor((b || 0) / 100), k = Hub.user.id + id; if (n > (beatSrv[k] || 0)) { beatSrv[k] = n; if (session && session.id === id && session.state === 'ready') renderOverlay(); } } catch (e) { /* noop */ }
+  }
+  const stepOf = l => (window.GoBoard && window.GoBoard.step ? window.GoBoard.step(l) : 2);
+  function levelOpen(cfg, id, l) { if (!cfg.unlockFree) return true; const n = stepOf(l); return n <= cfg.unlockFree || n <= beaten(id) + 1; }
+  function fixLockedLevel(cfg) { if (!session || !cfg.unlockFree || levelOpen(cfg, session.id, session.level)) return; const AL = cfg.aiLevels || []; session.level = AL.filter(l => levelOpen(cfg, session.id, l)).pop() || AL[0]; }
+  // v62 기보 저장 (머신러닝 준비): 로그인 + 서버 모드 + 컴퓨터와 둔 판만. 표가 없으면(SQL 전) 조용히 넘어감
+  let recordOff = false;
+  async function saveRecord(gid, level, res) {
+    if (recordOff || Hub.mode !== 'online' || !Hub.user || !Hub._sb) return;
+    const r = res.record || {}, mv = Array.isArray(r.moves) ? r.moves.slice(0, 1000) : [];
+    if (mv.length < 2) return;
+    const step = (window.GoBoard && window.GoBoard.step) ? window.GoBoard.step(level) : 2;
+    const row = { game_id: gid, level: step, human_side: r.side ? 1 : 0, result: res.winner === 0 ? 'win' : res.winner === 1 ? 'lose' : 'draw',
+      n_moves: Math.min(1000, mv.length), moves: mv, extra: r.extra || null, duration_sec: Math.max(0, Math.min(86400, Math.round(res.duration_sec || 0))), ver: 'v63' };
+    try {
+      const { error } = await Hub._sb.from('game_records').insert(row);
+      if (error) { if (/relation|does not exist|schema cache|permission/i.test(error.message)) recordOff = true; console.warn('[gogo] 기보 저장 안 됨', error.message); }
+    } catch (e) { /* noop */ }
   }
 
   function startGame() {
     if (!session) return;
     session.result = null; session.save = null;
     if (session.board) {
+      if (session.mode === 'ai') fixLockedLevel(SET.get(session.id));   // v63 잠긴 단계로는 시작하지 않음
       session.inst.start({ mode: session.mode, level: session.level, players: session.players || 2, sub: session.sub || null }); BGM.restart();
       // 휴대폰: 시작하면 게임 화면이 화면 가운데로 오게 (가로로 돌렸을 때 위가 잘리지 않게)
       const cv = $('#gameCanvas'); if (cv && window.matchMedia && matchMedia('(pointer: coarse)').matches) setTimeout(() => { try { cv.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* noop */ } }, 80);

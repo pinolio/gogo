@@ -268,7 +268,11 @@
     think(fn, ms) { return setTimeout(fn, ms == null ? 350 : ms); },
     rand: (n) => Math.floor(Math.random() * n),
     shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; },
-    LEVELS: { easy: '쉬움', normal: '보통', hard: '어려움' }
+    LEVELS: { easy: '쉬움', normal: '보통', hard: '어려움' },
+    // v61: 바둑·오목·장기·체스·알까기 = 1~10단계 ('l1' … 'l10'). 예전 쉬움·보통·어려움 = 1·2·3단계
+    step(level) { const old = { easy: 1, normal: 2, hard: 3 }[level]; if (old) return old; const n = parseInt(String(level || '').replace(/^l/, ''), 10); return n >= 1 && n <= 11 ? n : 2; },   // 11 = AI 대전 (v63)
+    // 시간 제한 (컴퓨터가 너무 오래 생각하지 않게): 밀리초가 지나면 true
+    deadline(ms) { const t0 = Date.now(), lim = ms * (window.GO_AI_TIME || 1); return () => Date.now() - t0 > lim; }   // GO_AI_TIME = 시험용 시간 배율
   };
 
   /* ---------- v52: 아바타가 돌·말을 옮기는 움직임 (오목·바둑·장기·체스) ----------

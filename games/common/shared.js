@@ -130,6 +130,17 @@
     listAll: () => Object.values(all).sort(byCat),
     ids: () => Object.keys(all),
     // 한 판 결과 → { win, delta }  (delta = 이번 판 포인트 변화. 실제 지급은 최하 0P 규칙 적용)
+    // v61: 컴퓨터 1~10단계 (바둑·오목·장기·체스·알까기) — settings.js 에서 Object.assign 으로 붙여 씀
+    //  랭킹 점수 = 이긴 단계 × 100 (1단계 100 … 10단계 1000), 랭킹 표시는 'N단계'. 온라인 승리는 online 점수
+    //  v63 opt.free = 이 단계까지는 자유롭게 고름, 그 위는 바로 아래 단계를 이겨야 열림 · opt.ai = 마지막 단계를 이기면 'AI 대전'(l11, 1100점) 열림
+    steps(n, online, opt) {
+      opt = opt || {};
+      const aiLevels = [], levelNames = {}, levelScore = { online: online || 300 };
+      for (let i = 1; i <= n; i++) { aiLevels.push('l' + i); levelNames['l' + i] = i + '단계'; levelScore['l' + i] = i * 100; }
+      if (opt.ai) { aiLevels.push('l' + (n + 1)); levelNames['l' + (n + 1)] = 'AI 대전'; levelScore['l' + (n + 1)] = (n + 1) * 100; }
+      return { aiLevels, levelNames, levelScore, defaultLevel: 'l2', stepLevels: n, unlockFree: opt.free || 0, records: true,
+        scoreText: v => (!v ? '-' : v > n * 100 ? 'AI 격파' : Math.round(v / 100) + '단계') };
+    },
     pointsFor(id, win, variant) {
       const s = all[id]; if (!s) return { win, delta: 0 };
       const table = (variant && s.points[variant]) || s.points;

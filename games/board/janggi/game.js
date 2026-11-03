@@ -153,15 +153,104 @@
     }
     return alpha;
   }
-  const LV = { easy: { depth: 1, noise: 2.5 }, normal: { depth: 2, noise: 0.4 }, hard: { depth: 3, noise: 0.05 } };
-  function aiMove(b, s, level) {
-    const L = LV[level] || LV.normal, moves = allLegal(b, s);
+  /* v61 단계 1~10
+   *  1~3단계 = 예전 쉬움·보통·어려움 (depth 수 앞까지, noise = 일부러 흔드는 정도, 기물 점수 단위: 차 13 · 포 7 · 마 5 · 상·사 3 · 졸 2)
+   *  4단계부터 = 새 탐색: 한 수씩 깊이 늘리기 + 잡는 수 끝까지 따라가기 + 좋은 수 먼저 + 시간 한도(ms)
+   *   tol = 이만큼 차이 안 나는 수 중 무작위 (같은 판에 늘 같은 수를 두지 않게) */
+  const LV = [null,
+    { depth: 1, noise: 2.5 }, { depth: 2, noise: 0.4 }, { depth: 3, noise: 0.05 },
+    { depth: 3, ms: 600, noise: 0.5, tol: 0 },
+    { depth: 3, ms: 800, noise: 0.1, tol: 0 },
+    { depth: 4, ms: 1000, noise: 0, tol: 0.15 },
+    { depth: 5, ms: 1300, noise: 0, tol: 0.12 },
+    { depth: 5, ms: 1700, noise: 0, tol: 0.03 },
+    { depth: 6, ms: 2300, noise: 0, tol: 0.03 },
+    { depth: 8, ms: 3000, noise: 0, tol: 0.02 },
+    { depth: 10, ms: 4200, noise: 0, tol: 0.01 }   // 11 = AI 대전 (10단계를 이기면 열림 · 나중에 학습한 AI 로 바꿀 자리)
+  ];
+  function aiMoveOld(b, s, L) {
+    const moves = allLegal(b, s);
     let best = null;
     for (const m of B.shuffle(moves)) {
       const v = -search(applyMove(b, m), 1 - s, L.depth - 1, -1e9, 1e9) + Math.random() * L.noise;
       if (!best || v > best.v) best = { m, v };
     }
     return best && best.m;
+  }
+  // 새 평가: 기물 + 졸 전진 + 가운데 + 궁 지키는 사·상 + 상대 궁 가까이 간 차·마·포
+  function eval2(b, s) {
+    let v = evalBoard(b, s);
+    const k = [findKing(b, CHO), findKing(b, HAN)];
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+      const p = b[y][x]; if (!p) continue;
+      const ek = k[1 - p.s]; let e = 0;
+      if (ek && (p.t === 'C' || p.t === 'H' || p.t === 'P')) e += Math.max(0, 6 - Math.abs(ek[0] - x) - Math.abs(ek[1] - y)) * 0.08;
+      if (p.t === 'A' && inPalace(x, y)) e += 0.15;
+      v += p.s === s ? e : -e;
+    }
+    return v;
+  }
+  function engine(b0, s0, L) {
+    const stop = B.deadline(L.ms), killers = []; let nodes = 0, aborted = false;
+    const capsOf = (b, s) => pseudoAll(b, s).filter(m => m[4] > 0);
+    function qs(b, s, alpha, beta, qd) {
+      if (!findKing(b, s)) return -9999;
+      const stand = eval2(b, s);
+      if (stand >= beta) return stand; if (stand > alpha) alpha = stand;
+      if (qd > 5) return alpha;
+      for (const m of capsOf(b, s)) {
+        if (m[4] >= 1000) return 9999;
+        const v = -qs(applyMove(b, m), 1 - s, -beta, -alpha, qd + 1);
+        if (v >= beta) return v; if (v > alpha) alpha = v;
+      }
+      return alpha;
+    }
+    function ab(b, s, depth, alpha, beta, ply) {
+      if ((++nodes & 511) === 0 && stop()) aborted = true;
+      if (aborted) return 0;
+      if (!findKing(b, s)) return -9999 + ply;
+      if (depth <= 0) return qs(b, s, alpha, beta, 0);
+      const k = killers[ply] || [], key = m => m[0] * 1000 + m[1] * 100 + m[2] * 10 + m[3];
+      const moves = pseudoAll(b, s).sort((a, c) => (c[4] * 10 + (k.includes(key(c)) ? 5 : 0)) - (a[4] * 10 + (k.includes(key(a)) ? 5 : 0)));
+      if (!moves.length) return -500;
+      if (moves[0][4] >= 1000) return 9999 - ply;
+      // 차례를 넘겨도(한수쉼) 상대가 못 따라오면 더 볼 필요 없음 — 깊을 때만
+      if (depth >= 3 && ply > 0) { const nv = -ab(b, 1 - s, depth - 3, -beta, -beta + 0.01, ply + 1); if (aborted) return 0; if (nv >= beta) return beta; }
+      let best = -1e9, cnt = 0;
+      for (const m of moves) {
+        if (m[4] >= 1000) return 9999 - ply;
+        cnt++; let v;
+        if (cnt > 4 && depth >= 3 && !m[4]) { v = -ab(applyMove(b, m), 1 - s, depth - 2, -alpha - 0.01, -alpha, ply + 1); if (!aborted && v > alpha) v = -ab(applyMove(b, m), 1 - s, depth - 1, -beta, -alpha, ply + 1); }
+        else v = -ab(applyMove(b, m), 1 - s, depth - 1, -beta, -alpha, ply + 1);
+        if (aborted) return 0;
+        if (v > best) best = v; if (v > alpha) alpha = v;
+        if (alpha >= beta) { if (!m[4]) killers[ply] = [key(m)].concat(k).slice(0, 2); break; }
+      }
+      return best;
+    }
+    let root = B.shuffle(allLegal(b0, s0)), done = null;
+    if (root.length <= 1) return root[0] || null;
+    root.sort((a, c) => { const va = b0[a[3]][a[2]], vc = b0[c[3]][c[2]]; return (vc ? VAL[vc.t] : 0) - (va ? VAL[va.t] : 0); });
+    for (let d = 1; d <= L.depth; d++) {
+      const vals = []; let alpha = -1e9;
+      for (const m of root) {   // 가장 좋은 수보다 tol 이상 나쁜지만 알면 되므로 창을 좁힘 (빨라짐)
+        const raw = -ab(applyMove(b0, m), 1 - s0, d - 1, -1e9, -alpha, 1), v = raw + Math.random() * L.noise;
+        if (raw - (L.tol || 0) - L.noise - 0.01 > alpha) alpha = raw - (L.tol || 0) - L.noise - 0.01;   // 흔들기(noise) 만큼 여유
+        if (aborted) break;
+        vals.push({ m, v, raw });
+      }
+      // 시간이 다 돼서 이번 깊이를 다 못 봤어도, 이미 본 수 중 지난 최선보다 좋은 것이 있으면 그 수 (조금 더 깊이 본 결과)
+      if (aborted) { if (done && vals.length > 1) { const b1 = vals.reduce((a, c) => (c.raw > a.raw ? c : a)); if (b1 !== vals[0] && b1.raw > vals[0].raw) done = [b1]; } break; }
+      vals.sort((a, c) => c.v - a.v); done = vals; root = vals.map(x => x.m); window.__janggiDepth = d;
+      if (vals[0].v > 9000) break;
+    }
+    if (!done) return root[0];
+    const top = done[0].v, near = Math.abs(top) < 9000 && L.tol ? done.filter(x => x.v >= top - L.tol) : [done[0]];
+    return near[B.rand(near.length)].m;
+  }
+  function aiMove(b, s, level) {
+    const n = B.step(level), L = LV[n];
+    return n <= 3 ? aiMoveOld(b, s, L) : engine(b, s, L);
   }
 
   /* ---------- 화면 ---------- */
@@ -208,6 +297,7 @@
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
       const labels = (window.GoSettings.get('janggi') || {}).labels || 'hanja';
+      let log = [];   // v62 기보
       let st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0 }, mode = 'ai', level = 'normal', busy = false, over = false, timer = 0, side = CHO;
       const name = s => (s === CHO ? '초' : '한');
       const human = () => mode === 'local' || (mode === 'online' ? st.turn === side : st.turn === CHO);
@@ -246,7 +336,7 @@
       function doMove(m, carried) {
         const cap = st.b[m[3]][m[2]];
         st.anim = ANIM_MS > 0 && !carried ? { t0: performance.now(), m, p: st.b[m[1]][m[0]], cap } : null;
-        st.b = applyMove(st.b, m); st.last = m; st.moves++; st.sel = null; st.targets = [];
+        st.b = applyMove(st.b, m); log.push([m[0], m[1], m[2], m[3]]); st.last = m; st.moves++;   // v62 기보 (x, y → x, y) st.sel = null; st.targets = [];
         st.turn = 1 - st.turn;
         if (st.anim) animate();
         if (cap && hooks.onToast && cap.t !== 'S') hooks.onToast(name(1 - st.turn) + '이(가) ' + NAME_KO[cap.t][cap.s] + '을(를) 잡았어요');
@@ -268,7 +358,7 @@
       function end(w, msg) {
         over = true; mv.clear(); busy = false; st.hide = null; clock.stop(); draw();
         hooks.onTurn({ text: msg, side: -1 });
-        hooks.onOver({ winner: w, message: msg, moves: st.moves, duration_sec: clock.sec(), extra: { moves: st.moves } });
+        hooks.onOver({ winner: w, message: msg, moves: st.moves, duration_sec: clock.sec(), extra: { moves: st.moves }, record: { side, moves: log.slice() } });
       }
       const off = B.pointer(canvas, W, H, (t, x, y) => {
         if (t !== 'up' || over || busy || !human()) return;
@@ -286,7 +376,7 @@
         start(o) {
           clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || CHO;
           mv.clear(); { const pl = B.players(mode, o, side, 'janggi', level); mv.setAvatars({ [CHO]: pl.av[0], [HAN]: pl.av[1] }); names = { [CHO]: pl.name[0], [HAN]: pl.name[1] }; }
-          st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0, hide: null }; over = false; busy = false;
+          st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0, hide: null }; log = []; over = false; busy = false;
           clock.reset(); clock.start(); hooks.onState('playing'); buttons(); after();
         },
         press(id) { if (id === 'resign' && !over) { clearTimeout(timer); mv.clear(); busy = false; const loser = mode === 'ai' ? CHO : mode === 'online' ? side : st.turn; send({ resign: 1 }); end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },

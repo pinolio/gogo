@@ -616,6 +616,21 @@ html.is-app .play { -webkit-user-select: none; user-select: none; }
 .mode-lbl { font-size: 13px; opacity: .85; }
 .mode-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .mode-btns .btn { flex: 1; min-width: 0; padding-left: 8px; padding-right: 8px; border-color: #05081A; box-shadow: 3px 3px 0 #05081A; }
+/* v61 컴퓨터 1~10단계: 5칸씩 두 줄 */
+/* v63 잠긴 단계 · AI 대전 버튼 */
+.mode-btns.steps .btn.locked { background: #2A325E; color: #C9D0F0; border-style: dashed; box-shadow: none; cursor: not-allowed; display: grid; line-height: 1.1; }
+.mode-btns.steps .btn.locked small { font-size: 10px; color: #FFB86B; }
+.mode-btns.steps .btn.ai-lv { grid-column: 1 / -1; }
+.mode-btns.steps .btn.ai-lv:not(.locked) { background: linear-gradient(90deg, #7E4DE0, #C9343A); color: #FFFFFF; }
+.mode-btns.steps .btn.ai-lv.btn-sun:not(.locked) { outline: 3px solid #FFD23F; }
+.lv-note { margin: 2px 0 0; font-size: 12px; color: #C9D0F0; line-height: 1.45; text-align: center; }
+.lv-note b { color: #FFD23F; }
+.ov-board:has(.mode-btns.steps) .ov-goal { display: none; }   /* 단계 버튼이 많아 설명 줄은 숨김 (게임 카드에 같은 글) */
+.ov-board:has(.mode-btns.steps) { gap: 8px; }
+.mode-btns.steps .btn { padding-top: 6px; padding-bottom: 6px; }
+.mode-btns.steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.mode-btns.steps .btn { padding-left: 4px; padding-right: 4px; white-space: nowrap; }
+@media (max-width: 560px) { .mode-btns.steps { gap: 4px; } .mode-btns.steps .btn { padding: 5px 2px; font-size: 13px; min-height: 0; box-shadow: 2px 2px 0 #05081A; } .ov-board:has(.mode-btns.steps) .ov-goal { display: none; } }
 @media (max-width: 560px) { .mode-row { grid-template-columns: 1fr; text-align: center; } }
 
 /* 보드게임: 판을 크게 (옆 패널은 조금 좁게, 화면 높이를 더 넉넉히 사용) */

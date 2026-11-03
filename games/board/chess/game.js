@@ -133,14 +133,119 @@
     }
     return alpha;
   }
-  const LV = { easy: { depth: 1, noise: 120 }, normal: { depth: 2, noise: 20 }, hard: { depth: 3, noise: 4 } };
-  function aiMove(st, level) {
-    const L = LV[level] || LV.normal; let best = null;
+  /* v61 단계 1~10
+   *  1~3단계 = 예전 쉬움·보통·어려움 (depth 수 앞까지, noise = 일부러 흔드는 정도)
+   *  4단계부터 = 새 탐색: 한 수씩 깊이 늘리기 + 잡는 수 끝까지 따라가기(조용해질 때까지) + 좋은 수 먼저 보기 + 말 자리 점수
+   *   depth = 최대 깊이 · ms = 생각 시간 한도 · noise = 흔들기(점수, 100 = 폰 1개) · tol = 이만큼 차이 안 나는 수 중 무작위 (외우기 어렵게) */
+  const LV = [null,
+    { depth: 1, noise: 120 }, { depth: 2, noise: 20 }, { depth: 3, noise: 4 },
+    { depth: 3, ms: 600, noise: 20, tol: 0 },
+    { depth: 3, ms: 800, noise: 6, tol: 0 },
+    { depth: 4, ms: 900, noise: 0, tol: 10 },
+    { depth: 5, ms: 1200, noise: 0, tol: 8 },
+    { depth: 6, ms: 1600, noise: 0, tol: 5 },
+    { depth: 7, ms: 2100, noise: 0, tol: 3 },
+    { depth: 8, ms: 2600, noise: 0, tol: 2 },
+    { depth: 10, ms: 4000, noise: 0, tol: 1 }   // 11 = AI 대전 (10단계를 이기면 열림 · 나중에 학습한 AI 로 바꿀 자리)
+  ];
+  function aiMoveOld(st, L) {
+    let best = null;
     for (const m of order(B.shuffle(legal(st)))) {
       const v = -search(make(st, m), L.depth - 1, -1e9, 1e9) + Math.random() * L.noise;
       if (!best || v > best.v) best = { m, v };
     }
     return best && best.m;
+  }
+  // 말 자리 점수 (백 기준, 흑은 뒤집어 씀)
+  const PST = {
+    n: [-50, -40, -30, -30, -30, -30, -40, -50, -40, -20, 0, 0, 0, 0, -20, -40, -30, 0, 10, 15, 15, 10, 0, -30, -30, 5, 15, 20, 20, 15, 5, -30, -30, 0, 15, 20, 20, 15, 0, -30, -30, 5, 10, 15, 15, 10, 5, -30, -40, -20, 0, 5, 5, 0, -20, -40, -50, -40, -30, -30, -30, -30, -40, -50],
+    b: [-20, -10, -10, -10, -10, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5, 10, 10, 5, 0, -10, -10, 5, 5, 10, 10, 5, 5, -10, -10, 0, 10, 10, 10, 10, 0, -10, -10, 10, 10, 10, 10, 10, 10, -10, -10, 5, 0, 0, 0, 0, 5, -10, -20, -10, -10, -10, -10, -10, -10, -20],
+    r: [0, 0, 0, 0, 0, 0, 0, 0, 5, 10, 10, 10, 10, 10, 10, 5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, 0, 0, 0, 5, 5, 0, 0, 0],
+    q: [-20, -10, -10, -5, -5, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5, 5, 5, 5, 0, -10, -5, 0, 5, 5, 5, 5, 0, -5, 0, 0, 5, 5, 5, 5, 0, -5, -10, 5, 5, 5, 5, 5, 0, -10, -10, 0, 5, 0, 0, 0, 0, -10, -20, -10, -10, -5, -5, -10, -10, -20],
+    k: [-30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -20, -30, -30, -40, -40, -30, -30, -20, -10, -20, -20, -20, -20, -20, -20, -10, 20, 20, 0, 0, 0, 0, 20, 20, 20, 30, 10, 0, 0, 10, 30, 20],
+    ke: [-50, -40, -30, -20, -20, -30, -40, -50, -30, -20, -10, 0, 0, -10, -20, -30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -10, 30, 40, 40, 30, -10, -30, -30, -10, 30, 40, 40, 30, -10, -30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -30, 0, 0, 0, 0, -30, -30, -50, -30, -30, -30, -30, -30, -30, -50]
+  };
+  function evaluate2(st, c) {
+    let v = 0, mat = 0; const b = st.b;
+    for (let i = 0; i < 64; i++) { const p = b[i]; if (p && p.toLowerCase() !== 'k' && p.toLowerCase() !== 'p') mat += VAL[p.toLowerCase()]; }
+    const endg = mat <= 1400;
+    for (let i = 0; i < 64; i++) {
+      const p = b[i]; if (!p) continue;
+      const t = p.toLowerCase(), w = isW(p), j = w ? i : (7 - Y(i)) * 8 + X(i);
+      let s = VAL[t] + (t === 'p' ? PST_P[j] : t === 'k' ? (endg ? PST.ke[j] : PST.k[j]) : PST[t][j]);
+      v += w ? s : -s;
+    }
+    return c === 'w' ? v : -v;
+  }
+  const mvv = m => (m.cap ? VAL[m.cap.toLowerCase()] * 10 + 1000 : 0) + (m.promo ? 900 : 0);
+  function engine(st0, L) {
+    const stop = B.deadline(L.ms), killers = []; let nodes = 0, aborted = false;
+    const legalAfter = (st, m) => { const n = make(st, m); return attacked(n.b, kingSq(n.b, st.turn), n.turn) ? null : n; };
+    function qs(st, alpha, beta, qd) {
+      const stand = evaluate2(st, st.turn);
+      if (stand >= beta) return stand; if (stand > alpha) alpha = stand;
+      if (qd > 6) return alpha;
+      const caps = pseudo(st).filter(m => m.cap || m.promo).sort((a, b) => mvv(b) - mvv(a) + (VAL[st.b[a.from].toLowerCase()] - VAL[st.b[b.from].toLowerCase()]) / 100);
+      for (const m of caps) {
+        if (m.cap && m.cap.toLowerCase() === 'k') return 50000;
+        const n = legalAfter(st, m); if (!n) continue;
+        const v = -qs(n, -beta, -alpha, qd + 1);
+        if (v >= beta) return v; if (v > alpha) alpha = v;
+      }
+      return alpha;
+    }
+    function ab(st, depth, alpha, beta, ply) {
+      if ((++nodes & 1023) === 0 && stop()) aborted = true;
+      if (aborted) return 0;
+      if (st.half >= 100) return 0;
+      const chk = inCheck(st, st.turn);
+      if (depth <= 0 && !chk) return qs(st, alpha, beta, 0);
+      const k = killers[ply] || [];
+      const ms = pseudo(st).sort((a, b) => (mvv(b) + (k.includes(b.from * 64 + b.to) ? 500 : 0)) - (mvv(a) + (k.includes(a.from * 64 + a.to) ? 500 : 0)));
+      // 빈 수(차례 넘기기)를 둬도 상대가 못 따라오면 더 볼 필요 없음 (null move) — 깊을 때만
+      if (depth >= 3 && !chk && ply > 0 && st.b.some(p => p && col(p) === st.turn && 'nbrq'.includes(p.toLowerCase()))) {
+        const nv = -ab({ b: st.b, turn: st.turn === 'w' ? 'b' : 'w', castle: st.castle, ep: -1, half: st.half, moves: st.moves }, depth - 3, -beta, -beta + 1, ply + 1);
+        if (aborted) return 0;
+        if (nv >= beta) return beta;
+      }
+      let any = false, best = -1e9, cnt = 0;
+      for (const m of ms) {
+        const n = legalAfter(st, m); if (!n) continue; any = true; cnt++;
+        let v;
+        if (cnt > 4 && depth >= 3 && !m.cap && !m.promo && !chk) {   // 뒤쪽 조용한 수는 얕게 먼저 (좋아 보이면 다시 깊게)
+          v = -ab(n, depth - 2, -alpha - 1, -alpha, ply + 1);
+          if (!aborted && v > alpha) v = -ab(n, depth - 1, -beta, -alpha, ply + 1);
+        } else v = -ab(n, depth - 1, -beta, -alpha, ply + 1);
+        if (aborted) return 0;
+        if (v > best) best = v; if (v > alpha) alpha = v;
+        if (alpha >= beta) { if (!m.cap) { killers[ply] = [m.from * 64 + m.to].concat(k).slice(0, 2); } break; }
+      }
+      if (!any) return chk ? -100000 + ply : 0;
+      return best;
+    }
+    let root = order(B.shuffle(legal(st0))), done = null, d0 = 0;
+    if (root.length <= 1) return root[0] || null;
+    for (let d = 1; d <= L.depth; d++) {
+      const vals = []; let alpha = -1e9;
+      for (const m of root) {   // 가장 좋은 수보다 tol 이상 나쁜지만 알면 되므로 창을 좁힘 (빨라짐)
+        const raw = -ab(make(st0, m), d - 1, -1e9, -alpha, 1), v = raw + Math.random() * L.noise;
+        if (raw - (L.tol || 0) - L.noise - 1 > alpha) alpha = raw - (L.tol || 0) - L.noise - 1;   // 흔들기(noise) 만큼 여유
+        if (aborted) break;
+        vals.push({ m, v, raw });
+      }
+      // 시간이 다 돼서 이번 깊이를 다 못 봤어도, 이미 본 수 중 지난 최선보다 좋은 것이 있으면 그 수
+      if (aborted) { if (done && vals.length > 1) { const b1 = vals.reduce((a, c) => (c.raw > a.raw ? c : a)); if (b1 !== vals[0] && b1.raw > vals[0].raw) done = [b1]; } break; }
+      vals.sort((a, b) => b.v - a.v); done = vals; root = vals.map(x => x.m); d0 = d;
+      if (vals[0].v > 90000) break;
+    }
+    window.__chessDepth = d0;
+    if (!done) return root[0];
+    const top = done[0].v, near = Math.abs(top) < 90000 && L.tol ? done.filter(x => x.v >= top - L.tol) : [done[0]];
+    return near[B.rand(near.length)].m;
+  }
+  function aiMove(st, level) {
+    const n = B.step(level), L = LV[n];
+    return n <= 3 ? aiMoveOld(st, L) : engine(st, L);
   }
 
   /* ---------- 도트 기물 (12 × 12) ---------- */
@@ -244,6 +349,7 @@
     },
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
+      let log = [];   // v62 기보
       let st = initial(), ui = { sel: -1, targets: [], last: null, check: -1 }, mode = 'ai', level = 'normal', busy = false, over = false, timer = 0, side = 0;
       const name = c => (c === 'w' ? '백' : '흑');
       const mine = () => (side === 0 ? 'w' : 'b');
@@ -281,7 +387,7 @@
       let raf = 0;
       function animate() { cancelAnimationFrame(raf); const tick = () => { draw(); if (ui.anim && performance.now() - ui.anim.t0 < ANIM_MS) raf = requestAnimationFrame(tick); else { ui.anim = null; draw(); } }; raf = requestAnimationFrame(tick); }
       function play(m, carried) {
-        const before = st.b.slice(), cap = m.cap; st = make(st, m); ui.last = m; ui.sel = -1; ui.targets = [];
+        const before = st.b.slice(), cap = m.cap; log.push([m.from, m.to, m.promo || 0]); st = make(st, m);   // v62 기보 (칸 번호 0~63) ui.last = m; ui.sel = -1; ui.targets = [];
         // 움직임 그리기 준비: 옮긴 말(캐슬링이면 룩도) · 잡힌 말
         const mv = [{ from: m.from, to: m.to, p: st.b[m.to] }];
         before.forEach((p, i) => { if (p && i !== m.from && !st.b[i] && col(p) === col(before[m.from])) { const j = st.b.findIndex((q, k) => q === p && !before[k]); if (j >= 0) mv.push({ from: i, to: j, p }); } });
@@ -306,7 +412,7 @@
       function end(w, msg) {
         over = true; mv.clear(); busy = false; ui.hide = -1; clock.stop(); draw();
         hooks.onTurn({ text: msg, side: -1 });
-        hooks.onOver({ winner: w, message: msg, moves: st.moves, duration_sec: clock.sec(), extra: { moves: st.moves } });
+        hooks.onOver({ winner: w, message: msg, moves: st.moves, duration_sec: clock.sec(), extra: { moves: st.moves }, record: { side, moves: log.slice() } });
       }
       const off = B.pointer(canvas, W, H, (t, x, y) => {
         if (t !== 'up' || over || busy || !human()) return;
@@ -325,7 +431,7 @@
         start(o) {
           clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || 0;
           mv.clear(); { const pl = B.players(mode, o, side, 'chess', level); mv.setAvatars({ w: pl.av[0], b: pl.av[1] }); names = { w: pl.name[0], b: pl.name[1] }; }
-          st = initial(); ui = { sel: -1, targets: [], last: null, check: -1, hide: -1 }; over = false; busy = false;
+          st = initial(); log = []; ui = { sel: -1, targets: [], last: null, check: -1, hide: -1 }; over = false; busy = false;
           clock.reset(); clock.start(); hooks.onState('playing'); hooks.onButtons([]); after();
         },
         remote(m) {

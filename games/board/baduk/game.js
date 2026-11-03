@@ -25,7 +25,7 @@
     return { stones, libs };
   }
   function Rules() {
-    const g = { b: Array(N * N).fill(0), turn: 1, caps: { 1: 0, 2: 0 }, passes: 0, moves: 0, history: new Set(), over: false, last: -1 };
+    const g = { b: Array(N * N).fill(0), turn: 1, caps: { 1: 0, 2: 0 }, passes: 0, moves: 0, history: new Set(), over: false, last: -1, log: [] };   // v62 log = 기보 (칸 번호 · -1 = 수 넘김)
     const key = b => b.join('');
     g.history.add(key(g.b));
     // 두어 보기 (실제로 바꾸지 않고 결과만): null = 둘 수 없음
@@ -41,9 +41,9 @@
     g.play = function (i) {
       const r = g.tryPlay(i); if (!r) return false;
       g.b = r.b; g.caps[g.turn] += r.captured; g.history.add(key(g.b));
-      g.turn = 3 - g.turn; g.passes = 0; g.moves++; g.last = i; return true;
+      g.turn = 3 - g.turn; g.passes = 0; g.moves++; g.last = i; g.log.push(i); return true;
     };
-    g.pass = function () { g.passes++; g.moves++; g.turn = 3 - g.turn; g.last = -1; if (g.passes >= 2) g.over = true; };
+    g.pass = function () { g.log.push(-1); g.passes++; g.moves++; g.turn = 3 - g.turn; g.last = -1; if (g.passes >= 2) g.over = true; };
     g.legal = function () { const out = []; for (let i = 0; i < N * N; i++) if (g.b[i] === 0 && g.tryPlay(i)) out.push(i); return out; };
     // 계가: 돌 수 + 한 색으로만 둘러싸인 빈 곳
     g.score = function () {
@@ -75,11 +75,13 @@
     return bad + edge < 2;
   }
   // 빠른 무작위 대국 (몬테카를로): 끝까지 둬 본 뒤 흑-백 집 차이
+  // v61 빠르게: 표시 배열을 새로 만들지 않고 번호(stamp)로 다시 씀 → 시뮬레이션 약 3배
+  const SEEN = new Int32Array(N * N), LSEEN = new Int32Array(N * N); let STAMP = 0;
   function fastGroupLibs(b, i) {
-    const c = b[i], st = [i], seen = new Uint8Array(N * N); seen[i] = 1; let libs = 0; const libSeen = new Uint8Array(N * N);
+    const c = b[i], st = [i], s0 = ++STAMP; SEEN[i] = s0; let libs = 0;
     for (let k = 0; k < st.length; k++) for (const j of NB[st[k]]) {
-      if (b[j] === 0) { if (!libSeen[j]) { libSeen[j] = 1; libs++; } }
-      else if (b[j] === c && !seen[j]) { seen[j] = 1; st.push(j); }
+      if (b[j] === 0) { if (LSEEN[j] !== s0) { LSEEN[j] = s0; libs++; } }
+      else if (b[j] === c && SEEN[j] !== s0) { SEEN[j] = s0; st.push(j); }
     }
     return { st, libs };
   }
@@ -118,15 +120,30 @@
     if (line === 0) s -= 2.5; else if (line >= 2) s += g.moves < 12 ? 2 : 0.6;
     return s + NB[i].filter(j => g.b[j] === 0).length * 0.4;
   }
-  // 난이도: 후보 수 × 시뮬레이션 횟수 (어려움일수록 많이 둬 봄)
-  const LV = { easy: { cand: 0, sims: 0, noise: 5 }, normal: { cand: 7, sims: 12, noise: 0.5 }, hard: { cand: 10, sims: 30, noise: 0 } };   // 밸런스 조정 가능
+  /* v61 단계 1~10
+   *  1~3단계 = 예전 쉬움·보통·어려움 (후보 cand 개를 sims 번씩 끝까지 둬 봄)
+   *  4단계부터 = 좋은 후보에 시뮬레이션을 더 몰아주는 방식(UCB) · total = 전체 시뮬레이션 수 · ms = 생각 시간 한도
+   *  (후보를 너무 많이 잡으면 후보마다 시뮬레이션이 모자라 오히려 약해짐 → 후보 수는 조금씩만 늘림) */
+  const LV = [null,
+    { cand: 0, sims: 0, noise: 5 },
+    { cand: 7, sims: 12, noise: 0.5 },
+    { cand: 10, sims: 30, noise: 0 },
+    { cand: 10, total: 400, ms: 800, noise: 0.3 },
+    { cand: 12, total: 700, ms: 1000, noise: 0.15 },
+    { cand: 14, total: 1000, ms: 1200, noise: 0 },
+    { cand: 16, total: 1400, ms: 1400, noise: 0 },
+    { cand: 18, total: 1900, ms: 1700, noise: 0 },
+    { cand: 20, total: 2500, ms: 2000, noise: 0 },
+    { cand: 22, total: 3200, ms: 2400, noise: 0 },
+    { cand: 24, total: 5000, ms: 3800, noise: 0 }   // 11 = AI 대전 (10단계를 이기면 열림 · 나중에 학습한 AI 로 바꿀 자리)
+  ];
   function winRate(b, turnAfter, me, sims) {
     let w = 0;
     for (let k = 0; k < sims; k++) { const d = playout(b, turnAfter); if ((d > 0) === (me === 1)) w++; }
     return w / sims;
   }
   function aiMove(g, level) {
-    const L = LV[level] || LV.normal, me = g.turn, op = 3 - me;
+    const st = B.step(level), L = LV[st], me = g.turn, op = 3 - me;
     const cands = [];
     for (let i = 0; i < N * N; i++) {
       if (g.b[i] !== 0 || isEye(g, i, me)) continue;
@@ -137,7 +154,8 @@
     cands.sort((a, b) => b.h - a.h);
     // 상대가 수를 넘겼고 지금 계가로 이기고 있으면 같이 넘겨서 끝냄
     if (g.passes) { const sc = g.score(); if ((me === 1 ? sc.black - sc.white : sc.white - sc.black) > 0) return -1; }
-    if (!L.sims) return cands[0].h < 0.5 && g.moves > 30 ? -1 : cands[0].i;
+    if (!L.sims && !L.total) return cands[0].h < 0.5 && g.moves > 30 ? -1 : cands[0].i;
+    if (L.total) return ucbMove(g, cands.slice(0, L.cand), me, op, L);
     let best = null;
     for (const c of cands.slice(0, L.cand)) {
       const wr = winRate(c.r.b, op, me, L.sims) + c.h * 0.002;
@@ -146,6 +164,23 @@
     // 수를 넘기는 것이 더 낫다면 넘김 (막바지)
     if (g.moves > 30) { const passWr = winRate(g.b, op, me, L.sims); if (passWr >= best.wr + 0.02) return -1; }
     return best.i;
+  }
+  // UCB: 모든 후보를 조금씩 둬 본 뒤, 이길 확률이 높아 보이는 후보에 시뮬레이션을 더 많이 씀 → 가장 많이 둬 본 수
+  function ucbMove(g, list, me, op, L) {
+    const stop = B.deadline(L.ms), arms = list.map(c => ({ i: c.i, b: c.r.b, w: 0, n: 0, prior: Math.max(-0.05, Math.min(0.05, c.h * 0.004)) }));
+    if (g.moves > 30) arms.push({ i: -1, b: g.b, w: 0, n: 0, prior: -0.02 });    // 수 넘기기도 후보
+    const run = a => { const d = playout(a.b, op); if ((d > 0) === (me === 1)) a.w++; a.n++; };
+    let total = 0;
+    for (let r = 0; r < 3; r++) for (const a of arms) { run(a); total++; }
+    while (total < L.total && !(total % 20 === 0 && stop())) {
+      let best = null, bv = -1e9; const ln = Math.log(total);
+      for (const a of arms) { const v = a.w / a.n + a.prior + 0.9 * Math.sqrt(ln / a.n); if (v > bv) { bv = v; best = a; } }
+      run(best); total++;
+    }
+    arms.sort((a, b) => b.n - a.n || b.w / b.n - a.w / a.n);
+    const top = arms[0];
+    if (top.i === -1 && (!arms[1] || top.w / top.n >= arms[1].w / arms[1].n)) return -1;
+    return top.i === -1 ? arms[1].i : top.i;
   }
 
   /* ---------- 화면 ---------- */
@@ -225,7 +260,7 @@
       function end(w, msg, s) {
         over = true; g.over = true; mv.clear(); busy = false; clock.stop(); draw(); buttons();
         hooks.onTurn({ text: msg, side: -1 });
-        hooks.onOver({ winner: w, message: msg, moves: g.moves, duration_sec: clock.sec(), extra: { moves: g.moves, black: s && s.black, white: s && s.white } });
+        hooks.onOver({ winner: w, message: msg, moves: g.moves, duration_sec: clock.sec(), extra: { moves: g.moves, black: s && s.black, white: s && s.white }, record: { side, moves: g.log.slice(), extra: s ? { black: s.black, white: s.white } : null } });
       }
       const off = B.pointer(canvas, W, H, (t, x, y) => {
         const gx = Math.round((x - SIDE - M) / C), gy = Math.round((y - M) / C), ok = gx >= 0 && gy >= 0 && gx < N && gy < N;

@@ -57,27 +57,64 @@
   const count = (ps, s) => ps.filter(p => p.alive && !p.fall && p.s === s).length;
 
   /* ---------- 컴퓨터 ---------- */
-  const LV = { easy: { pairs: 2, angle: 0.13, power: 0.25 }, normal: { pairs: 5, angle: 0.05, power: 0.12 }, hard: { pairs: 9, angle: 0.015, power: 0.05 } };
-  function aiShot(ps, side, level) {
-    const Lv = LV[level] || LV.normal, mine = ps.filter(p => p.alive && p.s === side), foes = ps.filter(p => p.alive && p.s !== side);
+  /* v61 단계 1~10
+   *  pairs = 살펴보는 (내 알 → 상대 알) 짝 수 · offs = 비껴 조준 각도들 · pows = 힘들 · angle·power = 손 떨림(작을수록 정확)
+   *  safe = 쏜 뒤 내 알이 가장자리에 남으면 감점 (상대에게 잘 안 맞게 · 0 이면 안 봄)
+   *  reply = 좋은 수 몇 개는 '상대가 바로 되받아치면?' 까지 둬 봄 (8단계부터) · ms = 생각 시간 한도 */
+  const O3 = [0, -0.12, 0.12], O5 = [0, -0.06, 0.06, -0.12, 0.12], O7 = [0, -0.04, 0.04, -0.08, 0.08, -0.14, 0.14];
+  const LV = [null,
+    { pairs: 2, offs: O3, pows: [0.6, 0.85, 1], angle: 0.13, power: 0.25 },
+    { pairs: 5, offs: O3, pows: [0.6, 0.85, 1], angle: 0.05, power: 0.12 },
+    { pairs: 9, offs: O3, pows: [0.6, 0.85, 1], angle: 0.015, power: 0.05 },
+    { pairs: 12, offs: O5, pows: [0.6, 0.8, 1], angle: 0.01, power: 0.04, safe: 0, ms: 600 },
+    { pairs: 16, offs: O5, pows: [0.6, 0.8, 1], angle: 0.008, power: 0.03, safe: 1, ms: 800 },
+    { pairs: 20, offs: O7, pows: [0.5, 0.7, 0.85, 1], angle: 0.006, power: 0.025, safe: 1.5, ms: 1000 },
+    { pairs: 28, offs: O7, pows: [0.5, 0.7, 0.85, 1], angle: 0.004, power: 0.02, safe: 2, ms: 1300 },
+    { pairs: 36, offs: O7, pows: [0.5, 0.7, 0.85, 1], angle: 0.003, power: 0.015, safe: 2, reply: 3, ms: 1700 },
+    { pairs: 48, offs: O7, pows: [0.45, 0.6, 0.75, 0.9, 1], angle: 0.002, power: 0.01, safe: 2.5, reply: 4, ms: 2100 },
+    { pairs: 999, offs: O7, pows: [0.45, 0.6, 0.75, 0.9, 1], angle: 0.001, power: 0.006, safe: 3, reply: 5, ms: 2600 }
+  ];
+  // 가장자리에 가까울수록 위험 (0 ~ 1)
+  const edgeRisk = p => { const d = Math.min(p.x - L, R - p.x, p.y - T, BOT - p.y); return d >= 60 ? 0 : (60 - d) / 60; };
+  function judge(sim, before, side, mi, Lv) {
+    const lostMine = before[0] - count(sim, side), lostFoe = before[1] - count(sim, 1 - side);
+    let sc = lostFoe * 10 - lostMine * 12 - (lostMine && sim[mi].alive === false ? 3 : 0);
+    if (Lv.safe) sim.forEach(p => { if (!p.alive || p.fall) return; sc += (p.s === side ? -1 : 0.6) * edgeRisk(p) * Lv.safe; });
+    return sc;
+  }
+  function aiShot(ps, side, level, quick) {
+    const n = Bd.step(level), Lv = LV[n], mine = ps.filter(p => p.alive && p.s === side), foes = ps.filter(p => p.alive && p.s !== side);
+    const stop = Lv.ms ? Bd.deadline(quick ? Lv.ms / 6 : Lv.ms) : () => false;
     const pairs = [];
-    mine.forEach((m, mi) => foes.forEach(f => pairs.push({ mi: ps.indexOf(m), fi: ps.indexOf(f), d: Math.hypot(f.x - m.x, f.y - m.y) })));
+    mine.forEach(m => foes.forEach(f => pairs.push({ mi: ps.indexOf(m), fi: ps.indexOf(f), d: Math.hypot(f.x - m.x, f.y - m.y) })));
     pairs.sort((a, b) => a.d - b.d);
-    let best = null;
-    const before = [count(ps, side), count(ps, 1 - side)];
-    for (const pr of pairs.slice(0, Lv.pairs)) {
+    const before = [count(ps, side), count(ps, 1 - side)], tried = [];
+    for (const pr of pairs.slice(0, quick ? Math.min(8, Lv.pairs) : Lv.pairs)) {
       const m = ps[pr.mi], f = ps[pr.fi];
       // 상대 알을 판 밖 가까운 쪽으로 밀어내도록 살짝 비껴 조준
-      for (const off of [0, -0.12, 0.12]) for (const pw of [0.6, 0.85, 1]) {
+      for (const off of Lv.offs) for (const pw of Lv.pows) {
         const ang = Math.atan2(f.y - m.y, f.x - m.x) + off;
         const sim = simulate(clone(ps).map((p, k) => (k === pr.mi ? Object.assign(p, { vx: Math.cos(ang) * MAXV * pw, vy: Math.sin(ang) * MAXV * pw }) : p)));
-        const lostMine = before[0] - count(sim, side), lostFoe = before[1] - count(sim, 1 - side);
-        const score = lostFoe * 10 - lostMine * 12 - (lostMine && sim[pr.mi].alive === false ? 3 : 0) + Math.random();
-        if (!best || score > best.score) best = { i: pr.mi, ang, pw, score };
+        tried.push({ i: pr.mi, ang, pw, score: judge(sim, before, side, pr.mi, Lv) + Math.random() * (n <= 3 ? 1 : 0.3), sim });
       }
+      if (stop()) break;
     }
-    if (!best) return null;
-    return { i: best.i, vx: Math.cos(best.ang + (Math.random() - 0.5) * 2 * Lv.angle) * MAXV * Math.min(1, best.pw * (1 + (Math.random() - 0.5) * Lv.power)), vy: Math.sin(best.ang + (Math.random() - 0.5) * 2 * Lv.angle) * MAXV * Math.min(1, best.pw * (1 + (Math.random() - 0.5) * Lv.power)) };
+    if (!tried.length) return null;
+    tried.sort((a, b) => b.score - a.score);
+    // 8단계부터: 좋은 수 몇 개는 상대가 되받아치는 것까지 계산
+    if (Lv.reply && !quick) {
+      for (const t of tried.slice(0, Lv.reply)) {
+        const after = t.sim.filter(p => p.alive && !p.fall).map(p => Object.assign({}, p, { vx: 0, vy: 0 }));
+        if (!count(after, 1 - side)) { t.score += 50; continue; }
+        const r = aiShot(after, 1 - side, 'l5', true);
+        if (r) { const sim2 = simulate(clone(after).map((p, k) => (k === r.i ? Object.assign(p, { vx: r.vx, vy: r.vy }) : p))); t.score += (count(sim2, side) - count(after, side)) * 6 - (count(sim2, 1 - side) - count(after, 1 - side)) * 3; }
+      }
+      tried.sort((a, b) => b.score - a.score);
+    }
+    const best = tried[0];
+    if (quick) return { i: best.i, vx: Math.cos(best.ang) * MAXV * best.pw, vy: Math.sin(best.ang) * MAXV * best.pw };
+    const a2 = best.ang + (Math.random() - 0.5) * 2 * Lv.angle, pw2 = Math.min(1, best.pw * (1 + (Math.random() - 0.5) * Lv.power));
+    return { i: best.i, vx: Math.cos(a2) * MAXV * pw2, vy: Math.sin(a2) * MAXV * pw2 };
   }
 
   /* ---------- 화면 ---------- */
@@ -122,6 +159,7 @@
     },
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
+      let log = [];   // v62 기보 [알 번호, vx, vy]
       let ps = initial(), turn = 0, mode = 'ai', level = 'normal', aim = null, rolling = false, over = false, shots = 0, raf = 0, timer = 0;
       // v32 온라인 (학생 의견 '다른 기기로 2인 하게 해 주세요'): side = 내 자리(0 초 · 1 한), 튕긴 알과 속도만 보내고 두 기기가 똑같이 굴림.
       //   알이 멈추면 튕긴 쪽 기기가 최종 위치(sync)를 보내 맞춤 (계산이 같아도 혹시 모를 차이를 없앰)
@@ -141,6 +179,7 @@
       function shoot(i, vx, vy, fromRemote) {
         if (online() && !fromRemote) send({ i, vx, vy, n: shots });
         const mineShot = !online() || !fromRemote;
+        log.push([i, Math.round(vx * 1000) / 1000, Math.round(vy * 1000) / 1000]);
         ps[i].vx = vx; ps[i].vy = vy; rolling = true; shots++; turnText();
         const loop = () => {
           let moving = false;
@@ -169,7 +208,7 @@
       function end(w, msg) {
         over = true; clock.stop(); draw();
         hooks.onTurn({ text: msg, side: -1 });
-        hooks.onOver({ winner: w, message: msg, moves: shots, duration_sec: clock.sec(), extra: { shots, left0: count(ps, 0), left1: count(ps, 1) } });
+        hooks.onOver({ winner: w, message: msg, moves: shots, duration_sec: clock.sec(), extra: { shots, left0: count(ps, 0), left1: count(ps, 1) }, record: { side, moves: log.slice() } });
       }
       const off = Bd.pointer(canvas, W, H, (t, x, y) => {
         if (t === 'down' && human()) {
@@ -191,7 +230,7 @@
         start(o) {
           cancelAnimationFrame(raf); clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal';
           side = o.side || 0; waitSync = false; pendingSync = null;
-          ps = initial(); turn = 0; shots = 0; rolling = false; over = false; aim = null;
+          ps = initial(); log = []; turn = 0; shots = 0; rolling = false; over = false; aim = null;
           clock.reset(); clock.start(); hooks.onState('playing'); hooks.onButtons([]); draw(); turnText();
         },
         remote(m) {
