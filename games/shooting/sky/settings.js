@@ -42,5 +42,6 @@ GoSettings.register({
   },
 
   hero: { eyebrow: 'NEW · 슈팅', title: '6.25. 하늘,', em: '출격!', desc: '스테이지 10개, 보스 10마리. 갈수록 빨라지는 총알을 피하며 친구와 함께 날아요.', cta: '출격하기' },
-  goalText() { return '스테이지 ' + this.stages + '개를 모두 깨면 승리'; }
+  goalText() { return '스테이지 ' + this.stages + '개를 모두 깨면 승리'; },
+  bgm: { file: 'bgm/bgm.mp3', volume: 0.4 }   // v59: Suno 「Wings over the Peninsula」
 });

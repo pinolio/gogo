@@ -40,7 +40,7 @@
   const P2 = 'local-2p';
   const PLAY = {
     rank: { name: '랭킹 대전', desc: '혼자 하며 점수를 쌓아 랭킹에 올라요. 처음부터 빠르고 점점 더 빨라져요! 4줄을 연달아 지우면 점수가 커져요.', pts: '50점마다 +1P (한 판 최대 +5P)' },
-    offline: { name: '오프라인 대결', desc: '한 컴퓨터에서 키보드를 나눠 2명이 겨뤄요. 컴퓨터도 더할 수 있어요.', pts: '승리 +1P · 패배 -1P (1P 기록)' },
+    // v59: 오프라인 대결(한 키보드 2명)은 뺌 (선생님 결정 2026-11-03) — 관련 코드는 남아 있지만 고를 수 없음
     online: { name: '온라인 대결', desc: '방 코드로 다른 기기의 친구와 실시간으로 겨뤄요.', pts: '사람과 대결 승리 +2P · 패배 -1P' }
   };
   const fakeCh = { send() {}, track() {}, untrack() {}, leave() {} };
@@ -151,14 +151,12 @@
           <h3>공격 규칙</h3>
           <table class="atk-table"><thead><tr><th>한 번에 지운 줄</th><th class="n">상대에게</th></tr></thead>
             <tbody><tr><td>1~2줄</td><td class="n">-</td></tr><tr><td>3줄</td><td class="n hot">1줄</td></tr><tr><td>4줄</td><td class="n hot">3줄</td></tr></tbody></table>
-          <ul class="rule-list"><li>다음 블록 5개가 미리 보여요.</li><li><b>Ctrl</b>(오프라인은 Shift)을 누르면 지금 블록을 저장하고, 다시 누르면 저장한 블록과 바꿔요. (블록 하나당 1번)</li><li>30초마다 빨라져요.</li></ul>
+          <ul class="rule-list"><li>다음 블록 5개가 미리 보여요.</li><li><b>Ctrl</b>을 누르면 지금 블록을 저장하고, 다시 누르면 저장한 블록과 바꿔요. (블록 하나당 1번)</li><li>30초마다 빨라져요.</li></ul>
         </div>
         <div class="panel b-rules">
           <h3>조작 키</h3>
           <ul class="rule-list">
-            <li><b>혼자</b>: ← → 이동 · ↑ 회전 · ↓ 내리기 · Space 한 번에 · Ctrl 저장</li>
-            <li><b>오프라인 1P</b>: A D 이동 · W 회전 · S 내리기 · Space 한 번에 · 왼쪽 Shift(또는 E) 저장</li>
-            <li><b>오프라인 2P</b>: ← → 이동 · ↑ 회전 · ↓ 내리기 · Enter 한 번에 · 오른쪽 Shift(또는 .) 저장</li>
+            <li><b>랭킹 대전 · 온라인 대결</b>: ← → 이동 · ↑ 회전 · ↓ 내리기 · Space 한 번에 · Ctrl 저장</li>
             <li>휴대폰은 화면 버튼(HOLD 포함)으로 해요.</li>
           </ul>
         </div>
