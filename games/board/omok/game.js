@@ -1,4 +1,5 @@
-/* gogo?gogo! — 오목 (15줄, 흑 먼저, 다섯 개 이상 연속이면 승리) */
+/* gogo?gogo! — 오목 (15줄, 흑 먼저, 다섯 개 이상 연속이면 승리)
+ *  v67 3·3 금지 (흑·백 모두): 한 수로 '열린 3' 이 두 줄 동시에 생기면 둘 수 없음. 4·3, 4·4 는 됨. 다섯이 되는 수는 언제나 됨 */
 (function () {
   'use strict';
   const B = window.GoBoard;
@@ -23,8 +24,41 @@
       if (!g.winner && g.moves.length === N * N) g.winner = 3;     // 무승부
       g.turn = 3 - c; return true;
     };
+    // v67 3·3 인지: (x, y) 에 c 를 두면 열린 3 이 두 줄 이상 생기나 (빈 곳만 검사)
+    g.banned = function (x, y, c) {
+      if (g.at(x, y) !== 0) return false;
+      c = c || g.turn; const i0 = y * N + x; g.b[i0] = c;
+      let five = false, threes = 0;
+      for (const [dx, dy] of DIRS) {
+        if (g.run(x, y, dx, dy, c) + g.run(x, y, -dx, -dy, c) + 1 >= 5) { five = true; break; }
+        if (openThree(g, x, y, dx, dy, c)) threes++;
+      }
+      g.b[i0] = 0;
+      return !five && threes >= 2;
+    };
     g.undo = function () { const m = g.moves.pop(); if (!m) return; g.b[m[1] * N + m[0]] = 0; g.turn = 3 - g.turn; g.winner = 0; g.line = null; };
     return g;
+  }
+
+  // 열린 3: 이 줄에서 한 수 더 두면 '양쪽이 빈 4'(.●●●●.) 가 되는 3. 이미 4 인 줄은 3 이 아님 (4·3 은 됨)
+  function openThree(g, x, y, dx, dy, c) {
+    for (let k = -4; k <= 4; k++) {                             // 같은 줄의 빈 곳에 하나 더 둬 봄
+      if (!k) continue;
+      const ex = x + dx * k, ey = y + dy * k; if (g.at(ex, ey) !== 0) continue;
+      g.b[ey * N + ex] = c;
+      const a = g.run(x, y, dx, dy, c), b = g.run(x, y, -dx, -dy, c), n = a + b + 1;
+      const four = n >= 5 ? 'five' : n === 4 && g.at(x + dx * (a + 1), y + dy * (a + 1)) === 0 && g.at(x - dx * (b + 1), y - dy * (b + 1)) === 0 ? 'open' : n === 4 ? 'closed' : '';
+      g.b[ey * N + ex] = 0;
+      if (four === 'five' || four === 'closed') {               // 이 줄이 이미 4 (한 수로 다섯) 이면 3 이 아님
+        if (four === 'five') return false;
+      }
+      if (four === 'open') {
+        // 이 줄이 이미 사(4) 인지 확인: 줄의 다른 빈 곳 한 수로 다섯이 되면 3 이 아니고 4
+        for (let j = -4; j <= 4; j++) { const fx = x + dx * j, fy = y + dy * j; if (!j || g.at(fx, fy) !== 0) continue; g.b[fy * N + fx] = c; const f = g.run(x, y, dx, dy, c) + g.run(x, y, -dx, -dy, c) + 1 >= 5; g.b[fy * N + fx] = 0; if (f) return false; }
+        return true;
+      }
+    }
+    return false;
   }
 
   /* ---------- 컴퓨터 ---------- */
@@ -48,7 +82,7 @@
       s += v;
     }
     if (fours >= 2 || (fours >= 1 && threes >= 1)) s += 5e4;   // 4-4, 4-3
-    if (threes >= 2) s += 8e3;                                  // 3-3
+    // v67 3·3 은 둘 수 없으므로 점수 없음
     return s;
   }
   function candidates(g) {
@@ -81,7 +115,7 @@
   ];
   function greedy(g, L) {
     const me = g.turn, op = 3 - me;
-    const list = candidates(g).map(([x, y]) => {
+    const list = candidates(g).filter(([x, y]) => !g.banned(x, y, me)).map(([x, y]) => {
       const atk = pointScore(g, x, y, me), def = pointScore(g, x, y, op);
       let s = atk + def * L.def + (7 - Math.max(Math.abs(x - 7), Math.abs(y - 7))) * 2;
       if (atk >= 1e6) s = 1e9;                                  // 바로 이기는 수
@@ -116,7 +150,7 @@
       if (g.at(x, y) !== 0) continue;
       let ok = false;
       for (const [dx, dy] of DIRS) { const a = g.run(x, y, dx, dy, c), b2 = g.run(x, y, -dx, -dy, c); if (a + b2 + 1 >= 3) { ok = true; break; } const a2 = g.at(x + dx * (a + 1), y + dy * (a + 1)) === 0 ? g.run(x + dx * (a + 1), y + dy * (a + 1), dx, dy, c) : 0, b3 = g.at(x - dx * (b2 + 1), y - dy * (b2 + 1)) === 0 ? g.run(x - dx * (b2 + 1), y - dy * (b2 + 1), -dx, -dy, c) : 0; if (a + b2 + 1 + a2 + b3 >= 4) { ok = true; break; } }
-      if (!ok) continue;
+      if (!ok || g.banned(x, y, c)) continue;                  // v67 3·3 자리는 못 둠
       g.b[y * N + x] = c; const w = winSpots(g, c); g.b[y * N + x] = 0;
       if (w.length) out.push([x, y, w]);
     }
@@ -138,7 +172,9 @@
   }
   function ordered(g, c, k) {
     const op = 3 - c;
-    return candidates(g).map(([x, y]) => ({ x, y, s: pointScore(g, x, y, c) + pointScore(g, x, y, op) * 0.9 })).sort((a, b) => b.s - a.s).slice(0, k);
+    const all = candidates(g).map(([x, y]) => ({ x, y, s: pointScore(g, x, y, c) + pointScore(g, x, y, op) * 0.9 })).sort((a, b) => b.s - a.s), out = [];
+    for (const m of all) { if (out.length >= k) break; if (!g.banned(m.x, m.y, c)) out.push(m); }   // v67 3·3 자리는 빼고
+    return out;
   }
   function negamax(g, depth, alpha, beta, k, stop) {
     const me = g.turn, op = 3 - me;
@@ -146,7 +182,8 @@
     const theirs = winSpots(g, op);
     if (theirs.length > 1) return -9e5 - depth;                 // 상대 사(4)가 두 곳 → 못 막음
     if (depth === 0 || stop()) return evalBoard(g, me) - (theirs.length ? 2000 : 0);
-    const list = theirs.length ? theirs.map(([x, y]) => ({ x, y })) : ordered(g, me, k);
+    const list = theirs.length ? theirs.filter(([x, y]) => !g.banned(x, y, me)).map(([x, y]) => ({ x, y })) : ordered(g, me, k);
+    if (!list.length) return theirs.length ? -9e5 - depth : evalBoard(g, me);   // v67 막을 자리가 3·3 이면 못 막음
     let best = -1e9;
     for (const m of list) {
       g.b[m.y * N + m.x] = me; g.turn = op;
@@ -162,10 +199,11 @@
     const me = g.turn, op = 3 - me;
     if (!g.moves.length) return { x: 7, y: 7 };
     const w = winSpots(g, me); if (w.length) return { x: w[0][0], y: w[0][1] };     // 바로 이김
-    const t = winSpots(g, op); if (t.length) return { x: t[0][0], y: t[0][1] };     // 바로 막음
+    const t = winSpots(g, op).filter(([x, y]) => !g.banned(x, y, me)); if (t.length) return { x: t[0][0], y: t[0][1] };     // 바로 막음 (3·3 자리는 못 둠)
     const stop = B.deadline(L.ms);
     if (L.vcf) { const v = vcf(g, me, L.vcf, stop); if (v) return { x: v[0], y: v[1] }; }
     let root = ordered(g, me, L.k + 4);
+    if (!root.length) return greedy(g, LV[3]);
     // 상대가 VCF 로 이길 수 있으면 그것을 깨는 수만 고름
     if (L.vcf && vcf(g, op, L.vcf, B.deadline(L.ms / 3))) {
       const safe = root.filter(m => { g.b[m.y * N + m.x] = me; const r = !vcf(g, op, L.vcf, B.deadline(L.ms / 6)); g.b[m.y * N + m.x] = 0; return r; });
@@ -211,7 +249,10 @@
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = g.at(x, y); if (v) B.stone(ctx, px(x), px(y), 13, v === 1); }
     const last = g.moves[g.moves.length - 1];
     if (last) { ctx.fillStyle = '#FF5A5F'; ctx.fillRect(px(last[0]) - 3, px(last[1]) - 3, 6, 6); }
-    if (hover && !g.winner && g.at(hover[0], hover[1]) === 0) B.stone(ctx, px(hover[0]), px(hover[1]), 13, g.turn === 1, 0.45);
+    if (hover && !g.winner && g.at(hover[0], hover[1]) === 0) {
+      if (g.banned(hover[0], hover[1])) { const hx = px(hover[0]), hy = px(hover[1]); ctx.strokeStyle = '#E8202A'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(hx - 8, hy - 8); ctx.lineTo(hx + 8, hy + 8); ctx.moveTo(hx + 8, hy - 8); ctx.lineTo(hx - 8, hy + 8); ctx.stroke(); }   // v67 3·3 자리 표시
+      else B.stone(ctx, px(hover[0]), px(hover[1]), 13, g.turn === 1, 0.45);
+    }
     if (g.line) { ctx.strokeStyle = '#FF5A5F'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(px(g.line[0][0]), px(g.line[0][1])); ctx.lineTo(px(g.line[1][0]), px(g.line[1][1])); ctx.stroke(); }
   }
 
@@ -280,6 +321,7 @@
         const ok = gx >= 0 && gy >= 0 && gx < N && gy < N;
         if (t === 'move') { const nh = ok ? [gx, gy] : null; if (String(nh) !== String(hover)) { hover = nh; draw(); } }
         else if (t === 'leave') { hover = null; draw(); }
+        else if (t === 'up' && ok && !over && !busy && human() && g.at(gx, gy) === 0 && g.banned(gx, gy)) { hooks.onToast && hooks.onToast('3·3 자리는 둘 수 없어요 (열린 3 이 두 줄 생김)'); }
         else if (t === 'up' && ok && !over && !busy && human() && g.at(gx, gy) === 0) {
           const c = g.turn; hover = null; send([gx, gy]);
           carry(c, gx, gy, () => g.place(gx, gy), () => { if (!over) after(); });

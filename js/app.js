@@ -489,7 +489,7 @@
         <div class="play-head"><a class="back" href="#home">← 게임 목록</a><h1>${g.name}</h1><span class="cat">${g.cat}</span></div>
         <div class="play-grid">
           <div class="stage-col">
-            <div class="cabinet${(cfg.ar || 1) > 1.2 ? ' wide' : ''}" style="--cw:${g.w}px;--ar:${cfg.ar || 1}"><div class="screen"><canvas id="gameCanvas" aria-label="${g.name} 게임 화면"></canvas><div class="overlay" id="ov"></div></div></div>
+            <div class="cabinet${(cfg.ar || 1) > 1.2 ? ' wide' : ''}${cfg.stepLevels ? ' steps' : ''}" data-g="${g.id}" style="--cw:${g.w}px;--ar:${cfg.ar || 1}"><div class="screen"><canvas id="gameCanvas" aria-label="${g.name} 게임 화면"></canvas><div class="overlay" id="ov"></div></div></div>
           </div>
           <aside class="side">
             <div class="panel turn-panel">

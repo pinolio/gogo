@@ -1170,3 +1170,11 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 }
 /* 글자 대비 (흐려서 잘 안 보이던 것) */
 .cat { color: #2F55D9; }
+/* v67 바둑·오목·장기·체스·알까기 (단계 버튼이 있는 게임): PC 에서 판을 더 크게 → 안내 칸(단계 10개·시작 버튼)이 스크롤 없이 다 보이게
+   화면 높이가 낮아도 판 너비를 최소 760px (세로로 긴 알까기 판은 500px) */
+@media (min-width: 561px) {
+  .board-play .cabinet.steps { max-width: min(calc(var(--cw, 720px) + 32px), max(760px, calc((100svh - 210px) * var(--ar, 1) + 32px))); }
+  .board-play .cabinet.steps[data-g="alkkagi"] { max-width: min(calc(var(--cw, 720px) + 32px), max(500px, calc((100svh - 210px) * var(--ar, 1) + 32px))); }   /* 알까기 판은 세로로 김 */
+  .board-play .cabinet.steps .ov-board { gap: 6px; }
+  .board-play .cabinet.steps .ov-title { font-size: 26px; line-height: 1.1; }
+}
