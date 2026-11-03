@@ -669,6 +669,12 @@ body {
   background-size: 8px 8px;
   letter-spacing: -0.005em;
 }
+/* v65 메인 바탕: 파스텔 하늘 도트 그림 (Meshy, img/bg_sky.jpg) — 화면 뒤에 고정된 한 장 (휴대폰도 같게)
+ *   어두운 테마(설정 또는 기기)는 예전 남색 줄무늬 그대로 */
+body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: #E3E8FB url(../img/bg_sky.jpg) center top / cover no-repeat; }
+@media (max-width: 760px) { body::after { background-image: url(../img/bg_sky_s.jpg); } }
+:root[data-theme="dark"] body::after { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body::after { display: none; } }
 h1, h2, h3 { font-family: var(--f-display); font-weight: 700; letter-spacing: 0; }
 
 /* 머리말 */
