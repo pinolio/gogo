@@ -22,13 +22,14 @@
     ctx.fillStyle = '#05070F'; ctx.fillRect(0, 0, W, H);
     STARS.forEach(st => { const y = (st.y + t * st.v) % H; ctx.fillStyle = st.s === 3 ? '#C8D0FF' : st.s === 2 ? '#7880B8' : '#3E4470'; ctx.fillRect(st.x | 0, y | 0, st.s === 3 ? 2 : 1, st.s === 3 ? 2 : 1); });
   }
-  // 총알: 가운데 흰 점 + 노랑/주황 테두리 (원래 닷지 느낌)
+  // 총알: v64 노랑(k=0) · 빨강(k=1) 두 가지 (빠르기·크기는 같음)
+  //  노랑에 맞으면 버틴 시간이 기록됨 · 빨강에 맞으면 그 판은 기록·포인트 없음
   const BUL = {};
   function bulletImg(k) {
-    if (BUL[k]) return BUL[k];
+    k = k ? 1 : 0; if (BUL[k]) return BUL[k];
     const c = document.createElement('canvas'); c.width = c.height = 12; const g = c.getContext('2d');
-    const col = ['#FFD23F', '#FF9A3D', '#FF5A5F'][k];
-    g.fillStyle = 'rgba(255,200,80,.25)'; g.beginPath(); g.arc(6, 6, 6, 0, Math.PI * 2); g.fill();
+    const col = ['#FFD23F', '#FF4048'][k];
+    g.fillStyle = k ? 'rgba(255,64,72,.32)' : 'rgba(255,210,63,.25)'; g.beginPath(); g.arc(6, 6, 6, 0, Math.PI * 2); g.fill();
     g.fillStyle = col; g.beginPath(); g.arc(6, 6, 3.6, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#FFFFFF'; g.fillRect(5, 5, 2, 2);
     return (BUL[k] = c);
@@ -46,7 +47,7 @@
     drawBg(ctx, t);
     const av = (window.GameHub && window.GameHub.user && window.GameHub.user.avatar) || AV.normalize({});
     for (let i = 0; i < 26; i++) {   // 가운데로 몰려드는 총알
-      const a = i * 2.39, r = 70 + (i * 37) % 160, im = bulletImg(i % 3);
+      const a = i * 2.39, r = 70 + (i * 37) % 160, im = bulletImg(i % 2);
       ctx.drawImage(im, W / 2 + Math.cos(a) * r - 6, H / 2 + Math.sin(a) * r - 6);
     }
     drawAvatar(ctx, av, W / 2, H / 2, 0, 0, false, '');
@@ -118,7 +119,9 @@
         if (p.moving > 0) { p.moving -= dt; p.walk += dt; }
       }
       const hitR = () => (C().hitR || 5) + (C().bulletR || 3);
-      const hitBy = p => B.some(b => (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < hitR() ** 2);
+      // v64 맞은 총알을 돌려줌 (없으면 null) — 빨강(k=1)이면 그 사람은 '기록 없음'
+      const hitBy = p => B.find(b => (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < hitR() ** 2) || null;
+      const hitMark = (p, b) => { p.red = !!(b && b.k); };
 
       /* ---------- 총알 (방장 · 혼자 · 한 기기가 계산) ---------- */
       const target = () => { const al = P.filter(p => p.alive); return al.length ? al[Math.floor(seedR() * al.length)] : { x: W / 2, y: H / 2 }; };
@@ -129,7 +132,7 @@
         const tg = target(), aim = C().bulletAim == null ? 0.22 : C().bulletAim;
         const a = Math.atan2(tg.y - y, tg.x - x) + (seedR() * 2 - 1) * aim;
         const [s0, s1] = C().bulletSpeed || [100, 165], up = Math.min(C().speedUpMax || 2.2, 1 + t * (C().speedUpPerSec == null ? 0.015 : C().speedUpPerSec)), sp = (s0 + seedR() * (s1 - s0)) * up;   // 시간이 갈수록 빨라짐
-        B.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, k: Math.floor(seedR() * 3) });
+        B.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, k: seedR() < (C().redRatio == null ? 0.5 : C().redRatio) ? 1 : 0 });   // v64 빨간 총알 비율
       }
       const wantBullets = () => Math.min(C().bulletMax || 150, Math.floor((C().bulletStart || 12) + t * (C().bulletPerSec == null ? 1 : C().bulletPerSec)));
       function stepBullets(dt) {
@@ -147,7 +150,7 @@
           P.forEach(p => { if (p.local) movePlayer(p, dt); else if (p.tx != null) { const k = Math.min(1, dt * 14); p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; } });
           stepBullets(dt);
           if (!window.__GOGO_QA || !window.__GOGO_QA.dodgeGod) {
-            const dead = P.filter(p => p.alive && p.local && hitBy(p));
+            const dead = P.filter(p => { if (!p.alive || !p.local) return false; const b = hitBy(p); if (b) hitMark(p, b); return !!b; });
             if (dead.length) { dead.forEach(p => { p.alive = false; boom(p.x, p.y, RING[p.slot] || '#FFD23F'); }); decide(); }
           }
         }
@@ -163,7 +166,7 @@
         if (!two() || sub === 'coop' || dead.length >= P.length || sub === 'vs') end(dead);
       }
       function end(dead) {
-        if (net && net.host) send({ k: 'end', t: Math.round(t * 100), dead });
+        if (net && net.host) send({ k: 'end', t: Math.round(t * 100), dead, red: P.filter(p => p.red).map(p => p.slot) });
         finish(dead);
       }
 
@@ -173,22 +176,24 @@
         if (phase === 'over') return;
         phase = 'over'; clock.stop();
         P.forEach(p => { if (dead.includes(p.slot) && p.alive) { p.alive = false; boom(p.x, p.y, RING[p.slot]); } });
-        const sec = Math.round(t * 100) / 100, score = Math.round(t * 100), me = P.find(p => p.mine) || P[0];
+        const sec = Math.round(t * 100) / 100, me = P.find(p => p.mine) || P[0];
+        // v64 빨간 총알에 맞아 끝났으면 이 판은 기록(버틴 시간·랭킹)과 시간 포인트가 없음
+        const voided = P.some(p => dead.includes(p.slot) && p.red), score = voided ? 0 : Math.round(t * 100);
         let title, message, win, winner, points = 0;
-        if (!two()) { title = fmtT(sec) + ' 버텼어요!'; message = '총알을 피해 ' + fmtT(sec) + ' 버텼어요'; win = sec >= 10; winner = win ? 0 : 1; points = timePoints(sec); }
+        if (!two()) { title = voided ? '빨간 총알! 기록 없음' : fmtT(sec) + ' 버텼어요!'; message = voided ? fmtT(sec) + ' 버텼지만 빨간 총알에 맞아서 기록이 남지 않아요' : '노란 총알에 맞음 · ' + fmtT(sec) + ' 버텼어요'; win = !voided && sec >= 10; winner = win ? 0 : 1; points = voided ? 0 : timePoints(sec); }
         else if (sub === 'coop') {
           const goal = C().coopGoal || 30;
-          title = '둘이서 ' + fmtT(sec) + '!'; message = '협동 · ' + P.filter(p => dead.includes(p.slot)).map(p => p.name).join(', ') + ' 맞아서 끝 · 같이 ' + fmtT(sec) + ' 버텼어요';
-          win = sec >= goal; winner = win ? 0 : 1; points = online() ? timePoints(sec) : 0;
+          title = voided ? '빨간 총알! 기록 없음' : '둘이서 ' + fmtT(sec) + '!'; message = '협동 · ' + P.filter(p => dead.includes(p.slot)).map(p => p.name + (p.red ? '(빨강)' : '(노랑)')).join(', ') + ' 맞아서 끝 · 같이 ' + fmtT(sec) + ' 버텼어요' + (voided ? ' · 빨간 총알이라 기록 없음' : '');
+          win = !voided && sec >= goal; winner = win ? 0 : 1; points = online() && !voided ? timePoints(sec) : 0;
         } else {
           const alive = P.filter(p => !dead.includes(p.slot));
-          if (alive.length === 1) { const w = alive[0]; winner = w.slot; title = w.name + ' 승리!'; message = '대결 · ' + P.find(p => p !== w).name + ' 먼저 맞음 · ' + fmtT(sec); }
+          if (alive.length === 1) { const w = alive[0]; winner = w.slot; title = w.name + ' 승리!'; message = '대결 · ' + P.find(p => p !== w).name + (P.find(p => p !== w).red ? ' 빨간 총알에' : ' 노란 총알에') + ' 먼저 맞음 · ' + fmtT(sec) + (voided ? ' · 시간 기록은 없음' : ''); }
           else { winner = -1; title = '무승부!'; message = '대결 · 둘이 같이 맞았어요 · ' + fmtT(sec); }
           win = online() ? winner === me.slot : undefined; points = online() && win ? ((C().points || {}).win || 2) : 0;
         }
-        result = { title, sec };
+        result = { title, sec, red: voided };
         hooks.onTurn({ text: title, side: -1 });
-        hooks.onOver({ winner, win: mode === 'local' ? undefined : !!win, score, points, title, message, duration_sec: Math.round(sec), extra: { sub: two() ? sub : 'solo', time: sec, players: P.length } });
+        hooks.onOver({ winner, win: mode === 'local' ? undefined : !!win, score, points, title, message, duration_sec: Math.round(sec), extra: { sub: two() ? sub : 'solo', time: sec, players: P.length, red: voided ? 1 : 0 } });
         render();
       }
 
@@ -210,7 +215,7 @@
         if (phase === 'play') t += dt; else if (phase === 'ready') readyT -= dt;
         if (me) {
           if (phase === 'ready' || phase === 'play') movePlayer(me, dt);
-          if (phase === 'play' && me.alive && !me.pend && hitBy(me) && !(window.__GOGO_QA && window.__GOGO_QA.dodgeGod)) { me.pend = performance.now(); me.alive = false; boom(me.x, me.y, RING[me.slot]); send({ k: 'hit', t: Math.round(t * 100) }); }
+          if (phase === 'play' && me.alive && !me.pend && !(window.__GOGO_QA && window.__GOGO_QA.dodgeGod)) { const hb = hitBy(me); if (hb) { hitMark(me, hb); me.pend = performance.now(); me.alive = false; boom(me.x, me.y, RING[me.slot]); send({ k: 'hit', t: Math.round(t * 100), red: me.red ? 1 : 0 }); } }
           if (performance.now() - net.lastPos > POS_MS) { net.lastPos = performance.now(); send({ k: 'pos', x: Math.round(me.x), y: Math.round(me.y) }); }
         }
         P.forEach(p => { if (!p.mine && p.tx != null) { const k = Math.min(1, dt * 12); p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; p.moving = 0.1; p.walk += dt; } });
@@ -237,10 +242,12 @@
         ctx.font = '700 30px Galmuri11, Pretendard, sans-serif'; const tt = fmtT(t); ctx.strokeText(tt, W / 2, 40); ctx.fillStyle = '#FFE45C'; ctx.fillText(tt, W / 2, 40);
         ctx.font = '700 12px Pretendard, sans-serif'; ctx.fillStyle = '#9AA3D8'; ctx.textAlign = 'right'; ctx.fillText('총알 ' + B.length, W - 10, 20);
         if (two()) { ctx.textAlign = 'left'; ctx.fillStyle = '#C8D0FF'; ctx.fillText(sub === 'coop' ? '협동' : '대결', 10, 20); }
+        // v64 총알 색 안내 (왼쪽 아래): 노랑 = 기록 · 빨강 = 기록 없음
+        { ctx.textAlign = 'left'; ctx.font = '700 11px Pretendard, sans-serif'; const y0 = H - 10; ctx.drawImage(bulletImg(0), 6, y0 - 10); ctx.fillStyle = '#FFE45C'; ctx.fillText('기록', 20, y0 - 1); ctx.drawImage(bulletImg(1), 52, y0 - 10); ctx.fillStyle = '#FF8A8E'; ctx.fillText('기록 없음', 66, y0 - 1); }
         if (phase === 'ready') { ctx.textAlign = 'center'; ctx.font = '700 40px Galmuri11, Pretendard, sans-serif'; ctx.lineWidth = 6; const n = String(Math.max(1, Math.ceil(readyT))); ctx.strokeText(n, W / 2, H / 2 - 50); ctx.fillStyle = '#FFFFFF'; ctx.fillText(n, W / 2, H / 2 - 50); }
         if (phase === 'paused') { ctx.fillStyle = 'rgba(5,7,15,.6)'; ctx.fillRect(0, 0, W, H); ctx.textAlign = 'center'; ctx.font = '700 28px Galmuri11, Pretendard, sans-serif'; ctx.fillStyle = '#FFFFFF'; ctx.fillText('일시정지', W / 2, H / 2); ctx.font = '700 13px Pretendard, sans-serif'; ctx.fillText(touch ? '화면을 누르면 계속' : 'P 를 누르면 계속', W / 2, H / 2 + 26); }
-        if (phase === 'over' && result) { ctx.fillStyle = 'rgba(5,7,15,.45)'; ctx.fillRect(0, H / 2 - 40, W, 70); ctx.textAlign = 'center'; ctx.font = '700 28px Galmuri11, Pretendard, sans-serif'; ctx.lineWidth = 5; ctx.strokeText(result.title, W / 2, H / 2 + 6); ctx.fillStyle = '#FFE45C'; ctx.fillText(result.title, W / 2, H / 2 + 6); }
-        if (phase === 'idle') { ctx.textAlign = 'center'; ctx.font = '700 22px Galmuri11, Pretendard, sans-serif'; ctx.fillStyle = '#C8D0FF'; ctx.fillText('총알을 피해 오래 버티기', W / 2, H - 40); }
+        if (phase === 'over' && result) { ctx.fillStyle = 'rgba(5,7,15,.45)'; ctx.fillRect(0, H / 2 - 40, W, 70); ctx.textAlign = 'center'; ctx.font = '700 28px Galmuri11, Pretendard, sans-serif'; ctx.lineWidth = 5; ctx.strokeText(result.title, W / 2, H / 2 + 6); ctx.fillStyle = result.red ? '#FF8A8E' : '#FFE45C'; ctx.fillText(result.title, W / 2, H / 2 + 6); }
+        if (phase === 'idle') { ctx.textAlign = 'center'; ctx.font = '700 22px Galmuri11, Pretendard, sans-serif'; ctx.fillStyle = '#C8D0FF'; ctx.fillText('총알을 피해 오래 버티기', W / 2, H - 52); ctx.font = '700 14px Pretendard, sans-serif'; ctx.fillStyle = '#FFE45C'; ctx.fillText('노란 총알에 맞으면 기록 · 빨간 총알에 맞으면 기록 없음', W / 2, H - 30); }
       }
       function loop(ts) {
         raf = requestAnimationFrame(loop);
@@ -302,11 +309,11 @@
           if (net.host) {
             const p = P.find(q => !q.mine); if (!p) return;
             if (m.k === 'pos') { p.tx = m.x; p.ty = m.y; }
-            else if (m.k === 'hit') { if (p.alive && phase === 'play') { p.alive = false; boom(p.x, p.y, RING[p.slot]); decide(); } }
+            else if (m.k === 'hit') { if (p.alive && phase === 'play') { p.red = !!m.red; p.alive = false; boom(p.x, p.y, RING[p.slot]); decide(); } }
             else if (m.k === 'quit') { if (phase !== 'over') { p.alive = false; end([p.slot]); } }
           } else {
             if (m.k === 'st') applySnap(m);
-            else if (m.k === 'end') { t = m.t / 100; finish(m.dead || []); }
+            else if (m.k === 'end') { t = m.t / 100; (m.red || []).forEach(sl => { const q = P.find(x => x.slot === sl); if (q) q.red = true; }); finish(m.dead || []); }
           }
         },
         press(id) {
