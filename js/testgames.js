@@ -11,14 +11,20 @@
   const $ = (s, r) => (r || document).querySelector(s);
 
   const CSS = `
-  .tg-wrap { max-width: 900px; margin: 0 auto; }
+  .tg-wrap { max-width: 1040px; margin: 0 auto; }
+  /* 신호등 구구단: 왼쪽 놀이 화면 · 오른쪽 규칙 (좁은 화면은 아래로) */
+  .gg-2col { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+  .gg-2col > .gg-rules { width: auto; position: sticky; top: 90px; }
+  @media (max-width: 860px) { .gg-2col { grid-template-columns: minmax(0, 1fr); } .gg-2col > .gg-rules { position: static; } }
+  .gg-hint:empty { display: none; }
   .tg-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
   .tg-card { display: grid; gap: 6px; background: #FFFFFF; border: 3px solid #1D2340; border-radius: 14px; padding: 14px; text-decoration: none; color: #1D2340; box-shadow: 0 4px 0 #1D2340; }
   .tg-card:hover { transform: translateY(-2px); }
   .tg-card b { font-size: 20px; } .tg-card .tag { justify-self: start; background: #FFD23F; color: #1D2340; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
   .tg-note { background: #E8F1FF; border: 2px solid #4C7DFF; border-radius: 12px; padding: 10px 14px; color: #1D2340; margin: 0 0 14px; line-height: 1.6; }
   /* 신호등 구구단 */
-  .gg { display: grid; gap: 12px; justify-items: center; }
+  .gg { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; justify-items: center; min-width: 0; }
+  .gg > * { max-width: 100%; }
   .gg-top { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; font-weight: 700; }
   .gg-top span { background: #1D2340; color: #FFFFFF; border-radius: 999px; padding: 6px 14px; }
   .gg-top .sc { background: #FFD23F; color: #1D2340; font-size: 20px; }
@@ -37,6 +43,8 @@
   .gg-form { display: flex; gap: 8px; width: min(560px, 100%); }
   .gg-form input { flex: 1; min-width: 0; font-size: 34px; font-weight: 800; text-align: center; border: 4px solid #1D2340; border-radius: 14px; padding: 8px; color: #1D2340; background: #FFFFFF; }
   .gg-form button { font-size: 20px; }
+  .gg-form #ggRe { font-size: 16px; background: #BDE8FF; color: #1D2340; white-space: nowrap; }
+  @media (max-width: 560px) { .gg-form #ggRe { font-size: 13px; padding: 6px 8px; } }
   .gg-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(360px, 100%); }
   .gg-pad button { font-size: 24px; font-weight: 800; padding: 12px 0; border-radius: 12px; border: 3px solid #1D2340; background: #FFFFFF; color: #1D2340; cursor: pointer; box-shadow: 0 3px 0 #1D2340; }
   .gg-pad button.ok { background: #FFD23F; } .gg-pad button.del { background: #BDE8FF; }
@@ -60,13 +68,14 @@
     let st = { phase: 'ready' }, timer = 0, best = 0;
     try { best = +localStorage.getItem('gogo_test_gugu_best') || 0; } catch (e) { /* noop */ }
     const rnd = () => GUGU.min + Math.floor(Math.random() * (GUGU.max - GUGU.min + 1));
-    el.innerHTML = `<div class="gg">
+    el.innerHTML = `<div class="gg-2col"><div class="gg">
       <div class="gg-top"><span class="sc">점수 <b id="ggScore">0</b></span><span>남은 시간 <b id="ggTime">${GUGU.sec}</b>초</span><span>맞힘 <b id="ggOk">0</b> · 틀림 <b id="ggNo">0</b></span><span>최고 <b id="ggBest">${best}</b></span></div>
       <div class="gg-light" id="ggLight" aria-label="신호등"><i class="r"></i><i class="g"></i></div>
       <div class="gg-frame"><div class="gg-q" id="ggQ">? <span class="x">×</span> ?</div><div class="gg-hint" id="ggHint">시작을 누르세요</div><div class="gg-flash" id="ggFlash" hidden></div></div>
-      <form class="gg-form" id="ggForm" autocomplete="off"><input id="ggIn" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="답" aria-label="답 입력" disabled><button class="btn btn-sun" type="submit" id="ggGo">시작 ▶</button></form>
+      <form class="gg-form" id="ggForm" autocomplete="off"><input id="ggIn" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="답" aria-label="답 입력" disabled><button class="btn btn-sun" type="submit" id="ggGo">시작 ▶</button><button class="btn" type="button" id="ggRe" title="처음부터 다시">↻ 다시 하기</button></form>
       <div class="gg-pad" id="ggPad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-n="${n}">${n}</button>`).join('')}<button type="button" class="del" data-n="del">←</button><button type="button" data-n="0">0</button><button type="button" class="ok" data-n="ok">확인</button></div>
       <div class="gg-log" id="ggLog">녹색불이면 바른 답, 빨간불이면 자리를 바꾼 답!</div>
+      </div>
       <div class="gg-rules"><b>규칙</b><br>
         <span class="gt">● 녹색불</span>: 바른 답을 적어요. 4 × 6 → <b>24</b><br>
         <span class="rt">● 빨간불</span>: 답의 <b>십의 자리와 일의 자리를 바꿔서</b> 적어요. 4 × 6 → 24 → <b>42</b> · 3 × 3 → 09 → <b>90</b> · 4 × 5 → 20 → 02 → <b>2</b><br>
@@ -79,7 +88,7 @@
       st.q = { a, b, red, ans: red ? flip(a * b) : a * b };
       $('#ggQ', el).innerHTML = `${a}<span class="x">×</span>${b}`;
       $('#ggLight', el).className = 'gg-light ' + (red ? 'red' : 'green');
-      const h = $('#ggHint', el); h.className = 'gg-hint ' + (red ? 'red' : 'green'); h.textContent = red ? '빨간불! 자리를 바꾼 답' : '녹색불! 바른 답';
+      const h = $('#ggHint', el); h.className = 'gg-hint'; h.textContent = '';   // v70 선생님: 문제 아래 녹색·빨강 안내는 지움 (신호등만 보고 판단)
       inp.value = ''; inp.focus({ preventScroll: true });
     }
     function flash(ok, txt) { const f = $('#ggFlash', el); f.hidden = false; f.className = 'gg-flash ' + (ok ? 'ok' : 'bad'); f.textContent = txt; clearTimeout(f._t); f._t = setTimeout(() => { f.hidden = true; }, 420); }
@@ -105,10 +114,12 @@
       $('#ggLight', el).className = 'gg-light'; $('#ggQ', el).innerHTML = '끝!'; $('#ggHint', el).textContent = '';
       const nb = st.score > best; if (nb) { best = st.score; try { localStorage.setItem('gogo_test_gugu_best', String(best)); } catch (e) { /* noop */ } set('ggBest', best); }
       const box = document.createElement('div'); box.className = 'gg-over';
-      box.innerHTML = `<b class="big">${st.score}점</b>맞힘 ${st.right} · 틀림 ${st.wrong}${nb ? ' · <b style="color:#D6202A">최고 점수!</b>' : ''}<br><small>테스트 게임이라 랭킹·포인트에는 남지 않아요 (이 기기 최고 점수만)</small>`;
+      box.innerHTML = `<b class="big">${st.score}점</b>맞힘 ${st.right} · 틀림 ${st.wrong}${nb ? ' · <b style="color:#D6202A">최고 점수!</b>' : ''}<br><small>테스트 게임이라 랭킹·포인트에는 남지 않아요 (이 기기 최고 점수만)</small><div style="margin-top:10px"><button class="btn btn-sun" type="button" data-again>↻ 다시 하기</button></div>`;
+      box.querySelector('[data-again]').addEventListener('click', start);
       $('.gg-frame', el).after(box);
     }
     form.addEventListener('submit', e => { e.preventDefault(); submit(); });
+    $('#ggRe', el).addEventListener('click', start);   // v71 다시 하기: 언제든 처음부터 (점수·시간 처음으로)
     $('#ggPad', el).addEventListener('click', e => {
       const b = e.target.closest('[data-n]'); if (!b) return; const n = b.dataset.n;
       if (st.phase !== 'play') { if (n === 'ok') start(); return; }
