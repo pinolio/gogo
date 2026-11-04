@@ -30,7 +30,7 @@ GoSettings.register({
   bossRespawnSec: 30,                  // 보스가 다시 나오는 시간(초) (전에는 60초)
   statPerLevel: 2,                     // v44 레벨이 오를 때마다 받는 스탯 포인트 (힘·민첩·지혜·체력·저항, 스탯마다 최대 50)   // v42 온라인 서버 10개 × 최대 30명 (cap 을 바꾸면 supabase/rpg_online_v42.sql 의 cap 도 같이)                  // 쓰러지면 다음 레벨 경험치의 5% 잃음 (레벨은 안 내려감)
 
-  /* 랭킹: 레벨 (레벨이 오를 때마다 기록) — 점수 = 레벨 */
-  scoreText(score) { return score ? 'Lv.' + score : '-'; },
+  /* 랭킹: 레벨 (레벨이 오를 때마다 기록) — 점수 = 레벨. v69 저승 던전을 깨면 점수 = 1000 + 깬 단계 번호(1-1=1 … 1-5=5, 2-1=6 …) */
+  scoreText(score) { if (!score) return '-'; if (score >= 1000) { const n = score - 1000, g = Math.ceil(n / 5); return '저승 ' + g + '-' + (n - (g - 1) * 5); } return 'Lv.' + score; },   // v69 저승을 깨면 점수 = 1000 + 깬 단계 → '저승 1-3'
   bgm: { file: 'bgm/bgm.mp3', volume: 0.35 }
 });

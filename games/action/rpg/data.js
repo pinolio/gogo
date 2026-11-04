@@ -288,6 +288,47 @@
   });
   MAPS.forEach((m, i) => { m.prev = i > 0 ? MAPS[i - 1].id : null; m.next = i < MAPS.length - 1 ? MAPS[i + 1].id : null; });
 
+  /* ---------------- v69 저승 던전 (임진왜란 뒤 저승 이야기) ----------------
+   *  Lv.100 이 되면 마지막 마을(도원수 진영) 큰길에 '저승차사 강림' 이 나타나 저승문을 열어 줌
+   *  관문 10개 × 단계 5개 (g-1 ~ g-5). 지금은 1관문(도산지옥 · 진광대왕)만 — 2관문부터는 gates 에 더하면 됨
+   *  단계 s 의 몬스터 레벨 = 100 + (관문-1)×5 + s (플레이어 만렙은 100 그대로 → 레벨 차이만큼 주는 피해가 줄어 어려워짐)
+   *   s=1·2 : 몬스터 kills 마리 잡으면 통과
+   *   s=3   : kills 마리 → 옥졸(같은 레벨 보스) 등장 → 잡으면 통과
+   *   s=4   : kills 마리 → 판관(같은 레벨 보스) 등장 → 잡으면 통과
+   *   s=5   : 작은 몬스터 없이 관문 대왕만 (단계 레벨 + 5 = 1관문 110)
+   *  랭킹 점수: 지옥을 하나라도 깨면 1000 + 깬 단계 번호(1-1 = 1 … 1-5 = 5, 2-1 = 6 …) → 랭킹에 '지옥 1-3' 처럼 보임 (settings.js scoreText) */
+  const HELL = {
+    kills: 50, bossPlus: 5, midPlus: 3, maxMonLv: 160,
+    /* 속성: 관문마다 지옥 컨셉에 맞는 원소. 같은 원소 마법은 피해 ×0.7, 약점 원소 마법은 ×1.3. 몬스터의 탄·보스 기술도 이 원소
+     *  계획: 1 도산(칼산)=땅 · 2 화탕(끓는 물)=불 · 3 한빙(얼음)=물 · 4 검수(칼나무)=바람 · 5 발설(혀)=번개 · 6 독사=땅 · 7 거해(톱)=번개 · 8 철상(쇠 침상)=불 · 9 풍도(바람)=바람 · 10 흑암(어둠)=빛의 반대(약점 빛) */
+    weak: { fire: 'water', water: 'thunder', thunder: 'earth', earth: 'wind', wind: 'fire', light: 'thunder' },
+    resist: 0.7, weakMul: 1.3,
+    /* 보스 기술 (game.js bossSkill): slam 내려찍기 · charge 돌진 · blades 칼비(땅에서 칼날이 솟음) · ring 사방 탄 · fan 부채꼴 탄 · summon 망령 부르기
+     *  체력이 절반 아래면 '분노': 기술을 더 자주, 더 많이 씀 */   // midPlus = 옥졸·판관 레벨 = 단계 레벨 + 3 (1-3 옥졸 106 · 1-4 판관 107)
+    npc: { name: '저승차사 강림', color: '#B8A8FF', av: { skin: 's3', hair: 'h_spiky', top: 't_suit', bottom: 'b_armor', shoes: 'sh_black', back: 'bk_cape' },
+      hello: ['전쟁이 끝났어도 저승은 아직 전쟁 중일세.', '산 몸으로 저승에 들어갈 수 있는 이는 자네뿐이야.', '열 관문의 대왕들이 자네를 시험할 걸세. 각오는 됐는가?'],
+      lines: ['…저승문이 흔들리고 있어.', '명부를 되찾아야 하네.', '레벨 100이 되면 다시 오게.'] },
+    story: [
+      '임진년부터 칠 년 동안 이어진 전쟁이 끝났습니다. 그런데 이 땅에서 죽은 수많은 혼이 한꺼번에 저승으로 몰려가는 바람에, 저승 열 관문이 모두 어지러워졌습니다.',
+      '그 틈에 바다를 건너왔다 죽은 왜장들의 원혼이 저승 관청에 숨어들어 죽은 이의 선악을 적은 <b>명부</b>를 훔쳐 갔습니다. 명부가 없으니 판결은 뒤죽박죽이고, 억울한 백성의 혼은 저승길을 떠돌고 있습니다.',
+      '흑룡 이무기를 물리친 당신에게 저승차사 강림이 찾아와 부탁합니다. "산 몸으로 열 관문을 지나 대왕들의 시험을 이기고, 명부를 되찾아 저승의 질서를 바로잡아 주게."',
+      '관문마다 다섯 단계가 있습니다. 앞의 단계에서는 떠도는 망령을, 셋째 단계에서는 관문의 옥졸을, 넷째 단계에서는 판관을, 마지막 다섯째 단계에서는 관문의 대왕을 만나게 됩니다.'
+    ],
+    gates: [
+      { no: 1, king: '진광대왕', hell: '도산지옥', short: '칼산', day: '첫 7일', el: 'earth',
+        about: '죽은 지 첫 7일에 지나는 관문. 생명을 함부로 한 죄를 묻고, 죄 지은 혼은 칼날이 박힌 산을 맨발로 오릅니다. 지금은 전쟁에서 칼에 쓰러진 혼들이 칼산을 메우고 있습니다.',
+        stageName: ['칼산 기슭', '칼날 비탈', '옥졸의 길목', '판관의 심문대', '진광대왕 전'],
+        mob: { name: '칼산 망령', art: 'h_wraith', shape: 'ghost', colors: { a: '#B8C8E8', b: '#5A6A90', c: '#F0F4FF', d: '#FF5A5F' }, kind: 'aggro' },
+        mob2: { name: '칼 든 원혼', art: 'h_soldier', shape: 'skeleton', colors: { a: '#D8D0C0', b: '#7A6A5A', c: '#FFF4E0', d: '#FF3A3A' }, kind: 'shoot' },
+        guard: { name: '우두 옥졸', art: 'h_ox', shape: 'beast', colors: { a: '#7A3A2A', b: '#4A2018', c: '#E8C8A0', d: '#FFD23F' }, kind: 'boss', say: '소머리 옥졸이 쇠몽둥이를 들고 길을 막습니다!', skills: ['charge', 'slam'] },
+        judge: { name: '도산 판관', art: 'h_judge', shape: 'imp', colors: { a: '#3A3A7A', b: '#20204A', c: '#F0D8B0', d: '#FFD23F' }, kind: 'boss', say: '명부를 잃은 판관이 당신의 죄를 묻습니다!', skills: ['fan', 'ring', 'summon'] },
+        boss: { name: '진광대왕', art: 'h_king1', shape: 'golem', colors: { a: '#C83A3A', b: '#7A1A1A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '첫째 관문의 대왕이 시험을 시작합니다!', skills: ['blades', 'ring', 'charge', 'summon', 'slam'] } }
+    ]
+  };
+  HELL.gates.forEach(g => { ['mob', 'mob2', 'guard', 'judge', 'boss'].forEach(k => { if (g[k]) g[k].el = g.el; }); });   // 관문 몬스터 = 관문 속성
+  HELL.gates.forEach(g => { for (let s = 1; s <= 5; s++) MAPS.push({ id: `h${g.no}-${s}`, kind: 'field', hell: true, gate: g.no, stage: s, region: 8, no: 0, prev: null, next: null,
+    name: `${g.hell} ${g.no}-${s} · ${g.stageName[s - 1]}`, rec: 100 + (g.no - 1) * 5 + s + (s === 5 ? HELL.bossPlus : 0), boss: false, mon: g.mob }); });
+
   /* ---------------- 성장 공식 ---------------- */
   const F = {
     need: lv => Math.round(30 * Math.pow(lv, 1.8)),                    // 다음 레벨까지 필요한 경험치
@@ -520,5 +561,5 @@
     hello: ['불이 잘 달궈졌네! 뭘 두드려 볼까?', '강화는 운이야. 실패하면 장비가 산산조각 나니 각오하게!', '+10 까지 가면 전설이 되는 거지. 허허!', '높이 올라갈수록 망치가 무거워진다네. 골드도 두 배씩!'],
     lines: ['땅! 땅! 땅!', '강화하러 왔나?', '불꽃이 좋구먼!'] };
 
-  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, GEAR_BASE, OPTS, GRADE, ENH, SELL, RG_EL, SMITH, reqOf };
+  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, GEAR_BASE, OPTS, GRADE, ENH, SELL, RG_EL, SMITH, reqOf, HELL };
 })();

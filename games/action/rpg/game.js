@@ -293,6 +293,15 @@
   .rg-detail.hint { display: block; color: #AEB7E0; font-size: 13px; line-height: 1.5; }
   /* v68 팔기 · 쓰레기통 */
   .rg-price { color: #FFD23F; }
+  /* v69 저승문 */
+  .rg-story p { margin: 0 0 8px; line-height: 1.6; background: #1A1438; border-left: 4px solid #B8A8FF; padding: 8px 10px; border-radius: 6px; }
+  .rg-gate { background: linear-gradient(180deg, #3A1220, #1A0A18); border: 2px solid #FF5A5F; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+  .rg-gate .gt { font-size: 16px; color: #FFD23F; } .rg-el { display: inline-block; margin-left: 6px; background: #FFD23F; color: #1D2340; border-radius: 999px; padding: 1px 8px; font-size: 12px; } .rg-gate .gt small { color: #FFB0B8; font-size: 12px; margin-left: 6px; }
+  .rg-stages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .rg-stage { display: grid; gap: 1px; text-align: center; background: #FFD23F; color: #1D2340; border: 2px solid #0A0E24; border-radius: 8px; padding: 6px 4px; cursor: pointer; font-family: inherit; }
+  .rg-stage b { font-size: 16px; } .rg-stage span { font-size: 11px; } .rg-stage small { font-size: 10px; } .rg-stage i { font-style: normal; font-size: 11px; font-weight: 700; }
+  .rg-stage.done { background: #3DDC84; } .rg-stage[disabled] { background: #2A325E; color: #9AA8E8; cursor: default; border-style: dashed; }
+  @media (max-width: 700px) { .rg-stages { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .rg-mini.warn { background: #FF5A5F; color: #FFFFFF; }
   .rg-row.ask { border-color: #FF5A5F; background: linear-gradient(180deg, #4A1E3A, #2A1430); }
   .rg-sellall { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #1E3A6E; border: 2px solid #4C7DFF; border-radius: 10px; padding: 6px 10px; margin: 0 0 8px; font-size: 13px; }
@@ -453,14 +462,14 @@
       function enter(id, side, quiet) {
         const M = MAPBY[id]; if (!M) return;
         const map = getMap(id);
-        G.map = map; S.map = id; G.room = null; G.npcs = M.kind === 'village' ? villagers(map).concat(smithNpc(map)) : []; G.onNpc = null; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
-        if (!quiet) G.title = { t: 0, text: M.kind === 'village' ? M.name : M.name, sub: M.kind === 'village' ? (D.REGIONS[M.region].castle ? '마지막 마을 · 도원수 진영' : `마을 ${M.region + 1}`) : `사냥터 ${M.no} · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}` };
+        G.map = map; S.map = id; G.room = null; G.npcs = M.kind === 'village' ? villagers(map).concat(smithNpc(map), hellNpc(map)) : []; G.hellRun = null; G.onNpc = null; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
+        if (!quiet) G.title = { t: 0, text: M.kind === 'village' ? M.name : M.name, sub: M.hell ? `저승 ${M.gate}관문 · 몬스터 Lv.${100 + (M.gate - 1) * 5 + M.stage}${M.stage >= 5 ? ' · 대왕 Lv.' + M.rec : M.stage >= 3 ? ` · ${D.HELL.kills}마리 뒤 ${M.stage === 3 ? '옥졸' : '판관'}` : ` · ${D.HELL.kills}마리 잡으면 통과`}` : M.kind === 'village' ? (D.REGIONS[M.region].castle ? '마지막 마을 · 도원수 진영' : `마을 ${M.region + 1}`) : `사냥터 ${M.no} · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}` };
         const p = side && typeof side === 'object' ? side : side === 'R' ? map.startR : side === 'door' ? doorFront(map) : side === 'pos' && S.x ? { x: S.x, y: S.y } : map.startL;
         G.px = p.x; G.py = p.y;
         if (solidAt(map, G.px, G.py)) { const q = map.startL; G.px = q.x; G.py = q.y; }
         if (!S.visited.includes(id)) S.visited.push(id);
         if (M.kind === 'village') { S.home = id; spawnNone(); }
-        else { spawnAll(); if (M.rec > S.lv + 6) say(`권장 Lv.${M.rec} — 지금 레벨로는 위험해요!`, 3); }
+        else { spawnAll(); if (!M.hell && M.rec > S.lv + 6) say(`권장 Lv.${M.rec} — 지금 레벨로는 위험해요!`, 3); }
         G.onDoor = null; markDirty(!quiet); netRoom();
       }
       // v41 건물 안: 문으로 걸어 들어가면 실내 지도 · 아래 가운데 문으로 나가면 그 건물 문 앞
@@ -589,19 +598,83 @@
       function spawnNone() { G.mons = []; }
       function spawnAll() {
         const M = G.map.M; G.mons = [];
+        if (M.hell) return spawnHell();
         if (M.boss) {
           G.mons.push(makeMon(M.mon, M.rec + 2, true));
           const minion = D.MAPS.find(m => m.kind === 'field' && m.no === M.no - 1);
           for (let i = 0; i < 6; i++) G.mons.push(makeMon(minion.mon, M.rec - 1));
         } else for (let i = 0; i < 12; i++) G.mons.push(makeMon(M.mon, M.rec - 1 + (Math.random() < 0.5 ? 0 : 1)));
       }
+      /* v69 저승 보스 기술: 기술 목록(data.js HELL.gates 의 skills)에서 골라 씀. 체력 절반 아래 = 분노(더 자주·더 많이)
+       *  slam 내려찍기 · charge 돌진 · blades 칼비 · ring 사방 탄 · fan 부채꼴 탄 · summon 망령 3마리 */
+      const SKILL_NAME = { slam: '내려찍기!', charge: '돌진!', blades: '칼비가 쏟아진다!', ring: '사방 원혼탄!', fan: '판결의 붓!', summon: '망령을 부른다!' };
+      function bossShot(m, a, sp, dmgK) { const E = ELEM[m.el || 'earth']; G.shots.push({ x: m.x, y: m.y - m.spr.h / 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 2.2, dmg: m.atk * dmgK, lvl: m.lvl, r: 7, color: E.color, color2: E.light, mine: false, monEl: 'dark', el: m.el || 'earth' }); }
+      function bossSkill(m, dt, d) {
+        const rage = m.hp < m.max * 0.5, c = m.cast;
+        if (c) {
+          c.t += dt;
+          if (c.k === 'blades' && c.t >= 1.0) {
+            c.pts.forEach(q => { if (Math.hypot(G.px - q.x, G.py - 20 - q.y) < 46) hitPlayer(m.atk * 1.1, m.lvl, m.el); Fx.nova(q.x, q.y, 46, [m.el || 'earth', 'earth']); });
+            G.shake = Math.max(G.shake, 7); m.cast = null;
+          } else if (c.k === 'charge') {
+            if (c.t >= 0.7 && c.t < 1.3) { moveMon(m, c.vx * dt, c.vy * dt); Fx.dust(m.x, m.y, '#FF8A6A'); if (!c.hit && Math.hypot(G.px - m.x, G.py - m.y) < m.r + 24) { c.hit = true; hitPlayer(m.atk * 1.6, m.lvl, m.el); G.shake = Math.max(G.shake, 8); } }
+            else if (c.t >= 1.3) m.cast = null;
+          } else if (c.t > 0.6) m.cast = null;
+          return;
+        }
+        m.skCd -= dt * (rage ? 1.5 : 1);
+        if (m.skCd > 0 || d > 460 || m.slam) return;
+        const k = pick(m.def.skills); m.skCd = rand(3.2, 4.4);
+        float(m.x, m.y - m.spr.h - 26, (rage ? '분노! ' : '') + SKILL_NAME[k], '#FF8A8E', true);
+        const a0 = Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x);
+        if (k === 'slam') m.slam = { t: 0, x: m.x, y: m.y - 20 };
+        else if (k === 'blades') m.cast = { k, t: 0, pts: Array.from({ length: rage ? 7 : 5 }, (_, i) => ({ x: G.px + (i ? rand(-120, 120) : 0), y: G.py - 20 + (i ? rand(-80, 80) : 0) })) };
+        else if (k === 'charge') { const a = Math.atan2(G.py - m.y, G.px - m.x); m.cast = { k, t: 0, a, vx: Math.cos(a) * 430, vy: Math.sin(a) * 430 }; }
+        else if (k === 'ring') { const n = rage ? 18 : 12; for (let i = 0; i < n; i++) bossShot(m, a0 + i / n * Math.PI * 2, 190, 0.7); m.cast = { k, t: 0 }; }
+        else if (k === 'fan') { const n = rage ? 7 : 5; for (let i = 0; i < n; i++) bossShot(m, a0 + (i - (n - 1) / 2) * 0.2, 250, 0.8); m.cast = { k, t: 0 }; }
+        else if (k === 'summon') {
+          const g = D.HELL.gates[(G.map.M.gate || 1) - 1];
+          if (G.mons.filter(x => !x.dead && !x.boss).length < 8) for (let i = 0; i < 3; i++) { const x = makeMon(i === 2 && g.mob2 ? g.mob2 : g.mob, m.lvl - 3); x.noRespawn = true; x.x = m.x + rand(-70, 70); x.y = m.y + rand(-40, 40); x.aggro = true; G.mons.push(x); Fx.death(x.x, x.y - 20, x.def.colors, false); }
+          m.cast = { k, t: 0 };
+        }
+      }
+      /* v69 저승 던전: 단계마다 몬스터 50마리 → (3단계 옥졸 · 4단계 판관) → 통과. 5단계는 대왕만 */
+      function spawnHell() {
+        const M = G.map.M, g = D.HELL.gates[M.gate - 1], s = M.stage, lv = 100 + (M.gate - 1) * 5 + s;
+        G.hellRun = { gate: M.gate, stage: s, kills: 0, phase: s === 5 ? 'boss' : 'mob', lv };
+        if (s === 5) { G.mons.push(makeMon(g.boss, lv + D.HELL.bossPlus, true)); G.title = { t: 0, text: g.boss.name, sub: g.boss.say }; return; }
+        for (let i = 0; i < 12; i++) G.mons.push(makeMon(i % 3 === 2 && g.mob2 ? g.mob2 : g.mob, lv));
+      }
+      function hellKill(m) {
+        const H = G.hellRun; if (!H || H.phase === 'done') return;
+        const g = D.HELL.gates[H.gate - 1];
+        if (m.boss) { m.noRespawn = true; hellClear(); return; }
+        H.kills++;
+        if (H.phase === 'mob' && H.kills >= D.HELL.kills) {
+          G.mons.forEach(x => { x.noRespawn = true; });   // 50마리를 채우면 더 안 나옴
+          if (H.stage <= 2) { hellClear(); return; }
+          const who = H.stage === 3 ? g.guard : g.judge; H.phase = 'boss';
+          G.mons.push(makeMon(who, H.lv + (D.HELL.midPlus || 0), true)); G.title = { t: 0, text: `${who.name} 등장! (Lv.${H.lv + (D.HELL.midPlus || 0)})`, sub: who.say }; G.shake = 8;
+        }
+      }
+      function hellClear() {
+        const H = G.hellRun; if (!H || H.phase === 'done') return; H.phase = 'done';
+        const idx = (H.gate - 1) * 5 + H.stage, first = idx > (S.hell || 0);
+        if (first) S.hell = idx;
+        const last = H.stage >= 5, nx = last ? null : `h${H.gate}-${H.stage + 1}`;
+        G.title = { t: 0, text: `${H.gate}-${H.stage} 통과!`, sub: last ? `${D.HELL.gates[H.gate - 1].king}의 시험을 이겼어요! 다음 관문은 곧 열려요` : '잠시 뒤 다음 단계로 내려가요' }; G.flash = 0.4; Fx.levelUp(G.px, G.py);
+        markDirty(true); if (first) submitRank();
+        setTimeout(() => { if (G.hellRun !== H || G.dead || !G.map || !G.map.M.hell) return; if (nx && MAPBY[nx]) enter(nx, 'L'); else enter('v9', 'door'); }, 4000);
+      }
+      const rankScore = () => ((S.hell || 0) > 0 ? 1000 + S.hell : S.lv);   // v69 랭킹: 지옥을 깨면 1000 + 깬 단계
+      const hellTxt = n => (n > 0 ? `${Math.ceil(n / 5)}-${n - (Math.ceil(n / 5) - 1) * 5}` : '-');
       function spawnPoint() {
         const sp = G.map.spawns; let p = pick(sp);
         for (let i = 0; i < 12 && Math.hypot(p.x - G.px, p.y - G.py) < 260; i++) p = pick(sp);
         return p;
       }
       function makeMon(def, lvl, boss) {
-        lvl = clamp(lvl, 1, D.MAX_LV); const F = D.F, B = F.boss;
+        lvl = clamp(lvl, 1, G.map && G.map.M.hell ? D.HELL.maxMonLv : D.MAX_LV); const F = D.F, B = F.boss;   // v69 저승 몬스터는 Lv.100 넘음
         const p = boss ? { x: G.map.w * TS * 0.62, y: (G.map.mid + 1) * TS } : spawnPoint();
         const sc = boss ? 6 : 3, spr = monSprite(def, sc);
         const hp = Math.round(F.monHp(lvl) * (boss ? B.hp : 1));
@@ -609,7 +682,7 @@
           atk: Math.round(F.monAtk(lvl) * (boss ? B.atk : 1)), mdef: F.monDef(lvl), spr, r: boss ? 30 : 14,
           exp: Math.round(F.monExp(lvl) * (boss ? B.exp : 1)), gold: Math.round(F.monGold(lvl) * (boss ? B.gold : 1)),
           spd: boss ? 70 : def.kind === 'shoot' ? 60 : 80, cd: rand(0.5, 1.5), wt: 0, wx: 0, wy: 0, aggro: false, flash: 0,
-          burn: null, slow: 0, stun: 0, dead: false, respawn: 0, slam: null };
+          burn: null, slow: 0, stun: 0, dead: false, respawn: 0, slam: null, el: def.el || null, cast: null, skCd: 2.5 };
       }
 
       /* ---------- 전투: 피해 계산 ---------- */
@@ -619,11 +692,13 @@
         const diff = m.lvl - S.lv, lvF = diff > 0 ? Math.max(0.4, 1 - 0.06 * diff) : 1 + Math.min(0.3, -diff * 0.03);
         let dmg = (base * rand(0.9, 1.1) * (1 + (ST.dmg || 0) / 100) - m.mdef * 0.5) * lvF;   // v44 힘 → 주는 피해 +%
         if ((els || []).some(e => ELEM[e].fx === 'heavy')) dmg *= 1.2;
+        let weakHit = false;
+        if (m.el) { if ((els || []).includes(m.el)) dmg *= D.HELL.resist; if ((els || []).includes(D.HELL.weak[m.el])) { dmg *= D.HELL.weakMul; weakHit = true; } }   // v69 저승 몬스터 속성: 같은 원소 ×0.7 · 약점 ×1.3
         const crit = Math.random() < ST.crit / 100; if (crit) dmg *= ST.critD || D.STAT.critDmg;
         dmg = Math.max(1, Math.round(dmg));
         m.hp -= dmg; m.flash = 0.12; m.aggro = true; m.knock = (m.x < G.px ? -1 : 1) * (crit ? 6 : 3);
         const elc = els && els.length ? Fx.pal(els[0])[1] : '#FFFFFF';
-        G.texts.push({ x: m.x + rand(-8, 8), y: m.y - m.spr.h - 4, text: (crit ? '치명! ' : '') + dmg, color: crit ? '#FFD23F' : elc, t: 0, big: crit, dmg: true });
+        G.texts.push({ x: m.x + rand(-8, 8), y: m.y - m.spr.h - 4, text: (crit ? '치명! ' : '') + (weakHit ? '약점! ' : '') + dmg, color: crit ? '#FFD23F' : elc, t: 0, big: crit, dmg: true });
         Fx.hit(m.x, m.y - m.spr.h / 2, els, crit);
         if (crit) { G.shake = Math.max(G.shake, 4); G.hitstop = 0.05; }
         (els || []).forEach(e => {
@@ -639,6 +714,7 @@
       }
       function killMon(m) {
         m.dead = true; m.respawn = m.boss ? (CFG.bossRespawnSec || 30) : (CFG.respawnSec || 3); S.kills++;   // v43 다시 나오는 시간 단축
+        if (G.map.M.hell) hellKill(m);   // v69 저승 단계 진행
         const low = m.lvl < S.lv - 10 ? 0.2 : 1;
         const gold = Math.round(m.gold * (1 + (ST.goldP || 0) / 100)); gainExp(Math.round(m.exp * low * (1 + (ST.expP || 0) / 100))); S.gold += gold; float(m.x, m.y - m.spr.h - 18, `+${fmtN(gold)}G`, '#FFD23F');
         Fx.death(m.x, m.y - m.spr.h / 2, m.def.colors, m.boss); Fx.coins(m.x, m.y - m.spr.h / 2, m.boss ? 14 : Math.min(6, 2 + Math.floor(m.gold / 40)));
@@ -651,6 +727,7 @@
         if (m.boss) {
           drops.push(gear(Math.random() < 0.5, true)); if (Math.random() < 0.25) drops.push(gear(Math.random() < 0.5, true));
           if (M.no === 90 && Math.random() < 0.35) drops.push(gear(true, true, 9));
+          if (M.hell && Math.random() < (M.stage === 5 ? 0.5 : 0.15)) drops.push(gear(true, true, 9));   // v69 저승 보스: 전설 (대왕 50% · 옥졸·판관 15%)
           drops.push('hp' + (t + 1), 'hp' + (t + 1), 'mp' + (t + 1)); S.bosses[M.id] = (S.bosses[M.id] || 0) + 1; bossReward();
         } else {
           if (Math.random() < 0.06) drops.push(gear(false));
@@ -796,8 +873,10 @@
       /* ---------- 사람(NPC) ---------- */
       // v60 대장장이: 대장간 앞에 서 있음 · 가까이 가면 강화 창
       const smithNpc = map => (map.forge ? [{ key: 'forge', def: D.SMITH, x: (map.forge.x + map.forge.w + 1) * TS, y: (map.forge.y + map.forge.h + 0.2) * TS, face: -1, ph: 2, smith: true }] : []);
+      // v69 저승차사 강림: Lv.100 이 되면 마지막 마을(도원수 진영) 큰길 오른쪽에 나타남
+      const hellNpc = map => (map.R.castle && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: 30.5 * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);
       function talk(n) {
-        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
+        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
         n.say = null; openPanel(n.key, { npc: n, hello: pick(n.def.hello) });
       }
       function updateNpcs(dt) {
@@ -856,8 +935,9 @@
         }
         updateNpcs(dt);
         // v60 대장장이 가까이 → 강화 창 (멀어졌다가 다시 오면 또 열림)
-        const sm = !G.room && (G.npcs || []).find(n => n.smith);
-        if (sm) { const nearS = Math.hypot(G.px - sm.x, G.py - sm.y) < 40; if (nearS && G.onNpc !== sm) { G.onNpc = sm; talk(sm); return; } if (!nearS && G.onNpc === sm) G.onNpc = null; }
+        for (const sm of (!G.room && G.npcs ? G.npcs.filter(n => n.smith) : [])) {   // v69 대장장이 · 저승차사 (가까이 가면 창)
+          const nearS = Math.hypot(G.px - sm.x, G.py - sm.y) < 40; if (nearS && G.onNpc !== sm) { G.onNpc = sm; talk(sm); return; } if (!nearS && G.onNpc === sm) G.onNpc = null;
+        }
         // 건물 문
         //  문 칸에 들어가거나, 문 바로 아래 칸에서 위(↑)로 걸으면 들어감
         const ty = Math.floor((G.py - 4) / TS);
@@ -867,7 +947,7 @@
 
         // 몬스터
         G.mons.forEach(m => {
-          if (m.dead) { if ((m.respawn -= dt) <= 0) { const n = makeMon(m.def, m.lvl, m.boss); Object.assign(m, n); } return; }
+          if (m.dead) { if (m.noRespawn) return; if ((m.respawn -= dt) <= 0) { const n = makeMon(m.def, m.lvl, m.boss); Object.assign(m, n); } return; }
           m.flash -= dt; m.cd -= dt; if (m.lunge > 0) m.lunge -= dt; if (m.knock) m.knock *= Math.pow(0.001, dt);
           if (m.burn) { m.burn.t -= dt; m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 0.5; m.hp -= Math.max(1, Math.round(m.burn.dps * 0.5)); float(m.x, m.y - m.spr.h, Math.max(1, Math.round(m.burn.dps * 0.5)), '#FF9A3D'); if (m.hp <= 0) { killMon(m); return; } } if (m.burn.t <= 0) m.burn = null; }
           if (m.stun > 0) { m.stun -= dt; return; }
@@ -880,13 +960,15 @@
           if (m.aggro) {
             if (m.kind === 'shoot') {
               const want = 170; if (d > want + 30) moveMon(m, dx / d * sp, dy / d * sp); else if (d < want - 40) moveMon(m, -dx / d * sp, -dy / d * sp);
-              if (m.cd <= 0 && d < 300) { m.cd = 2.2; const a = Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x); const rel = D.RG_EL[m.def.ri != null ? m.def.ri : G.map.M.region]; G.shots.push({ x: m.x, y: m.y - m.spr.h / 2, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230, life: 1.6, dmg: m.atk * 0.8, lvl: m.lvl, r: 6, color: ELEM[rel].color, color2: ELEM[rel].light, mine: false, monEl: 'dark', el: rel }); m.lunge = 0.2; }
+              if (m.cd <= 0 && d < 300) { m.cd = 2.2; const a = Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x); const rel = m.el || D.RG_EL[m.def.ri != null ? m.def.ri : G.map.M.region]; G.shots.push({ x: m.x, y: m.y - m.spr.h / 2, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230, life: 1.6, dmg: m.atk * 0.8, lvl: m.lvl, r: 6, color: ELEM[rel].color, color2: ELEM[rel].light, mine: false, monEl: 'dark', el: rel }); m.lunge = 0.2; }
             } else {
-              if (d > m.r + 12) moveMon(m, dx / d * sp, dy / d * sp);
+              if (d > m.r + 12 && !m.cast) moveMon(m, dx / d * sp, dy / d * sp);
               if (d < m.r + 22 && m.cd <= 0) { m.cd = m.boss ? 1.4 : 1.2; m.lunge = 0.25; hitPlayer(m.atk, m.lvl); }
               if (m.boss) {
-                if (!m.slam && m.cd <= 0.2 && Math.random() < 0.01 + dt) m.slam = { t: 0, x: m.x, y: m.y - 20 };
-                if (m.slam) { m.slam.t += dt; if (m.slam.t >= 0.9) { if (Math.hypot(G.px - m.slam.x, G.py - 20 - m.slam.y) < 130) hitPlayer(m.atk * 1.5, m.lvl, D.RG_EL[G.map.M.region]); Fx.nova(m.slam.x, m.slam.y, 130, [D.RG_EL[G.map.M.region], 'earth']); G.shake = Math.max(G.shake, 9); m.slam = null; m.cd = 2.2; } }
+                if (m.def.skills) bossSkill(m, dt, d);   // v69 저승 보스 기술
+                else if (!m.slam && m.cd <= 0.2 && Math.random() < 0.01 + dt) m.slam = { t: 0, x: m.x, y: m.y - 20 };
+                const sel = m.el || D.RG_EL[G.map.M.region];
+                if (m.slam) { m.slam.t += dt; if (m.slam.t >= 0.9) { if (Math.hypot(G.px - m.slam.x, G.py - 20 - m.slam.y) < 130) hitPlayer(m.atk * 1.5, m.lvl, sel); Fx.nova(m.slam.x, m.slam.y, 130, [sel, 'earth']); G.shake = Math.max(G.shake, 9); m.slam = null; m.cd = 2.2; } }
               }
             }
           } else {
@@ -961,6 +1043,11 @@
         Fx.drawFx(c, true, now);
         G.pools.forEach(p => Fx.drawPool(c, p, now));
         G.mons.forEach(m => { if (m.slam) Fx.slamWarn(c, m.slam.x, m.slam.y + 20, 130, Math.min(1, m.slam.t / 0.9), now); });
+        G.mons.forEach(m => {   // v69 보스 기술 예고: 칼비 자리 · 돌진 방향
+          const k = m.cast; if (!k || m.dead) return;
+          if (k.k === 'blades') k.pts.forEach(q => Fx.slamWarn(c, q.x, q.y + 20, 46, Math.min(1, k.t / 1.0), now));
+          if (k.k === 'charge' && k.t < 0.7) { c.save(); c.globalAlpha = 0.35 + 0.3 * Math.sin(now / 60); c.strokeStyle = '#FF3A3A'; c.lineWidth = 2 * m.r; c.lineCap = 'round'; c.beginPath(); c.moveTo(m.x, m.y - 10); c.lineTo(m.x + Math.cos(k.a) * 250, m.y - 10 + Math.sin(k.a) * 250); c.stroke(); c.restore(); }
+        });
         // 나무·건물·몬스터·나 — 아래쪽(sy)이 큰 것이 앞
         const list = [];
         for (const o of map.objs) { if (o.x > cx + W + 40 || o.x + o.img.width < cx - 40 || o.y > cy + H + 40 || o.y + o.img.height < cy - 40) continue; list.push({ y: o.sy, o }); }
@@ -1007,6 +1094,7 @@
           c.restore();
           const vg = c.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95); vg.addColorStop(0, 'rgba(10,14,36,0)'); vg.addColorStop(1, 'rgba(10,14,36,.55)'); c.fillStyle = vg; c.fillRect(0, 0, W, H);
         } else Fx.drawAmbient(c, map.R === D.REGIONS[map.M.region] ? map.M.region : 0, W, H, { x: cx, y: cy }, now, glowLights);
+        if (map.M && map.M.hell) { c.fillStyle = `rgba(150, 20, 30, ${0.2 + Math.sin(now / 900) * 0.04})`; c.fillRect(0, 0, W, H); }   // v69 저승: 붉은 기운
         if (G.hurt > 0) { c.fillStyle = 'rgba(255,40,60,' + (G.hurt * 1.2).toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
         if (G.flash > 0) { c.fillStyle = 'rgba(255,255,255,' + (G.flash * 1.5).toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
         drawHud(c, now);
@@ -1191,7 +1279,7 @@
         for (let i = 1; i < 10; i++) { c.fillStyle = 'rgba(10,14,36,.6)'; c.fillRect(W * i / 10, H - 7, 1, 6); }
         c.font = '10px "Jua", sans-serif'; c.textAlign = 'right'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; const et = S.lv >= D.MAX_LV ? '만렙!' : `경험치 ${(ex * 100).toFixed(1)}%`; c.strokeText(et, W - 6, H - 11); c.fillStyle = '#FFF3B0'; c.fillText(et, W - 6, H - 11);
         // 위 가운데: 지도 이름
-        const t = M.kind !== 'field' ? M.name : `사냥터 ${M.no}. ${M.name}`, rec = M.kind === 'room' ? MAPBY[S.map].name + ' · 건물 안' : M.kind === 'village' ? '마을' : `권장 Lv.${M.rec}`;
+        const t = M.kind !== 'field' || M.hell ? M.name : `사냥터 ${M.no}. ${M.name}`, rec = M.kind === 'room' ? MAPBY[S.map].name + ' · 건물 안' : M.kind === 'village' ? '마을' : `권장 Lv.${M.rec}`;
         c.font = '16px "Jua", "Malgun Gothic", sans-serif'; const tw = Math.max(c.measureText(t).width, 80) + 30;
         panelBox(c, W / 2 - tw / 2, 8, tw, 38, 10);
         c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF'; c.fillText(t, W / 2, 21);
@@ -1309,7 +1397,7 @@
         if (!Hub.user) return;
         const now = Date.now(); if (now - G.lastSubmit < 4000 && !pd) return; G.lastSubmit = now;
         const sec = Math.min(86400, Math.round(S.play - G.playMark)); G.playMark = S.play;
-        try { await Hub.submitScore({ game_id: GAME, score: S.lv, duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills } }); loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }
+        try { await Hub.submitScore({ game_id: GAME, score: rankScore(), duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills, hell: S.hell ? hellTxt(S.hell) : null } }); loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }
       }
       function bossReward() { const p = (CFG.points && CFG.points.boss) || 0; if (p) { submitRank(p); A.toast(`보스 처치! +${p}P`); } }
       async function loadRank() {
@@ -1317,7 +1405,7 @@
         try {
           const rows = await Hub.leaderboard(GAME, 10); if (!rk.isConnected) return;
           rk.innerHTML = A.rankItems(rows, 'best_score', GAME); AV.paintAll(rk);
-          mine.textContent = Hub.user ? `내 레벨 Lv.${S ? S.lv : '-'}` : '로그인하면 레벨이 랭킹에 올라가요.';
+          mine.textContent = Hub.user ? `내 레벨 Lv.${S ? S.lv : '-'}${S && S.hell ? ` · 저승 ${hellTxt(S.hell)} 통과` : ''}` : '로그인하면 레벨이 랭킹에 올라가요.';
         } catch (e) { rk.innerHTML = '<li class="empty">랭킹을 불러오지 못했어요.</li>'; }
       }
 
@@ -1418,6 +1506,13 @@
             }
             h += `<p class="sub">원소 짝 결과표</p><ul class="rg-list">${D.FUSION.map(f => `<li class="rg-row" style="padding:4px 8px"><span class="grow"><b style="color:${ELEM[f[0]].color}">${ELEM[f[0]].name}</b> + <b style="color:${ELEM[f[1]].color}">${ELEM[f[1]].name}</b> = ${f[2]} <small style="color:#AEB7E0">(${KIND_TXT[f[3]]})</small></span></li>`).join('')}</ul>`;
           }
+        } else if (k === 'hell') {   // v69 저승차사: 이야기 + 관문·단계 고르기
+          const best = S.hell || 0, t = tab.hell || 'gate';
+          h = head('저승문 · 임진왜란 뒤 저승에서 생긴 일', `깬 단계 <b style="color:#FFD23F">${best ? hellTxt(best) : '없음'}</b> · 몬스터는 Lv.101부터 (내 레벨은 100 그대로라 점점 어려워요)`) + npcBox() + tabs('hell', [['gate', '관문 들어가기'], ['story', '이야기']]);
+          if (t === 'story') h += `<div class="rg-story">${D.HELL.story.map(x => `<p>${x}</p>`).join('')}</div>`;
+          else h += D.HELL.gates.map(g => { const base = (g.no - 1) * 5;
+            return `<div class="rg-gate"><b class="gt">제${g.no}관문 · ${g.hell} <small>${g.king} · ${g.day}</small></b> <span class="rg-el">속성 ${ELEM[g.el].name} · 약점 <b>${ELEM[D.HELL.weak[g.el]].name}</b> 마법 (×${D.HELL.weakMul})</span><p class="sub" style="margin:4px 0 8px">${g.about}</p><div class="rg-stages">${[1, 2, 3, 4, 5].map(st => { const n = base + st, open = n <= best + 1, done = n <= best, lv = 100 + base + st;
+              return `<button type="button" class="rg-stage${done ? ' done' : ''}" data-hellgo="h${g.no}-${st}" ${open ? '' : 'disabled'}><b>${g.no}-${st}</b><span>${g.stageName[st - 1]}</span><small>${st === 5 ? '대왕 Lv.' + (lv + D.HELL.bossPlus) : `Lv.${lv} · ${D.HELL.kills}마리${st === 3 ? ` + 옥졸 Lv.${lv + D.HELL.midPlus}` : st === 4 ? ` + 판관 Lv.${lv + D.HELL.midPlus}` : ''}`}</small><i>${done ? '통과' : open ? '들어가기' : '잠김'}</i></button>`; }).join('')}</div></div>`; }).join('') + `<p class="sub">2~10관문(초강대왕 화탕지옥 …)은 곧 열려요. 저승에서 쓰러지면 그 단계는 처음부터 다시 해요.</p>`;
         } else if (k === 'forge') {   // v60 대장간: 장비 강화 (+0 → +10 · 실패하면 부서짐)
           const mine = Object.keys(S.eq).map(sl => ({ id: S.eq[sl], worn: true })).concat(S.inv.filter(x => ITEMS[x.id] && ITEMS[x.id].slot).map(x => ({ id: x.id, worn: false })));
           if (!mine.some(x => x.id === tab.fgSel)) tab.fgSel = (mine.find(x => (ITEMS[x.id].en || 0) < ENH.max) || mine[0] || {}).id || null;
@@ -1443,7 +1538,7 @@
           h = head('이장 댁', '이 마을이 귀환 장소가 돼요. 가 본 마을·사냥터로 무료 이동') + npcBox();
           h += `<div class="rg-tabs"><button type="button" class="rg-mini" data-savenow>지금 저장</button><span class="rg-mini ghost" style="cursor:default">처치 ${fmtN(S.kills)} · 플레이 ${Math.floor(S.play / 60)}분</span></div>`;
           D.REGIONS.forEach((R, ri) => {
-            const vid = 'v' + (ri + 1), fs = D.MAPS.filter(m => m.kind === 'field' && m.region === ri);
+            const vid = 'v' + (ri + 1), fs = D.MAPS.filter(m => m.kind === 'field' && !m.hell && m.region === ri);
             if (!vis.includes(vid) && !fs.some(m => vis.includes(m.id))) return;
             h += `<p class="sub" style="margin-top:8px"><b>${R.name}</b> 지역</p><div class="rg-tabs">${vis.includes(vid) ? `<button type="button" class="rg-mini" data-go="${vid}">${R.name}</button>` : ''}${fs.map(m => vis.includes(m.id) ? `<button type="button" class="rg-mini ghost" data-go="${m.id}">${m.no}. ${m.name} (Lv.${m.rec})</button>` : '').join('')}</div>`;
           });
@@ -1630,7 +1725,8 @@
           if (S.gold < price || S.skills.includes(id) || !skill(id)) return;
           S.gold -= price; S.skills.push(id); const free = S.fslots.indexOf(null); if (free >= 0) S.fslots[free] = id;
           say(`융합 성공! '${skill(id).name}'${free >= 0 ? ` ${FKEY[free]} 키로 써 보세요` : ' 마법 창(K)에서 Q W E R 칸에 넣어요'}`, 3); markDirty(true);
-        } else if (d.go) { const id = d.go; pane = null; panel.hidden = true; G.paused = false; enter(id, MAPBY[id].kind === 'village' ? 'door' : 'L'); return; }
+        } else if (d.hellgo) { const id = d.hellgo, M = MAPBY[id]; if (!M || S.lv < D.MAX_LV || (M.gate - 1) * 5 + M.stage > (S.hell || 0) + 1) return; pane = null; panel.hidden = true; G.paused = false; enter(id, 'L'); return; }   // v69 저승 단계 들어가기
+        else if (d.go) { const id = d.go; pane = null; panel.hidden = true; G.paused = false; enter(id, MAPBY[id].kind === 'village' ? 'door' : 'L'); return; }
         else if (d.addst) { const [q, n0] = d.addst.split(':'), n = Math.min(+n0, S.sp, D.STAT.max - (S.stat[q] || 0)); if (n > 0 && S.stat[q] != null) { S.stat[q] += n; S.sp -= n; const hr = S.hp / ST.hp; restat(); if (q === 'vit') S.hp = Math.round(ST.hp * hr); markDirty(true); } }
         else if ('streset' in d) { D.STAT.keys.forEach(q => { S.sp += S.stat[q]; S.stat[q] = 0; }); restat(); markDirty(true); say('스탯 포인트를 모두 돌려받았어요. 다시 나눠 주세요', 2.4); }
         else if (d.trreq) { const pp = net.peers.get(d.trreq); if (!pp) { say('상대가 이 지도에 없어요', 2); closePanel(); return; } G.trade = { with: pp.cid, nick: pp.nick, state: 'wait' }; net.trade({ k: 'req', to: pp.cid }); pane = null; panel.hidden = true; G.paused = false; say(`${pp.nick}님에게 거래 신청을 보냈어요…`, 3); setTimeout(() => { if (G.trade && G.trade.state === 'wait' && G.trade.with === pp.cid) { G.trade = null; say('대답이 없어서 거래 신청을 취소했어요', 2.6); } }, 20000); return; }
@@ -1769,7 +1865,7 @@
         if (!S.help) openPanel('help');
         else if (Hub.user) { G.srvAsked = true; openPanel('servers'); }
         loadRank();
-        if (Hub.user) Hub.myBest(GAME).then(b => { if ((b || 0) < S.lv) submitRank(); }).catch(() => {});
+        if (Hub.user) Hub.myBest(GAME).then(b => { if ((b || 0) < rankScore()) submitRank(); }).catch(() => {});
         window.__rpg = { net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, mkGear: (b, en, op) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
       })();
       raf = requestAnimationFrame(loop);
