@@ -335,9 +335,10 @@
     hp: lv => 80 + lv * 22, mp: lv => 40 + lv * 9,
     atk: lv => Math.round(6 + lv * 2.6), mag: lv => Math.round(6 + lv * 2.6), def: lv => Math.round(lv * 1.2),
     // 몬스터 (레벨 m)
-    monHp: m => Math.round(30 + m * 12 + m * m * 0.12), monAtk: m => Math.round(4 + m * 2.6), monDef: m => Math.round(m * 1.0),
+    // v72 몬스터 더 세게 (학생 의견 '너무 쉬움' · 선생님 결정): 체력 ×1.7 · 공격 ×1.5
+    monHp: m => Math.round((30 + m * 12 + m * m * 0.12) * 1.7), monAtk: m => Math.round((4 + m * 2.6) * 1.5), monDef: m => Math.round(m * 1.0),
     monExp: m => Math.max(3, Math.round(F.need(m) / (22 + m * 0.4))), monGold: m => Math.round(3 + m * 1.4),
-    boss: { hp: 12, atk: 1.6, exp: 15, gold: 10 }
+    boss: { hp: 30, atk: 2.2, exp: 15, gold: 10 }   // v72 보스 아주 많이 세게: 체력 12 → 30배 · 공격 1.6 → 2.2배 (일반 몬스터 기준, 일반도 위에서 1.7·1.5배 올라 실제로는 체력 약 4배 · 공격 약 2배)
   };
   /* v44 스탯 4가지 → v60 5가지 (레벨 업마다 포인트 2개 → 원하는 곳에 · 스탯마다 최대 50)
    *  힘 = 피해(기본 공격·마법 모두) · 민첩 = 이동 속도 · 지혜 = 마나 회복 · 체력 = 최대 체력
@@ -425,7 +426,10 @@
   /* v60 강화 (마을 대장장이): +0 → +10. 실패하면 장비가 부서짐(사라짐)
    *  rate[n] = +n → +n+1 성공 확률(%) · cost(n) = 100 × 2^n 골드 (1강 100 … 10강 51,200 · 모두 102,300)
    *  per = 1강마다 기본 능력치(공격·마력·방어·체력·마나) +10% (+10 = 2배). 옵션은 그대로 */
-  const ENH = { max: 10, rate: [95, 90, 85, 80, 70, 60, 50, 40, 35, 30], cost: n => 100 * Math.pow(2, n), per: 0.1 };
+  const ENH = { max: 10, rate: [95, 90, 85, 80, 70, 60, 50, 40, 35, 30], cost: n => 100 * Math.pow(2, n), per: 0.1, safeTo: 7 };
+  // v72 (선생님 결정): +7 까지(+1 ~ +7 시도)는 실패하면 한 단계 내려감(+0 은 그대로) · +8 부터(+7 → +8 시도)는 실패하면 부서짐 — safeTo 로 바꿈
+  /* v72 가방 늘리기 (약방에서 팖): 기본 40칸 → 8칸씩 최대 5번(80칸). 값 = 5,000 × 2^(산 횟수) → 5천 · 1만 · 2만 · 4만 · 8만 G */
+  const BAG = { base: 40, step: 8, max: 5, cost: n => 5000 * Math.pow(2, n) };
   /* v68 상점에 파는 값 (약방 '팔기')
    *  장비 = (base + 착용 레벨 × perLv) × 등급 배수 + 강화에 쓴 골드 × enh
    *    예) Lv.50 일반 160 G · 희귀 352 G · Lv.100 전설 1,550 G · +5 강화는 강화비 3,100 G 중 930 G 만 돌려받음
@@ -561,5 +565,5 @@
     hello: ['불이 잘 달궈졌네! 뭘 두드려 볼까?', '강화는 운이야. 실패하면 장비가 산산조각 나니 각오하게!', '+10 까지 가면 전설이 되는 거지. 허허!', '높이 올라갈수록 망치가 무거워진다네. 골드도 두 배씩!'],
     lines: ['땅! 땅! 땅!', '강화하러 왔나?', '불꽃이 좋구먼!'] };
 
-  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, GEAR_BASE, OPTS, GRADE, ENH, SELL, RG_EL, SMITH, reqOf, HELL };
+  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();
