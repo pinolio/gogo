@@ -150,5 +150,14 @@
   }
   // 글씨가 잘 보이게 반투명 유리판
   function glass(ctx, x, y, w, h, a) { round(ctx, x, y, w, h, 18, 'rgba(12,16,40,' + (a == null ? 0.7 : a) + ')', 'rgba(255,255,255,.22)', 2); }
-  window.GoStudy = { isSyl, split, join, dueum, starts, dict, text, round, soloPage, bestKeeper, shuffle, fitView, pic, scene, glass };
+  /* v70 최근에 나온 문제 기억 (이 기기, 판이 바뀌어도): 같은 문제가 자꾸 나오지 않게
+   *  recent(이름, 최대 개수) → { has(id), add(id) } · 고를 때 recentPick(목록, id 함수, 기억) 으로 안 나온 것부터 */
+  function recent(key, cap) {
+    const K = 'gogo_seen_' + key; let a = [];
+    try { a = JSON.parse(localStorage.getItem(K) || '[]') || []; } catch (e) { a = []; }
+    let set = new Set(a);
+    return { has: id => set.has(id), add(id) { a = a.filter(x => x !== id); a.push(id); while (a.length > cap) a.shift(); set = new Set(a); try { localStorage.setItem(K, JSON.stringify(a)); } catch (e) { /* noop */ } } };
+  }
+  function recentPick(list, idOf, R, minFresh) { const fresh = list.filter(x => !R.has(idOf(x))); const from = fresh.length >= (minFresh || 8) ? fresh : list; return from[Math.floor(Math.random() * from.length)]; }
+  window.GoStudy = { isSyl, split, join, dueum, starts, dict, text, round, soloPage, bestKeeper, shuffle, fitView, pic, scene, glass, recent, recentPick };
 })();

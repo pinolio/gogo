@@ -21,12 +21,24 @@
     if (line) out.push(line); return out;
   }
 
+  /* v70 뜻이 비슷한 성어 묶음: 같은 묶음은 한 문제의 보기에 함께 나오지 않음 (정답이 둘처럼 보이지 않게) */
+  const GROUPS = [
+    '죽마고우 막역지우 수어지교 금란지교 금석지교 지란지교 문경지교', '풍전등화 누란지위 백척간두 위기일발 명재경각 일촉즉발 여리박빙', '박장대소 파안대소 포복절도',
+    '천차만별 천양지차 각양각색 형형색색', '자업자득 자승자박 인과응보', '시종일관 초지일관', '망양보뢰 만시지탄 후회막급', '부지기수 비일비재 인산인해 문전성시',
+    '사면초가 진퇴양난 고립무원 사고무친 혈혈단신', '표리부동 양두구육 면종복배 구밀복검 교언영색', '무위도식 허송세월', '주객전도 본말전도', '우공이산 마부작침 칠전팔기 수불석권',
+    '각주구검 수주대토', '반포지효 혼정신성', '조삼모사 조령모개 조변석개 일구이언', '이란투석 당랑거철', '안하무인 유아독존 기고만장', '일석이조 일거양득', '동고동락 상부상조',
+    '대동소이 오십보백보', '남가일몽 일장춘몽', '청출어람 후생가외', '감지덕지 각골난망 백골난망 결초보은', '희희낙락 환호작약', '오리무중 암중모색', '백전백승 연전연승'
+  ].map(g => g.split(' '));
+  const GROUP_OF = {}; GROUPS.forEach((g, n) => g.forEach(w => { GROUP_OF[w] = n; }));
+  const sameGroup = (a, b) => GROUP_OF[a] != null && GROUP_OF[a] === GROUP_OF[b];
+  const SEEN = T.recent('idiom', 220);   // 이 기기에서 최근 220문제는 뒤로 미룸
+
   window.GoIdiom = {
     render(el, A) {
       BGM.load('idiom');
       const page = T.soloPage(el, A, {
         id: 'idiom', title: '사자성어 맞추기', tag: '공부?', sub: `${LIMIT / 1000}초 · 4지선다 · 연속 보너스`, w: W, h: H, cab: 'cab-study',
-        rules: [`<b>${LIMIT / 1000}초</b> 동안 최대한 많이 맞혀요.`, '① 뜻을 보고 알맞은 <b>사자성어</b> 고르기, ② 사자성어를 보고 알맞은 <b>뜻</b> 고르기가 섞여 나와요.', '아래 보기를 누르거나 키보드 <b>1 · 2 · 3 · 4</b>.', `맞히면 ${CFG.scoreRight}점 + 연속 보너스(${CFG.streakBonus}점씩). 틀리면 정답과 한자를 보여 줘요.`, '포인트는 없고, 가장 높은 점수가 랭킹에 올라가요. (로그인 필요)']
+        rules: [`<b>${LIMIT / 1000}초</b> 동안 최대한 많이 맞혀요.`, '문제 모양 4가지가 섞여 나와요: ① 뜻 → <b>사자성어</b> ② 사자성어 → <b>뜻</b> ③ <b>한자</b> → 한글 읽기 ④ <b>빈칸</b>에 들어갈 글자', '아래 보기를 누르거나 키보드 <b>1 · 2 · 3 · 4</b>.', `맞히면 ${CFG.scoreRight}점 + 연속 보너스(${CFG.streakBonus}점씩). 틀리면 정답과 한자를 보여 줘요.`, '포인트는 없고, 가장 높은 점수가 랭킹에 올라가요. (로그인 필요)']
       });
       page.under.innerHTML = '<div class="idm-choices" id="idmCh"></div>';
       const box = page.under.querySelector('#idmCh');
@@ -43,26 +55,35 @@
       function next() {
         const D = DATA();
         if (!st.deck.length) st.deck = T.shuffle(D.map((d, i) => i));
-        const ans = st.deck.pop(), type = Math.random() < 0.5 ? 'meaning' : 'idiom';   // meaning: 뜻을 보고 성어 고르기
-        const others = T.shuffle(D.map((d, i) => i).filter(i => i !== ans)).slice(0, 3);
-        const opts = T.shuffle([ans].concat(others));
-        st.q = { ans, type, opts, picked: -1 };
+        // v70 최근(이 기기)에 나온 성어는 뒤로 미룸 + 문제 모양 4가지 (뜻→성어 · 성어→뜻 · 한자→성어 · 빈칸 글자)
+        let ans = st.deck.pop(); for (let k = 0; k < 40 && SEEN.has(D[ans][0]) && st.deck.length; k++) { st.deck.unshift(ans); ans = st.deck.pop(); }
+        SEEN.add(D[ans][0]);
+        const r = Math.random(), type = r < 0.32 ? 'meaning' : r < 0.62 ? 'idiom' : r < 0.82 ? 'hanja' : 'blank';
+        const okOther = i => i !== ans && !sameGroup(D[i][0], D[ans][0]);
+        let opts, ansK;
+        if (type === 'blank') {   // 한 글자를 가리고 알맞은 글자 고르기 (보기: 다른 성어의 같은 자리 글자)
+          const pos = Math.floor(Math.random() * 4), ch = D[ans][0][pos], nm = D[ans][0], names = new Set(D.map(d => d[0])), pool = T.shuffle(Array.from(new Set(D.map(d => d[0][pos]).filter(c => c !== ch && !names.has(nm.slice(0, pos) + c + nm.slice(pos + 1)))))).slice(0, 3);   // 다른 성어가 되는 글자는 보기에서 뺌
+          opts = T.shuffle([ch].concat(pool)); ansK = opts.indexOf(ch); st.q = { ans, type, opts, ansK, pos, picked: -1 };
+        } else {
+          const others = T.shuffle(D.map((d, i) => i).filter(okOther)).slice(0, 3), ids = T.shuffle([ans].concat(others));
+          opts = ids.map(i => (type === 'idiom' ? D[i][2] : D[i][0])); ansK = ids.indexOf(ans); st.q = { ans, type, opts, ansK, picked: -1 };
+        }
         drawChoices();
       }
       function drawChoices() {
         const D = DATA(), q = st.q;
         if (!q || st.phase !== 'play') { box.innerHTML = ''; return; }
-        box.className = 'idm-choices ' + (q.type === 'meaning' ? 'idm-short' : 'idm-long');
+        box.className = 'idm-choices ' + (q.type === 'idiom' ? 'idm-long' : 'idm-short');
         box.innerHTML = q.opts.map((i, k) => {
-          const cls = q.picked < 0 ? '' : i === q.ans ? 'ok' : k === q.picked ? 'bad' : 'dim';
-          return `<button type="button" class="idm-btn ${cls}" data-k="${k}" ${q.picked >= 0 ? 'disabled' : ''}><b>${k + 1}</b><span>${q.type === 'meaning' ? D[i][0] : D[i][2]}</span></button>`;
+          const cls = q.picked < 0 ? '' : k === q.ansK ? 'ok' : k === q.picked ? 'bad' : 'dim';
+          return `<button type="button" class="idm-btn ${cls}" data-k="${k}" ${q.picked >= 0 ? 'disabled' : ''}><b>${k + 1}</b><span>${i}</span></button>`;
         }).join('');
         box.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => pick(+b.dataset.k)));
       }
       function pick(k) {
         const q = st.q; if (!q || st.phase !== 'play' || q.picked >= 0 || st.lock > 0) return;
         q.picked = k;
-        const ok = q.opts[k] === q.ans;
+        const ok = k === q.ansK;
         if (ok) { st.right++; st.streak++; st.maxStreak = Math.max(st.maxStreak, st.streak); const g = CFG.scoreRight + Math.min(10, st.streak - 1) * CFG.streakBonus; st.score += g; st.gain = g; st.lock = 700; }
         else { st.wrong++; st.streak = 0; st.gain = 0; st.lock = 1500; }
         st.lastOk = ok; drawChoices();
@@ -100,9 +121,18 @@
         ctx.fillStyle = '#0B0F28'; ctx.fillRect(0, 56, W, 6); ctx.fillStyle = '#FFD23F'; ctx.fillRect(0, 56, W * Math.max(0, (st.left == null ? LIMIT : st.left) / LIMIT), 6);
         const q = st.q, D = DATA(); if (!q || st.phase !== 'play') { T.text(ctx, '四字成語', W / 2, 300, 72, 'rgba(255,255,255,.4)', 'center'); return; }
         const a = D[q.ans];
-        T.round(ctx, W / 2 - 150, 84, 300, 34, 17, q.type === 'meaning' ? '#3B5BDB' : '#9C36B5');
-        T.text(ctx, q.type === 'meaning' ? '이 뜻의 사자성어는?' : '이 사자성어의 뜻은?', W / 2, 102, 17, '#FFFFFF', 'center');
-        if (q.type === 'meaning') {
+        const BADGE = { meaning: ['이 뜻의 사자성어는?', '#3B5BDB'], idiom: ['이 사자성어의 뜻은?', '#9C36B5'], hanja: ['이 한자 성어를 한글로 읽으면?', '#C2255C'], blank: ['빈칸에 들어갈 글자는?', '#2B8A3E'] }[q.type];
+        T.round(ctx, W / 2 - 170, 84, 340, 34, 17, BADGE[1]);
+        T.text(ctx, BADGE[0], W / 2, 102, 17, '#FFFFFF', 'center');
+        if (q.type === 'hanja') {
+          T.text(ctx, a[1], W / 2, 220, 84, '#FFFFFF', 'center');
+          if (q.picked >= 0) T.text(ctx, a[0], W / 2, 300, 34, '#FFD23F', 'center', 400);
+        } else if (q.type === 'blank') {
+          const shown = a[0].split('').map((c, i) => (i === q.pos && q.picked < 0 ? '□' : c)).join(' ');
+          T.text(ctx, shown, W / 2, 200, 76, '#FFFFFF', 'center');
+          const ml = wrap(ctx, '뜻: ' + a[2], W - 140, 22).slice(0, 2);
+          if (q.picked < 0) ml.forEach((l, i) => T.text(ctx, l, W / 2, 280 + i * 30, 22, '#BDE8FF', 'center', 400));
+        } else if (q.type === 'meaning') {
           const lines = wrap(ctx, a[2], W - 120, 30);
           lines.forEach((l, i) => T.text(ctx, l, W / 2, 240 - (lines.length - 1) * 22 + i * 44, 30, '#FFFFFF', 'center'));
         } else {

@@ -64,6 +64,7 @@
   function renderUserChip() {
     const u = Hub.user, el = $('#userChip');
     const na = $('#navAdmin'); if (na) na.hidden = !Hub.isAdmin();
+    const nt = $('#navTest'); if (nt) nt.hidden = !Hub.isAdmin();   // v70 테스트 게임 (관리자만)
     if (u) {
       el.innerHTML = `<a class="who" href="#my">${avCanvas(u.avatar, 2.5, 'bust', 'chip-av')}<span class="who-n">${esc(u.nickname)}</span><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="pt num">${fmt(u.points)}P</span></a><button class="btn btn-sm chip-out" type="button" data-logout>로그아웃</button>`;
       AV.paintAll(el);
@@ -1108,6 +1109,10 @@
       current = 'admin'; setNav('admin');
       cleanups.push(window.GoAdmin.render(view(), { toast, esc, fmt, dur, ago, nameOf, avCanvas, games: SET.listAll().map(g => ({ id: g.id, name: g.name })) }));
     }
+    else if ((h === 'test' || h.startsWith('test-')) && window.GoTestGames) {   // v70 관리자 테스트 게임
+      current = h; setNav('test');
+      cleanups.push(window.GoTestGames.render(view(), { toast, esc, fmt }, h.startsWith('test-') ? h.slice(5) : null));
+    }
     else if (h === 'my') renderMy();
     else renderHome();
     window.scrollTo(0, 0);
@@ -1151,7 +1156,7 @@
       else if (current === 'play') { refreshBest(); refreshGameRank(); if (session && session.board) renderBoardCard(); else renderPlayerCard(); if (session && session.state === 'ready') renderOverlay(); }
       else if (current === 'shop' && window.GoShop.refresh) window.GoShop.refresh();
       else if (current === 'closet' && window.GoCloset.refresh) window.GoCloset.refresh();
-      else if (current === 'admin') route();
+      else if (current === 'admin' || String(current).startsWith('test')) route();
     });
     try { await Hub.init(); } catch (e) { console.error(e); }
     renderUserChip();

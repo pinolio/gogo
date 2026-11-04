@@ -15,15 +15,31 @@
     const tag = (l, lv) => l.map(x => ({ en: x[0], ko: x[1], pos: x[2], lv }));
     return mode === 'mid' ? tag(D.mid, 'mid') : mode === 'high' ? tag(D.high, 'high') : tag(D.mid, 'mid').concat(tag(D.high, 'high'));
   };
+  const SEEN = T.recent('english', 400);
+  // v70 틀린 철자 3개 만들기 (글자 바꾸기 · 빼기 · 겹치기 · 모음 바꾸기) — 진짜 단어와 같으면 뺌
+  function misspell(w, real) {
+    const V = 'aeiou', out = new Set(), rnd = n => Math.floor(Math.random() * n);
+    for (let t = 0; t < 60 && out.size < 3; t++) {
+      const i = rnd(w.length - 1) + (Math.random() < 0.5 ? 1 : 0), k = rnd(4); let s;
+      if (k === 0 && i < w.length - 1) s = w.slice(0, i) + w[i + 1] + w[i] + w.slice(i + 2);
+      else if (k === 1) s = w.slice(0, i) + w.slice(i + 1);
+      else if (k === 2) s = w.slice(0, i) + w[i] + w.slice(i);
+      else { const vs = [...w].map((c, j) => (V.includes(c) ? j : -1)).filter(j => j >= 0); if (!vs.length) continue; const j = vs[rnd(vs.length)]; const nv = V.replace(w[j], '')[rnd(4)]; s = w.slice(0, j) + nv + w.slice(j + 1); }
+      if (s && s !== w && s.length >= 3 && !real.has(s)) out.add(s);
+    }
+    return [...out];
+  }
   function make(mode, used) {
     const all = words(mode), cfg = CFG();
     let pool = all.filter(w => !used.has(w.en)); if (!pool.length) { used.clear(); pool = all; }
-    const w = pool[Math.floor(Math.random() * pool.length)]; used.add(w.en);
+    const w = T.recentPick(pool, x => x.en, SEEN); used.add(w.en); SEEN.add(w.en);   // v70 이 기기에서 최근에 나온 단어는 뒤로
     const same = all.filter(x => x !== w && x.pos === w.pos), others = same.length >= 3 ? same : all.filter(x => x !== w);
-    const toKo = Math.random() < 0.5;
-    const pick = Q.choices4(toKo ? w.ko : w.en, others.map(x => (toKo ? x.ko : x.en)));
+    // v70 문제 모양 3가지: 영어 → 뜻 · 뜻 → 영어 · 바른 철자 고르기
+    const r = Math.random(), wrongs = /^[a-z]{4,}$/.test(w.en) ? misspell(w.en, new Set(all.map(x => x.en))) : [];
+    const kind = r < 0.4 ? 'toKo' : r < 0.75 || wrongs.length < 3 ? 'toEn' : 'spell', toKo = kind === 'toKo';
+    const pick = kind === 'spell' ? Q.choices4(w.en, wrongs) : Q.choices4(toKo ? w.ko : w.en, others.map(x => (toKo ? x.ko : x.en)));
     return {
-      badge: toKo ? '이 영어 단어의 뜻은?' : '이 뜻의 영어 단어는?', badgeColor: toKo ? '#3B5BDB' : '#9C36B5',
+      badge: kind === 'spell' ? '이 뜻의 바른 철자는?' : toKo ? '이 영어 단어의 뜻은?' : '이 뜻의 영어 단어는?', badgeColor: kind === 'spell' ? '#2B8A3E' : toKo ? '#3B5BDB' : '#9C36B5',
       prompt: toKo ? w.en : w.ko, big: toKo || w.ko.length <= 8, choices: pick.choices, ans: pick.ans, long: false,
       worth: w.lv === 'high' ? (cfg.scoreHigh || 150) : (cfg.scoreMid || 100),
       revealTitle: w.en + ' = ' + w.ko, revealSub: (w.lv === 'high' ? '고등' : '중학') + ' 단어 · ' + (POS[w.pos] || '')
@@ -33,8 +49,8 @@
     id: 'english', bg: 'games/study/english/img/bg.jpg', title: '영어 단어 퀴즈', watermark: 'ABC', colors: { top: '#173A5E', bottom: '#10213D' },
     sub: s => `${s}초 · 4지선다 · 중학/고등 단계`,
     goal: s => `${s}초 동안 영어 단어 ↔ 뜻을 맞혀요.<br>아래에서 단계를 고르고 시작!`,
-    modes: [{ id: 'mid', label: '중학', desc: '312단어 · 100점' }, { id: 'high', label: '고등', desc: '407단어 · 150점' }, { id: 'mix', label: '섞어서', desc: '719단어' }],
-    rules: cfg => [`<b>${cfg.timeLimit || 60}초</b> 동안 최대한 많이 맞혀요.`, '① 영어 단어를 보고 알맞은 <b>뜻</b> 고르기, ② 뜻을 보고 알맞은 <b>영어 단어</b> 고르기가 섞여 나와요.', `시작 화면에서 단계를 골라요: <b>중학</b>(${cfg.scoreMid || 100}점) · <b>고등</b>(${cfg.scoreHigh || 150}점) · <b>섞어서</b>.`, '아래 보기를 누르거나 키보드 <b>1 · 2 · 3 · 4</b>.', `연속으로 맞히면 ${cfg.streakBonus || 20}점씩 보너스. 틀리면 정답을 보여 줘요.`, '포인트는 없고, 가장 높은 점수가 랭킹에 올라가요. (로그인 필요)'],
+    modes: [{ id: 'mid', label: '중학', desc: '405단어 · 100점' }, { id: 'high', label: '고등', desc: '502단어 · 150점' }, { id: 'mix', label: '섞어서', desc: '907단어' }],
+    rules: cfg => [`<b>${cfg.timeLimit || 60}초</b> 동안 최대한 많이 맞혀요.`, '문제 모양 3가지가 섞여 나와요: ① 영어 → <b>뜻</b> ② 뜻 → <b>영어 단어</b> ③ 뜻을 보고 <b>바른 철자</b> 고르기', `시작 화면에서 단계를 골라요: <b>중학</b>(${cfg.scoreMid || 100}점) · <b>고등</b>(${cfg.scoreHigh || 150}점) · <b>섞어서</b>.`, '아래 보기를 누르거나 키보드 <b>1 · 2 · 3 · 4</b>.', `연속으로 맞히면 ${cfg.streakBonus || 20}점씩 보너스. 틀리면 정답을 보여 줘요.`, '포인트는 없고, 가장 높은 점수가 랭킹에 올라가요. (로그인 필요)'],
     make
   });
   window.GoGames.english = {

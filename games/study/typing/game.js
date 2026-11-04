@@ -11,7 +11,7 @@
   const T = window.GoStudy, BGM = window.GoBGM, Hub = window.GameHub;
   const W = 720, H = 540, GROUND = 488;
   const CFG = window.GoSettings.get('typing');
-  const PROVERBS = ['가는 말이 고와야 오는 말이 곱다', '낮말은 새가 듣고 밤말은 쥐가 듣는다', '원숭이도 나무에서 떨어진다', '세 살 버릇 여든까지 간다', '티끌 모아 태산', '소 잃고 외양간 고친다', '천 리 길도 한 걸음부터', '백지장도 맞들면 낫다', '배보다 배꼽이 더 크다', '등잔 밑이 어둡다', '고래 싸움에 새우 등 터진다', '누워서 떡 먹기', '돌다리도 두들겨 보고 건너라', '말 한마디로 천 냥 빚을 갚는다', '발 없는 말이 천 리 간다', '아니 땐 굴뚝에 연기 날까', '우물 안 개구리', '호랑이도 제 말 하면 온다', '열 번 찍어 안 넘어가는 나무 없다', '빈 수레가 요란하다', '가재는 게 편', '금강산도 식후경', '꿩 먹고 알 먹고', '식은 죽 먹기', '하늘의 별 따기', '쇠뿔도 단김에 빼라', '윗물이 맑아야 아랫물이 맑다', '콩 심은 데 콩 나고 팥 심은 데 팥 난다', '작은 고추가 더 맵다', '같은 값이면 다홍치마'];
+  const PROVERBS = ['가는 말이 고와야 오는 말이 곱다', '낮말은 새가 듣고 밤말은 쥐가 듣는다', '원숭이도 나무에서 떨어진다', '세 살 버릇 여든까지 간다', '티끌 모아 태산', '소 잃고 외양간 고친다', '천 리 길도 한 걸음부터', '백지장도 맞들면 낫다', '배보다 배꼽이 더 크다', '등잔 밑이 어둡다', '고래 싸움에 새우 등 터진다', '누워서 떡 먹기', '돌다리도 두들겨 보고 건너라', '말 한마디로 천 냥 빚을 갚는다', '발 없는 말이 천 리 간다', '아니 땐 굴뚝에 연기 날까', '우물 안 개구리', '호랑이도 제 말 하면 온다', '열 번 찍어 안 넘어가는 나무 없다', '빈 수레가 요란하다', '가재는 게 편', '금강산도 식후경', '꿩 먹고 알 먹고', '식은 죽 먹기', '하늘의 별 따기', '쇠뿔도 단김에 빼라', '윗물이 맑아야 아랫물이 맑다', '콩 심은 데 콩 나고 팥 심은 데 팥 난다', '작은 고추가 더 맵다', '같은 값이면 다홍치마', '개구리 올챙이 적 생각 못 한다', '고생 끝에 낙이 온다', '구슬이 서 말이라도 꿰어야 보배', '그림의 떡', '남의 떡이 더 커 보인다', '낫 놓고 기역 자도 모른다', '다 된 죽에 코 빠뜨리기', '될성부른 나무는 떡잎부터 알아본다', '뛰는 놈 위에 나는 놈 있다', '마른하늘에 날벼락', '모로 가도 서울만 가면 된다', '믿는 도끼에 발등 찍힌다', '바늘 도둑이 소도둑 된다', '벼는 익을수록 고개를 숙인다', '병 주고 약 준다', '불난 집에 부채질한다', '사공이 많으면 배가 산으로 간다', '서당 개 삼 년이면 풍월을 읊는다', '소 귀에 경 읽기', '시작이 반이다', '아는 길도 물어 가라', '얌전한 고양이 부뚜막에 먼저 올라간다', '열 길 물속은 알아도 한 길 사람 속은 모른다', '오르지 못할 나무는 쳐다보지도 마라', '우물을 파도 한 우물을 파라', '원님 덕에 나팔 분다', '자라 보고 놀란 가슴 솥뚜껑 보고 놀란다', '지렁이도 밟으면 꿈틀한다', '찬물도 위아래가 있다', '칼로 물 베기', '하룻강아지 범 무서운 줄 모른다', '호랑이 굴에 들어가야 호랑이 새끼를 잡는다', '가랑비에 옷 젖는 줄 모른다', '공든 탑이 무너지랴', '길고 짧은 것은 대 보아야 안다', '달면 삼키고 쓰면 뱉는다', '말이 씨가 된다', '미운 아이 떡 하나 더 준다', '비 온 뒤에 땅이 굳어진다', '세월이 약'];   // v70 속담 30 → 70개
   const COLORS = ['#FFD23F', '#7FE3FF', '#7DFFC4', '#FF9A3D', '#C792FF', '#FF7EB6'];
   const norm = s => s.replace(/\s+/g, ' ').trim();
   // 자모 타수: 한 글자 = 첫소리 + 가운뎃소리 (+ 받침), 겹모음·겹받침은 2타
@@ -22,6 +22,7 @@
   }, 0);
 
   let words = null;
+  const SEEN = window.GoStudy.recent('typing', 1500);   // v70 이 기기에서 최근 1500낱말은 뒤로
   const loadWords = () => words ? Promise.resolve(words) : fetch(CFG.folder + '/words.txt').then(r => r.text()).then(t => {
     const all = t.split('\n').map(s => s.trim()).filter(Boolean);
     words = { 2: all.filter(w => w.length === 2), 3: all.filter(w => w.length === 3), 4: all.filter(w => w.length === 4) };
@@ -43,18 +44,21 @@
       function start() {
         if (st.phase === 'play') return;
         loadWords().then(() => {
-          st = { phase: 'play', drops: [], fx: [], score: 0, level: 1, cleared: 0, lives: CFG.lives, combo: 0, spawn: 0.4, t0: performance.now(), hits: 0, tries: 0, keys: 0, saved: null };
+          st = { phase: 'play', usedW: new Set(), drops: [], fx: [], score: 0, level: 1, cleared: 0, lives: CFG.lives, combo: 0, spawn: 0.4, t0: performance.now(), hits: 0, tries: 0, keys: 0, saved: null };
           page.ov.hidden = true; inp.value = ''; inp.focus({ preventScroll: true }); T.fitView(page.canvas.closest('.ult-stage'), inp); BGM.restart();   // v34: 입력칸으로 스크롤하면서 게임판 위(점수·방어막)가 맨 위 메뉴에 가려지던 문제
         });
       }
       function pool() {
         const L = st.level;
         const PF = CFG.proverbFrom || 6, r = Math.random;
-        if (L >= PF && r() < Math.min(0.4, 0.08 * (L - PF + 1))) return PROVERBS[Math.floor(r() * PROVERBS.length)];
+        if (L >= PF && r() < Math.min(0.4, 0.08 * (L - PF + 1))) { const pv = PROVERBS.filter(x => !st.usedW.has(x)); const p2 = pv.length ? pv[Math.floor(r() * pv.length)] : PROVERBS[Math.floor(r() * PROVERBS.length)]; st.usedW.add(p2); return p2; }
         // v34: 1단계부터 3글자, 4단계부터 4글자가 섞임 (예전: 1~2단계 2글자만)
         const len = L <= 1 ? (r() < 0.6 ? 2 : 3) : L <= 3 ? (r() < 0.5 ? 3 : 2) : L <= 5 ? (r() < 0.45 ? 3 : r() < 0.55 ? 4 : 2) : (r() < 0.45 ? 3 : r() < 0.6 ? 4 : 2);
-        const list = words[len] || words[2];
-        return list[Math.floor(Math.random() * list.length)];
+        // v70 3단계부터 사자성어도 가끔 (4글자) · 한 판 안에서 같은 낱말은 다시 안 나옴 · 이 기기에서 최근 낱말은 뒤로
+        if (L >= 3 && window.GoIdioms && r() < 0.12) { const id = T.recentPick(window.GoIdioms.filter(x => !st.usedW.has(x[0])), x => x[0], SEEN, 3); if (id) { st.usedW.add(id[0]); SEEN.add(id[0]); return id[0]; } }
+        const list = (words[len] || words[2]).filter(w => !st.usedW.has(w));
+        const w = T.recentPick(list.length ? list : words[len] || words[2], x => x, SEEN, 20); st.usedW.add(w); SEEN.add(w);
+        return w;
       }
       function spawn() {
         let w = pool(), tries = 0;
