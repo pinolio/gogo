@@ -385,6 +385,12 @@
    *  rate[n] = +n → +n+1 성공 확률(%) · cost(n) = 100 × 2^n 골드 (1강 100 … 10강 51,200 · 모두 102,300)
    *  per = 1강마다 기본 능력치(공격·마력·방어·체력·마나) +10% (+10 = 2배). 옵션은 그대로 */
   const ENH = { max: 10, rate: [95, 90, 85, 80, 70, 60, 50, 40, 35, 30], cost: n => 100 * Math.pow(2, n), per: 0.1 };
+  /* v68 상점에 파는 값 (약방 '팔기')
+   *  장비 = (base + 착용 레벨 × perLv) × 등급 배수 + 강화에 쓴 골드 × enh
+   *    예) Lv.50 일반 160 G · 희귀 352 G · Lv.100 전설 1,550 G · +5 강화는 강화비 3,100 G 중 930 G 만 돌려받음
+   *    → 몬스터 한 마리 골드(Lv.50 약 73 G)의 2~5배 정도. 강화해서 팔면 늘 손해라 '강화로 돈 벌기'가 안 됨
+   *  장비가 아닌 물건(포션·주문서) = 산 값 × other */
+  const SELL = { base: 10, perLv: 3, grade: [1, 1.5, 2.2, 3.2, 5], enh: 0.3, other: 0.4 };
   // v60 지역마다 몬스터 속성 (원거리 탄 · 보스 내려찍기가 이 속성 → 속성 방어로 줄어듦. 몸통 박치기는 물리)
   const RG_EL = ['wind', 'earth', 'water', 'fire', 'earth', 'water', 'light', 'thunder', 'fire'];
 
@@ -514,5 +520,5 @@
     hello: ['불이 잘 달궈졌네! 뭘 두드려 볼까?', '강화는 운이야. 실패하면 장비가 산산조각 나니 각오하게!', '+10 까지 가면 전설이 되는 거지. 허허!', '높이 올라갈수록 망치가 무거워진다네. 골드도 두 배씩!'],
     lines: ['땅! 땅! 땅!', '강화하러 왔나?', '불꽃이 좋구먼!'] };
 
-  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, GEAR_BASE, OPTS, GRADE, ENH, RG_EL, SMITH, reqOf };
+  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, GEAR_BASE, OPTS, GRADE, ENH, SELL, RG_EL, SMITH, reqOf };
 })();

@@ -656,3 +656,34 @@ revoke all on function public.admin_online() from public;
 grant execute on function public.online_ping(text, text, boolean) to anon, authenticated;
 grant execute on function public.online_leave(text) to anon, authenticated;
 grant execute on function public.admin_online() to authenticated;
+
+-- =====================================================================
+-- v68 (2026-11-04) 무단 이탈 기록 — 내용은 supabase/quit_v68.sql 과 같음
+-- =====================================================================
+create table if not exists public.quit_logs (
+  id            bigint generated always as identity primary key,
+  game_id       text not null check (game_id ~ '^[a-z0-9_-]{2,30}$'),
+  user_id       uuid not null default auth.uid() references public.profiles(id) on delete cascade,   -- 기록을 남긴 사람 (보통 남은 쪽)
+  quitter       uuid references public.profiles(id) on delete set null,                              -- 나간 사람 (손님이면 비어 있음)
+  quitter_nick  text check (char_length(quitter_nick) <= 30),
+  kind          text not null check (kind in ('left', 'resign')),                                    -- left = 창을 닫거나 방에서 나감 · resign = 기권
+  sec           numeric(5, 1) not null default 0 check (sec between 0 and 60),                       -- 시작하고 몇 초 만에
+  extra         jsonb check (extra is null or pg_column_size(extra) < 2000),                          -- 방 코드·인원 등
+  created_at    timestamptz not null default now()
+);
+create index if not exists quit_logs_time on public.quit_logs (created_at desc);
+create index if not exists quit_logs_quitter on public.quit_logs (quitter, created_at desc);
+alter table public.quit_logs enable row level security;
+
+drop policy if exists "quit_insert" on public.quit_logs;
+create policy "quit_insert" on public.quit_logs for insert to authenticated
+  with check (user_id = auth.uid() and not public.is_banned());
+drop policy if exists "quit_select_admin" on public.quit_logs;
+create policy "quit_select_admin" on public.quit_logs for select to authenticated
+  using (public.is_admin());
+drop policy if exists "quit_delete_admin" on public.quit_logs;
+create policy "quit_delete_admin" on public.quit_logs for delete to authenticated
+  using (public.is_admin());
+revoke all on public.quit_logs from anon;
+revoke update on public.quit_logs from authenticated;
+grant select, insert, delete on public.quit_logs to authenticated;

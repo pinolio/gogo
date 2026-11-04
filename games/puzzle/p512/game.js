@@ -272,6 +272,16 @@
   }
   const isHost = () => room && room.hostId === Hub.clientId;
   const totalCount = () => room.peers.length + room.bots.length;
+  /* v68 무단 이탈: 온라인 경기 시작 5초(Hub.QUIT_SEC, 카운트다운 포함) 안에 사람이 나가면 이 판은 무효(승패·포인트 없음)
+   *  + 관리자만 보는 기록 한 줄 (남은 사람 중 맨 앞 회원의 화면이 남김) */
+  function earlyQuit(r, here) {
+    if (!match || match.play !== 'online' || match.early || match.ended || r.bot || r.human || r.id === Hub.clientId) return;
+    const ms = match.t0 ? Date.now() - match.t0 : 0; if (ms >= (Hub.QUIT_SEC || 5) * 1000) return;
+    match.early = { nick: r.nick || '', sec: ms / 1000 };
+    const rep = match.roster.find(x => !x.bot && !x.human && x.id !== r.id && here.has(x.id) && x.uid);
+    if (rep && rep.id === Hub.clientId && Hub.user && Hub.logQuit) Hub.logQuit({ game_id: 'p512', quitter: r.uid || null, quitter_nick: r.nick, kind: 'left', sec: ms / 1000, extra: { code: room && room.code, players: match.n } });
+    A.toast(`${r.nick || '상대'} 님이 ${Hub.QUIT_SEC || 5}초 안에 나가서 이 판은 무효예요. (승패·포인트 없음)`);
+  }
   function onRoomPeers(list) {
     if (!room) return;
     room.peers = list.filter(p => p && p.id).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
@@ -280,7 +290,7 @@
     if (prev && prev !== room.hostId && isHost()) { A.toast('방장이 나가서 내가 방장이 됐어요.'); room.bots = room.bots.filter(b => b.owner === Hub.clientId); }
     if (match && !match.ended) {
       const here = new Set(room.peers.map(p => p.id));
-      match.roster.forEach(r => { if ((r.bot ? !here.has(r.owner) : !here.has(r.id)) && !match.gone.has(r.id)) { match.gone.add(r.id); A.toast(r.nick + ' 님이 나갔어요'); } });
+      match.roster.forEach(r => { if ((r.bot ? !here.has(r.owner) : !here.has(r.id)) && !match.gone.has(r.id)) { match.gone.add(r.id); const was = match.early; earlyQuit(r, here); if (match.early === was) A.toast(r.nick + ' 님이 나갔어요'); } });
       if (match.roster.filter(r => !match.gone.has(r.id)).length <= 1) finish(Hub.clientId);
     }
     if (isHost()) { broadcastRoom(); advertise(); }
@@ -315,7 +325,7 @@
       $('#pzLeave').addEventListener('click', () => leaveRoom());
       return;
     }
-    const members = room.peers.map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar })).concat(room.bots.map(b => ({ ...b, bot: !b.human })));
+    const members = room.peers.map(p => ({ id: p.id, uid: p.uid || null, nick: p.nick, avatar: p.avatar })).concat(room.bots.map(b => ({ ...b, bot: !b.human })));
     const hostPeer = room.peers.find(p => p.id === room.hostId);
     const ok = total >= 2;
     root.innerHTML = `
@@ -353,7 +363,7 @@
   function hostStart() {
     if (!isHost() || totalCount() < 2) return;
     const seed = (Math.random() * 2147483647) | 0;
-    const roster = room.peers.map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar }))
+    const roster = room.peers.map(p => ({ id: p.id, uid: p.uid || null, nick: p.nick, avatar: p.avatar }))
       .concat(room.bots.map(b => ({ id: b.id, nick: b.nick, bot: !b.human, human: !!b.human, level: b.level, owner: b.owner, avatar: b.avatar })));
     room.ch.send({ t: 'start', seed, roster });
     startMatch(seed, roster);
@@ -420,6 +430,7 @@
   }
   async function saveResult() {
     const L = match.local[Hub.clientId], place = match.places[Hub.clientId]; if (!L || !place) return;
+    if (match.early) { match.saved = { status: 'void' }; return showResult(); }   // v68 무효 판: 저장 안 함
     const win = place === 1, eng = L.eng;
     const humansAgainst = match.play === 'online' && match.roster.some(r => !r.bot && r.id !== Hub.clientId);
     const delta = window.GoSettings.pointsFor('p512', win, humansAgainst ? null : 'botsOnly').delta;
@@ -478,7 +489,7 @@
     const step = () => {
       if (!match || !ov.isConnected) return;
       if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${hint}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
-      else { ov.hidden = true; match.running = true; match.clock.start(); BGM.restart(); }
+      else { ov.hidden = true; match.running = true; match.t0 = Date.now(); match.clock.start(); BGM.restart(); }
     };
     step();
   }
@@ -532,12 +543,13 @@
     else if (s.status === 'saved') note = `<p class="ov-note ${s.gained > 0 ? 'ok' : ''}">${s.win ? '승리' : '패배'} ${A.pointText(s.gained, s.delta)} · 전적에 저장했어요</p>`;
     else if (s.status === 'queued') note = '<p class="ov-note">오프라인이라 연결되면 저장돼요.</p>';
     else if (s.status === 'error') note = `<p class="ov-note bad">${esc(s.msg)}</p>`;
+    else if (s.status === 'void') note = '<p class="ov-note">시작 5초 안에 나간 사람이 있어서 무효 판이에요. 승패·포인트 없이 끝났어요.</p>';
     else if (s.status === 'guest') note = '<p class="ov-note">손님 플레이 (로그인하면 기록이 남아요)</p>';
     const winner = order[0];
     ov.hidden = false;
     ov.innerHTML = `<div class="ov-box result">
       <canvas class="ov-avatar" data-avatar="${AV.attr(winner.avatar || AV.random(winner.id))}" data-scale="3" aria-hidden="true"></canvas>
-      <div class="ov-title">${winner.id === Hub.clientId ? '우승!' : esc(winner.nick) + ' 승리'}</div>${myPlace === 1 ? '<span class="ov-best">WINNER</span>' : `<span class="ov-hint">나는 ${myPlace}위</span>`}
+      ${match.early ? '<div class="ov-title">무효 판</div>' : `<div class="ov-title">${winner.id === Hub.clientId ? '우승!' : esc(winner.nick) + ' 승리'}</div>${myPlace === 1 ? '<span class="ov-best">WINNER</span>' : `<span class="ov-hint">나는 ${myPlace}위</span>`}`}
       <ol class="result-list">${order.map(r => `<li class="${r.id === Hub.clientId ? 'mine' : ''}"><span class="num">${match.places[r.id]}</span><span class="rl-name">${bust(r.avatar || AV.random(r.id), 1)}${esc(r.nick)}</span><span class="num">${maxOf(r.id)}</span></li>`).join('')}</ol>
       <p class="ov-hint">${match.timeUp ? '시간 종료! ' : ''}오른쪽 숫자 = 만든 가장 큰 숫자</p>
       ${note}

@@ -31,6 +31,12 @@
   }
   Hub.isAdmin = () => !!(Hub.user && Hub.user.role === 'admin');
   const clampDelta = d => Math.max(-MAX_DELTA, Math.min(MAX_DELTA, Math.round(d || 0)));
+  /* v68 무단 이탈: 온라인 대결 시작 QUIT_SEC 초 안에 상대가 나가거나 기권하면 그 판은 무효 (승패·무승부·포인트 없음)
+   *  + 관리자만 보는 기록 한 줄 (Hub.logQuit). 숫자를 바꾸려면 여기 QUIT_SEC 만 고치면 됨 */
+  Hub.QUIT_SEC = 5;
+  let quitOff = false;
+  const quitRow = r => ({ game_id: String(r.game_id || '').slice(0, 30), quitter: r.quitter || null, quitter_nick: String(r.quitter_nick || '').slice(0, 30) || null,
+    kind: r.kind === 'resign' ? 'resign' : 'left', sec: Math.max(0, Math.min(60, Math.round((+r.sec || 0) * 10) / 10)), extra: r.extra || null });
 
   // 레벨: 지금까지 '얻은' 포인트(earned) 기준. 상점에서 써도 레벨은 내려가지 않음.
   // Lv2 = 4P, Lv3 = 16P, Lv4 = 36P, Lv5 = 64P ... (Lv = √(earned/4) + 1)  ※ 밸런스 조정 예정
@@ -351,6 +357,19 @@
         return Object.values(o).filter(r => now - r.last_seen < 120000).sort((a, b) => a.started_at - b.started_at)
           .map(r => ({ client_id: r.client_id, user_id: r.user_id, nickname: r.user_id && users[r.user_id] ? users[r.user_id].nickname : '손님', game: r.game, mobile: r.mobile, started_at: iso(r.started_at), game_at: iso(r.game_at), last_seen: iso(r.last_seen), server_now: iso(now) }));
       },
+      /* ---- v68 무단 이탈 기록 (관리자만 봄) ---- */
+      async logQuit(r) {
+        if (!Hub.user) return; const d = db(); d.quits = d.quits || [];
+        d.quits.push(Object.assign(quitRow(r), { id: Date.now() + Math.random(), user_id: Hub.user.id, created_at: new Date().toISOString() }));
+        if (d.quits.length > 500) d.quits = d.quits.slice(-500); persist();
+      },
+      async adminQuits(f) {
+        if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
+        f = f || {}; const d = db();
+        return (d.quits || []).filter(q => !f.game || q.game_id === f.game).slice().reverse().slice(0, f.limit || 500)
+          .map(q => { const a = d.users[q.quitter] || {}, b = d.users[q.user_id] || {}; return Object.assign({}, q, { q_nick: a.nickname || q.quitter_nick || '손님', q_user: a.username || '', r_nick: b.nickname || '?', r_user: b.username || '' }); });
+      },
+      async adminDeleteQuit(id) { if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.'); const d = db(); d.quits = (d.quits || []).filter(q => q.id !== id); persist(); },
       /* ---- v33 로그인 팝업 배너 (한 개) ---- */
       async getBanner() { return db().banner || null; },
       async saveBanner(b) {
@@ -631,6 +650,29 @@
         if (error) throw new Error(/admin_online|function|schema cache/i.test(error.message || '') ? '실시간 접속자 기능이 아직 서버에 없어요. supabase/online_v35.sql 을 먼저 실행해 주세요.' : friendly(error, '접속자를 불러오지 못했어요'));
         return data || [];
       },
+      /* ---- v68 무단 이탈 기록 (supabase/quit_v68.sql 의 quit_logs 표 · 학생은 못 읽고 관리자만 봄) ---- */
+      async logQuit(r) {
+        if (!Hub.user || quitOff) return;
+        const row = quitRow(r); if (row.quitter && !/^[0-9a-f-]{36}$/i.test(row.quitter)) row.quitter = null;
+        try {
+          const { error } = await sb.from('quit_logs').insert(row);
+          if (error) { if (/quit_logs|relation|schema cache|does not exist/i.test(error.message || '')) quitOff = true; console.warn('[gogo] 이탈 기록 안 됨', error.message); }
+        } catch (e) { /* noop */ }
+      },
+      async adminQuits(f) {
+        f = f || {};
+        let q = sb.from('quit_logs').select('id,game_id,user_id,quitter,quitter_nick,kind,sec,extra,created_at').order('created_at', { ascending: false }).limit(f.limit || 500);
+        if (f.game) q = q.eq('game_id', f.game);
+        const { data, error } = await q;
+        if (error) throw new Error(/quit_logs|relation|schema cache/i.test(error.message || '') ? '무단 이탈 표가 아직 없어요. supabase/quit_v68.sql 을 먼저 실행해 주세요.' : friendly(error, '이탈 기록을 불러오지 못했어요'));
+        const ids = Array.from(new Set(data.flatMap(x => [x.user_id, x.quitter]).filter(Boolean))), who = {};
+        if (ids.length) { const r = await sb.from('profiles').select('id,nickname,username').in('id', ids.slice(0, 300)); (r.data || []).forEach(p => { who[p.id] = p; }); }
+        return data.map(x => { const a = who[x.quitter] || {}, b = who[x.user_id] || {}; return Object.assign({}, x, { q_nick: a.nickname || x.quitter_nick || '손님', q_user: a.username || '', r_nick: b.nickname || '?', r_user: b.username || '' }); });
+      },
+      async adminDeleteQuit(id) {
+        const { error } = await sb.from('quit_logs').delete().eq('id', id);
+        if (error) throw new Error(friendly(error, '지우지 못했어요'));
+      },
       /* ---- v33 로그인 팝업 배너 (한 개, site_banner 표의 id = 1 줄) ---- */
       async getBanner() {
         const { data, error } = await sb.from('site_banner').select('enabled,title,body,image,link,updated_at').eq('id', 1).maybeSingle();
@@ -653,6 +695,8 @@
    */
   Hub.clientId = 'c' + Math.random().toString(36).slice(2, 10);
 
+  // v68 실시간 방에 들어갈 때 회원 id(uid)를 함께 알림 → 상대가 무단 이탈하면 누구인지 기록할 수 있음
+  const withUid = st => (st && typeof st === 'object' && !Array.isArray(st) && !('uid' in st) ? Object.assign({ uid: Hub.user ? Hub.user.id : null }, st) : st);
   function localChannel(name, h) {
     const me = Hub.clientId, peers = new Map();
     let mine = null, closed = false, bc = null;
@@ -677,7 +721,7 @@
     }, 1000);
     return {
       send(payload) { post({ k: 'm', payload }); },
-      track(state) { mine = state; post({ k: 'p', from: me, state }); emit(); },
+      track(state) { state = withUid(state); mine = state; post({ k: 'p', from: me, state }); emit(); },
       untrack() { if (!mine) return; mine = null; post({ k: 'p', from: me, state: null }); emit(); },
       leave() { if (closed) return; post({ k: 'p', from: me, state: null }); closed = true; clearInterval(hb); if (bc) bc.close(); }
     };
@@ -697,7 +741,7 @@
     });
     return {
       send(payload) { if (ready) ch.send({ type: 'broadcast', event: 'm', payload }); },
-      track(state) { pending = state; if (ready) ch.track(state); },
+      track(state) { state = withUid(state); pending = state; if (ready) ch.track(state); },
       untrack() { pending = null; if (ready) ch.untrack(); },
       leave() { sb.removeChannel(ch); }
     };

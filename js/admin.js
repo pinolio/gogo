@@ -1,7 +1,7 @@
 /*
  * gogo?gogo! — 관리자 설정 (GoAdmin)
  *  - 관리자(role = 'admin')에게만 맨 위 메뉴에 보입니다.
- *  - 탭: 전적 종합 · 실시간 접속자(v35) · 회원 관리 · 댓글·피드백 · 채팅 기록 · 배너(v33, 로그인 팝업)
+ *  - 탭: 전적 종합 · 실시간 접속자(v35) · 회원 관리 · 댓글·피드백 · 채팅 기록 · 무단 이탈(v68) · 배너(v33, 로그인 팝업)
  *  - 실제 권한 확인은 서버(Supabase 함수·보안 규칙)가 합니다. 이 화면은 보기 좋게 보여 주는 역할만 해요.
  */
 (function () {
@@ -9,7 +9,7 @@
   const Hub = window.GameHub, F = window.GoFilter, AV = window.GoAvatar;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-  const TABS = [['stats', '전적 종합'], ['live', '실시간 접속자'], ['members', '회원 관리'], ['comments', '댓글·피드백'], ['chat', '채팅 기록'], ['banner', '배너']];
+  const TABS = [['stats', '전적 종합'], ['live', '실시간 접속자'], ['members', '회원 관리'], ['comments', '댓글·피드백'], ['chat', '채팅 기록'], ['quits', '무단 이탈'], ['banner', '배너']];
   let tab = 'stats';
 
   function csv(name, head, rows) {
@@ -40,7 +40,7 @@
     $$('[data-tab]', root).forEach(b => b.addEventListener('click', () => {
       tab = b.dataset.tab; $$('[data-tab]', root).forEach(x => x.setAttribute('aria-selected', String(x === b))); show();
     }));
-    function show() { body.innerHTML = '<p class="empty">불러오는 중…</p>'; ({ stats, live, members, comments, chat, banner })[tab]().catch(fail); }
+    function show() { body.innerHTML = '<p class="empty">불러오는 중…</p>'; ({ stats, live, members, comments, chat, quits, banner })[tab]().catch(fail); }
 
     /* ---------- 전적 종합 ---------- */
     async function stats() {
@@ -395,6 +395,38 @@
         if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = '정말 지울까요?'; return; }
         try { await Hub.adminDeleteChat(id); tr.remove(); } catch (err) { ui.toast(err.message); }
       });
+    }
+
+    /* v68 무단 이탈: 온라인 대결 시작 5초 안에 나가거나 기권한 기록 (판은 무효 처리됨). 플레이어에게는 안 보이고 관리자만 봄 */
+    let qg = '';
+    async function quits() {
+      body.innerHTML = `
+        <div class="panel">
+          <h2>무단 이탈 기록</h2>
+          <p class="small">온라인 대결에서 <b>시작 ${Hub.QUIT_SEC || 5}초 안에</b> 나가거나 기권한 기록이에요. 그 판은 <b>무효</b>(승리·패배·무승부·포인트 없음)로 끝나요. 플레이어에게는 보이지 않고 관리자만 볼 수 있어요.</p>
+          <div class="admin-tools">
+            <label class="sr-only" for="qGame">게임</label><select id="qGame">${gameOpts(qg)}</select>
+            <span class="small" id="qCount"></span><button class="btn btn-sm" type="button" id="csvQuits">CSV 내려받기</button>
+          </div>
+          <div id="qTop"></div>
+          <div class="tbl-wrap"><table class="admin-tbl"><thead><tr><th>시각</th><th>게임</th><th>나간 사람</th><th class="c">방법</th><th class="n">시작 후</th><th>남긴 사람</th><th></th></tr></thead><tbody id="qRows"><tr><td colspan="7" class="empty">불러오는 중…</td></tr></tbody></table></div>
+        </div>`;
+      $('#qGame').addEventListener('change', e => { qg = e.target.value; quits(); });
+      const rows = await Hub.adminQuits({ game: qg || null, limit: 500 }); if (!alive || tab !== 'quits') return;
+      $('#qCount').textContent = rows.length + '건';
+      // 많이 나간 사람 (회원 아이디 기준, 손님은 닉네임)
+      const per = {}; rows.forEach(r => { const k = r.quitter || 'g:' + r.q_nick; (per[k] || (per[k] = { n: 0, nick: r.q_nick, user: r.q_user, member: !!r.quitter })).n++; });
+      const top = Object.values(per).sort((a, b) => b.n - a.n).slice(0, 10);
+      $('#qTop').innerHTML = top.length ? `<div class="rate-sum">${top.map(p => `<span><b>${ui.esc(p.nick)}</b>${p.user ? ` <small>@${ui.esc(p.user)}</small>` : p.member ? '' : ' <small>(손님)</small>'} · <b class="quit-n">${p.n}회</b></span>`).join('')}</div>` : '';
+      const el = $('#qRows');
+      el.innerHTML = rows.map(r => `<tr data-id="${r.id}"><td>${day(r.created_at)} ${new Date(r.created_at).toTimeString().slice(0, 5)}</td><td>${ui.esc(ui.nameOf(r.game_id))}</td><td><b>${ui.esc(r.q_nick)}</b> ${r.q_user ? `<span class="small">@${ui.esc(r.q_user)}</span>` : r.quitter ? '' : '<span class="small">(손님)</span>'}</td><td class="c">${r.kind === 'resign' ? '<span class="res lose">기권</span>' : '<span class="res quit">나감</span>'}</td><td class="n">${(+r.sec).toFixed(1)}초</td><td>${ui.esc(r.r_nick)} <span class="small">@${ui.esc(r.r_user || '')}</span></td><td><button class="link" type="button" data-del>지우기</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">무단 이탈 기록이 없어요.</td></tr>';
+      el.addEventListener('click', async e => {
+        const del = e.target.closest('[data-del]'); if (!del) return;
+        const tr = del.closest('tr'), id = isNaN(+tr.dataset.id) ? tr.dataset.id : +tr.dataset.id;
+        if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = '정말 지울까요?'; return; }
+        try { await Hub.adminDeleteQuit(id); tr.remove(); } catch (err) { ui.toast(err.message); }
+      });
+      $('#csvQuits').addEventListener('click', () => csv('무단이탈', ['시각', '게임', '나간 사람', '아이디', '방법', '시작 후(초)', '남긴 사람', '남긴 사람 아이디'], rows.map(r => [r.created_at, ui.nameOf(r.game_id), r.q_nick, r.q_user, r.kind === 'resign' ? '기권' : '나감', r.sec, r.r_nick, r.r_user])));
     }
 
     show();

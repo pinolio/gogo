@@ -346,7 +346,7 @@
         const cnt = [0, 0], half = roomSize / 2;
         const ros = hum.map((p, i) => {   // 2:2 = 각자 고른 편 (넘치면 다른 편으로) · 1:1 = 방장 청군, 상대 홍군
           let t = roomSize === 2 ? i % 2 : (p.team === 0 || p.team === 1 ? p.team : (cnt[0] <= cnt[1] ? 0 : 1)); if (cnt[t] >= half) t = 1 - t; cnt[t]++;
-          return { id: p.id, nick: String(p.nick || '').slice(0, 12), lv: +p.lv || 1, av: p.av, stat: p.stat || {}, skills: p.skills, team: t };
+          return { id: p.id, uid: p.uid || null, nick: String(p.nick || '').slice(0, 12), lv: +p.lv || 1, av: p.av, stat: p.stat || {}, skills: p.skills, team: t };
         });
         const lv = Math.round(ros.reduce((a, r) => a + r.lv, 0) / ros.length), used = []; let k = 0;
         [0, 1].forEach(t => { while (cnt[t] < half) { cnt[t]++; ros.push(Object.assign(cpuEntry(++k, t, lv, 'normal', '(컴퓨터)', false, used), { owner: Hub.clientId })); } });
@@ -460,7 +460,7 @@
         const teamIdx = {}, units = ros.map(r => {
           const isMe = r === myR, F = isMe ? fighter(LV, S.stat) : fighter(r.lv, r.stat), k = teamIdx[r.team] = (teamIdx[r.team] || 0) + 1, inTeam = ros.filter(q => q.team === r.team).length;
           const x = inTeam > 1 ? (k === 1 ? -3 : 3) * (r.team ? -1 : 1) : 0, z = r.team ? -8 : 8;
-          const U = { id: r.id, me: isMe, cpu: !!r.cpu, owner: r.owner || '', team: r.team, nick: isMe ? nick() : String(r.nick || ''), lv: isMe ? LV : r.lv, skills: r.skills || ['fire', 'cold', 'bolt', 'earth'],
+          const U = { id: r.id, uid: r.uid || null, me: isMe, cpu: !!r.cpu, owner: r.owner || '', team: r.team, nick: isMe ? nick() : String(r.nick || ''), lv: isMe ? LV : r.lv, skills: r.skills || ['fire', 'cold', 'bolt', 'earth'],
             x, z, y: 0, vy: 0, tx: x, tz: z, px: x, pz: z, vx: 0, vz: 0, yaw: r.team ? Math.PI : 0, pitch: 0, hp: F.hp, mp: F.mp, F, cds: {}, slow: 0, burn: 0, dead: false,
             own: isMe || (!!r.cpu && (opt.cpu || opt.host)), ai: r.cpu ? { t: 1.5, move: 0, strafe: 1, D: DIFFS[r.diff] || DIFFS.normal } : null };
           U.mesh = (r.cpu && heroBody(U, r.hero)) || voxel(isMe ? av : r.av, r.cpu && r.team !== myTeam ? '#3A2050' : null); scene.add(U.mesh);
@@ -637,10 +637,20 @@
         };
         // 나간 사람(과 그 사람이 맡은 컴퓨터)은 쓰러진 것으로: 방 목록에서 빠지고 + 5초 넘게 소식이 없을 때 (잠깐 끊긴 것은 봐 줌)
         let here = null;
-        B.onPeers = list => { here = new Set(list.map(p => p.id)); };
+        B.onPeers = list => { here = new Set(list.map(p => p.id)); const now = performance.now(); units.forEach(u => { if (u.cpu || u.own) return; if (!here.has(u.id)) { if (!u.goneAt) u.goneAt = now; } else u.goneAt = 0; }); };
+        /* v68 무단 이탈: 대결 시작(카운트다운 끝) 5초(Hub.QUIT_SEC) 안에 사람이 나가면 이 판은 무효(승패·포인트 없음)
+         *  + 관리자만 보는 기록 한 줄 (남은 사람 중 맨 앞 회원의 화면이 남김) */
+        function earlyQuit(u) {
+          if (B.early || B.over) return; const sec = Math.max(0, ((u.goneAt || performance.now()) - (B.tStart || Infinity)) / 1000);
+          if (sec >= (Hub.QUIT_SEC || 5)) return;
+          B.early = { nick: u.nick, sec };
+          const rep = units.find(x => !x.cpu && x.id !== u.id && !x.goneAt && x.uid && (x.own || (here && here.has(x.id))));
+          if (rep && rep.own && Hub.user && Hub.logQuit) Hub.logQuit({ game_id: GAME, quitter: u.uid || null, quitter_nick: u.nick, kind: 'left', sec, extra: { code: myRoom, mode: modeName(opt.size) } });
+          flash(u.nick + ` 님이 ${Hub.QUIT_SEC || 5}초 안에 나가서 무효 판이에요`, 3);
+        }
         function checkLeft() {
           if (!B.net || !here || B.over) return; const now = performance.now();
-          units.forEach(u => { if (u.own || u.dead) return; const who = u.cpu ? u.owner : u.id; if (who && !here.has(who) && now - (u.lastMsg || B.t0) > 5000) { u.hp = 0; anyLeft.v = true; if (!u.cpu) flash(u.nick + ' 님이 나갔어요', 2); } });
+          units.forEach(u => { if (u.own || u.dead) return; const who = u.cpu ? u.owner : u.id; if (who && !here.has(who) && now - (u.lastMsg || B.t0) > 5000) { u.hp = 0; anyLeft.v = true; if (!u.cpu) { const was = B.early; earlyQuit(u); if (B.early === was) flash(u.nick + ' 님이 나갔어요', 2); } } });
         }
 
         /* --- 한 틱 --- */
@@ -652,7 +662,7 @@
           if (!alive || !body.isConnected) return;
           raf = requestAnimationFrame(tick);
           const dt = Math.min(0.05, (now - last) / 1000); last = now; B.t += dt;
-          if (!B.started) { const c0 = Math.ceil(countdown); countdown -= dt; const c1 = Math.ceil(countdown); if (c1 !== c0) flash(c1 > 0 ? String(c1) : '시작!'); if (countdown <= 0) B.started = true; }
+          if (!B.started) { const c0 = Math.ceil(countdown); countdown -= dt; const c1 = Math.ceil(countdown); if (c1 !== c0) flash(c1 > 0 ? String(c1) : '시작!'); if (countdown <= 0) { B.started = true; B.tStart = performance.now(); } }
           units.forEach(U => { U.px = U.x; U.pz = U.z; Object.keys(U.cds).forEach(k => { U.cds[k] -= dt; }); if (U.slow > 0) U.slow -= dt; if (U.burn > 0) { U.burn -= dt; if (U.own && !U.dead) U.hp = Math.max(0, U.hp - 3 * dt); } });
           if (B.started && !B.over) {
             // 내 움직임 (보는 방향 기준)
@@ -746,11 +756,12 @@
           if (B.over) return; B.over = true; if (document.pointerLockElement) document.exitPointerLock();
           units.forEach(u => { if (u.act && !u.dead && ally(u) === win) u.act('win'); });
           if (B.net) sendPos();
-          if (win) S.wins++; else S.losses++; saveRow(S);
-          const pts = win ? ((CFG.points && CFG.points.win) || 0) : 0;
-          if (Hub.user) { try { await Hub.submitScore({ game_id: GAME, score: S.wins, duration_sec: Math.round(B.t), result: win ? 'win' : 'lose', points_delta: pts, extra: { lv: LV, vs: opt.cpu ? 'cpu' : 'player', mode: modeName(opt.size) } }); } catch (e) { /* noop */ } }
+          const early = B.net && B.early;   // v68 무효 판: 승패·포인트·전적 없음
+          if (!early) { if (win) S.wins++; else S.losses++; saveRow(S); }
+          const pts = win && !early ? ((CFG.points && CFG.points.win) || 0) : 0;
+          if (Hub.user && !early) { try { await Hub.submitScore({ game_id: GAME, score: S.wins, duration_sec: Math.round(B.t), result: win ? 'win' : 'lose', points_delta: pts, extra: { lv: LV, vs: opt.cpu ? 'cpu' : 'player', mode: modeName(opt.size) } }); } catch (e) { /* noop */ } }
           const ov = document.createElement('div'); ov.className = 'sf-over';
-          ov.innerHTML = `<div class="sf-card"><h3 style="justify-content:center;font-size:34px">${opt.size === 4 ? TEAM[win ? me.team : 1 - me.team] + ' 승리!' + (win ? '' : ' (우리 편 패배…)') : (win ? '승리!' : '패배…')}</h3><p class="sub">${modeName(opt.size)} 대결 · ${anyLeft.v ? '나간 사람은 쓰러진 것으로 쳤어요. ' : ''}${S.wins}승 ${S.losses}패${win && pts && Hub.user ? ` · +${pts}P` : ''}</p><button type="button" class="sf-btn" data-again>${opt.cpu ? '다시 대결' : '대기방으로'}</button> <button type="button" class="sf-btn ghost" data-lobby>대기방</button></div>`;
+          ov.innerHTML = early ? `<div class="sf-card"><h3 style="justify-content:center;font-size:34px">무효 판</h3><p class="sub">${A.esc(early.nick || '상대')} 님이 시작 ${Hub.QUIT_SEC || 5}초 안에 나가서 승패·포인트 없이 끝났어요. 전적에 남지 않아요. · ${S.wins}승 ${S.losses}패</p><button type="button" class="sf-btn" data-again>대기방으로</button> <button type="button" class="sf-btn ghost" data-lobby>대기방</button></div>` : `<div class="sf-card"><h3 style="justify-content:center;font-size:34px">${opt.size === 4 ? TEAM[win ? me.team : 1 - me.team] + ' 승리!' + (win ? '' : ' (우리 편 패배…)') : (win ? '승리!' : '패배…')}</h3><p class="sub">${modeName(opt.size)} 대결 · ${anyLeft.v ? '나간 사람은 쓰러진 것으로 쳤어요. ' : ''}${S.wins}승 ${S.losses}패${win && pts && Hub.user ? ` · +${pts}P` : ''}</p><button type="button" class="sf-btn" data-again>${opt.cpu ? '다시 대결' : '대기방으로'}</button> <button type="button" class="sf-btn ghost" data-lobby>대기방</button></div>`;
           stage.querySelector('.sf-hud').appendChild(ov);
           ov.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const again = 'again' in b.dataset && opt.cpu; stop(); if (again) startCpu(opt.diff); });
         }

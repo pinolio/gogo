@@ -537,7 +537,7 @@
     if (cfg.unlockFree) loadBeaten(id);
     if (cfg.players) { session.players = 2; try { const n = +localStorage.getItem('gogo_players_' + id); if (cfg.players.includes(n)) session.players = n; } catch (e) { /* noop */ } }
     if (cfg.subModes) { session.sub = cfg.subModes[0][0]; try { const v = localStorage.getItem('gogo_sub_' + id); if (cfg.subModes.some(m => m[0] === v)) session.sub = v; } catch (e) { /* noop */ } }   // v49: 둘이서·온라인의 '방식' (예: 닷지 협동/대결)
-    session.inst = window.GoGames[id].create($('#gameCanvas'), hooks);
+    session.inst = window.GoGames[id].create($('#gameCanvas'), hooks); session.hooks = hooks;
     renderOverlay(); refreshGameRank(); renderBoardCard();
     const musicBtn = $('#btnMusic');
     const syncMusic = () => { if (!musicBtn.isConnected) return; musicBtn.hidden = !BGM.ready; musicBtn.textContent = BGM.isMuted() ? '♪ 음악 켜기' : '♪ 음악 끄기'; };
@@ -556,7 +556,9 @@
         resignTimer = setTimeout(() => { if (rb.isConnected) { rb.classList.remove('btn-danger'); rb.textContent = cfg.resignLabel || '기권'; } }, 3000);
         return;
       }
-      clearTimeout(resignTimer); session.inst.press('resign');
+      clearTimeout(resignTimer);
+      if (session.mode === 'online' && session.net && !cfg.netRoom) netEarly(session, { id: Hub.clientId, nick: netNick(), uid: Hub.user ? Hub.user.id : null }, 'resign');   // v68 5초 안에 기권 → 무효
+      session.inst.press('resign');
     });
     cleanups.push(() => clearTimeout(resignTimer));
     $('#btnRestart').addEventListener('click', () => { cleanup(); renderPlay(id); });
@@ -615,9 +617,9 @@
     n.peers = list.filter(p => p && p.id).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
     n.hostId = n.peers.length ? n.peers[0].id : Hub.clientId;
     // 대국 중 상대가 나가면 내 승리
-    if (s.state === 'playing' && n.oppId && !n.peers.some(p => p.id === n.oppId)) { toast('상대가 나갔어요.'); s.inst.remote({ resign: 1, left: 1 }); }
+    if (s.state === 'playing' && n.oppId && !n.peers.some(p => p.id === n.oppId)) { if (!netEarly(s, n.opp || { id: n.oppId, nick: n.oppNick }, 'left')) toast('상대가 나갔어요.'); s.inst.remote({ resign: 1, left: 1 }); }
     if (n.roster && s.state === 'playing') n.roster.forEach(r => {
-      if (r.id !== Hub.clientId && !r.gone && !n.peers.some(p => p.id === r.id)) { r.gone = true; toast(r.nick + ' 님이 나갔어요.'); s.inst.remote({ left: r.id, wasHost: r.id === n.roster[0].id }); }
+      if (r.id !== Hub.clientId && !r.gone && !n.peers.some(p => p.id === r.id)) { r.gone = true; if (!netEarly(s, r, 'left')) toast(r.nick + ' 님이 나갔어요.'); s.inst.remote({ left: r.id, wasHost: r.id === n.roster[0].id }); }
     });
     netAdvertise();
     if (s.state !== 'playing') renderOverlay();
@@ -625,14 +627,38 @@
   function netMsg(s, m) {
     if (!m || session !== s || !s.net) return;
     if (m.t === 'start') { if (m.roster) netStartRoom(m); else netStart(m.hostSide); }
-    else if (m.t === 'mv' && s.state === 'playing') s.inst.remote(m.m);
+    else if (m.t === 'mv' && s.state === 'playing') {
+      if (m.m && m.m.resign && !m.m.left && s.net.oppId && !(SET.get(s.id) || {}).netRoom) netEarly(s, s.net.opp || { id: s.net.oppId, nick: s.net.oppNick }, 'resign');   // v68 상대가 5초 안에 기권
+      s.inst.remote(m.m);
+    }
+  }
+  /* v68 무단 이탈: 온라인 대결 시작 5초(Hub.QUIT_SEC) 안에 누가 나가거나(창 닫기·방 나가기) 기권하면 → 그 판은 무효(승패·무승부·포인트 없음)
+   *  + 관리자만 보는 '무단 이탈' 기록 한 줄. 남은 사람 중 맨 앞 사람(회원) 화면이 남김. 내가 기권했는데 상대가 모두 손님이면 내 화면이 남김 */
+  function netEarly(s, who, kind) {
+    const n = s && s.net; if (!n || n.early || !n.startAt || s.state !== 'playing' || !who) return false;
+    const ms = Date.now() - n.startAt; if (ms >= (Hub.QUIT_SEC || 5) * 1000) return false;
+    const me = who.id === Hub.clientId, e = n.early = { id: who.id, nick: who.nick || '', uid: who.uid || null, kind, sec: ms / 1000, me };
+    const humans = n.roster ? n.roster.map(r => ({ id: r.id, uid: r.uid || null })) : [{ id: Hub.clientId, uid: Hub.user ? Hub.user.id : null }, { id: n.oppId, uid: n.opp ? n.opp.uid || null : null }];
+    const stay = humans.filter(h => h.id !== who.id && !(n.roster || []).some(r => r.id === h.id && r.gone && r.id !== who.id));
+    const reporter = me ? (stay.some(h => h.uid) ? null : Hub.clientId) : (stay.find(h => h.uid) || {}).id;
+    if (reporter === Hub.clientId && Hub.user && Hub.logQuit) Hub.logQuit({ game_id: s.id, quitter: e.uid, quitter_nick: e.nick, kind, sec: e.sec, extra: { code: n.code, players: humans.length, mode: n.roster ? 'room' : 'pair' } });
+    toast(me ? `시작 ${Hub.QUIT_SEC || 5}초 안에 기권해서 이 판은 무효예요.` : `${who.nick || '상대'} 님이 ${Hub.QUIT_SEC || 5}초 안에 ${kind === 'resign' ? '기권해' : '나가'}서 이 판은 무효예요. (승패·포인트 없음)`);
+    // room 방식(배구·격투 등): 남은 사람이 나 혼자면 컴퓨터와 계속하지 않고 바로 '무효 판'으로 끝냄
+    if (n.roster && !me && n.roster.every(r => r.id === Hub.clientId || r.gone || r.id === who.id) && s.hooks) setTimeout(() => {
+      if (session !== s || s.state !== 'playing' || !s.net || s.net.early !== e) return;
+      try { s.inst.destroy(); } catch (er) { /* noop */ }
+      s.inst = window.GoGames[s.id].create($('#gameCanvas'), s.hooks);
+      finishBoard({ winner: -1, duration_sec: Math.round(e.sec), message: '' });
+    }, 0);
+    return true;
   }
   function netStart(hostSide) {
     const s = session, n = s.net; if (!n) return;
     const players = n.peers.slice(0, 2); if (!players.some(p => p.id === Hub.clientId)) return;
     n.side = n.hostId === Hub.clientId ? hostSide : 1 - hostSide;
     const opp = players.find(p => p.id !== Hub.clientId) || {};
-    n.oppId = opp.id || null; n.oppNick = opp.nick || '상대';
+    n.oppId = opp.id || null; n.oppNick = opp.nick || '상대'; n.opp = opp.id ? { id: opp.id, nick: opp.nick || '상대', uid: opp.uid || null } : null;
+    n.startAt = Date.now(); n.early = null;   // v68
     s.result = null; s.save = null;
     s.inst.start({ mode: 'online', side: n.side, oppAvatar: opp.avatar || null, oppNick: n.oppNick }); BGM.restart();
     netAdvertise();
@@ -643,6 +669,7 @@
     const me = m.roster.findIndex(r => r.id === Hub.clientId); if (me < 0) return;
     n.roster = m.roster.map(r => ({ ...r })); n.side = null; n.oppId = null;
     n.oppNick = m.roster.filter(r => r.id !== Hub.clientId).map(r => r.nick).join(', ');
+    n.startAt = Date.now(); n.early = null;   // v68
     s.result = null; s.save = null;
     s.inst.start({ mode: 'online', players: m.players, sub: m.sub || null, seed: m.seed, roster: m.roster, me, host: m.roster[0].id === Hub.clientId, level: 'normal' }); BGM.restart();
     netAdvertise();
@@ -653,7 +680,7 @@
     if (cfg.netRoom) {
       const np = session.players || 2, humans = n.peers.slice(0, netMax());
       if (humans.length > np) { toast('사람이 ' + humans.length + '명이에요. 인원을 ' + humans.length + ' 이상으로 골라 주세요.'); return; }
-      const m = { t: 'start', seed: (Math.random() * 2147483647) | 0, players: np, sub: session.sub || null, roster: humans.map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar || null })) };
+      const m = { t: 'start', seed: (Math.random() * 2147483647) | 0, players: np, sub: session.sub || null, roster: humans.map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar || null, uid: p.uid || null })) };
       n.ch.send(m); netStartRoom(m); return;
     }
     const hostSide = n.round++ % 2;
@@ -734,6 +761,7 @@
         else if (s.status === 'saved' && s.queued) note = '<p class="ov-note">지금은 오프라인이에요. 연결되면 자동으로 저장돼요.</p>';
         else if (s.status === 'saved') note = `<p class="ov-note ${s.gained > 0 ? 'ok' : ''}">${pointText(s.gained, s.delta)} · 전적에 저장했어요</p>`;
         else if (s.status === 'error') note = `<p class="ov-note bad">${esc(s.msg)}</p>`;
+        else if (s.status === 'void') note = '<p class="ov-note">승리·패배·무승부와 포인트 없이 끝났어요. 전적에 남지 않아요.</p>';
         else if (s.status === 'guest') note = `<p class="ov-note">로그인하면 이 기록과 포인트(${r.points_delta > 0 ? '+' : ''}${r.points_delta || 0}P)가 남아요.</p><button class="btn btn-primary" type="button" data-ov="save">로그인하고 기록 저장</button>`;
       } else if (s.status === 'saved') note = `<p class="ov-note">${((r.extra || {}).players || 2) > 2 ? (r.extra || {}).players + '명이' : '둘이서'} 한 판 · 전적에 기록했어요</p>`;
       const ex = r.extra || {}, multi = (ex.players || 2) > 2 && !cfg.teamLabels;
@@ -822,15 +850,18 @@
     } else if (ai && res.winner === 0) { result = 'win'; delta = SET.pointsFor(session.id, true).delta; score = (cfg.levelScore || {})[session.level] || 100; }
     else if (ai && res.winner === 1) { result = 'lose'; delta = SET.pointsFor(session.id, false).delta; }
     }
+    const early = online && session.net.early;   // v68 시작 5초 안에 누가 나가거나 기권 → 무효 (저장 안 함)
+    if (early) { result = null; delta = 0; score = 0; }
     session.result = {
       game_id: session.id, score, duration_sec: res.duration_sec || 0, result, points_delta: delta,
-      message: res.message, moves: res.moves, title: res.title,
+      message: early ? (early.me ? `시작 ${Hub.QUIT_SEC || 5}초 안에 기권해서 무효예요.` : `${early.nick || '상대'} 님이 시작 ${Hub.QUIT_SEC || 5}초 안에 ${early.kind === 'resign' ? '기권해' : '나가'}서 무효예요.`) : res.message,
+      moves: res.moves, title: early ? '무효 판' : res.title, void: !!early,
       extra: Object.assign({}, res.extra || {}, { mode: session.mode, level: ai ? session.level : null, winner: res.winner }, online ? { side: session.net.side } : {})
     };
-    session.save = { status: Hub.user ? 'saving' : (ai || online ? 'guest' : 'none') };
+    session.save = { status: early ? 'void' : Hub.user ? 'saving' : (ai || online ? 'guest' : 'none') };
     if (online) netAdvertise();
     renderOverlay();
-    if (Hub.user) saveResult();
+    if (Hub.user && !early) saveResult();
     if (ai && cfg.records && res.record) saveRecord(session.id, session.level, res);
     if (ai && cfg.unlockFree && res.winner === 0) {   // v63 이기면 다음 단계 열림
       const n = stepOf(session.level);
@@ -945,7 +976,7 @@
   async function saveResult() {
     const s = session; if (!s || !s.result) return;
     s.save = { status: 'saving' }; renderOverlay();
-    try { const { message, moves, title, ...rec } = s.result; const r = await Hub.submitScore(rec); s.save = { status: 'saved', ...r }; }
+    try { const { message, moves, title, void: _void, ...rec } = s.result; const r = await Hub.submitScore(rec); s.save = { status: 'saved', ...r }; }
     catch (e) { s.save = { status: 'error', msg: e.message }; }
     if (session === s) { renderOverlay(); refreshBest(); refreshGameRank(); if (s.board) renderBoardCard(); }
   }

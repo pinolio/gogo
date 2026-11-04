@@ -73,6 +73,15 @@
   }
   function optCount(rare, boss, legend) { if (legend) return 4; const r = Math.random(); let n = r < 0.45 ? 1 : r < 0.8 ? 2 : r < 0.95 ? 3 : 4; if (rare) n++; if (boss) n++; return Math.min(4, n); }
   const optTxt = o => `${OPTS[o[0]].name} ${o[1] > 0 ? '+' : '−'}${Math.abs(o[1])}%`;
+  /* v68 상점에 파는 값 (숫자는 data.js SELL): 장비 = (10 + 착용 레벨×3) × 등급 배수 + 강화에 쓴 골드의 30% · 그 밖의 물건 = 산 값의 40% */
+  const SELL = D.SELL;
+  const enhSpent = en => { let t = 0; for (let i = 0; i < (en || 0); i++) t += ENH.cost(i); return t; };
+  function sellPrice(id) {
+    const it = ITEMS[id]; if (!it) return 0;
+    if (!it.slot) return Math.max(1, Math.round((it.price || 0) * SELL.other));
+    const g = it.grade != null ? it.grade : gradeOf(it.base || it.id, it.op);
+    return Math.round((SELL.base + (it.req || 1) * SELL.perLv) * (SELL.grade[g] || 1) + enhSpent(it.en) * SELL.enh);
+  }
   function pruneGear(s) {   // 가방·장비 칸에 없는 장비 정보는 지움
     const used = {}; s.inv.forEach(x => { if (String(x.id).startsWith('g:')) used[x.id.slice(2)] = 1; }); Object.values(s.eq).forEach(id => { if (String(id).startsWith('g:')) used[id.slice(2)] = 1; });
     Object.keys(s.gear).forEach(u => { if (!used[u]) delete s.gear[u]; });
@@ -282,6 +291,24 @@
   .rg-cell:not(.empty):hover, .rg-eqs:hover { transform: translateY(-1px); filter: brightness(1.15); }
   .rg-detail { display: flex; gap: 10px; align-items: center; margin-top: 10px; background: #141A3C; border: 2px solid #0A0E24; border-radius: 10px; padding: 8px 10px; min-height: 60px; }
   .rg-detail.hint { display: block; color: #AEB7E0; font-size: 13px; line-height: 1.5; }
+  /* v68 팔기 · 쓰레기통 */
+  .rg-price { color: #FFD23F; }
+  .rg-mini.warn { background: #FF5A5F; color: #FFFFFF; }
+  .rg-row.ask { border-color: #FF5A5F; background: linear-gradient(180deg, #4A1E3A, #2A1430); }
+  .rg-sellall { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #1E3A6E; border: 2px solid #4C7DFF; border-radius: 10px; padding: 6px 10px; margin: 0 0 8px; font-size: 13px; }
+  .rg-sellall > span, .rg-sellall > b { flex: 1; min-width: 160px; }
+  .rg-tabs .rg-trash { margin-left: auto; background: #3A2A10; color: #FFD23F; border-color: #FFB020; }
+  .rg-tabs .rg-trash.on { background: #FF5A5F; color: #FFFFFF; border-color: #0A0E24; }
+  .rg-trashtip { margin: -4px 0 8px; padding: 5px 9px; background: #FFD23F; color: #1D2340; border-radius: 8px; font-size: 13px; font-weight: 700; }
+  .rg-grid.trashing .rg-cell:not(.empty) { cursor: crosshair; outline: 2px dashed #FF5A5F; outline-offset: -3px; }
+  .rg-warnbg { position: absolute; inset: 0; background: rgba(6, 8, 24, .72); display: grid; place-items: center; z-index: 5; padding: 12px; }
+  .rg-warn { width: min(360px, 100%); background: linear-gradient(180deg, #3A1630, #1A1030); border: 3px solid #FF5A5F; border-radius: 12px; padding: 14px; text-align: center; box-shadow: 0 6px 0 rgba(0,0,0,.4); }
+  .rg-warn .t { display: block; font-family: var(--f-display); font-size: 22px; color: #FFD23F; margin-bottom: 6px; }
+  .rg-warn img { width: 48px; height: 48px; image-rendering: pixelated; }
+  .rg-warn .nm { font-weight: 700; margin: 4px 0; }
+  .rg-warn p { margin: 4px 0; font-size: 13px; line-height: 1.5; }
+  .rg-warn .btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+  .rg-warn .btns .rg-mini { font-size: 15px; padding: 7px 14px; }
   .rg-detail .grow { flex: 1; min-width: 0; }
   .rg-detail .nm { display: block; font-size: 15px; } .rg-detail .nm.rare { color: #E0C8FF; } .rg-detail .nm small { color: #9AF0B0; font-size: 11px; }
   .rg-detail .ds { display: block; color: #AEB7E0; font-size: 12px; }
@@ -1298,6 +1325,7 @@
       let pane = null, paneArg = null, tab = {};
       function openPanel(kind, arg) {
         pane = kind; paneArg = arg || null; G.keys = {}; G.btnDown = {}; G.joy = null;
+        tab.trash = false; tab.trashAsk = null; tab.sellAsk = null; tab.sellAll = false;   // v68 창을 새로 열면 버리기·팔기 확인은 꺼짐
         G.paused = !(net && net.joined && kind !== 'help');   // 온라인이면 창을 열어도 세상은 계속 (다른 사람이 계속 움직임)
         if (kind === 'servers') { srvList = null; loadServers(); clearInterval(srvTimer); srvTimer = setInterval(() => { if (pane === 'servers') loadServers(); else clearInterval(srvTimer); }, 5000); }
         renderPanel(); panel.hidden = false;
@@ -1334,7 +1362,7 @@
           const cells = list.map(x => { const it = ITEMS[x.id], ok = !it.slot || S.lv >= it.req; return `<button type="button" class="rg-cell${sel === x.id ? ' sel' : ''}${it.rare ? ' rare' : ''}${ok ? '' : ' off'}" data-pick="${x.id}" style="${tierStyle(it)}" title="${it.name}"><img src="${P.itemImg(x.id)}" alt="${it.name}">${x.n > 1 ? `<span class="n">${x.n}</span>` : ''}${it.en ? `<span class="en">+${it.en}</span>` : ''}${it.grade ? `<span class="gd" style="--gd:${GRADE[it.grade].color}"></span>` : ''}${ok ? '' : `<span class="lk">Lv.${it.req}</span>`}</button>`; });
           const pad = f === 'all' ? 40 - list.length : (8 - list.length % 8) % 8 + (list.length ? 0 : 8);
           for (let i = 0; i < pad; i++) cells.push('<span class="rg-cell empty"></span>');
-          h += `<section class="rg-bag"><div class="rg-tabs">${[['all', '전체'], ['gear', '장비'], ['use', '물약·물건']].map(([k2, n]) => `<button type="button" data-filt="${k2}" aria-pressed="${f === k2}">${n}</button>`).join('')}</div><div class="rg-grid">${cells.join('')}</div>`;
+          h += `<section class="rg-bag"><div class="rg-tabs">${[['all', '전체'], ['gear', '장비'], ['use', '물약·물건']].map(([k2, n]) => `<button type="button" data-filt="${k2}" aria-pressed="${f === k2}">${n}</button>`).join('')}<button type="button" class="rg-trash${tab.trash ? ' on' : ''}" data-trash aria-pressed="${!!tab.trash}" title="쓰레기통: 누른 뒤 버릴 물건을 누르세요">🗑 ${tab.trash ? '버리기 켜짐 (끄기)' : '쓰레기통'}</button></div>${tab.trash ? '<p class="rg-trashtip">버릴 물건을 누르세요. 입고 있는 장비는 버릴 수 없어요.</p>' : ''}<div class="rg-grid${tab.trash ? ' trashing' : ''}">${cells.join('')}</div>`;
           // 고른 물건 자세히
           let it = null, id = null, worn = false;
           if (sel && sel.startsWith('eq:')) { id = S.eq[sel.slice(3)]; worn = true; } else if (sel && count(sel)) id = sel;
@@ -1344,8 +1372,11 @@
             const cmp = it.slot ? keys.filter(q => (it.st || {})[q] || (cur && (cur.st || {})[q])).map(q => { const v = (it.st || {})[q] || 0, d = v - ((cur && cur.st && cur.st[q]) || 0); return `<span>${nm[q]} <b>${v}</b>${!worn && d ? ` <em class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</span>`; }).join('') : '';
             const btn = worn ? `<button type="button" class="rg-mini ghost" data-unequip="${it.slot}">벗기</button>` : it.stack ? `<button type="button" class="rg-mini" data-use="${id}">쓰기</button>` : `<button type="button" class="rg-mini" data-equip="${id}" ${S.lv >= it.req ? '' : 'disabled'}>${S.lv >= it.req ? (cur ? '바꿔 입기' : '입기') : 'Lv.' + it.req + ' 필요'}</button>`;
             h += `<div class="rg-detail">${itemIcon(id)}<div class="grow"><b class="nm${it.rare ? ' rare' : ''}"${it.grade != null ? ` style="color:${GRADE[it.grade].color}"` : ''}>${it.name}${it.grade != null ? `<span class="rg-grade">${GRADE[it.grade].name}</span>` : ''}${worn ? ' <small>입는 중</small>' : ''}</b><span class="ds">${it.slot ? `${D.SLOT_NAME[it.slot]} · ${it.rare && !it.legend ? '정예 · ' : ''}Lv.${it.req} 이상 · 강화 +${it.en || 0}/${ENH.max}${cur ? ' · 지금: ' + cur.name : ''}` : it.desc + ' · 가진 수 ' + count(id)}</span>${cmp ? `<div class="cmp">${cmp}</div>` : ''}${optList(it)}</div>${btn}</div>`;
-          } else h += `<div class="rg-detail hint">칸을 누르면 자세히 보여요. 장비는 <b>입기</b>, 물약은 <b>쓰기</b>. 사냥터 몬스터가 장비를 떨어뜨려요 (보스는 꼭!)</div>`;
+          } else h += `<div class="rg-detail hint">칸을 누르면 자세히 보여요. 필요 없는 물건은 <b>🗑 쓰레기통</b>을 누른 뒤 고르면 버릴 수 있어요. 장비는 <b>입기</b>, 물약은 <b>쓰기</b>. 사냥터 몬스터가 장비를 떨어뜨려요 (보스는 꼭!)</div>`;
           h += '</section></div>';
+          const tq = tab.trashAsk && count(tab.trashAsk) ? tab.trashAsk : null;   // v68 버리기 경고
+          if (tq) { const it = ITEMS[tq], n = count(tq), gd = it.slot && it.grade != null ? GRADE[it.grade] : null;
+            h += `<div class="rg-warnbg"><div class="rg-warn" role="alertdialog" aria-label="아이템 버리기 경고"><b class="t">⚠ 정말 버릴까요?</b>${itemIcon(tq)}<p class="nm"${gd ? ` style="color:${gd.color}"` : ''}>${it.name}${n > 1 ? ' ×' + n : ''}${gd ? `<span class="rg-grade">${gd.name}</span>` : ''}</p><p>버린 물건은 <b>사라지고 되돌릴 수 없어요.</b>${it.slot ? ` 약방에 팔면 <b class="rg-price">${fmtN(sellPrice(tq))} G</b> 를 받을 수 있어요.` : ''}</p><div class="btns"><button type="button" class="rg-mini warn" data-trashdo="${tq}:1">${n > 1 ? '1개 버리기' : '버리기'}</button>${n > 1 ? `<button type="button" class="rg-mini warn" data-trashdo="${tq}:${n}">${n}개 모두 버리기</button>` : ''}<button type="button" class="rg-mini" data-trashno>취소</button></div></div></div>`; }
         } else if (k === 'skill') {
           h = head('마법', '기본 마법은 <b>1~4</b> 칸, 융합 마법은 <b>Q W E R</b> 칸에 넣어요. 같은 마법을 다른 칸에 넣으면 옮겨져요. 새 마법은 마을의 <b>도술 서원</b>에서 배워요.');
           h += `<div class="rg-slots">${[0, 1, 2, 3].map(i => { const sk = skill(S.slots[i]); return `<span class="rg-slot"><b>${i + 1}</b>${sk ? `<img class="rg-sk" src="${Fx.iconURL(sk)}" alt="">${sk.name}` : '<i>비어 있음</i>'}</span>`; }).join('')}</div>`;
@@ -1355,7 +1386,18 @@
           const ri = G.map.M.region, t = tab.potion || 'buy';
           h = head('약방', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 이 마을은 ${ri + 1}단계 포션까지 팔아요`) + npcBox() + tabs('potion', [['buy', '사기'], ['sell', '팔기']]);
           if (t === 'buy') h += `<ul class="rg-list">${D.POTIONS.filter(p => p.tier <= ri).map(p => `<li class="rg-row">${itemIcon(p.id)}<span class="grow"><span class="nm">${p.name} <small style="color:#AEB7E0">가진 수 ${count(p.id)}</small></span><span class="ds">${p.desc} · ${fmtN(p.price)} G</span></span><button type="button" class="rg-mini" data-buy="${p.id}:1" ${S.gold >= p.price ? '' : 'disabled'}>1개</button><button type="button" class="rg-mini" data-buy="${p.id}:10" ${S.gold >= p.price * 10 ? '' : 'disabled'}>10개</button></li>`).join('')}</ul>`;
-          else h += `<p class="sub">팔면 원래 값의 40%를 받아요. 입고 있는 장비는 팔 수 없어요.</p><ul class="rg-list">${S.inv.length ? S.inv.map(x => { const it = ITEMS[x.id], pr = Math.max(1, Math.round(it.price * 0.4)); return `<li class="rg-row">${itemIcon(x.id)}<span class="grow"><span class="nm">${it.name} ×${x.n}</span><span class="ds">1개 ${fmtN(pr)} G</span></span><button type="button" class="rg-mini" data-sell="${x.id}:1">1개</button>${x.n > 1 ? `<button type="button" class="rg-mini ghost" data-sell="${x.id}:${x.n}">모두</button>` : ''}</li>`; }).join('') : '<li class="rg-row">팔 물건이 없어요</li>'}</ul>`;
+          else {   // v68 팔기: 장비는 등급·레벨·강화로 값이 정해짐. 희귀 이상·강화한 장비는 한 번 더 묻기
+            const gear = S.inv.filter(x => ITEMS[x.id].slot).sort((a, b) => sellPrice(b.id) - sellPrice(a.id)), etc = S.inv.filter(x => !ITEMS[x.id].slot);
+            const plain = gear.filter(x => !ITEMS[x.id].en && (ITEMS[x.id].grade || 0) === 0), plainSum = plain.reduce((t, x) => t + sellPrice(x.id) * x.n, 0);
+            const ask = tab.sellAsk && count(tab.sellAsk) ? tab.sellAsk : null;
+            const row = x => { const it = ITEMS[x.id], pr = sellPrice(x.id), gd = it.slot && it.grade != null ? GRADE[it.grade] : null, careful = it.slot && (it.en || (it.grade || 0) >= 2);
+              return `<li class="rg-row${ask === x.id ? ' ask' : ''}">${itemIcon(x.id)}<span class="grow"><span class="nm"${gd ? ` style="color:${gd.color}"` : ''}>${it.name}${x.n > 1 ? ' ×' + x.n : ''}${gd ? `<span class="rg-grade">${gd.name}</span>` : ''}</span><span class="ds">${it.slot ? `${D.SLOT_NAME[it.slot]} · Lv.${it.req}${it.en ? ' · +' + it.en + ' 강화' : ''}${it.op && it.op.length ? ' · 옵션 ' + it.op.length + '개' : ''} · ` : ''}<b class="rg-price">${fmtN(pr)} G</b>${x.n > 1 ? ' (1개)' : ''}</span></span>${ask === x.id
+                ? `<button type="button" class="rg-mini warn" data-sell="${x.id}:1">정말 팔기</button><button type="button" class="rg-mini ghost" data-sellno>취소</button>`
+                : careful ? `<button type="button" class="rg-mini" data-sellask="${x.id}">팔기</button>` : `<button type="button" class="rg-mini" data-sell="${x.id}:1">${x.n > 1 ? '1개' : '팔기'}</button>${x.n > 1 ? `<button type="button" class="rg-mini ghost" data-sell="${x.id}:${x.n}">모두</button>` : ''}`}</li>`; };
+            h += `<p class="sub">장비 값 = (10 + 착용 레벨 × 3) × 등급 (일반 ×1 · 고급 ×1.5 · 희귀 ×2.2 · 영웅 ×3.2 · 전설 ×5) + 강화에 쓴 골드의 30%. 포션·주문서는 산 값의 40%. 입고 있는 장비는 팔 수 없어요.</p>`;
+            if (plain.length) h += `<div class="rg-sellall">${tab.sellAll ? `<b>강화 안 한 일반 장비 ${plain.length}개를 ${fmtN(plainSum)} G 에 모두 팔까요?</b><button type="button" class="rg-mini warn" data-sellall>모두 팔기</button><button type="button" class="rg-mini ghost" data-sellallno>취소</button>` : `<span>강화 안 한 <b>일반</b> 장비 ${plain.length}개 · ${fmtN(plainSum)} G</span><button type="button" class="rg-mini" data-sellallask>한꺼번에 팔기</button>`}</div>`;
+            h += `<ul class="rg-list">${S.inv.length ? gear.concat(etc).map(row).join('') : '<li class="rg-row">팔 물건이 없어요. 사냥터 몬스터가 장비를 떨어뜨려요</li>'}</ul>`;
+          }
         } else if (k === 'school') {
           const ri = G.map.M.region, t = tab.school || 'learn';
           h = head('도술 서원', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 마법 배우기 · 두 원소 섞기`) + npcBox() + tabs('school', [['learn', '마법 배우기'], ['fuse', '마법 융합']]);
@@ -1481,6 +1523,7 @@
           </ul><button type="button" class="btn btn-primary" data-x>모험 시작!</button>`;
         }
         panel.innerHTML = h;
+        if (k === 'inv' && tab.trashAsk) panel.scrollTop = 0;   // v68 버리기 경고가 보이게
       }
       function equipNow(id) {
         const it = ITEMS[id]; if (!it || !it.slot || S.lv < it.req || !takeItem(id)) return false;
@@ -1538,6 +1581,18 @@
         const d = b.dataset;
         if ('x' in d) { closePanel(); return; }
         if (d.tab) { const [k, v] = d.tab.split(':'); tab[k] = v; renderPanel(); return; }
+        if ('trash' in d) { tab.trash = !tab.trash; tab.trashAsk = null; renderPanel(); return; }
+        if ('trashno' in d) { tab.trashAsk = null; tab.trash = false; renderPanel(); return; }
+        if (d.trashdo) {   // v68 쓰레기통: 경고에서 '버리기'를 눌렀을 때만 지움
+          const cut = d.trashdo.lastIndexOf(':'), id = d.trashdo.slice(0, cut), n = +d.trashdo.slice(cut + 1);
+          if (G.trade) { say('거래 중에는 버릴 수 없어요', 2); }
+          else if (takeItem(id, n)) { const nm = ITEMS[id].name; markDirty(true); say(`${nm}${n > 1 ? ' ' + n + '개' : ''}를 버렸어요`, 2); if (!count(id) && tab.invSel === id) tab.invSel = null; }
+          tab.trashAsk = null; tab.trash = false; renderPanel(); return;
+        }
+        if (d.pick && tab.trash && pane === 'inv') {
+          if (d.pick.startsWith('eq:')) say('입고 있는 장비는 벗은 뒤에 버릴 수 있어요', 2.2); else if (count(d.pick)) tab.trashAsk = d.pick;
+          renderPanel(); return;
+        }
         if (d.pick) { tab.invSel = tab.invSel === d.pick && !d.pick.startsWith('eq:') && !ITEMS[d.pick].stack && S.lv >= ITEMS[d.pick].req ? (equipNow(d.pick), 'eq:' + ITEMS[d.pick].slot) : d.pick; renderPanel(); return; }   // 같은 장비를 한 번 더 누르면 입기
         if (d.filt) { tab.invF = d.filt; renderPanel(); return; }
         if (d.equip) { if (equipNow(d.equip)) tab.invSel = 'eq:' + ITEMS[d.equip].slot; }
@@ -1554,8 +1609,18 @@
         } else if (d.buy) {
           const [id, n] = d.buy.split(':'), it = ITEMS[id], cost = it.price * +n; if (S.gold < cost) return;
           if (addItem(id, +n)) { S.gold -= cost; markDirty(true); }
+        } else if (d.sellask) { tab.sellAsk = d.sellask; tab.sellAll = false; }
+        else if ('sellno' in d) { tab.sellAsk = null; }
+        else if ('sellallask' in d) { tab.sellAll = true; tab.sellAsk = null; }
+        else if ('sellallno' in d) { tab.sellAll = false; }
+        else if ('sellall' in d) {   // v68 강화 안 한 일반 장비 한꺼번에 팔기
+          if (G.trade) { say('거래 중에는 팔 수 없어요', 2); return; }
+          let got = 0, n = 0; S.inv.filter(x => ITEMS[x.id].slot && !ITEMS[x.id].en && (ITEMS[x.id].grade || 0) === 0).forEach(x => { const pr = sellPrice(x.id), k = x.n; if (takeItem(x.id, k)) { got += pr * k; n += k; } });
+          tab.sellAll = false; if (n) { S.gold += got; markDirty(true); say(`장비 ${n}개를 팔아 ${fmtN(got)} G 받았어요`, 2.4); }
         } else if (d.sell) {
-          const [id, n] = d.sell.split(':'), it = ITEMS[id]; if (takeItem(id, +n)) { S.gold += Math.max(1, Math.round(it.price * 0.4)) * +n; markDirty(true); }
+          if (G.trade) { say('거래 중에는 팔 수 없어요', 2); return; }
+          const cut = d.sell.lastIndexOf(':'), id = d.sell.slice(0, cut), n = d.sell.slice(cut + 1), pr = sellPrice(id);   // 장비 id 'g:번호' 에도 ':' 가 있어 마지막 ':' 로 나눔
+          if (pr > 0 && takeItem(id, +n)) { S.gold += pr * +n; markDirty(true); say(`${fmtN(pr * +n)} G 받았어요`, 1.6); } tab.sellAsk = null;
         } else if (d.learn) {
           const s = SKILLS[d.learn]; if (S.lv < s.lv || S.gold < s.price || S.skills.includes(s.id)) return;
           S.gold -= s.price; S.skills.push(s.id); const free = S.slots.indexOf(null); if (free >= 0) S.slots[free] = s.id;
@@ -1705,7 +1770,7 @@
         else if (Hub.user) { G.srvAsked = true; openPanel('servers'); }
         loadRank();
         if (Hub.user) Hub.myBest(GAME).then(b => { if ((b || 0) < S.lv) submitRank(); }).catch(() => {});
-        window.__rpg = { net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane };   // 점검(테스트)용
+        window.__rpg = { net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, mkGear: (b, en, op) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
       })();
       raf = requestAnimationFrame(loop);
       BGM.play();

@@ -1178,3 +1178,7 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
   .board-play .cabinet.steps .ov-board { gap: 6px; }
   .board-play .cabinet.steps .ov-title { font-size: 26px; line-height: 1.1; }
 }
+
+/* v68 관리자 '무단 이탈' 탭 */
+.res.quit { background: #FFE2B8; color: #8A4600; }
+.quit-n { color: var(--err); }

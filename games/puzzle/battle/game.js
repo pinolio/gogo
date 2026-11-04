@@ -244,7 +244,7 @@
       const here = new Set(room.peers.map(p => p.id));
       match.roster.forEach(r => {
         const gone = r.bot ? !here.has(r.owner) : !here.has(r.id);
-        if (gone && match.alive.has(r.id)) koLocal(r.id, true);
+        if (gone && match.alive.has(r.id)) { earlyQuit(r, here); koLocal(r.id, true); }
       });
     }
     if (isHost()) { broadcastRoom(); advertise(); }
@@ -313,7 +313,7 @@
       return;
     }
     const hostPeer = room.peers.find(p => p.id === room.hostId);
-    const members = room.peers.map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar })).concat(room.bots.map(b => ({ ...b, bot: !b.human })));
+    const members = room.peers.map(p => ({ id: p.id, uid: p.uid || null, nick: p.nick, avatar: p.avatar })).concat(room.bots.map(b => ({ ...b, bot: !b.human })));
     const team = room.mode === 'team';
     const list = team
       ? `<div class="teams">${['blue', 'red'].map(t => `<div class="team-col team-${t}"><div class="team-title">${TEAM_NAME[t]} 팀 <small>${members.filter(m => roomTeamOf(m.id) === t).length}명</small></div><ul class="players">${members.filter(m => roomTeamOf(m.id) === t).map(m => memberLi(m, host)).join('') || '<li class="empty">아직 없어요</li>'}</ul></div>`).join('')}</div>`
@@ -382,7 +382,7 @@
   function hostStart() {
     if (!isHost() || !canStart().ok) return;
     const seed = (Math.random() * 2147483647) | 0, mode = room.mode, team = id => (mode === 'team' ? roomTeamOf(id) : null);
-    const roster = room.peers.map(p => ({ id: p.id, nick: p.nick, team: team(p.id), avatar: p.avatar }))
+    const roster = room.peers.map(p => ({ id: p.id, uid: p.uid || null, nick: p.nick, team: team(p.id), avatar: p.avatar }))
       .concat(room.bots.map(b => ({ id: b.id, nick: b.nick, bot: !b.human, human: !!b.human, level: b.level, owner: b.owner, team: team(b.id), avatar: b.avatar })));
     room.ch.send({ t: 'start', seed, roster, mode });
     startMatch(seed, roster, mode);
@@ -477,6 +477,16 @@
     if (now || Date.now() - q.last >= BOARD_EVERY) { clearTimeout(q.timer); fire(); }
     else if (!q.timer) q.timer = setTimeout(fire, BOARD_EVERY - (Date.now() - q.last));
   }
+  /* v68 무단 이탈: 온라인 경기 시작 5초(Hub.QUIT_SEC, 카운트다운 포함) 안에 사람이 나가면 이 판은 무효(승패·포인트 없음)
+   *  + 관리자만 보는 기록 한 줄 (남은 사람 중 맨 앞 회원의 화면이 남김) */
+  function earlyQuit(r, here) {
+    if (!match || match.play !== 'online' || match.early || match.ended || r.bot || r.human || r.id === Hub.clientId) return;
+    const ms = match.t0 ? Date.now() - match.t0 : 0; if (ms >= (Hub.QUIT_SEC || 5) * 1000) return;
+    match.early = { nick: r.nick || '', sec: ms / 1000 };
+    const rep = match.roster.find(x => !x.bot && !x.human && x.id !== r.id && here.has(x.id) && x.uid);
+    if (rep && rep.id === Hub.clientId && Hub.user && Hub.logQuit) Hub.logQuit({ game_id: 'battle', quitter: r.uid || null, quitter_nick: r.nick, kind: 'left', sec: ms / 1000, extra: { code: room && room.code, players: match.n } });
+    A.toast(`${r.nick || '상대'} 님이 ${Hub.QUIT_SEC || 5}초 안에 나가서 이 판은 무효예요. (승패·포인트 없음)`);
+  }
   function ko(id) {
     if (!match || !match.alive.has(id)) return;
     room.ch.send({ t: 'ko', id });
@@ -540,6 +550,7 @@
     const eng = myEng(); const place = match.places[Hub.clientId];
     if (!eng || !place) return;
     if (match.play === 'rank') return saveRank(eng);
+    if (match.early) { match.saved = { status: 'void' }; return; }   // v68 무효 판: 저장 안 함
     const team = match.mode === 'team', win = team ? match.teamOf[Hub.clientId] === match.winTeam : place === 1;
     const res = { place, win, score: team ? (win ? 200 : 0) + eng.sent * 10 : battleScore(match.n, place, eng.sent), sent: eng.sent };
     // 포인트: settings.js — 상대가 모두 컴퓨터이거나 같은 기기(AI·오프라인)면 botsOnly 값 사용
@@ -617,7 +628,7 @@
     const step = () => {
       if (!match || !ov.isConnected) return;
       if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${hint()}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
-      else { ov.hidden = true; match.running = true; match.clock.start(); BGM.restart(); }
+      else { ov.hidden = true; match.running = true; match.t0 = Date.now(); match.clock.start(); BGM.restart(); }
     };
     step();
   }
@@ -714,6 +725,7 @@
     else if (s.status === 'saved') note = `<p class="ov-note ${s.gained > 0 ? 'ok' : ''}">${A.pointText(s.gained, s.delta)} · 랭킹에 저장했어요</p>`;
     else if (s.status === 'queued') note = '<p class="ov-note">오프라인이라 연결되면 저장돼요.</p>';
     else if (s.status === 'error') note = `<p class="ov-note bad">${esc(s.msg)}</p>`;
+    else if (s.status === 'void') note = '<p class="ov-note">시작 5초 안에 나간 사람이 있어서 무효 판이에요. 승패·포인트 없이 끝났어요.</p>';
     else if (s.status === 'guest') note = '<p class="ov-note">손님 플레이 · 로그인하면 랭킹에 올라가요</p>';
     ov.hidden = false;
     ov.innerHTML = `<div class="ov-box result">
@@ -740,11 +752,12 @@
     else if (s.status === 'saved') note = `<p class="ov-note ${s.gained > 0 ? 'ok' : ''}">${s.win ? '승리' : '패배'} ${A.pointText(s.gained, s.delta)} · 전적에 저장했어요</p>`;
     else if (s.status === 'queued') note = '<p class="ov-note">오프라인이라 연결되면 저장돼요.</p>';
     else if (s.status === 'error') note = `<p class="ov-note bad">${esc(s.msg)}</p>`;
+    else if (s.status === 'void') note = '<p class="ov-note">시작 5초 안에 나간 사람이 있어서 무효 판이에요. 승패·포인트 없이 끝났어요.</p>';
     else if (s.status === 'guest') note = `<p class="ov-note">손님 플레이 · ${s.score}점 (로그인하면 기록이 남아요)</p>`;
     ov.hidden = false;
     ov.innerHTML = `<div class="ov-box result">
       <canvas class="ov-avatar" data-avatar="${AV.attr(myAvatar())}" data-scale="3" aria-hidden="true"></canvas>
-      ${team
+      ${match.early ? '<div class="ov-title">무효 판</div>' : team
         ? `<div class="ov-title"><span class="t-${match.winTeam}">${TEAM_NAME[match.winTeam] || ''} 팀</span> 승리!</div><span class="ov-best">${won ? 'VICTORY' : 'DEFEAT'}</span>`
         : `<div class="ov-title">${myPlace === 1 ? '우승!' : myPlace + '위'}</div>${myPlace === 1 ? '<span class="ov-best">WINNER</span>' : ''}`}
       <ol class="result-list">${order.map(r => `<li class="${r.id === Hub.clientId ? 'mine' : ''}"><span class="num">${team ? `<i class="dot t-${r.team}"></i>` : match.places[r.id] || '-'}</span><span class="rl-name">${bust(r.avatar || AV.random(r.id), 1)}${esc(r.nick)}</span><span class="num">${sentOf(r)}</span></li>`).join('')}</ol>
