@@ -752,7 +752,7 @@
           ${cfg.subModes && session.mode !== 'ai' && (!inRoom || roomHost) ? `<div class="mode-row"><span class="mode-lbl">방식</span><div class="mode-btns">${cfg.subModes.map(([v, t]) => `<button class="btn ${session.sub === v ? 'btn-sun' : ''}" type="button" data-sub="${v}">${esc(t)}</button>`).join('')}</div></div>` : ''}
           ${cfg.players && (!inRoom || roomHost) ? `<div class="mode-row"><span class="mode-lbl">인원</span><div class="mode-btns">${cfg.players.map(n => `<button class="btn ${np === n ? 'btn-sun' : ''}" type="button" data-players="${n}">${esc(playersLabel(cfg, n))}</button>`).join('')}</div></div>` : ''}
         </div>
-        ${session.mode === 'online' ? netPanelHTML(cfg) : `<button class="btn btn-primary" type="button" data-ov="start">${session.mode === 'local' ? (np > 2 ? np + '명' : '둘이서') + (cfg.subModes ? ' · ' + esc(subName(session.sub).split(' ')[0]) : '') : lvName(session.level) + (np > 2 ? ' · ' + np + '명' : '')} 시작 ▶</button>`}
+        ${session.mode === 'online' ? netPanelHTML(cfg) : `<button class="btn btn-primary" type="button" data-ov="start">${cfg.startLabel ? (session.mode === 'local' ? (np > 2 ? np + '명' : '둘이서') : '') : session.mode === 'local' ? (np > 2 ? np + '명' : '둘이서') + (cfg.subModes ? ' · ' + esc(subName(session.sub).split(' ')[0]) : '') : lvName(session.level) + (np > 2 ? ' · ' + np + '명' : '')} 시작 ▶</button>`}
         <p class="ov-note">${cfg.noteText ? cfg.noteText(session.mode) : session.mode === 'local' ? '포인트 없이 기록만 남아요' : session.mode === 'online' ? `온라인 승리 +${cfg.points.win}P / 패배 ${cfg.points.lose}P` : rankPointText(cfg, np)}${Hub.user ? '' : ' · 손님 플레이'}</p></div>`;
     } else if (st === 'over') {
       const r = session.result || {}, s = session.save || {};

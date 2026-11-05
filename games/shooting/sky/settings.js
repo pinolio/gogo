@@ -16,6 +16,8 @@ GoSettings.register({
   scoreRank: true,                     // 랭킹 = 내 최고 점수 (이긴 난이도가 아님)
   w: 480, ar: 480 / 640,               // 세로 화면
   aiLabel: '혼자', onlineBtn: '다른 기기 친구와 협동', resignLabel: '그만하기',
+  // v74 선생님: 난이도 쉬움·보통·어려움 없애고 '어려움' 하나만, 난이도 표시 없이 [시작 ▶] 으로 바로 (둘이서·온라인도 어려움)
+  aiLevels: ['hard'], levelNames: { hard: '혼자 하기' }, onlyLevel: 'hard', startLabel: true,   // startLabel: 시작 버튼을 난이도 이름 없이 '시작 ▶'
   rankSub: '최고 점수 TOP 10',
   sides: '혼자 또는 둘이서 협동',
   vsText: '스테이지 10개 · 보스 10마리',

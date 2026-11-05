@@ -833,7 +833,7 @@
       return {
         get state() { return phase === 'over' ? 'over' : phase === 'idle' ? 'ready' : 'playing'; },
         start(o) {
-          o = o || {}; mode = o.mode || 'ai'; level = mode === 'ai' ? (o.level || 'normal') : 'normal';
+          o = o || {}; mode = o.mode || 'ai'; level = C().onlyLevel || (mode === 'ai' ? (o.level || 'normal') : 'normal');   // v74 난이도 하나(어려움)면 모든 방식에 그대로
           net = null; P = []; E = []; B = []; SHOT = []; IT = []; FX = []; BOMBFX = []; boss = null; msg = null;
           stage = 1; cleared = 0; scroll = 0; nextId = 1; bombClear = 0; over = false; gameT = 0; acc = 0; pendingBooms.length = 0;
           const meName = S.myName();
