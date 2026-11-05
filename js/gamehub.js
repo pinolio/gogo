@@ -226,19 +226,20 @@
         const d = db(), best = {};
         d.records.forEach(r => {
           if (r.game_id !== game) return;
-          const x = best[r.user_id] || (best[r.user_id] = { user_id: r.user_id, best_score: 0, plays: 0 });
-          x.best_score = Math.max(x.best_score, r.score); x.plays++;
+          const x = best[r.user_id] || (best[r.user_id] = { user_id: r.user_id, best_score: -Infinity, plays: 0, best_at: null });
+          if (r.score > x.best_score || (r.score === x.best_score && r.played_at < x.best_at)) { x.best_score = r.score; x.best_at = r.played_at; }
+          x.plays++;
         });
         return Object.values(best)
           .map(x => { const u = d.users[x.user_id] || {}; return { ...x, nickname: u.nickname || '?', avatar: u.avatar, sample: !!u.sample }; })
-          .sort((a, b) => b.best_score - a.best_score).slice(0, limit || 10);
+          .sort((a, b) => b.best_score - a.best_score || (a.best_at < b.best_at ? -1 : a.best_at > b.best_at ? 1 : 0)).slice(0, limit || 10);
       },
       // v75: 이번 시즌(since 이후) 기록 — wins 면 승리 기록만
       async seasonRows(game, since, wins) {
         const d = db(), t = new Date(since).getTime();
         return d.records.filter(r => r.game_id === game && new Date(r.played_at).getTime() >= t && (!wins || r.result === 'win'))
-          .map(r => ({ user_id: r.user_id, score: r.score, nickname: (d.users[r.user_id] || {}).nickname || '?' }))
-          .sort((a, b) => b.score - a.score).slice(0, wins ? 5000 : 1);
+          .map(r => ({ user_id: r.user_id, score: r.score, played_at: r.played_at, nickname: (d.users[r.user_id] || {}).nickname || '?' }))
+          .sort((a, b) => b.score - a.score || (a.played_at < b.played_at ? -1 : 1)).slice(0, wins ? 5000 : 1);
       },
       async pointRanking(limit) {
         return Object.values(db().users).map(u => ({ user_id: u.id, nickname: u.nickname, earned: u.earned || 0, avatar: u.avatar, sample: !!u.sample }))
@@ -425,6 +426,7 @@
   function Online() {
     const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
     let seasonOff = false;   // v75 시즌 표가 없으면 다시 묻지 않음
+    let lbAt = true;         // v76 leaderboard.best_at 있음
     Hub._sb = sb;
     const email = id => id + '@' + (cfg.idDomain || 'gogogogo.game');
     const PKEY = 'gogogogo.profile', QKEY = 'gogogogo.pending';
@@ -545,14 +547,21 @@
         return summarize(data);
       },
       async leaderboard(game, limit) {
+        // v76: 같은 점수면 그 점수를 먼저 낸 사람이 위 (best_at, supabase/rank_v76.sql). 아직 SQL 전이면 예전 정렬
+        if (lbAt) {
+          const r = await sb.from('leaderboard').select('user_id,nickname,best_score,plays,avatar,best_at').eq('game_id', game).order('best_score', { ascending: false }).order('best_at', { ascending: true }).limit(limit || 10);
+          if (!r.error) return r.data;
+          if (!/best_at|column/i.test(r.error.message || '')) throw r.error;
+          lbAt = false;
+        }
         const { data, error } = await sb.from('leaderboard').select('user_id,nickname,best_score,plays,avatar').eq('game_id', game).order('best_score', { ascending: false }).limit(limit || 10);
         if (error) throw error;
         return data;
       },
       // v75: 이번 시즌(since 이후) 기록 — 점수 1등 한 줄, wins 면 승리 기록 전부(최대 5000)
       async seasonRows(game, since, wins) {
-        let q = sb.from('play_records').select('user_id,score').eq('game_id', game).gte('played_at', since);
-        q = wins ? q.eq('result', 'win').limit(5000) : q.order('score', { ascending: false }).limit(1);
+        let q = sb.from('play_records').select('user_id,score,played_at').eq('game_id', game).gte('played_at', since);
+        q = wins ? q.eq('result', 'win').order('played_at', { ascending: true }).limit(5000) : q.order('score', { ascending: false }).order('played_at', { ascending: true }).limit(1);   // v76 같은 점수면 먼저 낸 사람
         const { data, error } = await q;
         if (error) throw error;
         const rows = data || [], ids = [...new Set(rows.map(r => r.user_id))];
@@ -562,7 +571,7 @@
           const { data: ps } = await sb.from('profiles').select('id,nickname').in('id', ids);
           (ps || []).forEach(p => { names[p.id] = p.nickname; });
         }
-        return rows.map(r => ({ user_id: r.user_id, score: r.score, nickname: names[r.user_id] || '?' }));
+        return rows.map(r => ({ user_id: r.user_id, score: r.score, played_at: r.played_at, nickname: names[r.user_id] || '?' }));
       },
       async nicknames(ids) {
         if (!ids.length) return {};
@@ -876,8 +885,10 @@
     const s = window.GoSettings && window.GoSettings.get(game), id = (s && s.rankId) || game, wins = !!(s && s.seasonWins);
     const rows = await this.seasonRows(id, this.season().start, wins);
     if (!wins) { const r = rows[0]; return r && r.score > 0 ? { nickname: r.nickname, score: r.score, user_id: r.user_id } : null; }
-    const cnt = {}; rows.forEach(r => { cnt[r.user_id] = (cnt[r.user_id] || 0) + 1; });
-    const best = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+    // 승리 수가 같으면 그 수에 먼저 닿은 사람 (마지막 승리 시각이 빠른 사람)
+    const cnt = {}, last = {};
+    rows.slice().sort((a, b) => (a.played_at < b.played_at ? -1 : 1)).forEach(r => { cnt[r.user_id] = (cnt[r.user_id] || 0) + 1; last[r.user_id] = r.played_at; });
+    const best = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || (last[a] < last[b] ? -1 : 1))[0];
     if (!best) return null;
     let nick = (rows.find(r => r.user_id === best) || {}).nickname;
     if ((!nick || nick === '?') && this.nicknames) nick = (await this.nicknames([best]))[best];

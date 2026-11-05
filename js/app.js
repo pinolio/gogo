@@ -278,7 +278,7 @@
         <div class="me">${avCanvas(u.avatar, 4, 'full', 'me-av', true)}
           <div><b>${esc(u.nickname)}</b><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span>${levelBlock(u)}</div></div>
         <div class="row"><a class="btn btn-sun" href="#shop">아바타 꾸미기</a><a class="btn" href="#my">내 전적</a></div>
-        <p class="small acct-links"><a class="btn btn-sm" href="#closet">옷장</a><button class="link" type="button" data-logout>로그아웃</button></p>`;
+        <p class="small acct-links"><a class="btn btn-sm btn-room" href="#closet" title="내 방 (지금은 옷 갈아입기)"><span>내 방</span><i class="room-spark" aria-hidden="true">✦</i></a><button class="link" type="button" data-logout>로그아웃</button></p>`;
       AV.paintAll(box);
     } else {
       box.innerHTML = `
@@ -1078,7 +1078,7 @@
         <div class="panel profile">
           ${avCanvas(u.avatar, 6, 'full', 'profile-av', true)}
           <div><h1>${esc(u.nickname)} <span class="lv">Lv.${L.level}</span></h1><div class="sub">@${esc(u.username)}</div>
-            <a class="btn btn-sun btn-sm" href="#shop" style="margin-top:10px">아바타 꾸미기</a> <a class="btn btn-sm" href="#closet" style="margin-top:10px">옷장</a></div>
+            <a class="btn btn-sun btn-sm" href="#shop" style="margin-top:10px">아바타 꾸미기</a> <a class="btn btn-sm btn-room" href="#closet" style="margin-top:10px"><span>내 방</span><i class="room-spark" aria-hidden="true">✦</i></a></div>
           ${levelBlock(u)}
         </div>
         <div class="tiles">
