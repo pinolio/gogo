@@ -53,6 +53,15 @@
   .gg-over b.big { display: block; font-size: 48px; }
   .gg-rules { width: min(560px, 100%); background: #E8F1FF; border: 2px solid #4C7DFF; border-radius: 12px; padding: 10px 14px; color: #1D2340; line-height: 1.7; }
   .gg-rules .gt { color: #138A3E; font-weight: 800; } .gg-rules .rt { color: #D6202A; font-weight: 800; }
+  /* v73 Meshy 그림으로 꾸미기 (둘째 키 18크레딧): 건널목 배경 · 칠판 틀 · 신호등 마스코트 */
+  .gg { background: url(img/test/gugu_bg.jpg) center top / 100% auto no-repeat, linear-gradient(180deg, #CFEFFF, #EAF7FF); border: 4px solid #1D2340; border-radius: 20px; padding: 16px 12px 18px; box-shadow: 0 5px 0 #1D2340; }
+  .gg-frame { background: url(img/test/gugu_board.jpg) center / 100% 100% no-repeat; border: 0; border-radius: 6px; box-shadow: 0 6px 0 rgba(29, 35, 64, .45); aspect-ratio: 1000 / 496; display: grid; place-items: center; padding: 6% 9%; }
+  .gg-frame .gg-q { text-shadow: 0 4px 0 rgba(0, 0, 0, .35); }
+  .gg-frame .gg-flash { inset: 9% 7%; }
+  .gg-log, .gg-pad button, .gg-form input { box-shadow: 0 3px 0 #1D2340; }
+  .gg-top span { box-shadow: 0 3px 0 rgba(10, 14, 36, .35); }
+  .gg-mascot { float: right; width: 96px; height: auto; image-rendering: pixelated; margin: -6px -4px 4px 8px; }
+  @media (max-width: 560px) { .gg-frame { aspect-ratio: auto; min-height: 150px; } .gg-mascot { width: 72px; } }
   @media (max-width: 560px) { .gg-light i { width: 40px; height: 40px; } .gg-pad button { padding: 10px 0; } }
   `;
   function css() { if (!document.getElementById('tgCss')) { const s = document.createElement('style'); s.id = 'tgCss'; s.textContent = CSS; document.head.appendChild(s); } }
@@ -76,7 +85,7 @@
       <div class="gg-pad" id="ggPad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-n="${n}">${n}</button>`).join('')}<button type="button" class="del" data-n="del">←</button><button type="button" data-n="0">0</button><button type="button" class="ok" data-n="ok">확인</button></div>
       <div class="gg-log" id="ggLog">녹색불이면 바른 답, 빨간불이면 자리를 바꾼 답!</div>
       </div>
-      <div class="gg-rules"><b>규칙</b><br>
+      <div class="gg-rules"><img class="gg-mascot" src="img/test/gugu_mascot.png" alt="신호등 마스코트"><b>규칙</b><br>
         <span class="gt">● 녹색불</span>: 바른 답을 적어요. 4 × 6 → <b>24</b><br>
         <span class="rt">● 빨간불</span>: 답의 <b>십의 자리와 일의 자리를 바꿔서</b> 적어요. 4 × 6 → 24 → <b>42</b> · 3 × 3 → 09 → <b>90</b> · 4 × 5 → 20 → 02 → <b>2</b><br>
         맞으면 <b>+1점</b>, 틀리면 <b>−1점</b> · ${GUGU.sec}초 동안 · Enter 또는 확인으로 내기</div>

@@ -103,7 +103,7 @@
     // v60 장비 하나하나 등록 → 가방·장비 확인 → 예전 기본 장비는 +0 장비로 바꿈 → 안 쓰는 정보 지움
     s.gear = s.gear && typeof s.gear === 'object' && !Array.isArray(s.gear) ? s.gear : {};
     Object.keys(s.gear).forEach(u => { const g = /^[a-z0-9]{4,16}$/.test(u) && validGear(s.gear[u]); if (g) { s.gear[u] = g; regGear(u, g); } else delete s.gear[u]; });
-    s.inv = (Array.isArray(s.inv) ? s.inv : []).filter(x => x && ITEMS[x.id] && x.n > 0).slice(0, 60);
+    s.inv = (Array.isArray(s.inv) ? s.inv : []).filter(x => x && ITEMS[x.id] && x.n > 0).slice(0, 120);   // v73 가방 늘리기(최대 80칸) 때문에 60 → 120 (예전엔 61칸째부터 불러올 때 사라질 뻔)
     if (!s.eq || typeof s.eq !== 'object') s.eq = {};
     Object.keys(s.eq).forEach(k => { if (!ITEMS[s.eq[k]] || ITEMS[s.eq[k]].slot !== k) delete s.eq[k]; });
     const inst = b => { const u = newUid(); s.gear[u] = { b, en: 0, op: [] }; return regGear(u, s.gear[u]); };
@@ -388,6 +388,7 @@
   window.GoRPG = {
     render(el, A) {
       BGM.load(GAME);
+      const syncBgm = () => { const b = el.querySelector('#rgBgm'); if (b) b.textContent = BGM.isMuted() ? '♪ 음악 켜기' : '♪ 음악 끄기'; };   // v73
       if (!document.getElementById('rgCss')) { const st = document.createElement('style'); st.id = 'rgCss'; st.textContent = CSS; document.head.appendChild(st); }
       el.innerHTML = `
         <div class="rg-page">
@@ -407,6 +408,7 @@
               <button type="button" class="btn" data-rg="help">도움말</button>
               <button type="button" class="btn" data-rg="full">크게 보기</button>
               <a class="btn" href="#scfight" style="background:#9A5AE0;color:#fff">Skillcom Fight 대결</a>
+              <button type="button" class="btn" data-rg="bgm" id="rgBgm">♪ 음악 끄기</button>
               <button type="button" class="btn btn-sun" data-rg="save">지금 저장</button>
             </div>
             <div class="rg-side">
@@ -1569,7 +1571,7 @@
           const bag = S.inv.filter(x => count(x.id) - (T.mine.items[x.id] || 0) > 0);
           h += `<p class="sub" style="margin-top:10px">내 가방 — 눌러서 올리기 (입고 있는 장비는 못 올려요)</p><div class="rg-grid">${bag.map(x => { const left = x.n - (T.mine.items[x.id] || 0), it = ITEMS[x.id]; return `<button type="button" class="rg-cell${it.rare ? ' rare' : ''}" data-tradd="${x.id}" title="${it.name}"><img src="${P.itemImg(x.id)}" alt="${it.name}">${left > 1 ? `<span class="n">${left}</span>` : ''}</button>`; }).join('') || '<span class="rg-trempty">올릴 물건이 없어요</span>'}</div>`;
           const room = roomFor(T.theirs, T.mine);
-          h += `<div class="rg-srvact" style="align-items:center"><button type="button" class="rg-mini${T.myOk ? ' on' : ''}" data-trok ${room ? '' : 'disabled'}>${T.myOk ? '확인함 (다시 누르면 풀기)' : '확인'}</button><span class="sub" style="margin:0">${!room ? '가방이 모자라요 (40칸)' : T.myOk && T.theirOk ? '교환하는 중…' : T.myOk ? '상대가 확인하면 바뀌어요' : T.theirOk ? '상대는 확인했어요. 내용을 보고 확인을 눌러요' : '둘 다 확인을 누르면 바뀌어요'}</span></div>`;
+          h += `<div class="rg-srvact" style="align-items:center"><button type="button" class="rg-mini${T.myOk ? ' on' : ''}" data-trok ${room ? '' : 'disabled'}>${T.myOk ? '확인함 (다시 누르면 풀기)' : '확인'}</button><span class="sub" style="margin:0">${!room ? `가방이 모자라요 (${bagMax()}칸) — 약방에서 가방을 늘리거나 물건을 정리해요` : T.myOk && T.theirOk ? '교환하는 중…' : T.myOk ? '상대가 확인하면 바뀌어요' : T.theirOk ? '상대는 확인했어요. 내용을 보고 확인을 눌러요' : '둘 다 확인을 누르면 바뀌어요'}</span></div>`;
         } else if (k === 'stat') {   // v44 스탯 창: 왼쪽 캐릭터 · 오른쪽 힘·민첩·지혜·체력 올리기 · 아래 자세한 능력치
           const T = D.STAT, a = S.stat, PT = stats(true), used = T.keys.reduce((x, q) => x + a[q], 0), per = CFG.statPerLevel || 2;
           const av = Hub.user ? Hub.user.avatar : AV.normalize({}), fig = avatarSprite(av, S.eq, S.hide, 0).toDataURL(), ex = S.lv >= D.MAX_LV ? 100 : S.exp / D.F.need(S.lv) * 100;
@@ -1763,11 +1765,13 @@
         else if ('revive' in d) { G.dead = false; pane = null; panel.hidden = true; G.paused = false; restat(); S.hp = ST.hp; S.mp = ST.mp; enter(S.home, 'door'); return; }
         renderPanel();
       });
+      syncBgm();
       el.querySelector('.rg-bar').addEventListener('click', e => {
         const b = e.target.closest('[data-rg]'); if (!b || !S) return; b.blur();
         const k = b.dataset.rg;
         if (k === 'save') { save(true).then(ok => say(ok || !Store.online() ? '저장했어요' : '이 기기에 저장했어요 (서버 저장은 준비 중)')); return; }
         if (k === 'full') { toggleFull(); return; }
+        if (k === 'bgm') { BGM.toggleMute(); syncBgm(); return; }   // v73 학생 의견: BGM 끌 수 있게
         if (G.dead) return;
         if (pane === k) closePanel(); else openPanel(k);
       });
