@@ -44,6 +44,7 @@
   .gg-form input { flex: 1; min-width: 0; font-size: 34px; font-weight: 800; text-align: center; border: 4px solid #1D2340; border-radius: 14px; padding: 8px; color: #1D2340; background: #FFFFFF; }
   .gg-form button { font-size: 20px; }
   .gg-form #ggRe { font-size: 16px; background: #BDE8FF; color: #1D2340; white-space: nowrap; }
+  .gg-form #ggMusic { font-size: 15px; background: #E7D9FF; color: #1D2340; white-space: nowrap; }
   @media (max-width: 560px) { .gg-form #ggRe { font-size: 13px; padding: 6px 8px; } }
   .gg-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(360px, 100%); }
   .gg-pad button { font-size: 24px; font-weight: 800; padding: 12px 0; border-radius: 12px; border: 3px solid #1D2340; background: #FFFFFF; color: #1D2340; cursor: pointer; box-shadow: 0 3px 0 #1D2340; }
@@ -106,7 +107,7 @@
       <div class="gg-top"><span class="sc"><img src="img/test/gugu_ic_star.png" alt="">점수 <b id="ggScore">0</b></span><span><img src="img/test/gugu_ic_clock.png" alt="">남은 시간 <b id="ggTime">${GUGU.sec}</b>초</span><span><img src="img/test/gugu_ic_ok.png" alt="" onerror="this.remove()">맞힘 <b id="ggOk">0</b> · <img src="img/test/gugu_ic_no.png" alt="" onerror="this.remove()">틀림 <b id="ggNo">0</b></span><span><img src="img/test/gugu_ic_crown.png" alt="" onerror="this.remove()">최고 <b id="ggBest">${best}</b></span></div>
       <div class="gg-light" id="ggLight" aria-label="신호등"><i class="r"></i><i class="g"></i></div>
       <div class="gg-frame"><div class="gg-q" id="ggQ">? <span class="x">×</span> ?</div><div class="gg-hint" id="ggHint">시작을 누르세요</div><div class="gg-flash" id="ggFlash" hidden></div><img class="gg-react" id="ggReact" src="img/test/gugu_happy.png" alt=""></div>
-      <form class="gg-form" id="ggForm" autocomplete="off"><input id="ggIn" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="답" aria-label="답 입력" disabled><button class="btn btn-sun" type="submit" id="ggGo">시작 ▶</button><button class="btn" type="button" id="ggRe" title="처음부터 다시">↻ 다시 하기</button></form>
+      <form class="gg-form" id="ggForm" autocomplete="off"><input id="ggIn" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="답" aria-label="답 입력" disabled><button class="btn btn-sun" type="submit" id="ggGo">시작 ▶</button><button class="btn" type="button" id="ggRe" title="처음부터 다시">↻ 다시 하기</button><button class="btn" type="button" id="ggMusic" title="배경음악 켜기·끄기" hidden>♪</button></form>
       <div class="gg-pad" id="ggPad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-n="${n}">${n}</button>`).join('')}<button type="button" class="del" data-n="del">←</button><button type="button" data-n="0">0</button><button type="button" class="ok" data-n="ok">확인</button></div>
       <div class="gg-log" id="ggLog">녹색불이면 바른 답, 빨간불이면 자리를 바꾼 답!</div>
       </div>
@@ -125,6 +126,13 @@
       const h = $('#ggHint', el); h.className = 'gg-hint'; h.textContent = '';   // v70 선생님: 문제 아래 녹색·빨강 안내는 지움 (신호등만 보고 판단)
       inp.value = ''; inp.focus({ preventScroll: true });
     }
+    // v78 배경음악: 블록 대전과 같은 곡 (games/puzzle/battle/bgm/bgm.mp3, 「Block Rush」) — 시작하면 처음부터, 끝나면 멈춤
+    const BGM = window.GoBGM;
+    if (BGM) BGM.load('battle');
+    const mBtn = $('#ggMusic', el);
+    const syncM = () => { if (!mBtn.isConnected || !BGM) return; mBtn.hidden = !BGM.ready; mBtn.textContent = BGM.isMuted() ? '♪ 켜기' : '♪ 끄기'; };
+    const offM = BGM ? BGM.onChange(syncM) : () => {};
+    if (BGM) { mBtn.addEventListener('click', () => { BGM.toggleMute(); syncM(); }); syncM(); }
     // v77 그림 미리 받기 (신호등 켜짐·마스코트 반응·트로피)
     ['gugu_light_red', 'gugu_light_green', 'gugu_happy', 'gugu_oops', 'gugu_trophy'].forEach(n => { const im = new Image(); im.src = 'img/test/' + n + '.png'; });
     function flash(ok, txt) {
@@ -147,11 +155,13 @@
       set('ggScore', 0); set('ggOk', 0); set('ggNo', 0); set('ggTime', GUGU.sec);
       const ov = $('.gg-over', el); if (ov) ov.remove();
       inp.disabled = false; go.textContent = '내기'; next();
+      if (BGM) BGM.restart();
       clearInterval(timer); timer = setInterval(() => { st.left--; set('ggTime', Math.max(0, st.left)); if (st.left <= 0) over(); }, 1000);
     }
     function over() {
       if (st.phase === 'over') return;   // v77 한 번만
       clearInterval(timer); st.phase = 'over'; inp.disabled = true; go.textContent = '다시 ▶';
+      if (BGM) BGM.pause();
       el.querySelectorAll('.gg-over').forEach(x => x.remove());
       $('#ggLight', el).className = 'gg-light'; $('#ggQ', el).innerHTML = '끝!'; $('#ggHint', el).textContent = '';
       const nb = st.score > best; if (nb) { best = st.score; try { localStorage.setItem('gogo_test_gugu_best', String(best)); } catch (e) { /* noop */ } set('ggBest', best); }
@@ -167,7 +177,7 @@
       if (st.phase !== 'play') { if (n === 'ok') start(); return; }
       if (n === 'del') inp.value = inp.value.slice(0, -1); else if (n === 'ok') submit(); else if (inp.value.length < 3) inp.value += n;
     });
-    return () => clearInterval(timer);
+    return () => { clearInterval(timer); offM(); if (BGM) BGM.stop(); };
   }
 
   const GAMES = [
