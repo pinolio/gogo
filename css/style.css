@@ -1333,3 +1333,6 @@ a.card .card-foot .r-me b { color: #17803A; }
 .room-title::before { content: ''; width: 34px; height: 34px; border: 3px solid #1D2340; border-radius: 6px; background: #FFFFFF var(--ic-room) center / 24px 24px no-repeat; image-rendering: pixelated; box-shadow: 0 3px 0 #1D2340; }
 .room-soon { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 4px; background: #FFB3D9; color: #1D2340; font-weight: 700; font-size: 13px; }
 @media (max-height: 520px) { .top { position: relative; } }
+/* v77: 관리자 메뉴 6개일 때 한 줄에 들어가게 (넓지 않은 PC 에서는 '관리'·'테스트' 로 줄임, 버튼 조금 작게) */
+@media (max-width: 1500px) { .top .nav .t-full { display: none; } }
+@media (min-width: 561px) and (max-width: 1500px) { .top .nav:has(.nav-admin:not([hidden])) { gap: 6px; } .top .nav:has(.nav-admin:not([hidden])) a { padding: 5px 10px 4px 6px; font-size: 15px; } }

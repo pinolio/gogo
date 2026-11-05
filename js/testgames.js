@@ -63,6 +63,30 @@
   .gg-mascot { float: right; width: 96px; height: auto; image-rendering: pixelated; margin: -6px -4px 4px 8px; }
   @media (max-width: 560px) { .gg-frame { aspect-ratio: auto; min-height: 150px; } .gg-mascot { width: 72px; } }
   @media (max-width: 560px) { .gg-light i { width: 40px; height: 40px; } .gg-pad button { padding: 10px 0; } }
+  /* v77 Meshy 꾸미기 2 (첫째 키): 제목 간판 · 도트 신호등(꺼짐·빨강·초록) · 마스코트 기쁨/앗 · 트로피 · 숫자 키 3색 · 아이콘 */
+  .gg-title { width: min(520px, 100%); aspect-ratio: 640 / 232; background: url(img/test/gugu_title.png) center / 100% 100% no-repeat; display: grid; place-items: center; padding: 0 16% 7%; margin-bottom: -4px; }
+  .gg-title b { font-family: var(--f-display, inherit); font-size: clamp(22px, 5.4vw, 40px); color: #1D2340; letter-spacing: 2px; text-shadow: 0 3px 0 #FFF6B0; white-space: nowrap; }
+  .gg-top span { display: inline-flex; align-items: center; gap: 6px; }
+  .gg-top img { width: 26px; height: 26px; image-rendering: pixelated; margin: -4px 0; }
+  .gg-light { width: 250px; aspect-ratio: 340 / 203; background: url(img/test/gugu_light_off.png) center / contain no-repeat; border: 0; border-radius: 0; padding: 0; box-shadow: none; filter: drop-shadow(0 5px 0 rgba(29, 35, 64, .35)); }
+  .gg-light i { display: none; }
+  .gg-light.red { background-image: url(img/test/gugu_light_red.png); animation: ggGlowR 1s ease-in-out infinite; }
+  .gg-light.green { background-image: url(img/test/gugu_light_green.png); animation: ggGlowG 1s ease-in-out infinite; }
+  @keyframes ggGlowR { 50% { filter: drop-shadow(0 5px 0 rgba(29, 35, 64, .35)) drop-shadow(0 0 14px rgba(255, 58, 58, .85)); } }
+  @keyframes ggGlowG { 50% { filter: drop-shadow(0 5px 0 rgba(29, 35, 64, .35)) drop-shadow(0 0 14px rgba(47, 224, 122, .85)); } }
+  .gg-frame { position: relative; }
+  .gg-react { position: absolute; right: -14px; bottom: -22px; width: 104px; height: auto; image-rendering: pixelated; pointer-events: none; opacity: 0; transform: scale(.4) translateY(20px); transition: opacity .15s, transform .18s cubic-bezier(.3, 1.6, .5, 1); z-index: 2; }
+  .gg-react.on { opacity: 1; transform: scale(1) translateY(0); }
+  .gg-pad { gap: 6px; }
+  .gg-pad button { background: url(img/test/gugu_key.png) center / 100% 100% no-repeat; border: 0; box-shadow: none; border-radius: 0; aspect-ratio: 1 / .78; padding: 0 0 6%; font-size: 30px; text-shadow: 0 2px 0 #FFFFFF; transition: transform .06s; }
+  .gg-pad button:active { transform: translateY(3px) scale(.97); }
+  .gg-pad button.ok { background-image: url(img/test/gugu_key_ok.png); color: #FFFFFF; text-shadow: 0 2px 0 #1D2340; font-size: 22px; }
+  .gg-pad button.del { background-image: url(img/test/gugu_key_del.png); color: #FFFFFF; text-shadow: 0 2px 0 #1D2340; }
+  .gg-over { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: center; text-align: left; }
+  .gg-over .trophy { width: 110px; height: auto; image-rendering: pixelated; animation: ggBounce 1s ease-in-out infinite; }
+  @keyframes ggBounce { 50% { transform: translateY(-6px) rotate(-3deg); } }
+  @media (max-width: 560px) { .gg-light { width: 170px; } .gg-react { width: 78px; right: -6px; bottom: -16px; } .gg-pad button { font-size: 24px; } .gg-over { grid-template-columns: 76px minmax(0, 1fr); } .gg-over .trophy { width: 76px; } .gg-top img { width: 20px; height: 20px; } }
+  @media (prefers-reduced-motion: reduce) { .gg-light.red, .gg-light.green, .gg-over .trophy { animation: none; } }
   `;
   function css() { if (!document.getElementById('tgCss')) { const s = document.createElement('style'); s.id = 'tgCss'; s.textContent = CSS; document.head.appendChild(s); } }
 
@@ -78,9 +102,10 @@
     try { best = +localStorage.getItem('gogo_test_gugu_best') || 0; } catch (e) { /* noop */ }
     const rnd = () => GUGU.min + Math.floor(Math.random() * (GUGU.max - GUGU.min + 1));
     el.innerHTML = `<div class="gg-2col"><div class="gg">
-      <div class="gg-top"><span class="sc">점수 <b id="ggScore">0</b></span><span>남은 시간 <b id="ggTime">${GUGU.sec}</b>초</span><span>맞힘 <b id="ggOk">0</b> · 틀림 <b id="ggNo">0</b></span><span>최고 <b id="ggBest">${best}</b></span></div>
+      <div class="gg-title"><b>신호등 구구단</b></div>
+      <div class="gg-top"><span class="sc"><img src="img/test/gugu_ic_star.png" alt="">점수 <b id="ggScore">0</b></span><span><img src="img/test/gugu_ic_clock.png" alt="">남은 시간 <b id="ggTime">${GUGU.sec}</b>초</span><span><img src="img/test/gugu_ic_ok.png" alt="" onerror="this.remove()">맞힘 <b id="ggOk">0</b> · <img src="img/test/gugu_ic_no.png" alt="" onerror="this.remove()">틀림 <b id="ggNo">0</b></span><span><img src="img/test/gugu_ic_crown.png" alt="" onerror="this.remove()">최고 <b id="ggBest">${best}</b></span></div>
       <div class="gg-light" id="ggLight" aria-label="신호등"><i class="r"></i><i class="g"></i></div>
-      <div class="gg-frame"><div class="gg-q" id="ggQ">? <span class="x">×</span> ?</div><div class="gg-hint" id="ggHint">시작을 누르세요</div><div class="gg-flash" id="ggFlash" hidden></div></div>
+      <div class="gg-frame"><div class="gg-q" id="ggQ">? <span class="x">×</span> ?</div><div class="gg-hint" id="ggHint">시작을 누르세요</div><div class="gg-flash" id="ggFlash" hidden></div><img class="gg-react" id="ggReact" src="img/test/gugu_happy.png" alt=""></div>
       <form class="gg-form" id="ggForm" autocomplete="off"><input id="ggIn" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="답" aria-label="답 입력" disabled><button class="btn btn-sun" type="submit" id="ggGo">시작 ▶</button><button class="btn" type="button" id="ggRe" title="처음부터 다시">↻ 다시 하기</button></form>
       <div class="gg-pad" id="ggPad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-n="${n}">${n}</button>`).join('')}<button type="button" class="del" data-n="del">←</button><button type="button" data-n="0">0</button><button type="button" class="ok" data-n="ok">확인</button></div>
       <div class="gg-log" id="ggLog">녹색불이면 바른 답, 빨간불이면 자리를 바꾼 답!</div>
@@ -100,7 +125,13 @@
       const h = $('#ggHint', el); h.className = 'gg-hint'; h.textContent = '';   // v70 선생님: 문제 아래 녹색·빨강 안내는 지움 (신호등만 보고 판단)
       inp.value = ''; inp.focus({ preventScroll: true });
     }
-    function flash(ok, txt) { const f = $('#ggFlash', el); f.hidden = false; f.className = 'gg-flash ' + (ok ? 'ok' : 'bad'); f.textContent = txt; clearTimeout(f._t); f._t = setTimeout(() => { f.hidden = true; }, 420); }
+    // v77 그림 미리 받기 (신호등 켜짐·마스코트 반응·트로피)
+    ['gugu_light_red', 'gugu_light_green', 'gugu_happy', 'gugu_oops', 'gugu_trophy'].forEach(n => { const im = new Image(); im.src = 'img/test/' + n + '.png'; });
+    function flash(ok, txt) {
+      const f = $('#ggFlash', el); f.hidden = false; f.className = 'gg-flash ' + (ok ? 'ok' : 'bad'); f.textContent = txt; clearTimeout(f._t); f._t = setTimeout(() => { f.hidden = true; }, 420);
+      const m = $('#ggReact', el); if (!m) return;   // v77 맞으면 기뻐하는 마스코트, 틀리면 '앗!' 마스코트
+      m.src = 'img/test/' + (ok ? 'gugu_happy' : 'gugu_oops') + '.png'; m.classList.add('on'); clearTimeout(m._t); m._t = setTimeout(() => m.classList.remove('on'), 650);
+    }
     function submit() {
       if (st.phase !== 'play') { start(); return; }
       const v = inp.value.trim(); if (v === '') return;
@@ -119,11 +150,13 @@
       clearInterval(timer); timer = setInterval(() => { st.left--; set('ggTime', Math.max(0, st.left)); if (st.left <= 0) over(); }, 1000);
     }
     function over() {
+      if (st.phase === 'over') return;   // v77 한 번만
       clearInterval(timer); st.phase = 'over'; inp.disabled = true; go.textContent = '다시 ▶';
+      el.querySelectorAll('.gg-over').forEach(x => x.remove());
       $('#ggLight', el).className = 'gg-light'; $('#ggQ', el).innerHTML = '끝!'; $('#ggHint', el).textContent = '';
       const nb = st.score > best; if (nb) { best = st.score; try { localStorage.setItem('gogo_test_gugu_best', String(best)); } catch (e) { /* noop */ } set('ggBest', best); }
       const box = document.createElement('div'); box.className = 'gg-over';
-      box.innerHTML = `<b class="big">${st.score}점</b>맞힘 ${st.right} · 틀림 ${st.wrong}${nb ? ' · <b style="color:#D6202A">최고 점수!</b>' : ''}<br><small>테스트 게임이라 랭킹·포인트에는 남지 않아요 (이 기기 최고 점수만)</small><div style="margin-top:10px"><button class="btn btn-sun" type="button" data-again>↻ 다시 하기</button></div>`;
+      box.innerHTML = `<img class="trophy" src="img/test/gugu_trophy.png" alt="트로피"><div><b class="big">${st.score}점</b>맞힘 ${st.right} · 틀림 ${st.wrong}${nb ? ' · <b style="color:#D6202A">최고 점수!</b>' : ''}<br><small>테스트 게임이라 랭킹·포인트에는 남지 않아요 (이 기기 최고 점수만)</small><div style="margin-top:10px"><button class="btn btn-sun" type="button" data-again>↻ 다시 하기</button></div></div>`;
       box.querySelector('[data-again]').addEventListener('click', start);
       $('.gg-frame', el).after(box);
     }
