@@ -233,6 +233,13 @@
           .map(x => { const u = d.users[x.user_id] || {}; return { ...x, nickname: u.nickname || '?', avatar: u.avatar, sample: !!u.sample }; })
           .sort((a, b) => b.best_score - a.best_score).slice(0, limit || 10);
       },
+      // v75: 이번 시즌(since 이후) 기록 — wins 면 승리 기록만
+      async seasonRows(game, since, wins) {
+        const d = db(), t = new Date(since).getTime();
+        return d.records.filter(r => r.game_id === game && new Date(r.played_at).getTime() >= t && (!wins || r.result === 'win'))
+          .map(r => ({ user_id: r.user_id, score: r.score, nickname: (d.users[r.user_id] || {}).nickname || '?' }))
+          .sort((a, b) => b.score - a.score).slice(0, wins ? 5000 : 1);
+      },
       async pointRanking(limit) {
         return Object.values(db().users).map(u => ({ user_id: u.id, nickname: u.nickname, earned: u.earned || 0, avatar: u.avatar, sample: !!u.sample }))
           .sort((a, b) => b.earned - a.earned).slice(0, limit || 10);
@@ -371,6 +378,40 @@
       },
       async adminDeleteQuit(id) { if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.'); const d = db(); d.quits = (d.quits || []).filter(q => q.id !== id); persist(); },
       /* ---- v33 로그인 팝업 배너 (한 개) ---- */
+      /* ---- v75 시즌 1위 보상 (체험 모드: 이 브라우저 안에서 같은 규칙으로 계산) ---- */
+      async seasonSettle() {
+        if (!Hub.user) return 0;
+        const d = db(); d.awards = d.awards || []; d.settled = d.settled || {};
+        let n = 0;
+        for (const s of Hub.seasonList()) {
+          if (s.current || d.settled[s.key]) continue;
+          const t0 = Date.parse(s.start), t1 = Date.parse(s.end), ok = r => { const t = Date.parse(r.played_at), u = d.users[r.user_id]; return t >= t0 && t < t1 && u && !u.banned && u.username !== DEMO_ADMIN && u.role !== 'admin'; };
+          const recs = d.records.filter(ok), win = {};
+          recs.filter(r => !Hub.SEASON_SKIP.includes(r.game_id) && r.game_id !== 'scfight' && r.score > 0).forEach(r => {
+            const w = win[r.game_id]; if (!w || r.score > w.score || (r.score === w.score && r.played_at < w.at)) win[r.game_id] = { user_id: r.user_id, score: r.score, at: r.played_at };
+          });
+          const fw = {}; recs.filter(r => r.game_id === 'scfight' && r.result === 'win').sort((a, b) => (a.played_at < b.played_at ? -1 : 1)).forEach(r => { const x = fw[r.user_id] || (fw[r.user_id] = { n: 0, at: '' }); x.n++; x.at = r.played_at; });
+          const fb = Object.keys(fw).sort((a, b) => fw[b].n - fw[a].n || (fw[a].at < fw[b].at ? -1 : 1))[0];
+          if (fb) win.scfight = { user_id: fb, score: fw[fb].n };
+          Object.keys(win).forEach(g => {
+            const w = win[g], u = d.users[w.user_id];
+            d.awards.push({ id: Date.now() + Math.random(), season: s.key, game_id: g, user_id: w.user_id, score: w.score, points: Hub.SEASON_POINTS, notified: false, created_at: new Date().toISOString() });
+            u.points += Hub.SEASON_POINTS; u.earned = (u.earned || 0) + Hub.SEASON_POINTS; n++;
+          });
+          d.settled[s.key] = new Date().toISOString();
+        }
+        persist(); if (n) setUser(pub(d.users[Hub.user.id]));
+        return n;
+      },
+      async seasonInbox() { if (!Hub.user) return []; return (db().awards || []).filter(a => a.user_id === Hub.user.id && !a.notified); },
+      async seasonAck(ids) { const d = db(); (d.awards || []).forEach(a => { if (Hub.user && a.user_id === Hub.user.id && ids.includes(a.id)) a.notified = true; }); persist(); },
+      async adminSeasonAwards(season) {
+        if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
+        const d = db();
+        return (d.awards || []).filter(a => a.season === season).map(a => { const u = d.users[a.user_id] || {}; return Object.assign({}, a, { nickname: u.nickname || '?', username: u.username || '' }); });
+      },
+      async seasonSettledAt(season) { return (db().settled || {})[season] || null; },
+      /* ---- v33 ---- */
       async getBanner() { return db().banner || null; },
       async saveBanner(b) {
         if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.');
@@ -383,6 +424,7 @@
   /* ---------------- 온라인 모드 (Supabase) ---------------- */
   function Online() {
     const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    let seasonOff = false;   // v75 시즌 표가 없으면 다시 묻지 않음
     Hub._sb = sb;
     const email = id => id + '@' + (cfg.idDomain || 'gogogogo.game');
     const PKEY = 'gogogogo.profile', QKEY = 'gogogogo.pending';
@@ -506,6 +548,26 @@
         const { data, error } = await sb.from('leaderboard').select('user_id,nickname,best_score,plays,avatar').eq('game_id', game).order('best_score', { ascending: false }).limit(limit || 10);
         if (error) throw error;
         return data;
+      },
+      // v75: 이번 시즌(since 이후) 기록 — 점수 1등 한 줄, wins 면 승리 기록 전부(최대 5000)
+      async seasonRows(game, since, wins) {
+        let q = sb.from('play_records').select('user_id,score').eq('game_id', game).gte('played_at', since);
+        q = wins ? q.eq('result', 'win').limit(5000) : q.order('score', { ascending: false }).limit(1);
+        const { data, error } = await q;
+        if (error) throw error;
+        const rows = data || [], ids = [...new Set(rows.map(r => r.user_id))];
+        if (!ids.length) return [];
+        const names = {};
+        if (!wins) {
+          const { data: ps } = await sb.from('profiles').select('id,nickname').in('id', ids);
+          (ps || []).forEach(p => { names[p.id] = p.nickname; });
+        }
+        return rows.map(r => ({ user_id: r.user_id, score: r.score, nickname: names[r.user_id] || '?' }));
+      },
+      async nicknames(ids) {
+        if (!ids.length) return {};
+        const { data } = await sb.from('profiles').select('id,nickname').in('id', ids);
+        const o = {}; (data || []).forEach(p => { o[p.id] = p.nickname; }); return o;
       },
       async pointRanking(limit) {
         const { data, error } = await sb.from('profiles').select('id,nickname,earned,avatar').order('earned', { ascending: false }).limit(limit || 10);
@@ -673,6 +735,33 @@
         const { error } = await sb.from('quit_logs').delete().eq('id', id);
         if (error) throw new Error(friendly(error, '지우지 못했어요'));
       },
+      /* ---- v75 시즌 1위 보상 (supabase/season_v75.sql: season_awards · season_settled 표, season_settle()·season_ack() 함수) ---- */
+      async seasonSettle() {
+        if (!Hub.user || seasonOff) return 0;
+        const { data, error } = await sb.rpc('season_settle');
+        if (error) { if (/season_|function|schema cache|does not exist/i.test(error.message || '')) seasonOff = true; console.warn('[gogo] 시즌 정산 안 됨', error.message); return 0; }
+        if (data > 0 && Hub.user) await loadProfile(Hub.user.id);   // 포인트가 바뀌었을 수 있음
+        return data || 0;
+      },
+      async seasonInbox() {
+        if (!Hub.user || seasonOff) return [];
+        const { data, error } = await sb.from('season_awards').select('id,season,game_id,score,points').eq('user_id', Hub.user.id).eq('notified', false).order('id');
+        if (error) return [];
+        if ((data || []).length) await loadProfile(Hub.user.id);
+        return data || [];
+      },
+      async seasonAck(ids) { if (ids.length) await sb.rpc('season_ack', { p_ids: ids }); },
+      async adminSeasonAwards(season) {
+        const { data, error } = await sb.from('season_awards').select('id,season,game_id,user_id,score,points,notified,created_at').eq('season', season);
+        if (error) throw new Error(/season_awards|relation|schema cache/i.test(error.message || '') ? '시즌 표가 아직 없어요. supabase/season_v75.sql 을 먼저 실행해 주세요.' : friendly(error, '시즌 기록을 불러오지 못했어요'));
+        const ids = [...new Set(data.map(x => x.user_id))], who = {};
+        if (ids.length) { const r = await sb.from('profiles').select('id,nickname,username').in('id', ids); (r.data || []).forEach(p => { who[p.id] = p; }); }
+        return data.map(x => Object.assign({}, x, { nickname: (who[x.user_id] || {}).nickname || '?', username: (who[x.user_id] || {}).username || '' }));
+      },
+      async seasonSettledAt(season) {
+        const { data } = await sb.from('season_settled').select('settled_at').eq('season', season).maybeSingle();
+        return data ? data.settled_at : null;
+      },
       /* ---- v33 로그인 팝업 배너 (한 개, site_banner 표의 id = 1 줄) ---- */
       async getBanner() {
         const { data, error } = await sb.from('site_banner').select('enabled,title,body,image,link,updated_at').eq('id', 1).maybeSingle();
@@ -764,6 +853,36 @@
   Hub.mode = online ? 'online' : 'demo';
   Object.assign(Hub, online ? Online() : Demo());
   // v58: 게임 랭킹을 다른 기록 이름으로 보여 줄 때 (settings.js 의 rankId). 예: 블록 대전 랭킹 = 랭킹 대전 점수('battle-rank')
+  // v75: 시즌 = 매월 1일 0시(한국 시간)에 새로 시작
+  Hub.season = function (now) {
+    const k = new Date((now || Date.now()) + 9 * 36e5), y = k.getUTCFullYear(), m = k.getUTCMonth();
+    return { key: y + '-' + String(m + 1).padStart(2, '0'), start: new Date(Date.UTC(y, m, 1) - 9 * 36e5).toISOString(), end: new Date(Date.UTC(y, m + 1, 1) - 9 * 36e5).toISOString(), month: m + 1, year: y, label: (m + 1) + '월 시즌' };
+  };
+  // v75 시즌 보상: 첫 시즌 2026-11 · 1위 +50P · 빼는 게임(RPG·Ultimate 는 선생님이 따로, 나머지는 랭킹에 안 쓰는 옛 기록) — supabase/season_v75.sql 과 같게
+  Hub.SEASON_FIRST = '2026-11'; Hub.SEASON_POINTS = 50;
+  Hub.SEASON_SKIP = ['rpg', 'ultimate', 'battle', 'blocks', '2048', 'p1024'];
+  Hub.seasonList = function (now) {   // 첫 시즌 ~ 지금 시즌 (지금 것이 맨 뒤, current: true)
+    const cur = Hub.season(now), out = [];
+    let [y, m] = Hub.SEASON_FIRST.split('-').map(Number);
+    for (let i = 0; i < 240; i++) {
+      const s = Hub.season(Date.UTC(y, m - 1, 15)); s.current = s.key === cur.key; out.push(s);
+      if (s.current || s.key > cur.key) break;
+      if (++m > 12) { m = 1; y++; }
+    }
+    return out;
+  };
+  // v75: 이번 시즌 1위 { nickname, score } 또는 null. settings 의 seasonWins 면 시즌 승리 수(누적 점수 게임: Skillcom Fight)
+  Hub.seasonTop = async function (game) {
+    const s = window.GoSettings && window.GoSettings.get(game), id = (s && s.rankId) || game, wins = !!(s && s.seasonWins);
+    const rows = await this.seasonRows(id, this.season().start, wins);
+    if (!wins) { const r = rows[0]; return r && r.score > 0 ? { nickname: r.nickname, score: r.score, user_id: r.user_id } : null; }
+    const cnt = {}; rows.forEach(r => { cnt[r.user_id] = (cnt[r.user_id] || 0) + 1; });
+    const best = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+    if (!best) return null;
+    let nick = (rows.find(r => r.user_id === best) || {}).nickname;
+    if ((!nick || nick === '?') && this.nicknames) nick = (await this.nicknames([best]))[best];
+    return { nickname: nick || '?', score: cnt[best], user_id: best };
+  };
   ['leaderboard', 'myBest'].forEach(k => {
     const f = Hub[k];
     Hub[k] = function (game, ...rest) { const s = window.GoSettings && window.GoSettings.get(game); return f.call(this, (s && s.rankId) || game, ...rest); };

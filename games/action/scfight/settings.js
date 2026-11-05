@@ -8,6 +8,7 @@
  *  - ※ 배경(경기장)·컴퓨터 상대 그림은 임시. PC 의 Skillcom 원본을 받으면 game.js 의 buildArena()·makeEnemy() 를 바꿈
  */
 GoSettings.register({
+  seasonWins: true,   // v75: 카드의 이번 시즌 신기록 = 이번 달 승리 수 (점수가 누적 승리 수라서)
   id: 'scfight',
   name: 'Skillcom Fight',
   category: 'action',

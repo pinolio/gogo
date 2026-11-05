@@ -230,7 +230,7 @@
           <span class="cat">${g.cat}</span>
           <h3>${g.name}${g.tag ? `<span class="tag ${g.tag === 'NEW' ? 'new' : g.tag === 'VS' ? 'vs' : ''}">${g.tag}</span>` : ''}</h3>
           <p>${g.blurb}</p>
-          <div class="card-foot" data-foot="${g.id}"><span>1위 기록 불러오는 중…</span></div>
+          <div class="card-foot" data-foot="${g.id}"><span>기록 불러오는 중…</span></div>
         </div>
       </a>`).join('') + soon.map(([n, c]) => `
       <div class="card soon" aria-label="${n} 준비 중">
@@ -239,15 +239,35 @@
       </div>`).join('');
     if (!live.length && !soon.length) grid.innerHTML = '<p class="empty">이 분류의 게임은 곧 추가돼요.</p>';
     drawThumbs(grid);
-    for (const g of live) {
+    // v75: 카드 아래 기록 3줄 (게임 신기록 · 이번 시즌 신기록 · 내 기록). RPG 는 예전 그대로(1위 · 내 최고)
+    const season = Hub.season();
+    const recLine = (cls, label, who, val) => `<div class="rec ${cls}"><span class="rec-l">${label}</span><span class="rec-v">${who ? `<span class="rec-who">${esc(who)}</span>` : ''}<b class="num">${val}</b></span></div>`;
+    await Promise.all(live.map(async g => {
       const foot = $(`[data-foot="${g.id}"]`, grid);
       try {
-        const [top] = await Hub.leaderboard(g.id, 1);
-        const mine = Hub.user ? await Hub.myBest(g.id) : null;
-        if (!foot.isConnected) continue;
-        foot.innerHTML = `<span>1위 ${top ? esc(top.nickname) + ' <b class="num">' + sfmt(g.id, top.best_score) + '</b>' : '-'}</span>${mine ? `<span>내 최고 <b class="num">${sfmt(g.id, mine)}</b></span>` : mine != null ? `<span>내 최고 <b class="num">${fmt(mine)}</b></span>` : ''}`;
-      } catch (e) { foot.innerHTML = '<span>기록을 불러오지 못했어요</span>'; }
-    }
+        if (SET.get(g.id) && SET.get(g.id).cardOld) {
+          const [top] = await Hub.leaderboard(g.id, 1);
+          const mine = Hub.user ? await Hub.myBest(g.id) : null;
+          if (!foot.isConnected) return;
+          foot.innerHTML = `<span>1위 ${top ? esc(top.nickname) + ' <b class="num">' + sfmt(g.id, top.best_score) + '</b>' : '-'}</span>${mine != null ? `<span>내 최고 <b class="num">${sfmt(g.id, mine)}</b></span>` : ''}`;
+          return;
+        }
+        const st = SET.get(g.id) || {};
+        const [tops, sea, mine] = await Promise.all([
+          Hub.leaderboard(g.id, 1),
+          Hub.seasonTop(g.id).catch(() => undefined),
+          Hub.user ? Hub.myBest(g.id) : Promise.resolve(null)
+        ]);
+        if (!foot.isConnected) return;
+        const top = tops && tops[0] && tops[0].best_score > 0 ? tops[0] : null;
+        const sv = v => st.seasonWins ? v + '승' : sfmt(g.id, v);
+        foot.classList.add('rec3');
+        foot.innerHTML =
+          recLine('r-all', '<i>🏆 </i>신기록', top && top.nickname, top ? sfmt(g.id, top.best_score) : '-') +
+          recLine('r-season', '<i>⭐ </i>' + season.label, sea && sea.nickname, sea === undefined ? '…' : sea ? sv(sea.score) : '-') +
+          recLine('r-me', '<i>🙂 </i>내 기록', '', !Hub.user ? '로그인 필요' : mine ? sfmt(g.id, mine) : '-');
+      } catch (e) { if (foot.isConnected) foot.innerHTML = '<span>기록을 불러오지 못했어요</span>'; }
+    }));
   }
 
   function renderAccountBox() {

@@ -8,6 +8,7 @@
  *  - ※ 마법은 skillcom(마법 융합 RPG) 마법을 받기 전 임시 목록 (data.js 의 SKILLS · FUSION)
  */
 GoSettings.register({
+  cardOld: true,   // v75: 카드 아래 기록은 예전(1위 · 내 최고) 그대로
   id: 'rpg',
   name: 'skillcom RPG',
   category: 'action',

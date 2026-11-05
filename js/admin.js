@@ -1,7 +1,7 @@
 /*
  * gogo?gogo! — 관리자 설정 (GoAdmin)
  *  - 관리자(role = 'admin')에게만 맨 위 메뉴에 보입니다.
- *  - 탭: 전적 종합 · 실시간 접속자(v35) · 회원 관리 · 댓글·피드백 · 채팅 기록 · 무단 이탈(v68) · 배너(v33, 로그인 팝업)
+ *  - 탭: 전적 종합 · 실시간 접속자(v35) · 회원 관리 · 댓글·피드백 · 채팅 기록 · 무단 이탈(v68) · 시즌 1위(v75) · 배너(v33, 로그인 팝업)
  *  - 실제 권한 확인은 서버(Supabase 함수·보안 규칙)가 합니다. 이 화면은 보기 좋게 보여 주는 역할만 해요.
  */
 (function () {
@@ -9,7 +9,7 @@
   const Hub = window.GameHub, F = window.GoFilter, AV = window.GoAvatar;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-  const TABS = [['stats', '전적 종합'], ['live', '실시간 접속자'], ['members', '회원 관리'], ['comments', '댓글·피드백'], ['chat', '채팅 기록'], ['quits', '무단 이탈'], ['banner', '배너']];
+  const TABS = [['stats', '전적 종합'], ['live', '실시간 접속자'], ['members', '회원 관리'], ['comments', '댓글·피드백'], ['chat', '채팅 기록'], ['quits', '무단 이탈'], ['season', '시즌 1위'], ['banner', '배너']];
   let tab = 'stats';
 
   function csv(name, head, rows) {
@@ -40,7 +40,7 @@
     $$('[data-tab]', root).forEach(b => b.addEventListener('click', () => {
       tab = b.dataset.tab; $$('[data-tab]', root).forEach(x => x.setAttribute('aria-selected', String(x === b))); show();
     }));
-    function show() { body.innerHTML = '<p class="empty">불러오는 중…</p>'; ({ stats, live, members, comments, chat, quits, banner })[tab]().catch(fail); }
+    function show() { body.innerHTML = '<p class="empty">불러오는 중…</p>'; ({ stats, live, members, comments, chat, quits, season, banner })[tab]().catch(fail); }
 
     /* ---------- 전적 종합 ---------- */
     async function stats() {
@@ -395,6 +395,46 @@
         if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = '정말 지울까요?'; return; }
         try { await Hub.adminDeleteChat(id); tr.remove(); } catch (err) { ui.toast(err.message); }
       });
+    }
+
+    /* v75 시즌 1위: 시즌(매월 1일 0시, 한국 시간)마다 게임별 1위. 지난 시즌 = 서버가 정산한 기록(+50P·쪽지), 이번 시즌 = 지금 1위(진행 중)
+     * RPG·Ultimate 는 빠짐(선생님이 따로 정함). 관리자·정지 계정은 지급에서 빠짐 */
+    let sk = '';
+    async function season() {
+      const S = window.GoSettings, list = Hub.seasonList(), cur = list[list.length - 1];
+      if (!sk) sk = list.length > 1 ? list[list.length - 2].key : cur.key;
+      const games = S.list().filter(g => !Hub.SEASON_SKIP.includes(g.rankId || g.id));
+      const sText = (g, v) => g.seasonWins ? v + '승' : g.scoreText ? g.scoreText(v) : ui.fmt(v);
+      const sel = list.slice().reverse().map(s => `<option value="${s.key}"${s.key === sk ? ' selected' : ''}>${s.year}년 ${s.month}월${s.current ? ' (진행 중)' : ''}</option>`).join('');
+      body.innerHTML = `
+        <div class="panel">
+          <h2>시즌 1위</h2>
+          <p class="small">시즌은 <b>매월 1일 0시(한국 시간)</b>에 새로 시작해요. 시즌이 끝나면 게임마다 <b>1위에게 +${Hub.SEASON_POINTS}P</b>를 주고, 그 학생이 들어오면 <b>쪽지</b>가 떠요. (누군가 로그인하면 자동 정산 · 두 번 주지 않음)<br>
+          빠지는 게임: <b>skillcom RPG · Ultimate</b> (따로 정하기). 관리자·정지 계정은 1위에서 빠져요. Skillcom Fight 는 <b>그 달 승리 수</b>, 같은 기록이면 <b>먼저 낸 사람</b>이 1위예요.</p>
+          <div class="admin-tools">
+            <label class="sr-only" for="sSeason">시즌</label><select id="sSeason">${sel}</select>
+            <span class="small" id="sInfo"></span><button class="btn btn-sm" type="button" id="csvSeason">CSV 내려받기</button>
+          </div>
+          <div class="tbl-wrap"><table class="admin-tbl"><thead><tr><th>게임</th><th>1위</th><th class="n">기록</th><th class="c">포인트</th><th class="c">쪽지</th></tr></thead><tbody id="sRows"><tr><td colspan="5" class="empty">불러오는 중…</td></tr></tbody></table></div>
+        </div>`;
+      $('#sSeason').addEventListener('change', e => { sk = e.target.value; season(); });
+      const s = list.find(x => x.key === sk) || cur;
+      let rows;
+      if (s.current) {
+        const tops = await Promise.all(games.map(g => Hub.seasonTop(g.id).catch(() => null)));
+        if (!alive || tab !== 'season') return;
+        rows = games.map((g, i) => ({ g, w: tops[i] ? { nickname: tops[i].nickname, username: '', score: tops[i].score } : null }));
+        $('#sInfo').innerHTML = `<span class="res quit">진행 중</span> 지금 1위예요. ${s.month}월이 끝나면 정산돼요.`;
+      } else {
+        await Hub.seasonSettle().catch(() => 0);
+        const [aw, at] = await Promise.all([Hub.adminSeasonAwards(s.key), Hub.seasonSettledAt(s.key).catch(() => null)]);
+        if (!alive || tab !== 'season') return;
+        rows = games.map(g => { const a = aw.find(x => x.game_id === (g.rankId || g.id)); return { g, w: a || null }; });
+        $('#sInfo').innerHTML = at ? `<span class="res win">정산 완료</span> ${day(at)} · ${aw.length}개 게임 1위에게 +${Hub.SEASON_POINTS}P씩` : '<span class="res lose">아직 정산 안 됨</span>';
+      }
+      const won = rows.filter(r => r.w).length;
+      $('#sRows').innerHTML = rows.map(({ g, w }) => `<tr><td>${ui.esc(g.name)}</td><td>${w ? `<b>${ui.esc(w.nickname)}</b>${w.username ? ` <span class="small">@${ui.esc(w.username)}</span>` : ''}` : '<span class="sn-none">기록 없음</span>'}</td><td class="n">${w ? ui.esc(sText(g, w.score)) : '-'}</td><td class="c">${!w ? '-' : s.current ? '<span class="small">정산 전</span>' : `<span class="res win">+${w.points}P</span>`}</td><td class="c">${!w || s.current ? '-' : w.notified ? '<span class="res win">읽음</span>' : '<span class="res quit">안 읽음</span>'}</td></tr>`).join('') + (won ? '' : '');
+      $('#csvSeason').addEventListener('click', () => csv('시즌1위_' + s.key, ['시즌', '게임', '1위', '아이디', '기록', '포인트', '쪽지'], rows.map(({ g, w }) => [s.key, g.name, w ? w.nickname : '', w ? w.username : '', w ? sText(g, w.score) : '', w && !s.current ? w.points : '', w && !s.current ? (w.notified ? '읽음' : '안 읽음') : ''])));
     }
 
     /* v68 무단 이탈: 온라인 대결 시작 5초 안에 나가거나 기권한 기록 (판은 무효 처리됨). 플레이어에게는 안 보이고 관리자만 봄 */

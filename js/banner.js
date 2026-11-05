@@ -58,12 +58,56 @@
     ss.set(KEY_SEEN, u.id + '|' + ver);
     setTimeout(() => show(b), 400);
   }
+  /* ---- v75 시즌 1위 쪽지 ----
+   *  로그인하면 지난 시즌을 정산(Hub.seasonSettle — 서버가 1위 계산·+50P, 두 번 주지 않음)하고
+   *  아직 안 읽은 상이 있으면 쪽지 창: '11월 시즌 스네이크 1등! +50P'. [확인] → 읽음(다시 안 뜸) */
+  const gameName = id => {
+    const S = window.GoSettings; if (!S) return id;
+    const g = S.get(id) || S.listAll().find(x => x.rankId === id);
+    return g ? g.name : id;
+  };
+  const scoreText = (id, v) => {
+    const S = window.GoSettings, g = S && (S.get(id) || S.listAll().find(x => x.rankId === id));
+    if (g && g.seasonWins) return v + '승';
+    return g && g.scoreText ? g.scoreText(v) : Number(v || 0).toLocaleString('ko-KR');
+  };
+  let note = null;
+  function closeNote() { if (note) { note.remove(); note = null; } }
+  function showNote(list, onOk) {
+    closeNote();
+    const sum = list.reduce((a, x) => a + (x.points || 0), 0);
+    note = document.createElement('div');
+    note.className = 'sn-pop'; note.setAttribute('role', 'dialog'); note.setAttribute('aria-label', '시즌 1등 쪽지');
+    note.innerHTML = `
+      <div class="sn-card">
+        <div class="sn-head">📮 쪽지 도착!</div>
+        <div class="sn-body">
+          <p class="sn-big">🏆 시즌 1등 축하해요!</p>
+          <ul class="sn-list">${list.map(x => `<li><b>${esc(+x.season.slice(5) + '월 시즌')}</b> · <b>${esc(gameName(x.game_id))}</b> 1등 <span class="sn-rec">(기록 ${esc(scoreText(x.game_id, x.score))})</span> <span class="sn-pt">+${x.points}P</span></li>`).join('')}</ul>
+          <p class="sn-sum">포인트 <b>+${sum}P</b> 를 받았어요. 상점에서 써 보세요!</p>
+        </div>
+        <div class="sn-foot"><button type="button" class="btn btn-sun sn-ok">확인</button></div>
+      </div>`;
+    document.body.appendChild(note);
+    note.querySelector('.sn-ok').addEventListener('click', () => { closeNote(); onOk(); });
+  }
+  async function seasonNote(u) {
+    if (!Hub.seasonSettle) return;
+    try {
+      await Hub.seasonSettle();
+      const list = await Hub.seasonInbox();
+      if (!list.length || !Hub.user || Hub.user.id !== u.id) return;
+      setTimeout(() => showNote(list, () => Hub.seasonAck(list.map(x => x.id)).catch(() => {})), 300);
+    } catch (e) { /* 시즌 표가 없으면 조용히 넘어감 */ }
+  }
+
   if (Hub && Hub.onChange) Hub.onChange(u => {
     const uid = u ? u.id : null;
-    if (uid && uid !== lastUid) maybe(u);
+    if (uid && uid !== lastUid) { maybe(u); seasonNote(u); }
+    if (!uid) closeNote();
     if (!uid) { close(); if (lastUid) ss.set(KEY_SEEN, ''); }   // 로그아웃하면 다음 로그인 때 다시 뜸
     lastUid = uid;
   });
 
-  window.GoBanner = { show, close };
+  window.GoBanner = { show, close, showNote };
 })();
