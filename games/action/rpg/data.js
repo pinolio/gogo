@@ -287,6 +287,21 @@
     }
   });
   MAPS.forEach((m, i) => { m.prev = i > 0 ? MAPS[i - 1].id : null; m.next = i < MAPS.length - 1 ? MAPS[i + 1].id : null; });
+  /* v80 임진왜란: 왜군 몬스터 = Meshy 그림 (img/v79/wae_*.png). 이름 → 그림 · 성질(shoot = 활·조총은 멀리서)
+   *  '왜' 가 들어간 사냥터(왜군 진지·왜선 상륙지·왜성…)에는 다른 왜군이 섞여 나옴 (mon2, 12마리 중 4마리) */
+  const WAE_IMG = { '왜군 척후병': 'wae_bow', '왜군 조총병': 'wae_gun', '왜군 창병': 'wae_spear', '왜군 척후대': 'wae_ronin', '왜군 상륙병': 'wae_flag', '왜군 조총수': 'wae_gun',
+    '왜군 조총대': 'wae_drum', '왜군 돌격대': 'wae_monk', '왜장 무사': 'wae_samurai', '왜군 첩자': 'wae_ninja', '왜군 조총대장': 'wae_captain', '왜장 대장': 'wae_cavalry',
+    '왜군 정예병': 'wae_samurai', '왜군 조총 정예': 'wae_gun', '왜성 수문장': 'wae_general' };
+  const WAE_MIX = [['왜군 궁수', 'wae_bow', 'shoot'], ['왜군 창병', 'wae_spear', 'aggro'], ['왜군 조총병', 'wae_gun', 'shoot'], ['낭인 무사', 'wae_ronin', 'aggro'], ['왜군 첩자', 'wae_ninja', 'aggro'],
+    ['왜군 깃발병', 'wae_flag', 'aggro'], ['왜군 북잡이', 'wae_drum', 'aggro'], ['왜군 승병', 'wae_monk', 'aggro'], ['왜장 무사', 'wae_samurai', 'aggro'], ['왜군 조총대장', 'wae_captain', 'shoot'], ['왜군 기마무사', 'wae_cavalry', 'aggro']];
+  MAPS.forEach(m => {
+    if (m.kind !== 'field' || m.hell || !m.mon) return;
+    if (WAE_IMG[m.mon.name]) { m.mon.img79 = WAE_IMG[m.mon.name]; if (m.mon.img79 === 'wae_cavalry') m.mon.h = 72; }
+    if (!m.boss && /왜/.test(m.name)) {
+      const pool = WAE_MIX.filter(w => w[1] !== m.mon.img79), w = pool[(m.no * 7) % pool.length];
+      m.mon2 = { name: w[0], img79: w[1], h: w[1] === 'wae_cavalry' ? 72 : 64, shape: w[2] === 'shoot' ? 'gunner' : 'ashigaru', colors: { a: '#3A4260', b: '#22283E', c: '#F0C8A0', d: '#D2343A' }, kind: w[2], ri: m.region, k: 0, dot: true };
+    }
+  });
 
   /* ---------------- v69 저승 던전 (임진왜란 뒤 저승 이야기) ----------------
    *  Lv.100 이 되면 마지막 마을(도원수 진영) 큰길에 '저승차사 강림' 이 나타나 저승문을 열어 줌
@@ -301,7 +316,7 @@
     kills: 50, bossPlus: 5, midPlus: 3, maxMonLv: 160,
     /* 속성: 관문마다 지옥 컨셉에 맞는 원소. 같은 원소 마법은 피해 ×0.7, 약점 원소 마법은 ×1.3. 몬스터의 탄·보스 기술도 이 원소
      *  계획: 1 도산(칼산)=땅 · 2 화탕(끓는 물)=불 · 3 한빙(얼음)=물 · 4 검수(칼나무)=바람 · 5 발설(혀)=번개 · 6 독사=땅 · 7 거해(톱)=번개 · 8 철상(쇠 침상)=불 · 9 풍도(바람)=바람 · 10 흑암(어둠)=빛의 반대(약점 빛) */
-    weak: { fire: 'water', water: 'thunder', thunder: 'earth', earth: 'wind', wind: 'fire', light: 'thunder' },
+    weak: { fire: 'water', water: 'thunder', thunder: 'earth', earth: 'wind', wind: 'fire', light: 'thunder', dark: 'light' },   // v79 10관문 흑암 = 어둠(약점 빛)
     resist: 0.7, weakMul: 1.3,
     /* 보스 기술 (game.js bossSkill): slam 내려찍기 · charge 돌진 · blades 칼비(땅에서 칼날이 솟음) · ring 사방 탄 · fan 부채꼴 탄 · summon 망령 부르기
      *  체력이 절반 아래면 '분노': 기술을 더 자주, 더 많이 씀 */   // midPlus = 옥졸·판관 레벨 = 단계 레벨 + 3 (1-3 옥졸 106 · 1-4 판관 107)
@@ -318,11 +333,83 @@
       { no: 1, king: '진광대왕', hell: '도산지옥', short: '칼산', day: '첫 7일', el: 'earth',
         about: '죽은 지 첫 7일에 지나는 관문. 생명을 함부로 한 죄를 묻고, 죄 지은 혼은 칼날이 박힌 산을 맨발로 오릅니다. 지금은 전쟁에서 칼에 쓰러진 혼들이 칼산을 메우고 있습니다.',
         stageName: ['칼산 기슭', '칼날 비탈', '옥졸의 길목', '판관의 심문대', '진광대왕 전'],
-        mob: { name: '칼산 망령', art: 'h_wraith', shape: 'ghost', colors: { a: '#B8C8E8', b: '#5A6A90', c: '#F0F4FF', d: '#FF5A5F' }, kind: 'aggro' },
-        mob2: { name: '칼 든 원혼', art: 'h_soldier', shape: 'skeleton', colors: { a: '#D8D0C0', b: '#7A6A5A', c: '#FFF4E0', d: '#FF3A3A' }, kind: 'shoot' },
-        guard: { name: '우두 옥졸', art: 'h_ox', shape: 'beast', colors: { a: '#7A3A2A', b: '#4A2018', c: '#E8C8A0', d: '#FFD23F' }, kind: 'boss', say: '소머리 옥졸이 쇠몽둥이를 들고 길을 막습니다!', skills: ['charge', 'slam'] },
-        judge: { name: '도산 판관', art: 'h_judge', shape: 'imp', colors: { a: '#3A3A7A', b: '#20204A', c: '#F0D8B0', d: '#FFD23F' }, kind: 'boss', say: '명부를 잃은 판관이 당신의 죄를 묻습니다!', skills: ['fan', 'ring', 'summon'] },
-        boss: { name: '진광대왕', art: 'h_king1', shape: 'golem', colors: { a: '#C83A3A', b: '#7A1A1A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '첫째 관문의 대왕이 시험을 시작합니다!', skills: ['blades', 'ring', 'charge', 'summon', 'slam'] } }
+        mob: { name: '칼산 망령', img: 'hell1_mob', art: 'h_wraith', shape: 'ghost', colors: { a: '#B8C8E8', b: '#5A6A90', c: '#F0F4FF', d: '#FF5A5F' }, kind: 'aggro' },
+        mob2: { name: '칼 든 원혼', img: 'hell1_mob2', art: 'h_soldier', shape: 'skeleton', colors: { a: '#D8D0C0', b: '#7A6A5A', c: '#FFF4E0', d: '#FF3A3A' }, kind: 'shoot' },
+        guard: { name: '우두 옥졸', img: 'hell1_guard', art: 'h_ox', shape: 'beast', colors: { a: '#7A3A2A', b: '#4A2018', c: '#E8C8A0', d: '#FFD23F' }, kind: 'boss', say: '소머리 옥졸이 쇠몽둥이를 들고 길을 막습니다!', skills: ['charge', 'slam'] },
+        judge: { name: '도산 판관', img: 'hell1_judge', art: 'h_judge', shape: 'imp', colors: { a: '#3A3A7A', b: '#20204A', c: '#F0D8B0', d: '#FFD23F' }, kind: 'boss', say: '명부를 잃은 판관이 당신의 죄를 묻습니다!', skills: ['fan', 'ring', 'summon'] },
+        boss: { name: '진광대왕', img: 'hell1_king', art: 'h_king1', shape: 'golem', colors: { a: '#C83A3A', b: '#7A1A1A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '첫째 관문의 대왕이 시험을 시작합니다!', skills: ['blades', 'ring', 'charge', 'summon', 'slam'] } },
+      { no: 2, king: '초강대왕', hell: '화탕지옥', short: '화탕', day: '둘째 7일', el: 'fire',
+        about: '둘째 7일에 지나는 관문. 남의 것을 빼앗은 죄를 묻고, 펄펄 끓는 가마솥이 줄지어 있습니다. 전쟁 중 마을을 불태운 혼들이 여기서 떠돌고 있습니다.',
+        stageName: ['가마솥 거리', '끓는 물 다리', '마두 옥졸의 문', '화탕 판관의 뜰', '초강대왕 전'],
+        mob: { name: '가마솥 불망령', img: 'hell2_mob', shape: 'ghost', colors: { a: '#FF8A3D', b: '#C83A1A', c: '#FFE0A0', d: '#FFD23F' }, kind: 'aggro' },
+        mob2: { name: '불타는 원혼', img: 'hell2_mob2', shape: 'skeleton', colors: { a: '#FF6A3D', b: '#8A2B1A', c: '#FFD8A0', d: '#FFD23F' }, kind: 'shoot' },
+        guard: { name: '마두 옥졸', img: 'hell2_guard', shape: 'beast', colors: { a: '#3A2A2A', b: '#1A1010', c: '#E8C8A0', d: '#FF6A3D' }, kind: 'boss', say: '말머리 옥졸이 삼지창을 겨눕니다!', skills: ['charge', 'fan', 'slam'] },
+        judge: { name: '화탕 판관', img: 'hell2_judge', shape: 'imp', colors: { a: '#A82A2A', b: '#5A1414', c: '#F0D8B0', d: '#FFD23F' }, kind: 'boss', say: '화탕 판관이 부채로 불길을 일으킵니다!', skills: ['fan', 'ring', 'summon'] },
+        boss: { name: '초강대왕', img: 'hell2_king', shape: 'golem', colors: { a: '#FF8A3D', b: '#A83A1A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '둘째 관문의 대왕이 불길 속에서 일어납니다!', skills: ['ring', 'fan', 'charge', 'summon', 'slam'] } },
+      { no: 3, king: '송제대왕', hell: '한빙지옥', short: '한빙', day: '셋째 7일', el: 'water',
+        about: '셋째 7일에 지나는 관문. 은혜를 저버린 죄를 묻고, 모든 것이 얼어붙은 얼음 벌판이 펼쳐집니다. 겨울 전투에서 얼어 죽은 혼들이 이곳을 헤맵니다.',
+        stageName: ['얼음 벌판', '서리 골짜기', '얼음 옥졸의 굴', '한빙 판관의 얼음 대청', '송제대왕 전'],
+        mob: { name: '서리 망령', img: 'hell3_mob', shape: 'ghost', colors: { a: '#BDE8FF', b: '#5AA8E0', c: '#FFFFFF', d: '#3BA8F5' }, kind: 'aggro' },
+        mob2: { name: '얼어붙은 원혼', img: 'hell3_mob2', shape: 'skeleton', colors: { a: '#D8F0FF', b: '#5A8AB0', c: '#FFFFFF', d: '#3BA8F5' }, kind: 'shoot' },
+        guard: { name: '얼음 옥졸', img: 'hell3_guard', shape: 'golem', colors: { a: '#7FC8F0', b: '#3A6A9A', c: '#E8F8FF', d: '#FFFFFF' }, kind: 'boss', say: '얼음 도깨비 옥졸이 고드름 몽둥이를 듭니다!', skills: ['slam', 'blades', 'charge'] },
+        judge: { name: '한빙 판관', img: 'hell3_judge', shape: 'imp', colors: { a: '#5A9AD0', b: '#2A4A7A', c: '#F0E8D8', d: '#BDE8FF' }, kind: 'boss', say: '얼어붙은 명부를 든 판관이 노려봅니다!', skills: ['ring', 'fan', 'summon'] },
+        boss: { name: '송제대왕', img: 'hell3_king', shape: 'golem', colors: { a: '#BDE8FF', b: '#5A8AC0', c: '#FFFFFF', d: '#3BA8F5' }, kind: 'boss', say: '셋째 관문의 대왕이 얼음 홀을 듭니다!', skills: ['blades', 'ring', 'fan', 'summon', 'slam'] } },
+      { no: 4, king: '오관대왕', hell: '검수지옥', short: '검수', day: '넷째 7일', el: 'wind',
+        about: '넷째 7일에 지나는 관문. 거짓 맹세를 한 죄를 묻고, 잎이 칼날인 나무 숲에 바람이 불 때마다 칼잎이 쏟아집니다.',
+        stageName: ['칼잎 숲 어귀', '바람 부는 칼나무 길', '까마귀 옥졸의 둥지', '검수 판관의 정자', '오관대왕 전'],
+        mob: { name: '칼나무 정령', img: 'hell4_mob', shape: 'plant', colors: { a: '#5AC88A', b: '#2E7A4A', c: '#E0F0E8', d: '#C8D0E0' }, kind: 'shoot' },
+        mob2: { name: '회오리 망령', img: 'hell4_mob2', shape: 'ghost', colors: { a: '#B8F0D8', b: '#5AA88A', c: '#FFFFFF', d: '#7FE0C4' }, kind: 'aggro' },
+        guard: { name: '까마귀 옥졸', img: 'hell4_guard', shape: 'bat', colors: { a: '#2A2A3A', b: '#14141E', c: '#E8E0D0', d: '#FFD23F' }, kind: 'boss', say: '까마귀머리 옥졸이 낫을 휘두릅니다!', skills: ['charge', 'blades', 'fan'] },
+        judge: { name: '검수 판관', img: 'hell4_judge', shape: 'imp', colors: { a: '#3A9A6A', b: '#1A5A3A', c: '#F0D8B0', d: '#FFD23F' }, kind: 'boss', say: '깃털 붓을 든 판관이 바람을 일으킵니다!', skills: ['fan', 'ring', 'summon'] },
+        boss: { name: '오관대왕', img: 'hell4_king', shape: 'golem', colors: { a: '#5AC88A', b: '#2A7A4A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '넷째 관문의 대왕이 칼잎 폭풍을 부릅니다!', skills: ['blades', 'fan', 'charge', 'summon', 'ring'] } },
+      { no: 5, king: '염라대왕', hell: '발설지옥', short: '발설', day: '다섯째 7일', el: 'thunder',
+        about: '다섯째 7일에 지나는 관문. 거짓말과 헐뜯은 죄를 묻습니다. 염라대왕의 업경대(거울)에는 살아서 한 일이 모두 비칩니다.',
+        stageName: ['번개 구름길', '사슬 다리', '천둥 옥졸의 북', '발설 판관의 대청', '염라대왕 전'],
+        mob: { name: '번개 망령', img: 'hell5_mob', shape: 'ghost', colors: { a: '#C8A8FF', b: '#6A4AC0', c: '#FFFFFF', d: '#FFE45C' }, kind: 'shoot' },
+        mob2: { name: '거짓말쟁이 원혼', img: 'hell5_mob2', shape: 'imp', colors: { a: '#A86AE0', b: '#5A2A8A', c: '#FFE0F0', d: '#FFD23F' }, kind: 'aggro' },
+        guard: { name: '천둥 옥졸', img: 'hell5_guard', shape: 'golem', colors: { a: '#6A5AD0', b: '#2A2A7A', c: '#E8E0FF', d: '#FFE45C' }, kind: 'boss', say: '북을 둘러멘 천둥 옥졸이 번개 망치를 듭니다!', skills: ['slam', 'ring', 'charge'] },
+        judge: { name: '발설 판관', img: 'hell5_judge', shape: 'imp', colors: { a: '#7A3AB0', b: '#3A1A5A', c: '#F0D8B0', d: '#FFE45C' }, kind: 'boss', say: '번개 붓을 든 판관이 거짓을 밝힙니다!', skills: ['fan', 'ring', 'summon'] },
+        boss: { name: '염라대왕', img: 'hell5_king', shape: 'golem', colors: { a: '#2A2A3A', b: '#14141E', c: '#FFD23F', d: '#C8A8FF' }, kind: 'boss', say: '업경대 앞의 염라대왕이 당신을 내려다봅니다!', skills: ['ring', 'blades', 'fan', 'charge', 'summon', 'slam'] } },
+      { no: 6, king: '변성대왕', hell: '독사지옥', short: '독사', day: '여섯째 7일', el: 'earth',
+        about: '여섯째 7일에 지나는 관문. 남을 해친 죄를 묻고, 독사가 우글거리는 늪 바위 길이 이어집니다.',
+        stageName: ['독 이끼 길', '뱀 굴 입구', '뱀팔 옥졸의 굴', '독사 판관의 바위', '변성대왕 전'],
+        mob: { name: '독사 망령', img: 'hell6_mob', shape: 'ghost', colors: { a: '#8AE08A', b: '#3A8A3A', c: '#E8FFE8', d: '#C8FF5A' }, kind: 'aggro' },
+        mob2: { name: '뱀꼬리 원혼', img: 'hell6_mob2', shape: 'scorpion', colors: { a: '#6AB86A', b: '#2A5A2A', c: '#F0D8B0', d: '#C8FF5A' }, kind: 'shoot' },
+        guard: { name: '뱀팔 옥졸', img: 'hell6_guard', shape: 'beast', colors: { a: '#4A8A4A', b: '#1A4A1A', c: '#E8E0C0', d: '#FFD23F' }, kind: 'boss', say: '팔에 뱀을 감은 옥졸이 갈고리를 휘두릅니다!', skills: ['charge', 'blades', 'slam'] },
+        judge: { name: '독사 판관', img: 'hell6_judge', shape: 'imp', colors: { a: '#6A7A2A', b: '#3A4A14', c: '#F0D8B0', d: '#C8FF5A' }, kind: 'boss', say: '어깨에 뱀을 올린 판관이 명부를 펼칩니다!', skills: ['fan', 'summon', 'ring'] },
+        boss: { name: '변성대왕', img: 'hell6_king', shape: 'golem', colors: { a: '#3A7A3A', b: '#1A3A1A', c: '#FFD23F', d: '#C8FF5A' }, kind: 'boss', say: '여섯째 관문의 대왕 뒤로 거대한 뱀이 똬리를 틉니다!', skills: ['summon', 'blades', 'charge', 'fan', 'slam'] } },
+      { no: 7, king: '태산대왕', hell: '거해지옥', short: '거해', day: '일곱째 7일', el: 'thunder',
+        about: '일곱째 7일에 지나는 관문. 나라와 백성을 배신한 죄를 묻습니다. 거대한 톱니바퀴가 번개를 튀기며 돌아갑니다.',
+        stageName: ['톱니 회랑', '불꽃 튀는 공방', '톱 옥졸의 작업장', '거해 판관의 도장실', '태산대왕 전'],
+        mob: { name: '톱날 망령', img: 'hell7_mob', shape: 'ghost', colors: { a: '#D8D8E8', b: '#7A7A9A', c: '#FFFFFF', d: '#FFE45C' }, kind: 'shoot' },
+        mob2: { name: '태엽 원혼', img: 'hell7_mob2', shape: 'golem', colors: { a: '#B08A5A', b: '#6A4A2A', c: '#F0D8B0', d: '#FFE45C' }, kind: 'aggro' },
+        guard: { name: '톱 옥졸', img: 'hell7_guard', shape: 'beast', colors: { a: '#8A6A4A', b: '#4A3A2A', c: '#E8C8A0', d: '#FFE45C' }, kind: 'boss', say: '큰 톱을 멘 옥졸이 불꽃을 튀깁니다!', skills: ['charge', 'slam', 'ring'] },
+        judge: { name: '거해 판관', img: 'hell7_judge', shape: 'imp', colors: { a: '#C8A030', b: '#7A5A14', c: '#F0D8B0', d: '#FFE45C' }, kind: 'boss', say: '톱니 도장을 든 판관이 판결을 내립니다!', skills: ['fan', 'ring', 'summon'] },
+        boss: { name: '태산대왕', img: 'hell7_king', shape: 'golem', colors: { a: '#C8A030', b: '#7A5A14', c: '#FFE45C', d: '#FFF4C0' }, kind: 'boss', say: '일곱째 관문의 대왕 뒤에서 번개 톱니바퀴가 돕니다!', skills: ['ring', 'charge', 'blades', 'summon', 'slam', 'fan'] } },
+      { no: 8, king: '평등대왕', hell: '철상지옥', short: '철상', day: '여덟째 100일', el: 'fire',
+        about: '죽은 지 100일에 지나는 관문. 생명을 업신여긴 죄를 묻고, 벌겋게 달군 쇠 침상과 쇠사슬이 가득합니다.',
+        stageName: ['쇠사슬 복도', '달군 쇠 바닥', '쇠갑옷 옥졸의 대장간', '철상 판관의 저울', '평등대왕 전'],
+        mob: { name: '쇠사슬 망령', img: 'hell8_mob', shape: 'ghost', colors: { a: '#FF8A5A', b: '#8A2A1A', c: '#FFD8C0', d: '#FFD23F' }, kind: 'aggro' },
+        mob2: { name: '달군 쇠 원혼', img: 'hell8_mob2', shape: 'golem', colors: { a: '#C83A2A', b: '#5A1A14', c: '#FFB08A', d: '#FFD23F' }, kind: 'shoot' },
+        guard: { name: '쇠갑옷 옥졸', img: 'hell8_guard', shape: 'golem', colors: { a: '#5A5A6A', b: '#2A2A3A', c: '#FF8A3D', d: '#FFD23F' }, kind: 'boss', say: '달군 쇠갑옷 옥졸이 철퇴를 돌립니다!', skills: ['slam', 'charge', 'ring'] },
+        judge: { name: '철상 판관', img: 'hell8_judge', shape: 'imp', colors: { a: '#8A1A1A', b: '#4A0A0A', c: '#F0D8B0', d: '#FF8A3D' }, kind: 'boss', say: '쇠 명부를 든 판관이 쇠 도장을 찍습니다!', skills: ['fan', 'summon', 'ring'] },
+        boss: { name: '평등대왕', img: 'hell8_king', shape: 'golem', colors: { a: '#7A7A8A', b: '#C83A2A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '여덟째 관문의 대왕이 정의의 저울을 기울입니다!', skills: ['blades', 'ring', 'slam', 'charge', 'summon', 'fan'] } },
+      { no: 9, king: '도시대왕', hell: '풍도지옥', short: '풍도', day: '아홉째 1년', el: 'wind',
+        about: '죽은 지 1년에 지나는 관문. 남을 속인 죄를 묻고, 끝없는 회오리바람이 혼을 이리저리 날려 보냅니다.',
+        stageName: ['모래바람 들판', '회오리 언덕', '바람주머니 옥졸', '풍도 판관의 누각', '도시대왕 전'],
+        mob: { name: '회오리 망령', img: 'hell9_mob', shape: 'ghost', colors: { a: '#C8E0D8', b: '#6A9A8A', c: '#FFFFFF', d: '#7FE0C4' }, kind: 'shoot' },
+        mob2: { name: '날리는 원혼', img: 'hell9_mob2', shape: 'skeleton', colors: { a: '#B8C8D8', b: '#5A6A7A', c: '#FFFFFF', d: '#7FE0C4' }, kind: 'aggro' },
+        guard: { name: '바람주머니 옥졸', img: 'hell9_guard', shape: 'golem', colors: { a: '#8AB8B0', b: '#3A6A64', c: '#E8F0E8', d: '#FFD23F' }, kind: 'boss', say: '바람주머니를 멘 거인 옥졸이 볼을 부풀립니다!', skills: ['fan', 'charge', 'ring'] },
+        judge: { name: '풍도 판관', img: 'hell9_judge', shape: 'imp', colors: { a: '#5AB0E0', b: '#2A5A7A', c: '#F0D8B0', d: '#7FE0C4' }, kind: 'boss', say: '소매가 펄럭이는 판관이 명부를 날립니다!', skills: ['fan', 'ring', 'summon'] },
+        boss: { name: '도시대왕', img: 'hell9_king', shape: 'golem', colors: { a: '#3AA8A0', b: '#1A5A54', c: '#E8F0F0', d: '#FFD23F' }, kind: 'boss', say: '아홉째 관문의 대왕이 큰 부채로 회오리를 부릅니다!', skills: ['fan', 'ring', 'charge', 'blades', 'summon', 'slam'] } },
+      { no: 10, king: '오도전륜대왕', hell: '흑암지옥', short: '흑암', day: '마지막 3년', el: 'dark',
+        about: '죽은 지 3년에 지나는 마지막 관문. 다음 생이 정해지는 곳입니다. 명부를 훔친 왜장의 원혼이 어둠 속에 숨어 있습니다. 대왕을 이기면 명부를 되찾습니다!',
+        stageName: ['어둠의 문', '그림자 미로', '그림자 옥졸의 등불', '흑암 판관의 마지막 심판', '오도전륜대왕 전'],
+        mob: { name: '그림자 망령', img: 'hell10_mob', shape: 'ghost', colors: { a: '#5A4A7A', b: '#1A1430', c: '#C8A8FF', d: '#B08AFF' }, kind: 'aggro' },
+        mob2: { name: '명부 도둑 왜장 원혼', img: 'hell10_mob2', shape: 'samurai', colors: { a: '#2A2A36', b: '#16161E', c: '#C8A8FF', d: '#B08AFF' }, kind: 'shoot' },
+        guard: { name: '그림자 옥졸', img: 'hell10_guard', shape: 'golem', colors: { a: '#3A2A5A', b: '#14102A', c: '#C8A8FF', d: '#FFD23F' }, kind: 'boss', say: '등불을 든 그림자 옥졸이 낫을 듭니다!', skills: ['summon', 'charge', 'blades'] },
+        judge: { name: '흑암 판관', img: 'hell10_judge', shape: 'imp', colors: { a: '#1A1430', b: '#0A0818', c: '#F0D8B0', d: '#B08AFF' }, kind: 'boss', say: '빛나는 명부를 든 판관이 마지막 심판을 시작합니다!', skills: ['ring', 'fan', 'summon'] },
+        boss: { name: '오도전륜대왕', img: 'hell10_king', shape: 'golem', colors: { a: '#3A2A5A', b: '#B08AFF', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '마지막 대왕 뒤에서 윤회의 바퀴가 돌기 시작합니다!', skills: ['ring', 'blades', 'fan', 'charge', 'summon', 'slam'] } }
     ]
   };
   HELL.gates.forEach(g => { ['mob', 'mob2', 'guard', 'judge', 'boss'].forEach(k => { if (g[k]) g[k].el = g.el; }); });   // 관문 몬스터 = 관문 속성
@@ -469,7 +556,8 @@
     wind: { name: '바람', color: '#7FE0C4', light: '#E0FFF4', fx: 'push' },
     earth: { name: '땅', color: '#B0804A', light: '#E8C88A', fx: 'heavy' },
     thunder: { name: '번개', color: '#FFE45C', light: '#FFFFFF', fx: 'stun' },
-    light: { name: '빛', color: '#FFF3B0', light: '#FFFFFF', fx: 'holy' }
+    light: { name: '빛', color: '#FFF3B0', light: '#FFFFFF', fx: 'holy' },
+    dark: { name: '어둠', color: '#B08AFF', light: '#E8DCFF', fx: 'none', monOnly: true }   // v79 저승 10관문 몬스터 전용 (마법에는 없음)
   };
   // [id, 이름, 원소, 배우는 레벨, kind, 위력, 마나, 재사용(초), 추가 값]
   const SK = [
@@ -560,10 +648,23 @@
     { name: '여행자 하늘', av: { skin: 's1', hair: 'h_ponytail', hat: 'hat_elfhood', top: 't_elf', bottom: 'b_cargo', shoes: 'sh_hightop', back: 'bk_bag2' }, lines: ['왜군이 사냥터마다 숨어 있대!', '보스는 꼭 장비를 떨어뜨린대!', '도술 서원에서 융합을 배워 봐.'] },
     { name: '떠돌이 장인 철수', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' }, lines: ['정예 장비는 반짝반짝 빛나지.', '레벨이 모자라면 장비를 못 입어.', '마을 대장간에서 장비를 강화해 봐!'] }
   ];
+  /* v80 조선군 진영 사람들 (마을마다 · Meshy 그림 img/v79/jo_*.png · 말 걸면 lines 중 하나) */
+  const ARMY = {
+    spear: { name: '조선 창병', img: 'jo_spear', color: '#9AE6FF', lines: ['왜군이 또 몰려온다는 소식이오!', '창끝을 잘 갈아 두었소.', '이 마을은 우리가 지키겠소!'] },
+    bow: { name: '조선 궁수', img: 'jo_bow', color: '#9AE6FF', lines: ['편전 한 발이면 백 보 밖도 맞히지!', '조총보다 활이 빠르다오.', '사냥터 왜군을 조심하시오.'] },
+    militia: { name: '의병', img: 'jo_militia', color: '#9AF0B0', lines: ['나라가 어려우니 농사짓던 손으로 칼을 들었소.', '우리 고을은 우리가 지킨다!', '의병장께서 곧 오신다오.'] },
+    porter: { name: '군량 짐꾼', img: 'jo_porter', color: '#FFD27A', lines: ['군량미 나르는 중이오, 비켜 주시오!', '수레가 무거워 허리가 휘겠소.', '쌀 한 톨도 귀한 때라오.'] },
+    monk: { name: '승병', img: 'jo_monk', color: '#FFD27A', lines: ['산사의 스님들도 나라를 위해 일어섰소.', '나무아미타불… 그래도 싸움은 싸움이오.', '몸과 마음을 함께 단련하시오.'] },
+    horse: { name: '기마 순찰병', img: 'jo_horse', color: '#9AE6FF', h: 76, lines: ['순찰 중이오! 이상 없소!', '말이 지쳤으니 잠깐 쉬어 가겠소.', '왜군 척후가 보이면 알려 주시오.'] },
+    general: { name: '조선 장수', img: 'jo_general', color: '#FFE45C', h: 70, lines: ['마지막 왜성만 무너뜨리면 된다!', '그대의 활약은 진영에도 소문이 났소.', '모두 자리를 지켜라!'] },
+    doctor: { name: '군의관', img: 'jo_doctor', color: '#FF9AA0', lines: ['다친 병사가 너무 많소… 약초가 모자라오.', '물약은 약방 아씨에게서 사 가시오.', '조금만 참게, 곧 나을 걸세.'] },
+    hurt1: { name: '다친 병사', img: 'jo_hurt1', color: '#FF8A8E', h: 46, lines: ['으윽… 왜군 조총에 맞았소…', '물… 물 한 모금만…', '조금만 쉬면 다시 싸울 수 있소…'] },
+    hurt2: { name: '다친 병사', img: 'jo_hurt2', color: '#FF8A8E', h: 52, lines: ['다리를 다쳐 걸을 수가 없소…', '동료들은 아직 사냥터에…', '꼭 왜군을 몰아내 주시오!'] }
+  };
   // v60 마을 대장간 (마을마다 한 명 · 서 있음 · 가까이 가면 강화 창)
   const SMITH = { name: '대장장이 무쇠', color: '#FFB86B', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
     hello: ['불이 잘 달궈졌네! 뭘 두드려 볼까?', '강화는 운이야. 실패하면 장비가 산산조각 나니 각오하게!', '+10 까지 가면 전설이 되는 거지. 허허!', '높이 올라갈수록 망치가 무거워진다네. 골드도 두 배씩!'],
     lines: ['땅! 땅! 땅!', '강화하러 왔나?', '불꽃이 좋구먼!'] };
 
-  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();

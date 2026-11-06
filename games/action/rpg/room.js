@@ -207,7 +207,11 @@
   function villagers(map) {
     const V = D.VILLAGERS, r = map.M.region, a = V[r % V.length], b = V[(r + 1) % V.length];
     const spots = [[15, map.mid + 1.75], [24.5, map.mid + 1.6]];   // 큰길 위 (좌우로만 천천히 걸음)
-    return [a, b].map((def, i) => ({ key: 'v' + i, def, x: spots[i][0] * TS, y: spots[i][1] * TS, hx: spots[i][0] * TS, hy: spots[i][1] * TS, face: i ? -1 : 1, ph: i * 3, wt: 1 + i, vx: 0, vy: 0, walker: true }));
+    const folk = [a, b].map((def, i) => ({ key: 'v' + i, def, x: spots[i][0] * TS, y: spots[i][1] * TS, hx: spots[i][0] * TS, hy: spots[i][1] * TS, face: i ? -1 : 1, ph: i * 3, wt: 1 + i, vx: 0, vy: 0, walker: true }));
+    // v80 조선 병사·다친 병사·군의관 (world.js armyCamp 가 정한 자리 · 그림은 data.js ARMY)
+    const army = (map.army || []).filter(q => D.ARMY && D.ARMY[q.k]).map((q, i) => ({ key: 'a' + i, def: D.ARMY[q.k], x: q.x * TS, y: q.y * TS, hx: q.x * TS, hy: q.y * TS,
+      face: i % 2 ? -1 : 1, ph: i * 1.7, wt: 0.5 + i * 0.4, vx: 0, vy: 0, range: q.range || 0, spd: q.spd, still: !!q.still, walker: !q.still, guard: !!q.still }));
+    return folk.concat(army);
   }
 
   Object.assign(P, { getRoom, npcSprite, npcPortrait, villagers, ROOM_W: RW, ROOM_H: RH });

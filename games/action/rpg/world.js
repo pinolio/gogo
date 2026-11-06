@@ -38,7 +38,7 @@
 
   /* ================= 지도 만들기 =================
    * 칸 값: 0 땅 · 1 길 · 2 장애물(큰) · 3 장애물(작은) · 4 물 · 5 꽃(지나갈 수 있음) · 6 건물 · 7 문 · 8 분수 · 9 대장간(v60) */
-  const SOLID = { 2: 1, 3: 1, 4: 1, 6: 1, 8: 1, 9: 1 };   // 9 = v60 대장간
+  const SOLID = { 2: 1, 3: 1, 4: 1, 6: 1, 8: 1, 9: 1, 10: 1 };   // 9 = v60 대장간 · 10 = v80 진영 소품(천막·대포…)
   const mapCache = {};
   function getMap(id) {
     if (mapCache[id]) return mapCache[id];
@@ -79,6 +79,7 @@
       for (let y = mid + 2; y <= fy0 + 3; y++) set(fx0 - 1, y, 1);
       for (let x = fx0 - 1; x <= fx0 + 3; x++) set(x, fy0 + 3, 1);
       map.forge = { x: fx0, y: fy0, w: 3, h: 2 };
+      armyCamp(map, rnd);   // v80 임진왜란 진영 꾸미기 (천막·대포·깃발 + 조선 병사 · 다친 병사)
     } else {
       // 굽은 길 (왼쪽 → 오른쪽)
       let y = mid;
@@ -128,6 +129,39 @@
     const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
     return map;
   }
+  /* ---------- v80 마을 = 조선군 진영 (Meshy 그림 img/v79/) ----------
+   *  소품은 칸 10(지나갈 수 없음)으로 막고 그림은 map.objs 로 (사람과 앞뒤 순서 맞춤)
+   *  병사·다친 병사·군의관 자리는 map.army → room.js villagers() 가 사람(NPC)으로 만듦 */
+  const CAMP_PROPS = [   // n 그림 · x,y 왼쪽 위 칸 · fw,fh 막는 칸 · pw 그림 폭(px)
+    { n: 'prop_tent', x: 13, y: 4, fw: 3, fh: 2, pw: 118 }, { n: 'prop_flags', x: 20, y: 5, fw: 2, fh: 1, pw: 78 },
+    { n: 'prop_beacon', x: 1, y: 5, fw: 2, fh: 2, pw: 78 }, { n: 'prop_shield', x: 33, y: 5, fw: 2, fh: 1, pw: 74 },
+    { n: 'prop_cart', x: 3, y: 19, fw: 3, fh: 2, pw: 104 }, { n: 'prop_jars', x: 13, y: 19, fw: 2, fh: 2, pw: 80 },
+    { n: 'prop_cannon', x: 22, y: 19, fw: 3, fh: 2, pw: 108 }, { n: 'prop_fence', x: 8, y: 21, fw: 3, fh: 1, pw: 100 }
+  ];
+  function armyCamp(map, rnd) {
+    const { at, set, w, h } = map, last = !!map.R.castle;
+    const free = p => { for (let y = p.y; y < p.y + p.fh; y++) for (let x = p.x; x < p.x + p.fw; x++) if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1 || ![0, 2, 3, 5].includes(at(x, y))) return false; return true; };
+    map.props = [];
+    CAMP_PROPS.forEach((p, i) => {
+      if (!last && i > 1 && rnd() < 0.3) return;   // 마을마다 조금씩 다르게 (마지막 진영은 전부)
+      if (!free(p)) return;
+      for (let y = p.y - 1; y <= p.y + p.fh; y++) for (let x = p.x - 1; x <= p.x + p.fw; x++) if ([2, 3].includes(at(x, y))) set(x, y, 0);
+      for (let y = p.y; y < p.y + p.fh; y++) for (let x = p.x; x < p.x + p.fw; x++) set(x, y, 10);
+      map.props.push(p);
+    });
+    // 사람 자리 (kind = data.js ARMY 의 열쇠) — 걷는 병사는 큰길 · 아래 빈 땅에서 좌우로 순찰
+    const ri = map.M.region, A = [];
+    A.push({ k: 'spear', x: 8, y: map.mid + 0.75, range: 90 }, { k: ri % 2 ? 'bow' : 'militia', x: 29, y: map.mid + 1.8, range: 80 });
+    A.push({ k: ['porter', 'monk', 'militia', 'spear'][ri % 4], x: 19, y: 19.6, range: 110 });
+    A.push({ k: 'horse', x: 20, y: 22.2, range: 240, spd: 66 });
+    if (last) A.push({ k: 'general', x: 21, y: map.mid - 0.4, range: 0 });
+    // 다친 병사 + 군의관 (천막 앞 또는 항아리 옆)
+    const tent = map.props.find(p => p.n === 'prop_tent');
+    if (tent) A.push({ k: 'hurt1', x: tent.x + 0.8, y: tent.y + 3.1, still: true }, { k: 'doctor', x: tent.x + 2.9, y: tent.y + 3.0, range: 0 });
+    A.push({ k: 'hurt2', x: 16.6, y: 21.3, still: true });
+    A.forEach(a => { if (!a.range) return; const ty = Math.floor(a.y), r = Math.ceil(a.range / TS) + 1; for (let x = Math.floor(a.x) - r; x <= Math.floor(a.x) + r; x++) if ([2, 3].includes(at(x, ty))) set(x, ty, 0); });   // 순찰 길의 나무·바위 치움
+    map.army = A.filter(a => { const tx = Math.floor(a.x), ty = Math.floor(a.y); return !SOLID[at(tx, ty)]; });
+  }
   function nearDoor(map, x, y) { return map.doors.some(b => Math.abs(b.door.x - x) <= 2 && y >= b.door.y && y <= b.door.y + 3); }
   const solidAt = (map, px, py) => !!SOLID[map.at(Math.floor(px / TS), Math.floor(py / TS))];
 
@@ -146,8 +180,17 @@
     const px = (X, Y, ww, hh, col) => { x.fillStyle = col; x.fillRect(X, Y, ww, hh); };
     const isPath = v => v === 1 || v === 7, G0 = R.ground[0], G1 = R.ground[1], dark = shade(G0, -0.18), light = shade(G0, 0.16);
     map.water = []; map.objs = []; map.glows = [];
+    // v80 Meshy 재질 그림 (땅·길·물 192px 이어 붙는 무늬). 아직 안 불러왔으면 옛 색 무늬로 그리고, 다 불러오면 다시 그림
+    const TX = texOf(map), ok = TX.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
+    if (!ok && !map.texWait) { map.texWait = true; let left = TX.length; TX.forEach(n => img79(n, () => { if (--left <= 0 && mapCache[map.id] === map) { map.texWait = false; map.ground = paintGround(map); } })); }
+    if (ok) {   // 1) 땅 = 재질 무늬 + 큰 얼룩(밝게·어둡게)으로 단조로움 깨기
+      x.fillStyle = pat[0]; x.fillRect(0, 0, w * TS, h * TS);
+      const [nc, nx] = mk(w, h);   // 칸 하나 = 1점짜리 얼룩 지도를 부드럽게 크게 늘려 덮음 (네모 자국 없게)
+      for (let gy = 0; gy < h; gy++) for (let gx = 0; gx < w; gx++) { const n = nz(gx * 2, gy * 2, 5); nx.fillStyle = n < 0.5 ? `rgba(0,0,0,${((0.5 - n) * 0.34).toFixed(3)})` : `rgba(255,255,255,${((n - 0.5) * 0.2).toFixed(3)})`; nx.fillRect(gx, gy, 1, 1); }
+      x.save(); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(nc, 0, 0, w * TS, h * TS); x.restore();
+    }
     // 1) 땅: 큰 얼룩 무늬(잡음) + 8px 조각 무늬
-    for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
+    if (!ok) for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) {
         const gx = tx * 4 + i, gy = ty * 4 + j, n = nz(gx, gy, 6) * 0.7 + rnd() * 0.3;
         px(tx * TS + i * 8, ty * TS + j * 8, 8, 8, n < 0.35 ? shade(G1, -0.06) : n < 0.62 ? G1 : n < 0.85 ? G0 : light);
@@ -158,8 +201,17 @@
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       const v = at(tx, ty); if (!isPath(v)) continue;
       const X = tx * TS, Y = ty * TS;
-      for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { const n = nz(tx * 4 + i + 99, ty * 4 + j, 5); px(X + i * 8, Y + j * 8, 8, 8, n < 0.4 ? Pd : n < 0.8 ? P0 : Pl); }
+      if (ok) { px(X, Y, TS, TS, pat[1]); if (map.M.hell) px(X, Y, TS, TS, 'rgba(0,0,0,.28)'); }
+      else for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { const n = nz(tx * 4 + i + 99, ty * 4 + j, 5); px(X + i * 8, Y + j * 8, 8, 8, n < 0.4 ? Pd : n < 0.8 ? P0 : Pl); }
       const nb = [[0, -1], [1, 0], [0, 1], [-1, 0]].map(([a, b2]) => isPath(at(tx + a, ty + b2)) || tx + a < 0 || tx + a >= w);
+      if (ok) {   // 재질: 길 가장자리를 땅 무늬로 들쭉날쭉 + 옅은 그림자
+        const E = pat[0], sd = 'rgba(0,0,0,.16)';
+        if (!nb[0]) { for (let i = 0; i < 32; i += 4) { const d = Math.floor(rnd() * 3) * 2; if (d) px(X + i, Y, 4, d, E); } px(X, Y + 4, 32, 2, sd); }
+        if (!nb[2]) { for (let i = 0; i < 32; i += 4) { const d = Math.floor(rnd() * 3) * 2; if (d) px(X + i, Y + 32 - d, 4, d, E); } px(X, Y + 26, 32, 2, sd); }
+        if (!nb[3]) { for (let i = 0; i < 32; i += 4) { const d = Math.floor(rnd() * 3) * 2; if (d) px(X, Y + i, d, 4, E); } px(X + 4, Y, 2, 32, sd); }
+        if (!nb[1]) { for (let i = 0; i < 32; i += 4) { const d = Math.floor(rnd() * 3) * 2; if (d) px(X + 32 - d, Y + i, d, 4, E); } px(X + 26, Y, 2, 32, sd); }
+        continue;
+      }
       // 이웃이 길이 아니면 그쪽 가장자리를 들쭉날쭉하게 + 어두운 선
       if (!nb[0]) { for (let i = 0; i < 32; i += 4) { const d = Math.floor(rnd() * 3) * 2; px(X + i, Y, 4, d, G1); } px(X, Y + 4, 32, 2, shade(P0, -0.22)); }
       if (!nb[2]) { for (let i = 0; i < 32; i += 4) { const d = Math.floor(rnd() * 3) * 2; px(X + i, Y + 32 - d, 4, d, G1); } px(X, Y + 26, 32, 2, shade(P0, -0.22)); }
@@ -172,7 +224,9 @@
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       if (at(tx, ty) !== 4) continue;
       let deep = 0; for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) if (at(tx + i, ty + j) === 4) deep++;
-      const X = tx * TS, Y = ty * TS; px(X, Y, TS, TS, mixC(shade(W0, 0.15), shade(W0, -0.25), Math.min(1, deep / 25)));
+      const X = tx * TS, Y = ty * TS;
+      if (ok) { px(X, Y, TS, TS, pat[2]); px(X, Y, TS, TS, `rgba(0,0,0,${(Math.min(1, deep / 25) * 0.3).toFixed(2)})`); }
+      else px(X, Y, TS, TS, mixC(shade(W0, 0.15), shade(W0, -0.25), Math.min(1, deep / 25)));
       map.water.push([tx, ty]);
       const up = at(tx, ty - 1) !== 4, dn = at(tx, ty + 1) !== 4, lf = at(tx - 1, ty) !== 4, rt = at(tx + 1, ty) !== 4, sand = shade(R.path, 0.05);
       if (up) { px(X, Y, TS, 6, sand); px(X, Y + 6, TS, 3, shade(W0, 0.55)); }
@@ -185,7 +239,7 @@
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       const v = at(tx, ty), X = tx * TS, Y = ty * TS;
       if (v === 0) {
-        for (let k = 0; k < 3; k++) if (rnd() < 0.55) {   // 풀잎 (V 모양)
+        for (let k = 0; k < 3; k++) if (rnd() < (ok ? 0.22 : 0.55)) {   // 풀잎 (V 모양) · 재질이 있으면 조금만
           const a = 2 + Math.floor(rnd() * 26), b2 = 4 + Math.floor(rnd() * 24), col = rnd() < 0.5 ? dark : light;
           if (grassy) { px(X + a, Y + b2, 2, 4, col); px(X + a - 2, Y + b2 + 1, 2, 3, col); px(X + a + 2, Y + b2 + 1, 2, 3, col); }
           else { px(X + a, Y + b2, 3, 2, col); }
@@ -207,7 +261,7 @@
       if (kind === 'crystal') map.glows.push({ x: tx * TS + 16, y: ty * TS + 6, r: 70, col: '#B08AFF' });
       if (kind === 'lavarock') map.glows.push({ x: tx * TS + 16, y: ty * TS + 18, r: 40, col: '#FF6A3D' });
     }
-    if (R.water === '#FF5A2A') map.water.forEach(([tx, ty]) => { if ((tx + ty) % 3 === 0) map.glows.push({ x: tx * TS + 16, y: ty * TS + 16, r: 60, col: '#FF6A3D' }); });   // 용암 빛
+    if (R.water === '#FF5A2A' && TX[2] === 'r8_water') map.water.forEach(([tx, ty]) => { if ((tx + ty) % 3 === 0) map.glows.push({ x: tx * TS + 16, y: ty * TS + 16, r: 60, col: '#FF6A3D' }); });   // 용암 빛
     // 6) 건물 · 분수
     map.buildings.forEach(b => {
       const spr = buildingSprite(b, R);
@@ -221,6 +275,11 @@
       map.objs.push({ img: spr, x: f.x * TS + (f.w * TS - spr.width) / 2, y: (f.y + f.h) * TS - spr.height + 4, sy: (f.y + f.h) * TS - 1, forge: f });
       map.glows.push({ x: (f.x + 0.7) * TS, y: (f.y + 1.2) * TS, r: 80, col: '#FF8A3D' });
     }
+    (map.props || []).forEach(p => {   // v80 진영 소품 (Meshy) — 그림 폭 pw 에 맞춰 칸 아래 가운데에 세움
+      const cx0 = (p.x + p.fw / 2) * TS, by = (p.y + p.fh) * TS + 2;
+      x.fillStyle = 'rgba(0,0,0,.22)'; x.beginPath(); x.ellipse(cx0, by - 6, p.pw * 0.42, 9, 0, 0, Math.PI * 2); x.fill();
+      map.objs.push({ p79: p.n, pw: p.pw, cx: cx0, by, img: { width: p.pw, height: p.pw * 1.2 }, x: cx0 - p.pw / 2, y: by - p.pw * 1.2, sy: by - 3 });
+    });
     if (map.at(17, 14) === 8) {
       x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.ellipse(17 * TS + 32, 16 * TS - 2, 34, 10, 0, 0, Math.PI * 2); x.fill();
       map.objs.push({ img: fountainSprite(R), x: 17 * TS - 8, y: 14 * TS - 40, sy: 16 * TS - 1, fountain: true });
@@ -235,7 +294,7 @@
   }
   // 작은 지도 (1칸 = 1점)
   function paintMini(map) {
-    const { w, h, R, at } = map, [c, x] = mk(w, h), col = { 0: R.ground[0], 1: R.path, 2: shade(R.ground[0], -0.45), 3: shade(R.ground[0], -0.35), 4: R.water, 5: R.ground[0], 6: '#B8A080', 7: '#FFD27A', 8: '#9AD8F5', 9: '#FF8A3D' };
+    const { w, h, R, at } = map, [c, x] = mk(w, h), col = { 0: R.ground[0], 1: R.path, 2: shade(R.ground[0], -0.45), 3: shade(R.ground[0], -0.35), 4: R.water, 5: R.ground[0], 6: '#B8A080', 7: '#FFD27A', 8: '#9AD8F5', 9: '#FF8A3D', 10: '#B8A080' };
     for (let y = 0; y < h; y++) for (let i = 0; i < w; i++) { x.fillStyle = col[at(i, y)] || R.ground[0]; x.fillRect(i, y, 1, 1); }
     return c;
   }
@@ -419,9 +478,30 @@
       im.onload = () => { RIMG[n] = im; res(); }; im.onerror = () => res();
       im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + '?v=40';
     })));
+    [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(i => ['_ground', '_path', '_water'].forEach(k => img79('r' + i + k)));   // v80 재질은 미리 (기다리지는 않음)
     return Promise.race([imgPromise, new Promise(r => setTimeout(r, timeoutMs || 6000))]);
   }
   const imgOk = n => { const im = RIMG[n]; return im && im.complete && im.naturalWidth ? im : null; };
+  /* v80 Meshy 그림 2차 (img/v79/ · 126장): 필요할 때 불러옴. 아직이면 null → 다 불러오면 cb() */
+  const V79 = {};
+  function img79(n, cb) {
+    let e = V79[n];
+    if (!e) {
+      const im = new Image(); im.decoding = 'async'; e = V79[n] = { im, ok: false, bad: false, cbs: [] };
+      im.onload = () => { e.ok = true; e.cbs.splice(0).forEach(f => { try { f(); } catch (er) { console.warn('[rpg] 그림', er); } }); };
+      im.onerror = () => { e.bad = true; e.cbs.length = 0; };
+      im.src = IMG_DIR + 'v79/' + n + (/_(ground|path|water)$|^hellfloor/.test(n) ? '.jpg' : '.png') + '?v=80';
+    }
+    if (e.ok) return e.im;
+    if (cb && !e.bad) e.cbs.push(cb);
+    return null;
+  }
+  // 지도 재질: [땅, 길, 물]. 저승은 관문마다 바닥 그림 (물 = 용암 · 3관문 얼음 · 6관문 독늪)
+  function texOf(map) {
+    const M = map.M;
+    if (M.hell) { const g = 'hellfloor' + M.gate, wt = M.gate === 3 ? 'r5_water' : M.gate === 6 ? 'r2_water' : 'r8_water'; return [g, g, wt]; }
+    const r = 'r' + M.region; return [r + '_ground', r + '_path', r + '_water'];
+  }
 
   /* ================= 그림 조각 (몬스터 · 아바타 + 장비) ================= */
   const monCache = {};
@@ -519,8 +599,28 @@
     const [c2, x2] = mk(N * k, N * k); x2.drawImage(c, 0, 0); x2.globalCompositeOperation = 'source-in'; x2.fillStyle = '#FFFFFF'; x2.fillRect(0, 0, c2.width, c2.height);
     return { img: c, flash: c2, w: N * k, h: N * k };
   }
+  /* v80 Meshy 2차 몬스터: 왜군(mon.img79) · 저승(mon.img) · 지역 보스(boss_r) — 그림 높이를 맞춰 줄임
+   *  그림을 아직 못 불러왔으면 옛 그림(도트)을 wait 표시와 함께 돌려줌 → game.js drawMon 이 다 불러오면 바꿔 끼움 */
+  function imgSprite(im, H) {
+    const w = Math.max(1, Math.round(im.naturalWidth * H / im.naturalHeight)), [c, x] = mk(w, H);
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(im, 0, 0, w, H);
+    const [c2, x2] = mk(w, H); x2.drawImage(c, 0, 0); x2.globalCompositeOperation = 'source-in'; x2.fillStyle = '#FFFFFF'; x2.fillRect(0, 0, w, H);
+    return { img: c, flash: c2, w, h: H, meshy: true };
+  }
   function monSprite(mon, scale) {
     const key = mon.name + scale; if (monCache[key]) return monCache[key];
+    const boss = scale >= 6, nm = mon.img79 || mon.img || (boss && mon.ri != null && !mon.dot ? 'boss_r' + mon.ri : null);
+    if (nm) {
+      const H = !boss ? (mon.h || 64) : /_king$|^boss_r/.test(nm) ? 150 : 124, im = img79(nm);
+      if (im) return (monCache[key] = imgSprite(im, H));
+      const wk = key + '~wait'; if (monCache[wk]) return monCache[wk];
+      img79(nm, () => {});
+      return (monCache[wk] = Object.assign({}, monSpriteOld(mon, scale, wk), { wait: true }));
+    }
+    return monSpriteOld(mon, scale, key);
+  }
+  function monSpriteOld(mon, scale, key) {
+    if (monCache[key]) return monCache[key];
     if (mon.art && HELL_ART[mon.art]) return (monCache[key] = hellSprite(mon, scale));   // v69 저승 몬스터
     // Meshy 그림이 있으면 그것을 씀 (보스: boss_r, 일반: mon_r 의 k번째 칸)
     const boss = scale >= 6, im = mon.ri != null && !mon.dot ? imgOk(boss ? 'boss_r' + mon.ri : 'mon_r' + mon.ri) : null;
@@ -569,11 +669,42 @@
     if (it('ring')) px(12, 18, 1, 1, T('ring').gem);
     return cells;
   }
+  /* v79 팔 움직임: 걸을 때 팔을 번갈아 흔들고(frame 1·3), 마법을 쓸 때 두 팔을 들고('c'), 공격할 때 무기 팔을 내밂('a')
+   *  아바타 옷 160종을 그대로 쓰기 위해, 다 그린 칸 그림(18×29)에서 팔 부분만 잘라 옮긴 뒤 테두리를 다시 그림 */
+  function armPose(grid, pose, OUT, wpn) {
+    if (!pose) return grid;
+    const H2 = grid.length, W2 = grid[0].length, empty = (x, y) => x < 0 || y < 0 || x >= W2 || y >= H2 || !grid[y][x];
+    // 1) 바깥 테두리만 떼기 (눈처럼 안쪽의 남색은 그대로)
+    const raw = grid.map((r, y) => r.map((c, x) => (c === OUT && (empty(x - 1, y) || empty(x + 1, y) || empty(x, y - 1) || empty(x, y + 1)) ? null : c)));
+    // 2) 칸 묶음 옮기기 (x0..x1, y0..y1 를 dx·dy 만큼), stretch = 비는 줄은 원래 끝 줄로 채워 어깨와 이어지게
+    const move = (x0, x1, y0, y1, dx, dy, stretch) => {
+      const part = [];
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (raw[y] && raw[y][x]) { part.push([x, y, raw[y][x]]); if (!stretch) raw[y][x] = null; }
+      if (stretch && dy < 0) for (let y = y1 + dy + 1; y <= y1; y++) for (let x = x0; x <= x1; x++) if (raw[y]) raw[y][x] = null;
+      part.forEach(([x, y, c]) => { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W2 && ny < H2) raw[ny][nx] = c; });
+    };
+    const L = [0, 5], R = [12, 13], WP = [14, W2 - 1];   // 왼팔 · 오른팔 · 무기(오른쪽 바깥, 무기가 있을 때만 옮김)
+    if (pose === 1 || pose === 3) {
+      const up = pose === 1 ? L : R, dn = pose === 1 ? R : L;
+      move(up[0], up[1], 14, 20, 0, -1, true);
+      move(dn[0], dn[1], 14, 20, 0, 1, true);
+      if (wpn) { if (pose === 1) move(WP[0], WP[1], 0, H2 - 1, 0, 1, true); else move(WP[0], WP[1], 0, H2 - 1, 0, -1, true); }
+    } else if (pose === 'c') {             // 마법: 두 팔을 번쩍
+      move(L[0], L[1], 13, 20, 0, -4); move(R[0], R[1], 13, 20, 0, -4); if (wpn) move(WP[0], WP[1], 0, H2 - 1, 0, -3);
+      [[L[1], 13], [L[1] - 1, 13], [R[0], 13], [R[0] + 1, 13]].forEach(([x, y]) => { if (raw[y] && raw[y][x]) raw[y][x] = '#FFF6B0'; });   // 손끝 빛
+    } else if (pose === 'a') {             // 공격: 무기 팔을 앞으로
+      move(R[0], R[1], 13, 20, 1, -2); if (wpn) move(WP[0], WP[1], 0, H2 - 1, 1, -2);
+    }
+    // 3) 테두리 다시
+    return raw.map((r, y) => r.map((c, x) => c || ((!empty(x - 1, y) && raw[y][x - 1]) || (x + 1 < W2 && raw[y][x + 1]) || (y > 0 && raw[y - 1][x]) || (y + 1 < H2 && raw[y + 1][x]) ? OUT : null)));
+  }
   const avCache = {};
   function avatarSprite(av, eq, hide, frame) {
     const key = JSON.stringify([av, hide ? {} : eq, frame]);
     if (avCache[key]) return avCache[key];
-    const base = AV.grid(av, frame), OUT = AV.OUT || '#1D2340';
+    const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
+    frame = leg;
+    let base = AV.grid(av, frame), OUT = AV.OUT || '#1D2340';
     if (!hide) {
       const g = gearCells(eq, frame);
       for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x]) base[y][x] = g[y][x];
@@ -582,11 +713,12 @@
         if ((y > 0 && g[y - 1][x]) || (y < GH - 1 && g[y + 1][x]) || (x > 0 && g[y][x - 1]) || (x < GW - 1 && g[y][x + 1])) base[y][x] = OUT;
       }
     }
+    base = armPose(base, pose, OUT, !hide && eq && eq.weapon);
     // v39 사이트 아바타처럼 2배 정교한 그림(부드러운 대각선·명암·눈 반짝임)이 있으면 장비까지 함께 다듬음
     const cells = AV.refine ? AV.refine(base, true) : base, k = AV.refine ? 2 : 1;
     const [c, x] = mk(GW * k, GH * k);
     for (let y = 0; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i, y, 1, 1); }
-    const keys = Object.keys(avCache); if (keys.length > 40) delete avCache[keys[0]];
+    const keys = Object.keys(avCache); if (keys.length > 80) delete avCache[keys[0]];
     return (avCache[key] = c);
   }
   // 창에 쓰는 작은 그림 (아이템 아이콘): 장비는 그 장비만 따로 그려서 확대, 포션은 병 그림
@@ -627,5 +759,5 @@
     return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
   }
 
-  window.__GoRPGParts = { loadImages, imgOk, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
+  window.__GoRPGParts = { loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
 })();

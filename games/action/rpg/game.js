@@ -11,7 +11,7 @@
   'use strict';
   const D = window.GoRPGData, AV = window.GoAvatar, Hub = window.GameHub, BGM = window.GoBGM;
   const P = window.__GoRPGParts, CFG = window.GoSettings.get('rpg');
-  const { loadImages, imgOk, getMap, solidAt, monSprite, avatarSprite, itemIcon, clamp, rand, pick, dist, fmtN, W, H, TS, SAVE_V, GAME, MAPBY, getRoom, npcSprite, npcPortrait, villagers } = P;
+  const { loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, clamp, rand, pick, dist, fmtN, W, H, TS, SAVE_V, GAME, MAPBY, getRoom, npcSprite, npcPortrait, villagers } = P;
   const ITEMS = D.ITEMS, SKILLS = D.SKILLS, ELEM = D.ELEM, Fx = window.GoRPGFx;
   const POT_T = D.POTIONS.filter(p => p.kind === 'hp').map(p => p.tier + 1).reverse();   // 포션 단계 (큰 것부터) 9 … 1
   const ROMAN = ['', ' Ⅱ', ' Ⅲ', ' Ⅳ', ' Ⅴ'];
@@ -501,7 +501,7 @@
         net = window.GoRPGNet.create({
           me: () => ({ nick: Hub.user ? Hub.user.nickname : '손님', lv: S.lv, av: Hub.user ? Hub.user.avatar : AV.normalize({}), eq: baseEq(), hide: S.hide, x: G.px, y: G.py }),
           onPeers: () => {},
-          onFx: (m, p) => peerFx(m, p),
+          onFx: (m, p) => { if (p) p.poseUntil = performance.now() + 380; peerFx(m, p); },   // v79 다른 사람이 마법 쓰면 팔 들기
           onTrade: (m, p) => onTrade(m, p),
           onLeave: cid => { if (G.trade && G.trade.with === cid) { say('상대가 떠나서 거래가 취소됐어요', 2.6); endTrade(false); } },
           onKick: why => { say(why === 'full' ? '서버 인원이 가득 차서 나왔어요. 다른 서버를 골라 주세요' : '서버 연결이 끊겼어요. 다시 골라 주세요', 4); if (!pane) openPanel('servers'); }
@@ -613,7 +613,7 @@
           G.mons.push(makeMon(M.mon, M.rec + 2, true));
           const minion = D.MAPS.find(m => m.kind === 'field' && m.no === M.no - 1);
           for (let i = 0; i < 6; i++) G.mons.push(makeMon(minion.mon, M.rec - 1));
-        } else for (let i = 0; i < 12; i++) G.mons.push(makeMon(M.mon, M.rec - 1 + (Math.random() < 0.5 ? 0 : 1)));
+        } else for (let i = 0; i < 12; i++) G.mons.push(makeMon(M.mon2 && i % 3 === 2 ? M.mon2 : M.mon, M.rec - 1 + (Math.random() < 0.5 ? 0 : 1)));   // v80 왜군 진지: 다른 왜군이 섞여 나옴
       }
       /* v69 저승 보스 기술: 기술 목록(data.js HELL.gates 의 skills)에서 골라 씀. 체력 절반 아래 = 분노(더 자주·더 많이)
        *  slam 내려찍기 · charge 돌진 · blades 칼비 · ring 사방 탄 · fan 부채꼴 탄 · summon 망령 3마리 */
@@ -672,7 +672,7 @@
         const idx = (H.gate - 1) * 5 + H.stage, first = idx > (S.hell || 0);
         if (first) S.hell = idx;
         const last = H.stage >= 5, nx = last ? null : `h${H.gate}-${H.stage + 1}`;
-        G.title = { t: 0, text: `${H.gate}-${H.stage} 통과!`, sub: last ? `${D.HELL.gates[H.gate - 1].king}의 시험을 이겼어요! 다음 관문은 곧 열려요` : '잠시 뒤 다음 단계로 내려가요' }; G.flash = 0.4; Fx.levelUp(G.px, G.py);
+        G.title = { t: 0, text: `${H.gate}-${H.stage} 통과!`, sub: last ? (H.gate >= D.HELL.gates.length ? `${D.HELL.gates[H.gate - 1].king}을(를) 이기고 명부를 되찾았어요! 저승의 질서가 돌아왔어요` : `${D.HELL.gates[H.gate - 1].king}의 시험을 이겼어요! 제${H.gate + 1}관문이 열렸어요`) : '잠시 뒤 다음 단계로 내려가요' }; G.flash = 0.4; Fx.levelUp(G.px, G.py);
         markDirty(true); if (first) submitRank();
         setTimeout(() => { if (G.hellRun !== H || G.dead || !G.map || !G.map.M.hell) return; if (nx && MAPBY[nx]) enter(nx, 'L'); else enter('v9', 'door'); }, 4000);
       }
@@ -804,7 +804,7 @@
         if (G.map.M.kind !== 'field' && sk.kind !== 'heal' && sk.kind !== 'shield') { say(G.room ? '건물 안에서는 공격 마법을 쓸 수 없어요' : '마을에서는 공격 마법을 쓸 수 없어요'); return; }
         if ((G.cds[id] || 0) > 0) return;
         if (S.mp < sk.mp) { say('마나가 부족해요 (X: 마나 포션)'); return; }
-        S.mp -= sk.mp; G.cds[id] = sk.cd; Fx.castCircle(G.px, G.py, sk.els, !!sk.fusion);
+        S.mp -= sk.mp; G.cds[id] = sk.cd; Fx.castCircle(G.px, G.py, sk.els, !!sk.fusion); G.poseK = 'c'; G.poseUntil = performance.now() + 380;   // v79 마법 동작
         if (net && net.joined) { const [adx, ady] = aimDir(sk.len || 420); net.cast({ id, x: Math.round(G.px), y: Math.round(G.py - 22), dx: +adx.toFixed(2), dy: +ady.toFixed(2) }); }
         const els = sk.els, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light, base = ST.mag * sk.pow;
         const ox = G.px, oy = G.py - 22;
@@ -839,7 +839,7 @@
       }
       function basicAttack() {
         if (G.atkCd > 0 || G.dead) return;
-        G.atkCd = ST.atkCd;
+        G.atkCd = ST.atkCd; G.poseK = 'a'; G.poseUntil = performance.now() + 220;   // v79 공격 동작
         const staff = S.eq.weapon && ITEMS[S.eq.weapon].look === 'staff';
         const [dx, dy] = aimDir(staff ? 150 : 70);
         G.face = dx < 0 ? -1 : 1;
@@ -895,7 +895,7 @@
           if (n.sayT > 0) n.sayT -= dt;
           if (n.walker) {   // 마을 사람: 큰길에서 좌우로 천천히 · 내가 가까이 오면 멈춰서 말 걸기
             if (d < 90) { n.vx = 0; if (!n.near) { n.near = true; n.say = pick(n.def.lines); n.sayT = 3.2; } }
-            else { n.near = false; n.wt -= dt; if (n.wt <= 0) { n.wt = rand(1.5, 3.5); n.vx = Math.random() < 0.6 ? (Math.random() < 0.5 ? -1 : 1) * 32 : 0; if (Math.abs(n.x - n.hx) > 60) n.vx = Math.sign(n.hx - n.x) * 32; } }
+            else { n.near = false; n.wt -= dt; const sp = n.spd || 32, rg = n.range == null ? 60 : n.range; if (n.wt <= 0) { n.wt = rand(1.5, 3.5); n.vx = rg && Math.random() < 0.6 ? (Math.random() < 0.5 ? -1 : 1) * sp : 0; if (Math.abs(n.x - n.hx) > rg) n.vx = Math.sign(n.hx - n.x) * sp; } else if (n.vx && Math.abs(n.x - n.hx) > rg + 4 && Math.sign(n.vx) === Math.sign(n.x - n.hx)) n.vx = -n.vx; }   // v80 병사: 순찰 폭(range)·빠르기(spd)
             const nx = n.x + n.vx * dt; if (n.vx && !solidAt(G.map, nx + Math.sign(n.vx) * 10, n.y - 4)) n.x = nx; else n.vx = 0;
             n.moving = !!n.vx; if (n.vx) n.face = n.vx < 0 ? -1 : 1; else if (d < 160) n.face = G.px < n.x ? -1 : 1;
             n.walk = (n.walk || 0) + (n.moving ? dt : 0);
@@ -1111,6 +1111,7 @@
         if (G.touch) drawTouch(c);
       }
       function drawObj(c, o, now) {
+        if (o.p79) { const im = img79(o.p79); if (im) { const hh = im.naturalHeight * o.pw / im.naturalWidth; c.drawImage(im, Math.round(o.cx - o.pw / 2), Math.round(o.by - hh), o.pw, Math.round(hh)); } return; }   // v80 진영 소품
         // Meshy 그림이 있으면: 장애물은 칸 아래 가운데에 세움, 건물은 건물 칸 폭에 맞춤 (+ 이름표)
         if (o.forge) {   // v60 대장간: Meshy 그림(bld_forge) 이 있으면 그것, 없으면 도트 그림 · 불빛 깜빡임 · 불티
           const f = o.forge, fim = imgOk('bld_forge'), cx0 = (f.x + f.w / 2) * TS, by = (f.y + f.h) * TS + 4;
@@ -1143,8 +1144,27 @@
         } else c.drawImage(o.img, o.x, o.y);
         if (o.kind === 'crystal') { c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, o.tx * TS + 16, o.ty * TS + 6, 40, '#B08AFF', 0.35 + 0.15 * Math.sin(now / 400 + o.tx)); c.restore(); }
       }
+      // v80 조선 병사 (Meshy 그림 한 장): 걸을 때 통통 + 살짝 기울기 · 다친 병사는 가만히
+      function drawArmy(c, n, now) {
+        const im = img79(n.def.img), H0 = n.def.h || 64;
+        c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(n.x, n.y, n.still ? 28 : 16, 5, 0, 0, Math.PI * 2); c.fill();
+        if (!im) return;
+        const h = H0, w = Math.round(im.naturalWidth * h / im.naturalHeight), hop = n.moving ? Math.abs(Math.sin((n.walk || 0) * 9)) * 3 : n.still ? 0 : Math.round(Math.sin(now / 520 + n.ph)), tilt = n.moving ? Math.sin((n.walk || 0) * 9) * 0.04 : 0;
+        const y = Math.round(n.y - h + 3 - hop);
+        c.save(); c.translate(n.x, n.y - hop); c.rotate(tilt); if (n.face < 0) c.scale(-1, 1);
+        c.imageSmoothingEnabled = true; c.drawImage(im, -w / 2, -h + 3, w, h); c.restore();
+        c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
+        c.strokeText(n.def.name, n.x, y - 6); c.fillStyle = n.def.color || '#9AE6FF'; c.fillText(n.def.name, n.x, y - 6);
+        if (n.say && n.sayT > 0) {
+          c.save(); c.globalAlpha = Math.min(1, n.sayT * 3); c.font = '13px "Jua", "Malgun Gothic", sans-serif';
+          const tw = c.measureText(n.say).width + 20, bx = clamp(n.x - tw / 2, cam.x + 4, cam.x + W - tw - 4), by = y - 52;
+          c.fillStyle = '#1D2340'; rr(c, bx - 2, by - 2, tw + 4, 30, 9); c.fill(); c.beginPath(); c.moveTo(n.x - 7, by + 26); c.lineTo(n.x + 7, by + 26); c.lineTo(n.x, by + 36); c.fill();
+          c.fillStyle = '#FFFFFF'; rr(c, bx, by, tw, 26, 8); c.fill(); c.beginPath(); c.moveTo(n.x - 5, by + 25); c.lineTo(n.x + 5, by + 25); c.lineTo(n.x, by + 32); c.fill();
+          c.fillStyle = '#1D2340'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(n.say, bx + 10, by + 14); c.restore();
+        }
+      }
       function drawMe(c, now) {
-        const fr = G.moving ? [1, 0, 3, 0][Math.floor(G.walk * 8) % 4] : 0;
+        const fr = now < (G.poseUntil || 0) ? G.poseK : G.moving ? [1, 0, 3, 0][Math.floor(G.walk * 8) % 4] : 0;   // v79 마법·공격 동작
         const img = avatarSprite(Hub.user ? Hub.user.avatar : AV.normalize({}), S.eq, S.hide, fr);
         const s = img.width > AV.size.w ? 1 : 2, w = img.width * s, h = img.height * s, bob = G.moving ? 0 : Math.round(Math.sin(now / 400)), x = Math.round(G.px - w / 2), y = Math.round(G.py - h + 2 + bob);
         G.meImg = { img, x, y, w, h };
@@ -1160,6 +1180,7 @@
         const nm = (Hub.user ? Hub.user.nickname : '손님') + ' Lv.' + S.lv; c.strokeText(nm, G.px, y - 6); c.fillStyle = '#FFE45C'; c.fillText(nm, G.px, y - 6);
       }
       function drawMon(c, m, now) {
+        if (m.spr.wait) { const s2 = monSprite(m.def, m.boss ? 6 : 3); if (!s2.wait) m.spr = s2; }   // v80 Meshy 그림이 늦게 오면 바꿔 끼움
         const sp = m.spr, moving = m.aggro || Math.abs(m.wx) + Math.abs(m.wy) > 0.1;
         const ph = now / (moving ? 110 : 260) + m.hx, hop = moving ? Math.abs(Math.sin(ph)) * (m.boss ? 6 : 5) : 0, sq = moving ? 1 + Math.cos(ph * 2) * 0.05 : 1 + Math.sin(ph) * 0.04;
         const lunge = m.lunge > 0 ? Math.sin(m.lunge / 0.25 * Math.PI) * 10 : 0, la = Math.atan2(G.py - m.y, G.px - m.x);
@@ -1180,6 +1201,7 @@
         }
       }
       function drawNpc(c, n, now) {
+        if (n.def.img) return drawArmy(c, n, now);
         const fr = n.moving ? [1, 0, 3, 0][Math.floor((n.walk || 0) * 7) % 4] : 0, img = npcSprite(n.def.av, fr);
         const k = (img.width > AV.size.w ? 1 : 2) * (n.scale || 1), w = img.width * k, h = img.height * k, bob = n.moving ? 0 : Math.round(Math.sin(now / 420 + n.ph));
         const x = Math.round(n.x - w / 2), y = Math.round(n.y - h + 2 + bob);
@@ -1203,7 +1225,7 @@
       // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
       function drawPeer(c, p, now) {
         if (!p.av) return;
-        const fr = p.moving ? [1, 0, 3, 0][Math.floor(p.walk * 8) % 4] : 0, img = avatarSprite(AV.normalize(p.av), p.eq || {}, p.hide, fr);
+        const fr = now < (p.poseUntil || 0) ? 'c' : p.moving ? [1, 0, 3, 0][Math.floor(p.walk * 8) % 4] : 0, img = avatarSprite(AV.normalize(p.av), p.eq || {}, p.hide, fr);
         const k = img.width > AV.size.w ? 1 : 2, w = img.width * k, h = img.height * k, x = Math.round(p.x - w / 2), y = Math.round(p.y - h + 2);
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(p.x, p.y, 16, 5, 0, 0, Math.PI * 2); c.fill();
         if (p.face < 0) { c.save(); c.translate(x + w, y); c.scale(-1, 1); c.drawImage(img, 0, 0, w, h); c.restore(); } else c.drawImage(img, x, y, w, h);
@@ -1523,7 +1545,7 @@
           if (t === 'story') h += `<div class="rg-story">${D.HELL.story.map(x => `<p>${x}</p>`).join('')}</div>`;
           else h += D.HELL.gates.map(g => { const base = (g.no - 1) * 5;
             return `<div class="rg-gate"><b class="gt">제${g.no}관문 · ${g.hell} <small>${g.king} · ${g.day}</small></b> <span class="rg-el">속성 ${ELEM[g.el].name} · 약점 <b>${ELEM[D.HELL.weak[g.el]].name}</b> 마법 (×${D.HELL.weakMul})</span><p class="sub" style="margin:4px 0 8px">${g.about}</p><div class="rg-stages">${[1, 2, 3, 4, 5].map(st => { const n = base + st, open = n <= best + 1, done = n <= best, lv = 100 + base + st;
-              return `<button type="button" class="rg-stage${done ? ' done' : ''}" data-hellgo="h${g.no}-${st}" ${open ? '' : 'disabled'}><b>${g.no}-${st}</b><span>${g.stageName[st - 1]}</span><small>${st === 5 ? '대왕 Lv.' + (lv + D.HELL.bossPlus) : `Lv.${lv} · ${D.HELL.kills}마리${st === 3 ? ` + 옥졸 Lv.${lv + D.HELL.midPlus}` : st === 4 ? ` + 판관 Lv.${lv + D.HELL.midPlus}` : ''}`}</small><i>${done ? '통과' : open ? '들어가기' : '잠김'}</i></button>`; }).join('')}</div></div>`; }).join('') + `<p class="sub">2~10관문(초강대왕 화탕지옥 …)은 곧 열려요. 저승에서 쓰러지면 그 단계는 처음부터 다시 해요.</p>`;
+              return `<button type="button" class="rg-stage${done ? ' done' : ''}" data-hellgo="h${g.no}-${st}" ${open ? '' : 'disabled'}><b>${g.no}-${st}</b><span>${g.stageName[st - 1]}</span><small>${st === 5 ? '대왕 Lv.' + (lv + D.HELL.bossPlus) : `Lv.${lv} · ${D.HELL.kills}마리${st === 3 ? ` + 옥졸 Lv.${lv + D.HELL.midPlus}` : st === 4 ? ` + 판관 Lv.${lv + D.HELL.midPlus}` : ''}`}</small><i>${done ? '통과' : open ? '들어가기' : '잠김'}</i></button>`; }).join('')}</div></div>`; }).join('') + `<p class="sub">앞 단계를 깨야 다음 단계가 열려요 (1-1 → … → 10-5). 10관문 오도전륜대왕을 이기면 명부를 되찾아요! 저승에서 쓰러지면 그 단계는 처음부터 다시 해요.</p>`;
         } else if (k === 'forge') {   // v60 대장간: 장비 강화 (+0 → +10 · 실패하면 부서짐)
           const mine = Object.keys(S.eq).map(sl => ({ id: S.eq[sl], worn: true })).concat(S.inv.filter(x => ITEMS[x.id] && ITEMS[x.id].slot).map(x => ({ id: x.id, worn: false })));
           if (!mine.some(x => x.id === tab.fgSel)) tab.fgSel = (mine.find(x => (ITEMS[x.id].en || 0) < ENH.max) || mine[0] || {}).id || null;
