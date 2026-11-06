@@ -22,13 +22,16 @@
 
   let A = null, root = null, st = null, raf = 0;
 
-  function render(el, app) {
-    A = app; root = el;
+  // v79: 퍼즐512 의 '랭킹 대전'으로도 씀 (opt.embed = { back(): 퍼즐512 처음 화면으로 }) — 기록은 그대로 'ultimate' (퍼즐512 settings 의 rankId)
+  let EMB = null;
+  function cleanupUlt() { cancelAnimationFrame(raf); clearTimeout(st && st.cd); document.removeEventListener('keydown', onKey); if (!EMB) BGM.stop(); else BGM.pause && BGM.pause(); if (root && root._ultBack) { root.removeEventListener('click', root._ultBack); root._ultBack = null; } root = null; st = null; }
+  function render(el, app, opt) {
+    A = app; root = el; EMB = (opt && opt.embed) || null;
     const K = window.GoP512.kit, W = K.W, H = K.H;
-    BGM.load(GAME);
+    BGM.load(EMB ? 'p512' : GAME);
     el.innerHTML = `
       <div class="ult">
-        <div class="play-head"><a class="back" href="#home">← 게임 목록</a><span class="cat ult-tag">EVENT</span><h1>Ultimate mode</h1><span class="small" style="margin:0">퍼즐512 · ${LIMIT / 60000}분 · 판 위 숫자 합 = 점수</span></div>
+        <div class="play-head">${EMB ? '<a class="back" href="#p512" data-ult-back>← 퍼즐512 처음으로</a><span class="cat ult-tag">랭킹 대전</span><h1>퍼즐512 랭킹 대전</h1>' : '<a class="back" href="#home">← 게임 목록</a><span class="cat ult-tag">EVENT</span><h1>Ultimate mode</h1>'}<span class="small" style="margin:0">퍼즐512 · ${LIMIT / 60000}분 · 판 위 숫자 합 = 점수</span></div>
         <div class="ult-grid">
           <div class="ult-stage">
             <div class="cabinet cab-ult" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas id="ultCanvas" aria-label="Ultimate mode 게임 화면"></canvas><div class="overlay" id="ultOv"></div></div></div>
@@ -36,7 +39,7 @@
           </div>
           <aside class="ult-side">
             <div class="panel ult-rank-panel">
-              <h3>Ultimate 랭킹 <small>최고 점수</small></h3>
+              <h3>${EMB ? '퍼즐512 랭킹' : 'Ultimate 랭킹'} <small>최고 점수</small></h3>
               <ol class="rank" id="ultRank"><li class="empty">불러오는 중…</li></ol>
               <p class="small ult-mine" id="ultMine"></p>
             </div>
@@ -53,6 +56,9 @@
           </aside>
         </div>
       </div>`;
+    if (el._ultBack) el.removeEventListener('click', el._ultBack);
+    el._ultBack = e => { const b = e.target.closest('[data-ult-back]'); if (b && EMB) { e.preventDefault(); const back = EMB.back; cleanupUlt(); back(); } };
+    el.addEventListener('click', el._ultBack);
     const canvas = $('#ultCanvas', el), ctx = P.setup(canvas, W, H);
     st = { K, W, H, ctx, canvas, phase: 'ready', eng: null, left: LIMIT, last: 0, clock: null, cd: 0, saved: null, endWhy: '', best: Hub.user ? 0 : localBest() };
     if (Hub.user) Hub.myBest(GAME).then(v => { if (st) st.best = Math.max(st.best, v || 0); }).catch(() => {});
@@ -67,7 +73,7 @@
       draw(dt);
     };
     raf = requestAnimationFrame(loop);
-    return function cleanup() { cancelAnimationFrame(raf); clearTimeout(st && st.cd); document.removeEventListener('keydown', onKey); BGM.stop(); root = null; st = null; };
+    return cleanupUlt;
   }
 
   function newBoard() {
@@ -132,7 +138,7 @@
         <p class="ov-hint">판 위 숫자 합 · 가장 큰 숫자 ${st.eng.max} · ${st.eng.moves}번 밀기 · ${A.dur(st.sec)}</p>
         <p class="ov-note">${st.newBest ? '<b class="ult-nb">최고 점수 갱신!</b> ' : ''}내 최고 점수 <b class="num">${A.fmt(st.best)}</b></p>
         ${note}
-        <div class="ov-btns"><button class="btn btn-sun" type="button" id="ultStart">다시 도전 ▶</button><a class="btn" href="#home">다른 게임</a></div></div>`;
+        <div class="ov-btns"><button class="btn btn-sun" type="button" id="ultStart">다시 도전 ▶</button>${EMB ? '<a class="btn" href="#p512" data-ult-back>퍼즐512 처음으로</a>' : '<a class="btn" href="#home">다른 게임</a>'}</div></div>`;
     }
     const b = $('#ultStart', ov); if (b) b.addEventListener('click', start);
     const sv = $('#ultSave', ov); if (sv) sv.addEventListener('click', () => A.openAuth('login', () => { if (st && st.saved && st.saved.status === 'guest') save(); }));

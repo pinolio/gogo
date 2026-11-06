@@ -11,7 +11,7 @@ GoSettings.register({
   folder: 'games/puzzle/ultimate',
   order: 90,
   hidden: true,                        // 게임 목록·맨 위 소개에는 넣지 않음 (이벤트 칸으로만)
-  event: true,                         // 홈 화면 이벤트 칸 보이기
+  event: false,                        // v79 이벤트 끝 → 퍼즐512 '랭킹 대전'으로 옮김 (기록 'ultimate' 그대로 이어짐). 홈 이벤트 칸은 신호등 구구단
   page: 'GoUltimate',
   blurb: '퍼즐512 판으로 2분 동안! 판 위 숫자를 모두 더한 값이 점수예요.',
   timeLimit: 120,                      // 한 판 시간(초)

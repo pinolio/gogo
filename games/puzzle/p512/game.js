@@ -21,11 +21,17 @@
   const KEY_1P = { KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down', ShiftLeft: 'reset' };
   const KEY_2P = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', ShiftRight: 'reset' };
   const P2 = 'local-2p';
-  const PLAY = {
+  // v79 (선생님 11/06): AI 대전·오프라인 대결 뺌 → 랭킹 대전(예전 Ultimate mode, 기록 'ultimate' 이어받음) · 온라인 대결만
+  //  AI·오프라인 코드는 남아 있지만 고를 수 없음 (ai·offline 은 PLAY_OLD)
+  const PLAY_OLD = {
     ai: { name: 'AI 대전', desc: '컴퓨터 1~5명과 2분 동안 겨뤄요.', pts: '승리 +1P · 패배 -1P' },
-    offline: { name: '오프라인 대결', desc: '한 컴퓨터에서 키보드를 나눠 2명이 겨뤄요. 시간 제한 없이 512 먼저 만들기!', pts: '승리 +1P · 패배 -1P (1P 기록)' },
-    online: { name: '온라인 대결', desc: '방 코드로 다른 기기의 친구와 2분 동안 겨뤄요.', pts: '사람과 대결 승리 +2P · 패배 -1P' }
+    offline: { name: '오프라인 대결', desc: '한 컴퓨터에서 키보드를 나눠 2명이 겨뤄요. 시간 제한 없이 512 먼저 만들기!', pts: '승리 +1P · 패배 -1P (1P 기록)' }
   };
+  const PLAY = {
+    rank: { name: '랭킹 대전', desc: '혼자 2분 동안 도전! 끝났을 때 판 위 숫자를 모두 더한 값이 점수예요. 막히면 그 자리에서 끝!', pts: '랭킹 기록 · 매달 시즌 1위 +50P' },
+    online: { name: '온라인 대결', desc: '방 코드로 다른 기기의 친구와 2분 동안 겨뤄요. 512를 먼저 만들거나 가장 큰 숫자를 만들면 승리!', pts: '사람과 대결 승리 +2P · 패배 -1P' }
+  };
+  const PLAYN = k => (PLAY[k] || PLAY_OLD[k]).name;
   const fakeCh = { send() {}, track() {}, untrack() {}, leave() {} };
   const TILE = {
     2: ['#EEF1FF', '#1D2340'], 4: ['#CFEFFF', '#1D2340'], 8: ['#3BC8F5', '#0F1430'], 16: ['#4C7DFF', '#FFFFFF'],
@@ -174,26 +180,24 @@
   /* ---------- 처음 화면 ---------- */
   function renderHome() {
     root.innerHTML = `
-      <div class="page-head"><a class="back" href="#home">← 게임 목록</a><h1>퍼즐512</h1><p>같은 숫자를 밀어서 합쳐요. <b>${GOAL}</b>를 가장 먼저 만들거나, <b>${LIMIT / 60000}분</b>이 끝났을 때 가장 큰 숫자를 만든 사람이 승리! 최대 ${MAX}명.</p></div>
+      <div class="page-head"><a class="back" href="#home">← 게임 목록</a><h1>퍼즐512</h1><p>같은 숫자를 밀어서 합쳐요. <b>랭킹 대전</b>은 2분 동안 판 위 숫자 합으로, <b>온라인 대결</b>은 <b>${GOAL}</b>를 가장 먼저 만들거나 <b>${LIMIT / 60000}분</b>이 끝났을 때 가장 큰 숫자를 만든 사람이 승리! 최대 ${MAX}명.</p></div>
       <div class="play-modes">${Object.entries(PLAY).map(([k, v]) => `
         <button type="button" class="play-mode pm-${k}" data-play="${k}"><span class="pm-name">${v.name}</span><span class="pm-desc">${v.desc}</span><span class="pm-pts">${v.pts}</span></button>`).join('')}
       </div>
       <div class="battle-lobby" style="margin-top:18px">
         <div class="panel b-rules"><h3>규칙</h3><ul class="rule-list">
           <li>방향을 누르면 모든 숫자가 그쪽으로 밀리고, 같은 숫자가 부딪치면 합쳐져요.</li>
-          <li><b>${GOAL}</b>를 가장 먼저 만든 사람이 1위예요.</li>
-          <li>AI 대전·온라인 대결은 <b>${LIMIT / 60000}분</b> 제한! 시간이 끝나면 가장 큰 숫자(같으면 점수)를 만든 사람이 이겨요.</li>
-          <li>막힐 것 같으면 <b>Ctrl</b>(오프라인은 Shift)로 내 판을 처음부터 다시 시작할 수 있어요. 다시 시작해도 위쪽 <b>MAX</b>(이번 경기 최고 숫자)는 그대로 남고, 시간이 끝나면 이 최고 숫자로 순위를 정해요.</li>
-          <li>더 움직일 수 없게 되면 자동으로 처음부터 다시 시작돼요.</li></ul></div>
+          <li><b>랭킹 대전</b>: 혼자 <b>${LIMIT / 60000}분</b>! 끝났을 때 <b>판 위 숫자를 모두 더한 값</b>이 점수예요. 더 움직일 수 없으면 그 자리에서 끝나요. 최고 점수가 랭킹에 올라가요 (예전 Ultimate 기록 이어짐).</li>
+          <li><b>온라인 대결</b>: <b>${GOAL}</b>를 먼저 만들거나, <b>${LIMIT / 60000}분</b>이 끝났을 때 가장 큰 숫자(같으면 점수)를 만든 사람이 이겨요.</li>
+          <li>온라인 대결에서 막힐 것 같으면 <b>Ctrl</b>로 내 판을 처음부터 다시 시작할 수 있어요. 위쪽 <b>MAX</b>(이번 경기 최고 숫자)는 그대로 남아요.</li></ul></div>
         <div class="panel b-rules"><h3>조작 키</h3><ul class="rule-list">
-          <li><b>혼자</b>: 방향키 또는 WASD 밀기 · Ctrl 다시 시작</li>
-          <li><b>오프라인 1P</b>: W A S D 밀기 · 왼쪽 Shift 다시 시작</li>
-          <li><b>오프라인 2P</b>: 방향키 밀기 · 오른쪽 Shift 다시 시작</li>
+          <li>방향키 또는 W A S D 로 밀기</li>
+          <li>온라인 대결: Ctrl 다시 시작</li>
           <li>휴대폰은 화면을 밀거나 아래 버튼으로 해요.</li></ul></div>
       </div>`;
     $$('[data-play]', root).forEach(b => b.addEventListener('click', () => {
       const k = b.dataset.play;
-      if (k === 'online') { openLobby(); renderLobby(); } else createLocal(k);
+      if (k === 'online') { openLobby(); renderLobby(); } else if (k === 'rank') openRank(); else createLocal(k);
     }));
   }
   function createLocal(play) {
@@ -330,7 +334,7 @@
     const ok = total >= 2;
     root.innerHTML = `
       <div class="room">
-        ${room.local ? `<div class="panel room-head"><div><span class="lbl">퍼즐512</span><h2 style="margin:4px 0 0">${PLAY[room.play].name}</h2><p class="small" style="margin:4px 0 0">${room.play === 'offline' ? '1P는 WASD·왼쪽 Shift, 2P는 방향키·오른쪽 Shift로 해요.' : '컴퓨터 상대를 더하거나 빼고 시작하세요.'} ${PLAY[room.play].pts}</p></div>
+        ${room.local ? `<div class="panel room-head"><div><span class="lbl">퍼즐512</span><h2 style="margin:4px 0 0">${PLAYN(room.play)}</h2><p class="small" style="margin:4px 0 0">${room.play === 'offline' ? '1P는 WASD·왼쪽 Shift, 2P는 방향키·오른쪽 Shift로 해요.' : '컴퓨터 상대를 더하거나 빼고 시작하세요.'} ${(PLAY[room.play] || PLAY_OLD[room.play]).pts}</p></div>
           <div class="row" style="margin:0"><button class="btn" type="button" id="pzLeave">다른 방식 고르기</button></div></div>`
         : `<div class="panel room-head"><div><span class="lbl">ROOM CODE</span><div class="room-code-big num">${esc(room.code)}</div><p class="small" style="margin:4px 0 0">친구에게 이 코드를 알려 주면 같은 방에 들어올 수 있어요.</p></div>
           <div class="row" style="margin:0"><button class="btn" type="button" id="pzCopy">코드 복사</button><button class="btn" type="button" id="pzLeave">나가기</button></div></div>`}
@@ -451,7 +455,7 @@
     const nick = id => (match.roster.find(x => x.id === id) || {}).nick || '';
     root.innerHTML = `
       <div class="match">
-        <div class="play-head"><span class="cat">${match.play === 'online' ? '방 ' + esc(room.code) : '퍼즐512'}</span><h1>${PLAY[match.play].name}</h1><span class="small" style="margin:0">${GOAL} 먼저 만들기${match.limit ? ' · ' + LIMIT / 60000 + '분 안에 가장 큰 숫자' : ''}</span></div>
+        <div class="play-head"><span class="cat">${match.play === 'online' ? '방 ' + esc(room.code) : '퍼즐512'}</span><h1>${PLAYN(match.play)}</h1><span class="small" style="margin:0">${GOAL} 먼저 만들기${match.limit ? ' · ' + LIMIT / 60000 + '분 안에 가장 큰 숫자' : ''}</span></div>
         <div class="match-grid v2 ${mains.length > 1 ? 'two' : ''}">
           <div class="minis side-l">${sides[0].map(miniHTML).join('')}</div>
           <div class="stage-col">
@@ -577,13 +581,20 @@
     act(a, id);
   }
 
+  /* v79 랭킹 대전 = Ultimate mode 화면을 퍼즐512 안에서 (GoUltimate.render(..., { embed })) */
+  let ultStop = null;
+  function openRank() {
+    leaveRoom(true); closeLobby();
+    document.removeEventListener('keydown', onKey);
+    ultStop = window.GoUltimate.render(root, A, { embed: { back: () => { ultStop = null; document.addEventListener('keydown', onKey); BGM.load('p512'); renderHome(); } } });
+  }
   window.GoP512 = {
     render(el, app) {
       A = app; root = el;
       BGM.load('p512');
       document.addEventListener('keydown', onKey);
       if (room) renderRoom(); else if (lobby) renderLobby(); else renderHome();
-      return function cleanup() { document.removeEventListener('keydown', onKey); leaveRoom(true); closeLobby(); root = null; BGM.stop(); };
+      return function cleanup() { if (ultStop) { ultStop(); ultStop = null; } document.removeEventListener('keydown', onKey); leaveRoom(true); closeLobby(); root = null; BGM.stop(); };
     },
     _debug: () => ({ room, match, slide, bestMove, Engine }),
     kit: { Engine, drawTiles, tileColor, slide, canMove, W, TOP, H }   // 다른 화면(Ultimate mode)에서 같은 규칙·그림을 쓰려고 내보냄

@@ -88,6 +88,12 @@
   @keyframes ggBounce { 50% { transform: translateY(-6px) rotate(-3deg); } }
   @media (max-width: 560px) { .gg-light { width: 170px; } .gg-react { width: 78px; right: -6px; bottom: -16px; } .gg-pad button { font-size: 24px; } .gg-over { grid-template-columns: 76px minmax(0, 1fr); } .gg-over .trophy { width: 76px; } .gg-top img { width: 20px; height: 20px; } }
   @media (prefers-reduced-motion: reduce) { .gg-light.red, .gg-light.green, .gg-over .trophy { animation: none; } }
+  /* v79 정식 게임(#gugu): 오른쪽 칸 = 랭킹 + 규칙 */
+  .gg-2col > .gg-side { display: grid; gap: 14px; position: sticky; top: 90px; align-content: start; }
+  .gg-side .gg-rules { width: auto; position: static; }
+  .gg-rank h3 { margin: 0 0 8px; } .gg-rank h3 small { font-size: 12px; color: #4C7DFF; }
+  .gg-ev { font-size: 13px; background: #FF5A5F; color: #FFFFFF; border-radius: 999px; padding: 2px 10px; vertical-align: middle; }
+  @media (max-width: 860px) { .gg-2col > .gg-side { position: static; } }
   `;
   function css() { if (!document.getElementById('tgCss')) { const s = document.createElement('style'); s.id = 'tgCss'; s.textContent = CSS; document.head.appendChild(s); } }
 
@@ -98,9 +104,12 @@
    *  맞으면 +1점, 틀리면 −1점 · 45초 */
   const GUGU = { sec: 45, redRatio: 0.5, min: 1, max: 9 };
   const flip = n => (n % 10) * 10 + Math.floor(n / 10);   // 두 자리로 보고 자리 바꾸기 (9 → 09 → 90, 20 → 02 → 2)
-  function gugu(el, ui) {
+  // v79: 정식 게임(games/study/gugu, 이벤트)에서도 같은 화면을 씀 — opt = { bgm: 음악 id, best: 내 최고, onOver(st) → 결과 상자 안내 글(HTML) }
+  function gugu(el, ui, opt) {
+    opt = opt || {};
     let st = { phase: 'ready' }, timer = 0, best = 0;
     try { best = +localStorage.getItem('gogo_test_gugu_best') || 0; } catch (e) { /* noop */ }
+    if (opt.best != null) best = opt.best;
     const rnd = () => GUGU.min + Math.floor(Math.random() * (GUGU.max - GUGU.min + 1));
     el.innerHTML = `<div class="gg-2col"><div class="gg">
       <div class="gg-title"><b>신호등 구구단</b></div>
@@ -128,7 +137,7 @@
     }
     // v78 배경음악: 블록 대전과 같은 곡 (games/puzzle/battle/bgm/bgm.mp3, 「Block Rush」) — 시작하면 처음부터, 끝나면 멈춤
     const BGM = window.GoBGM;
-    if (BGM) BGM.load('battle');
+    if (BGM) BGM.load(opt.bgm || 'battle');
     const mBtn = $('#ggMusic', el);
     const syncM = () => { if (!mBtn.isConnected || !BGM) return; mBtn.hidden = !BGM.ready; mBtn.textContent = BGM.isMuted() ? '♪ 켜기' : '♪ 끄기'; };
     const offM = BGM ? BGM.onChange(syncM) : () => {};
@@ -166,9 +175,10 @@
       $('#ggLight', el).className = 'gg-light'; $('#ggQ', el).innerHTML = '끝!'; $('#ggHint', el).textContent = '';
       const nb = st.score > best; if (nb) { best = st.score; try { localStorage.setItem('gogo_test_gugu_best', String(best)); } catch (e) { /* noop */ } set('ggBest', best); }
       const box = document.createElement('div'); box.className = 'gg-over';
-      box.innerHTML = `<img class="trophy" src="img/test/gugu_trophy.png" alt="트로피"><div><b class="big">${st.score}점</b>맞힘 ${st.right} · 틀림 ${st.wrong}${nb ? ' · <b style="color:#D6202A">최고 점수!</b>' : ''}<br><small>테스트 게임이라 랭킹·포인트에는 남지 않아요 (이 기기 최고 점수만)</small><div style="margin-top:10px"><button class="btn btn-sun" type="button" data-again>↻ 다시 하기</button></div></div>`;
+      box.innerHTML = `<img class="trophy" src="img/test/gugu_trophy.png" alt="트로피"><div><b class="big">${st.score}점</b>맞힘 ${st.right} · 틀림 ${st.wrong}${nb ? ' · <b style="color:#D6202A">최고 점수!</b>' : ''}<br><small class="gg-note">${opt.onOver ? '기록을 저장하는 중…' : '테스트 게임이라 랭킹·포인트에는 남지 않아요 (이 기기 최고 점수만)'}</small><div style="margin-top:10px"><button class="btn btn-sun" type="button" data-again>↻ 다시 하기</button></div></div>`;
       box.querySelector('[data-again]').addEventListener('click', start);
       $('.gg-frame', el).after(box);
+      if (opt.onOver) Promise.resolve(opt.onOver({ score: st.score, right: st.right, wrong: st.wrong, sec: GUGU.sec })).then(h => { const n = box.querySelector('.gg-note'); if (n && h != null) n.innerHTML = h; }).catch(() => {});
     }
     form.addEventListener('submit', e => { e.preventDefault(); submit(); });
     $('#ggRe', el).addEventListener('click', start);   // v71 다시 하기: 언제든 처음부터 (점수·시간 처음으로)
@@ -180,9 +190,8 @@
     return () => { clearInterval(timer); offM(); if (BGM) BGM.stop(); };
   }
 
-  const GAMES = [
-    { id: 'gugu', name: '신호등 구구단', desc: '녹색불이면 바른 답, 빨간불이면 십의 자리·일의 자리를 바꾼 답! 맞으면 +1, 틀리면 −1.', render: gugu }
-  ];
+  // v79: 신호등 구구단은 정식 게임(#gugu · 이벤트 칸 · 공부? 목록)으로 내보냄 → 테스트 목록에서는 빠짐
+  const GAMES = [];
 
   function render(root, ui, gid) {
     css();
@@ -194,12 +203,12 @@
     if (!g) {
       root.innerHTML = `<div class="tg-wrap"><div class="page-head"><h1>테스트 게임</h1><p>정식으로 내보내기 전에 관리자만 미리 해 보는 곳이에요.</p></div>
         <p class="tg-note">여기 게임은 게임 목록·랭킹·전적에 나오지 않고 포인트도 없어요. 해 보고 괜찮으면 Claude 에게 <b>"○○ 내보내 줘"</b> 라고 하면 정식 게임으로 옮겨요.</p>
-        <div class="tg-list">${GAMES.map(x => `<a class="tg-card" href="#test-${x.id}"><span class="tag">테스트</span><b>${ui.esc(x.name)}</b><span>${ui.esc(x.desc)}</span></a>`).join('')}</div></div>`;
+        ${GAMES.length ? '' : '<p class="tg-note">지금 테스트 중인 게임이 없어요. (신호등 구구단은 정식 게임으로 내보냈어요 → <a href="#gugu">신호등 구구단</a>)</p>'}<div class="tg-list">${GAMES.map(x => `<a class="tg-card" href="#test-${x.id}"><span class="tag">테스트</span><b>${ui.esc(x.name)}</b><span>${ui.esc(x.desc)}</span></a>`).join('')}</div></div>`;
       return () => {};
     }
     root.innerHTML = `<div class="tg-wrap"><div class="page-head"><h1>${ui.esc(g.name)} <small style="font-size:14px;background:#FFD23F;color:#1D2340;border-radius:999px;padding:2px 10px;vertical-align:middle">테스트</small></h1><p><a href="#test">← 테스트 게임 목록</a></p></div><div id="tgBody"></div></div>`;
     return g.render($('#tgBody', root), ui) || (() => {});
   }
 
-  window.GoTestGames = { render, GAMES, flip };
+  window.GoTestGames = { render, GAMES, flip, gugu, css, GUGU };
 })();

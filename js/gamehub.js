@@ -869,7 +869,8 @@
   };
   // v75 시즌 보상: 첫 시즌 2026-11 · 1위 +50P · 빼는 게임(RPG·Ultimate 는 선생님이 따로, 나머지는 랭킹에 안 쓰는 옛 기록) — supabase/season_v75.sql 과 같게
   Hub.SEASON_FIRST = '2026-11'; Hub.SEASON_POINTS = 50;
-  Hub.SEASON_SKIP = ['rpg', 'ultimate', 'battle', 'blocks', '2048', 'p1024'];
+  // v79: 퍼즐512 시즌 = 랭킹 대전 기록('ultimate') → 'ultimate' 는 포함, 옛 퍼즐512 대결 기록('p512')은 뺌. 신호등 구구단('gugu') 포함
+  Hub.SEASON_SKIP = ['rpg', 'p512', 'battle', 'blocks', '2048', 'p1024'];
   Hub.seasonList = function (now) {   // 첫 시즌 ~ 지금 시즌 (지금 것이 맨 뒤, current: true)
     const cur = Hub.season(now), out = [];
     let [y, m] = Hub.SEASON_FIRST.split('-').map(Number);
