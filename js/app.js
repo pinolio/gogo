@@ -239,17 +239,17 @@
       </div>`).join('');
     if (!live.length && !soon.length) grid.innerHTML = '<p class="empty">이 분류의 게임은 곧 추가돼요.</p>';
     drawThumbs(grid);
-    // v75: 카드 아래 기록 3줄 (게임 신기록 · 이번 시즌 신기록 · 내 기록). RPG 는 예전 그대로(1위 · 내 최고)
+    // v75: 카드 아래 기록 3줄 (게임 신기록 · 이번 시즌 신기록 · 내 기록). v84 RPG 는 1·2·3위
     const season = Hub.season();
     const recLine = (cls, label, who, val) => `<div class="rec ${cls}"><span class="rec-l">${label}</span><span class="rec-v">${who ? `<span class="rec-who">${esc(who)}</span>` : ''}<b class="num">${val}</b></span></div>`;
     await Promise.all(live.map(async g => {
       const foot = $(`[data-foot="${g.id}"]`, grid);
       try {
         if (SET.get(g.id) && SET.get(g.id).cardOld) {
-          const [top] = await Hub.leaderboard(g.id, 1);
-          const mine = Hub.user ? await Hub.myBest(g.id) : null;
+          const tops = (await Hub.leaderboard(g.id, 3) || []).filter(t => t && t.best_score > 0);   // v84 RPG 카드: 1~3위
           if (!foot.isConnected) return;
-          foot.innerHTML = `<span>1위 ${top ? esc(top.nickname) + ' <b class="num">' + sfmt(g.id, top.best_score) + '</b>' : '-'}</span>${mine != null ? `<span>내 최고 <b class="num">${sfmt(g.id, mine)}</b></span>` : ''}`;
+          foot.classList.add('rec3');
+          foot.innerHTML = ['🥇', '🥈', '🥉'].map((m, i) => recLine('r-rank', `<i>${m} </i>${i + 1}위`, tops[i] && tops[i].nickname, tops[i] ? sfmt(g.id, tops[i].best_score) : '-')).join('');
           return;
         }
         const st = SET.get(g.id) || {};

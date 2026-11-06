@@ -915,6 +915,10 @@
   window.GoGames.scfight = {
     id: 'scfight',
     thumb(ctx, w, h) {
+      // v84 카드 그림 = 선생님이 주신 그림(img/thumb.jpg). 받기 전에는 아래 그림, 받으면 다시 그림
+      const T = window.GoSCFThumb || (window.GoSCFThumb = Object.assign(new Image(), { src: 'games/action/scfight/img/thumb.jpg?v=84' }));
+      if (T.complete && T.naturalWidth) { ctx.imageSmoothingEnabled = true; ctx.drawImage(T, 0, 0, w, h); return; }
+      T.addEventListener('load', () => { try { this.thumb(ctx, w, h); } catch (e) { /* noop */ } }, { once: true });
       const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#2A1E4A'); g.addColorStop(0.6, '#C8605A'); g.addColorStop(1, '#F5B060'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = '#8A7A68'; ctx.fillRect(0, h * 0.55, w, h * 0.12); for (let x = 0; x < w; x += 16) ctx.fillRect(x, h * 0.5, 10, h * 0.06);
       ctx.fillStyle = '#B09A80'; ctx.fillRect(0, h * 0.67, w, h * 0.33);

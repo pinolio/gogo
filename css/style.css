@@ -1193,10 +1193,14 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 .card-foot .r-all .rec-l { background: #FFD84D; color: #1D2340; }
 .card-foot .r-season .rec-l { background: #8FD3FF; color: #1D2340; }
 .card-foot .r-me .rec-l { background: #8EE6A0; color: #1D2340; }
+.card-foot .r-rank:nth-child(1) .rec-l { background: #FFD84D; color: #1D2340; }   /* v84 RPG 1·2·3위 */
+.card-foot .r-rank:nth-child(2) .rec-l { background: #CFE3FF; color: #1D2340; }
+.card-foot .r-rank:nth-child(3) .rec-l { background: #F5BE8A; color: #1D2340; }
 a.card .card-foot .rec-who { color: #1D2340; }
 a.card .card-foot .r-all b { color: #B4560B; }
 a.card .card-foot .r-season b { color: #1F5FBF; }
 a.card .card-foot .r-me b { color: #17803A; }
+a.card .card-foot .r-rank b { color: #B4560B; }
 .card-foot .rec-l i { font-style: normal; }
 @media (max-width: 560px) {
   .card-foot .rec-l { font-size: 10px; padding: 2px 5px; }

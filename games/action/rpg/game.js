@@ -2008,6 +2008,10 @@
   window.GoGames.rpg = {
     id: 'rpg',
     thumb(ctx, w, h) {
+      // v84 카드 그림 = 선생님이 주신 그림(img/thumb.jpg). 받기 전에는 아래 도트 그림, 받으면 다시 그림
+      const T = window.GoRPGThumb || (window.GoRPGThumb = Object.assign(new Image(), { src: 'games/action/rpg/img/thumb.jpg?v=84' }));
+      if (T.complete && T.naturalWidth) { ctx.imageSmoothingEnabled = true; ctx.drawImage(T, 0, 0, w, h); return; }
+      T.addEventListener('load', () => { try { this.thumb(ctx, w, h); } catch (e) { /* noop */ } }, { once: true });
       const sky = ctx.createLinearGradient(0, 0, 0, h * 0.62); sky.addColorStop(0, '#2E2850'); sky.addColorStop(0.55, '#B8583E'); sky.addColorStop(1, '#F2A65A'); ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = '#FFE0A0'; ctx.beginPath(); ctx.arc(w * 0.78, h * 0.42, 13, 0, Math.PI * 2); ctx.fill();   // 해
       ctx.fillStyle = '#4A3550'; ctx.beginPath(); ctx.moveTo(0, h * 0.58); [[0.12, 0.38], [0.26, 0.5], [0.42, 0.34], [0.58, 0.5], [0.72, 0.4], [0.88, 0.52], [1, 0.44]].forEach(([x, y]) => ctx.lineTo(w * x, h * y)); ctx.lineTo(w, h * 0.62); ctx.lineTo(0, h * 0.62); ctx.fill();   // 먼 산
