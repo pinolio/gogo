@@ -142,13 +142,13 @@
     view().innerHTML = `
       <div class="home">
         <div class="home-main">
-          <section class="hero" aria-roledescription="carousel" aria-label="게임 소개">
+          <section class="hero" aria-roledescription="carousel" aria-label="이벤트 · 업데이트 소개">
             <canvas id="heroRain" aria-hidden="true"></canvas>
             <div class="hero-copy" id="heroCopy" aria-live="polite"></div>
             <div class="hero-nav">
-              <button type="button" class="hero-arrow" id="heroPrev" aria-label="이전 게임">◀</button>
-              <div class="hero-dots" id="heroDots" role="tablist" aria-label="소개할 게임 고르기"></div>
-              <button type="button" class="hero-arrow" id="heroNext" aria-label="다음 게임">▶</button>
+              <button type="button" class="hero-arrow" id="heroPrev" aria-label="이전 소개">◀</button>
+              <div class="hero-dots" id="heroDots" role="tablist" aria-label="소개 고르기"></div>
+              <button type="button" class="hero-arrow" id="heroNext" aria-label="다음 소개">▶</button>
             </div>
             <div class="hero-timer" aria-hidden="true"><i id="heroBar"></i></div>
           </section>
@@ -277,8 +277,8 @@
       box.innerHTML = `
         <div class="me">${avCanvas(u.avatar, 4, 'full', 'me-av', true)}
           <div><b>${esc(u.nickname)}</b><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span>${levelBlock(u)}</div></div>
-        <div class="row"><a class="btn btn-sun" href="#shop">아바타 꾸미기</a><a class="btn" href="#my">내 전적</a></div>
-        <p class="small acct-links"><a class="btn btn-sm btn-room" href="#room" title="내 방 (가구 꾸미기 · 옷장 · 방명록)"><span>내 방</span><i class="room-spark" aria-hidden="true">✦</i></a><button class="link" type="button" data-logout>로그아웃</button></p>`;
+        <div class="row"><a class="btn btn-sun" href="#room">내 방으로 <small>(아바타 꾸미기)</small></a><a class="btn" href="#my">내 전적</a></div>
+        <p class="small acct-links"><a class="link" href="#shop">아바타 상점</a><button class="link" type="button" data-logout>로그아웃</button></p>`;
       AV.paintAll(box);
     } else {
       box.innerHTML = `
@@ -307,11 +307,28 @@
 
   /* ---------- 맨 위 소개: 10초마다 다른 게임 ----------
    * 문구는 각 게임 폴더 settings.js 의 hero 값, 그림은 각 게임의 썸네일을 크게 그림 */
+  // v90 '내 방' 소개 그림 (가구 도트 + 내 아바타)
+  function roomThumb(c, w, h) {
+    const F = window.GoFurn; if (!F) return;
+    c.save(); c.fillStyle = '#C8E4FF'; c.fillRect(0, 0, w, h); c.imageSmoothingEnabled = true; c.lineJoin = 'round';
+    const k = 0.42; c.translate(w / 2, 22); c.scale(k, k);
+    const g = F.pen(c, 0, 0); F.drawRoomShell(g, 6, 120, 'wp_star', 'fl_light');
+    const room = [['r_heart', 2, 2, 0], ['f_bed2', 4, 0, 0], ['f_sofa', 0, 3, 1], ['f_floorlamp', 5, 3, 0], ['f_tree', 0, 0, 0], ['f_tv', 2, 0, 0]];
+    room.forEach(([id, i, j, r]) => { const it = F.byId[id]; if (it) F.drawItem(g, it, i, j, r, { on: id === 'f_floorlamp' }); });
+    F.drawWallItem(g, F.byId.w_bigwin, 'L', 2, {}); F.drawWallItem(g, F.byId.w_clock, 'R', 3, {});
+    const av = Hub.user ? Hub.user.avatar : AV.random('room');
+    const p = g.P(3.6, 4.2, 0); AV.draw(c, av, p[0] - 27, p[1] - 84, 3, {});
+    c.restore();
+  }
   const HERO_MS = 10000;
   let heroIndex = 0;
   function startHeroRain() {
     const c = $('#heroRain'); if (!c) return;
-    const slides = GAMES.filter(g => g.hero);
+    // v90 선생님: 게임 소개 대신 ① 지금 이벤트(settings 의 event: true · 신호등 구구단) ② '내 방' 업데이트 소개
+    const evg = SET.listAll().find(g => g.event && !g.hidden);
+    const slides = [];
+    if (evg) slides.push({ id: evg.id, name: evg.name, href: '#' + evg.id, hero: { eyebrow: 'EVENT · 이벤트 진행 중', title: evg.eventTitle || evg.name, em: '이번 시즌 1위에 도전!', desc: String(evg.eventDesc || evg.blurb || '').replace(/<[^>]+>/g, ''), cta: '이벤트 도전하기' } });
+    slides.push({ id: 'room', name: '내 방', href: '#room', thumb: roomThumb, hero: { eyebrow: 'UPDATE · 내 방', title: '가구를 사서 꾸미는', em: '나만의 미니룸!', desc: '옷장을 누르면 아바타가 걸어가 옷을 갈아입어요. 상점의 \u2018내 방 가구\u2019 67종으로 방을 꾸미고, 친구 방에 놀러 가 방명록을 남겨 보세요. 방 아래에는 내 게임 기록이 모여요!', cta: '내 방 가기' } });
     if (!slides.length) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const keys = Object.keys(P.PIECE), S = 16;
@@ -319,11 +336,11 @@
     slides.forEach(g => {
       const off = document.createElement('canvas'); off.width = 240; off.height = 150;
       const octx = off.getContext('2d'); octx.imageSmoothingEnabled = false;
-      try { window.GoGames[g.id].thumb(octx, 240, 150); } catch (e) { /* noop */ }
+      try { (g.thumb || window.GoGames[g.id].thumb.bind(window.GoGames[g.id]))(octx, 240, 150); } catch (e) { /* noop */ }
       thumbs[g.id] = off;
     });
     // 게임 그림을 다 불러오면 썸네일 다시 그리기
-    window.addEventListener('gogo:img', () => slides.forEach(g => { const o = thumbs[g.id], c2 = o.getContext('2d'); c2.clearRect(0, 0, 240, 150); try { window.GoGames[g.id].thumb(c2, 240, 150); } catch (e) { /* noop */ } }));
+    window.addEventListener('gogo:img', () => slides.forEach(g => { const o = thumbs[g.id], c2 = o.getContext('2d'); c2.clearRect(0, 0, 240, 150); try { (g.thumb || window.GoGames[g.id].thumb.bind(window.GoGames[g.id]))(c2, 240, 150); } catch (e) { /* noop */ } }));
     let ctx, w = 0, h = 0, drops = [], raf = 0, last = 0, elapsed = 0, paused = false, fade = 1;
     function size() {
       const r = c.getBoundingClientRect(); w = Math.max(1, Math.round(r.width)); h = Math.max(1, Math.round(r.height));
@@ -360,7 +377,7 @@
         <p class="eyebrow">${esc(hr.eyebrow)}</p>
         <h1>${esc(hr.title)}<br><em>${esc(hr.em)}</em></h1>
         <p>${esc(hr.desc)}</p>
-        <a class="btn btn-sun" href="#${g.id}">${esc(hr.cta || '시작하기')} ▶</a>`;
+        <a class="btn btn-sun" href="${g.href || '#' + g.id}">${esc(hr.cta || '시작하기')} ▶</a>`;
       if (!reduce) { box.classList.remove('in'); void box.offsetWidth; box.classList.add('in'); }
       $$('#heroDots button').forEach((b, i) => b.setAttribute('aria-selected', String(i === heroIndex)));
     }

@@ -208,7 +208,7 @@
       if (pat === 'star' && (i * 3 + j * 7) % 5 === 0) g.dot(i + 0.5, j + 0.5, 0, 1, '#FFF3B0');
       if (pat === 'grass' && (i * 3 + j) % 3 === 0) g.dot(i + 0.3, j + 0.6, 0, 1, shade(flI.color, 0.35));
     }
-    g.poly([g.P(0, N, 0), g.P(N, N, 0), g.P(N, 0, 0)], null, O);
+    { const a = g.P(0, N, 0), b = g.P(N, N, 0), d = g.P(N, 0, 0); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.strokeStyle = O; c.lineWidth = 1; c.stroke(); }   // 바닥 앞쪽 테두리 (닫지 않음 → 가운데 가로선 없음)
     if (night) { c.fillStyle = 'rgba(20,16,60,.35)'; c.fillRect(-2000, -2000, 4000, 4000); }
   }
 

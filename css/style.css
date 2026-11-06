@@ -1395,3 +1395,21 @@ a.nm-t { color: inherit; text-decoration: none; }
 a.nm-t:hover { text-decoration: underline; }
 @media (max-width: 560px) { .room-count { margin-left: 0; } .room-head { gap: 8px; } .rm-it { width: 74px; } .rm-it canvas { width: 56px; height: 56px; } }
 .rm-gnote { margin: 0 0 8px; color: var(--ink-2); }
+/* v90 내 방 처음 안내 */
+.rm-tut { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px; display: flex; justify-content: center; pointer-events: none; }
+.rm-tut-card { pointer-events: auto; width: min(560px, 100%); display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: start; background: #FFFFFF; color: #1D2340; border: 3px solid #1D2340; border-radius: 12px; padding: 12px 14px; box-shadow: 0 6px 0 rgba(29, 35, 64, .35); animation: rmPop .2s ease-out; }
+.rm-tut-ic { font-size: 34px; line-height: 1; }
+.rm-tut-tx small { display: block; font-size: 11px; color: #566086; font-weight: 700; }
+.rm-tut-tx > b { font-family: var(--f-display); font-size: 19px; font-weight: 400; }
+.rm-tut-tx p b { font-weight: 700; }
+.rm-tut-tx p { margin: 4px 0 0; font-size: 14px; line-height: 1.5; }
+.rm-tut-btn { grid-column: 1 / -1; display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+.rm-tut-btn .link { margin-right: auto; color: #566086; }
+.rm-tut-dots { grid-column: 1 / -1; display: flex; gap: 4px; justify-content: center; }
+.rm-tut-dots i { width: 7px; height: 7px; border-radius: 50%; background: #C8D0F0; }
+.rm-tut-dots i.on { background: #1D2340; }
+.rm-tut-hl { outline: 4px solid #FFD23F !important; outline-offset: 2px; border-radius: 8px; animation: rmBlink 1s ease-in-out infinite; }
+@keyframes rmBlink { 50% { outline-color: #FF9A3D; } }
+@media (prefers-reduced-motion: reduce) { .rm-tut-hl { animation: none; } .rm-tut-card { animation: none; } }
+.room-tip .link { margin-left: 6px; font-weight: 700; }
+@media (max-width: 560px) { .rm-tut { position: static; padding: 8px 0 0; } .rm-tut-ic { font-size: 26px; } .rm-tut-tx p { font-size: 13px; } }

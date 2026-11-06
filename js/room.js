@@ -17,7 +17,35 @@
   let A = null, root = null, key = null, owner = null, room = null, draft = null, edit = false, raf = 0, cv = null, ctx = null, closetCleanup = null;
   let shell = null, shellKey = '', tab = 'furn', sel = null, carry = null, busy = false, stats = null, guests = null, visits = null, loadErr = null;
   const st = { on: {}, night: false, wdOpen: 0, wdTarget: 0, sparkle: 0, bubble: null, notes: 0 };
-  const me = { i: 4.5, j: 5.5, path: [], act: null, actItem: null, face: 1, walkT: 0, after: null, idleT: 2 };
+  /* v90 처음 내 방에 오면 보여 주는 안내 (이 기기에서 한 번 · 방 아래 '도움말'로 다시 보기) */
+  const TUT = [
+    ['🏠', '내 방에 온 걸 환영해요!', '여기는 나만의 방이에요. <b>바닥을 누르면</b> 아바타가 그곳으로 걸어가요.', '#rmCv', null],
+    ['👕', '옷장 = 옷 갈아입기', '반짝이는 <b>옷장</b>을 누르면 아바타가 걸어가 문을 열어요. 옷을 골라 <b>이대로 입기</b>를 누르면 짠! 갈아입어요.', '#rmCv', 'wd'],
+    ['🛏️', '가구를 눌러 보세요', '침대는 <b>눕기</b>, 의자·소파는 <b>앉기</b>, 조명·TV는 <b>켜기</b>, 창문은 <b>낮 ↔ 밤</b>, 스피커·피아노는 <b>음악</b>이 나와요.', '#rmCv', null],
+    ['🛠️', '방 꾸미기', '<b>방 꾸미기</b>를 누르면 아래에 내 가구가 나와요. 골라서 놓고, <b>끌어서 옮기고</b>, 돌리고, 보관할 수 있어요. 다 했으면 <b>저장</b>!', '[data-rm="edit"]', null],
+    ['🛒', '가구 상점', '게임에서 모은 포인트로 <b>가구 상점</b>에서 가구·벽지·바닥·옷장을 사요. (67종 · 8~80P)', '.room-btns [data-shopfurn]', null],
+    ['💌', '친구 방 · 방명록 · 기록', '랭킹에서 친구 이름을 누르면 <b>친구 방</b>에 놀러 가요. <b>방명록</b>은 방 주인과 글쓴이만 볼 수 있어요. 방 아래에는 <b>TODAY·TOTAL 방문 수</b>와 내 <b>게임 기록</b>이 모여요.', '.room-count', null]
+  ];
+  let tut = -1;
+  const tutKey = () => 'gogo.roomTut.' + (Hub.user ? Hub.user.id : 'guest');
+  function tutSeen() { try { return localStorage.getItem(tutKey()) === '1'; } catch (e) { return false; } }
+  function tutDone() { try { localStorage.setItem(tutKey(), '1'); } catch (e) { /* noop */ } tut = -1; renderTut(); }
+  function renderTut() {
+    if (!root) return;
+    $$('.rm-tut-hl', root).forEach(e => e.classList.remove('rm-tut-hl'));
+    const box = $('#rmTut'); if (!box) return;
+    if (tut < 0) { box.hidden = true; box.innerHTML = ''; return; }
+    const [ic, t, d, sel] = TUT[tut], last = tut === TUT.length - 1;
+    box.hidden = false;
+    box.innerHTML = `<div class="rm-tut-card" role="dialog" aria-label="내 방 안내"><div class="rm-tut-ic" aria-hidden="true">${ic}</div><div class="rm-tut-tx"><small>${tut + 1} / ${TUT.length}</small><b>${t}</b><p>${d}</p></div>
+      <div class="rm-tut-btn"><button class="link" type="button" data-tut="skip">건너뛰기</button>${tut ? '<button class="btn btn-sm" type="button" data-tut="prev">이전</button>' : ''}<button class="btn btn-sm btn-primary" type="button" data-tut="next">${last ? '시작하기!' : '다음 ▶'}</button></div>
+      <div class="rm-tut-dots">${TUT.map((_, i) => `<i class="${i === tut ? 'on' : ''}"></i>`).join('')}</div></div>`;
+    const hl = sel && $(sel, root); if (hl) hl.classList.add('rm-tut-hl');
+  }
+  const me = { i: 4.5, j: 5.5, path: [], act: null, actItem: null, face: 1, walkT: 0, after: null, idleT: 2 };   // 내가 움직이는 아바타 (내 방 = 주인, 친구 방 = 손님인 나)
+  const host = { i: 4.5, j: 4.5, path: [], act: null, face: -1, walkT: 0, idleT: 1.5 };                            // v90 친구 방: 방 주인 아바타 (혼자 돌아다님)
+  const visiting = () => !!(owner && !mine());
+  const hasMe = () => !!(owner && Hub.user && !Hub.user.banned) && (mine() || !!Hub.user);
 
   const mine = () => !!(Hub.user && owner && Hub.user.id === owner.id);
   const R = () => (edit ? draft : room);
@@ -83,7 +111,8 @@
     const L = [];
     rm.items.forEach((x, k) => { const it = F.byId[x[0]]; if (!it || it.slot === 'rug') return; const [w, d] = size(it, x[3]); L.push({ k, it, i: x[1], j: x[2], w, d, r: x[3] }); });
     const wd = F.byId[rm.wd]; L.push({ k: 'wd', it: wd, i: rm.wdAt[0], j: rm.wdAt[1], w: 1, d: 1, r: rm.wdAt[2] });
-    if (!edit) L.push({ k: 'me', av: true, i: me.i - 0.3, j: me.j - 0.3, w: 0.6, d: 0.6 });
+    if (!edit && hasMe()) L.push({ k: 'me', av: me, i: me.i - 0.3, j: me.j - 0.3, w: 0.6, d: 0.6 });
+    if (!edit && visiting()) L.push({ k: 'host', av: host, i: host.i - 0.3, j: host.j - 0.3, w: 0.6, d: 0.6 });
     // 앞뒤 순서: 겹치지 않는 상자는 한쪽이 확실히 뒤 → 위상 정렬
     const behind = (a, b) => (a.i + a.w <= b.i + 0.001) || (a.j + a.d <= b.j + 0.001);
     const out = [], left = L.slice();
@@ -94,21 +123,28 @@
     }
     return out;
   }
-  function drawAvatar(c, now) {
-    const av = owner ? (mine() ? Hub.user.avatar : owner.avatar) : AV.normalize({});
-    let [x, y] = P(me.i, me.j, 0), frame = 0, z = 0;
-    const moving = me.path.length > 0;
-    if (moving && !reduce) frame = [1, 0, 3, 0][Math.floor(me.walkT * 7) % 4];
-    if (me.act === 'sit') z = 14;
+  function drawAvatar(c, now, e) {
+    e = e || me;
+    const isHost = e === host, av = isHost ? owner.avatar : (Hub.user ? Hub.user.avatar : AV.normalize({}));
+    let [x, y] = P(e.i, e.j, 0), frame = 0, z = 0;
+    const moving = e.path.length > 0;
+    if (moving && !reduce) frame = [1, 0, 3, 0][Math.floor(e.walkT * 7) % 4];
+    if (e.act === 'sit') z = 14;
+    if (visiting()) {   // 친구 방: 머리 위 이름표 (주인 · 나)
+      c.font = '10px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center';
+      const t = isHost ? owner.nickname + ' (주인)' : '나', ty = y - z - (e.act === 'sleep' ? 40 : 62), tw = c.measureText(t).width + 10;
+      c.fillStyle = isHost ? 'rgba(29,35,64,.85)' : 'rgba(255,210,63,.95)'; c.fillRect(x - tw / 2, ty - 10, tw, 13);
+      c.fillStyle = isHost ? '#FFFFFF' : '#1D2340'; c.fillText(t, x, ty); c.textAlign = 'left';
+    }
     c.save();
     c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y, 11, 5, 0, 0, Math.PI * 2); c.fill();
-    if (me.act === 'sleep') {
+    if (e.act === 'sleep') {
       c.translate(x, y - 22); c.rotate(-Math.PI / 2.4); AV.draw(c, av, -18, -29, 2, { frame: 0 });
       c.restore(); c.font = '12px "Jua", sans-serif'; c.fillStyle = '#4A5AA8'; const t = (now / 600) % 3; c.fillText('Z', x + 14 + t * 4, y - 40 - t * 8); c.fillText('z', x + 22 + t * 3, y - 54 - t * 6); return;
     }
     const bob = moving || reduce ? 0 : Math.round(Math.sin(now / 500));
     c.translate(x, y - z);
-    if (me.face < 0) c.scale(-1, 1);
+    if (e.face < 0) c.scale(-1, 1);
     AV.draw(c, av, -18, -56 + bob, 2, { frame });
     c.restore();
   }
@@ -127,17 +163,22 @@
     drawWallItems(c, g, rm);
     drawList(rm).forEach(o => {
       if (carry && carry.from === o.k) return;
-      if (o.av) return drawAvatar(c, now);
+      if (o.av) return drawAvatar(c, now, o.av);
       const hl = edit && sel && sel.kind !== 'wall' && sel.k === o.k;
       if (hl) { c.save(); c.shadowColor = '#FFD23F'; c.shadowBlur = 12; }
       F.drawItem(g, o.it, o.i, o.j, o.r, { on: st.on[o.it.id], open: o.k === 'wd' ? st.wdOpen : 0 });
       if (hl) c.restore();
     });
     if (st.night) { c.fillStyle = 'rgba(16,14,60,.38)'; c.fillRect(0, 0, VW, VH); Object.keys(st.on).forEach(id => { if (!st.on[id]) return; const x = rm.items.find(y => y[0] === id); const it = F.byId[id]; if (!x || !it || it.act !== 'light') return; const p = P(x[1] + 0.5, x[2] + 0.5, it.h - 8); const gr = c.createRadialGradient(p[0], p[1], 2, p[0], p[1], 110); gr.addColorStop(0, 'rgba(255,230,160,.45)'); gr.addColorStop(1, 'rgba(255,230,160,0)'); c.fillStyle = gr; c.fillRect(p[0] - 110, p[1] - 110, 220, 220); }); }
+    if (tut >= 0 && TUT[tut][4] === 'wd') {   // 안내 중: 옷장 반짝
+      const p = P(rm.wdAt[0] + 0.5, rm.wdAt[1] + 0.5, 50), a = 0.45 + 0.25 * Math.sin(now / 200);
+      c.save(); c.globalAlpha = a; c.strokeStyle = '#FFD23F'; c.lineWidth = 4; c.beginPath(); c.ellipse(p[0], p[1], 44, 62, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+      c.font = '20px sans-serif'; c.textAlign = 'center'; c.fillText('👇', p[0], p[1] - 70 + 4 * Math.sin(now / 180)); c.textAlign = 'left';
+    }
     if (carry) drawCarry(c, g);
     if (st.sparkle > 0) { const [x, y] = P(me.i, me.j, 30); for (let n = 0; n < 10; n++) { const a = n / 10 * Math.PI * 2 + now / 300, r = 24 + 8 * Math.sin(now / 120 + n); c.fillStyle = n % 2 ? '#FFE45C' : '#FFFFFF'; c.fillRect(x + Math.cos(a) * r - 2, y + Math.sin(a) * r * 0.8 - 2, 4, 4); } }
     if (st.notes > 0) { const [x, y] = P(me.i, me.j, 64); c.font = '14px sans-serif'; c.fillStyle = '#7E4DE0'; for (let n = 0; n < 3; n++) { const t = ((now / 900) + n / 3) % 1; c.globalAlpha = 1 - t; c.fillText(n % 2 ? '♪' : '♫', x - 16 + n * 14, y - t * 30); } c.globalAlpha = 1; }
-    if (st.bubble) { const [x, y] = P(me.i, me.j, me.act === 'sit' ? 82 : 68); c.font = '12px "Jua", "Malgun Gothic", sans-serif'; const tw = c.measureText(st.bubble.t).width + 16; c.fillStyle = '#FFFFFF'; c.strokeStyle = '#1D2340'; c.lineWidth = 1.5; c.beginPath(); c.roundRect ? c.roundRect(x - tw / 2, y - 22, tw, 22, 8) : c.rect(x - tw / 2, y - 22, tw, 22); c.fill(); c.stroke(); c.fillStyle = '#1D2340'; c.textAlign = 'center'; c.fillText(st.bubble.t, x, y - 7); c.textAlign = 'left'; }
+    if (st.bubble) { const [x, y] = P(me.i, me.j, (me.act === 'sit' ? 82 : 68) + (visiting() ? 18 : 0)); c.font = '12px "Jua", "Malgun Gothic", sans-serif'; const tw = c.measureText(st.bubble.t).width + 16; c.fillStyle = '#FFFFFF'; c.strokeStyle = '#1D2340'; c.lineWidth = 1.5; c.beginPath(); c.roundRect ? c.roundRect(x - tw / 2, y - 22, tw, 22, 8) : c.rect(x - tw / 2, y - 22, tw, 22); c.fill(); c.stroke(); c.fillStyle = '#1D2340'; c.textAlign = 'center'; c.fillText(st.bubble.t, x, y - 7); c.textAlign = 'left'; }
   }
   function drawCarry(c, g) {
     const it = carry.it;
@@ -160,15 +201,19 @@
     if (st.sparkle > 0) st.sparkle -= dt; if (st.notes > 0) st.notes -= dt;
     st.wdOpen += Math.sign(st.wdTarget - st.wdOpen) * Math.min(Math.abs(st.wdTarget - st.wdOpen), dt * 4);
     if (edit) return;
-    if (me.path.length) {
-      const [ti, tj] = me.path[0], di = ti - me.i, dj = tj - me.j, dist = Math.hypot(di, dj), sp = 2.6 * dt;
-      const sx = (di - dj); if (Math.abs(sx) > 0.01) me.face = sx > 0 ? 1 : -1;
-      if (dist <= sp) { me.i = ti; me.j = tj; me.path.shift(); if (!me.path.length && me.after) { const f = me.after; me.after = null; f(); } }
-      else { me.i += di / dist * sp; me.j += dj / dist * sp; }
-      me.walkT += dt;
-    } else if (!mine() && !me.act) {   // 친구 방: 주인 아바타가 가끔 돌아다님
-      if ((me.idleT -= dt) <= 0) { me.idleT = 3 + Math.random() * 4; const t = [Math.floor(Math.random() * N), Math.floor(Math.random() * N)]; const p = path(myTile(), t, R()); if (p) me.path = p; }
+    walkStep(me, dt);
+    if (visiting()) {   // 친구 방: 주인 아바타가 가끔 돌아다님
+      walkStep(host, dt);
+      if (!host.path.length && (host.idleT -= dt) <= 0) { host.idleT = 3 + Math.random() * 4; const t = [Math.floor(Math.random() * N), Math.floor(Math.random() * N)]; const p = path([Math.floor(host.i), Math.floor(host.j)], t, R()); if (p) host.path = p; }
     }
+  }
+  function walkStep(e, dt) {
+    if (!e.path.length) return;
+    const [ti, tj] = e.path[0], di = ti - e.i, dj = tj - e.j, dist = Math.hypot(di, dj), sp = 2.6 * dt;
+    const sx = (di - dj); if (Math.abs(sx) > 0.01) e.face = sx > 0 ? 1 : -1;
+    if (dist <= sp) { e.i = ti; e.j = tj; e.path.shift(); if (!e.path.length && e.after) { const f = e.after; e.after = null; f(); } }
+    else { e.i += di / dist * sp; e.j += dj / dist * sp; }
+    e.walkT += dt;
   }
   function bubble(t, sec) { st.bubble = { t, t2: sec || 1.8 }; }
 
@@ -204,6 +249,8 @@
   function onTap(ev) {
     const [x, y] = toLogical(ev);
     if (edit) return;
+    if (tut >= 0) return;   // 안내 중에는 방이 움직이지 않음
+    if (!hasMe()) { A.toast('로그인하면 내 아바타로 친구 방에 놀러 갈 수 있어요'); return; }
     const h = hitAt(x, y);
     if (h && h.kind !== 'rug') { getUp(); useItem(h); return; }
     const [ti, tj] = toTile(x, y);
@@ -213,7 +260,7 @@
 
   /* ---------- 옷장 ---------- */
   function openWardrobe() {
-    if (!mine()) { bubble(owner ? owner.nickname + '님의 옷장이에요' : '옷장'); return; }
+    if (!mine()) { bubble('주인만 열 수 있는 옷장이에요 🔒'); return; }
     st.wdTarget = 1; const before = JSON.stringify(Hub.user.avatar);
     setTimeout(() => {
       const m = document.createElement('div'); m.className = 'room-modal'; m.innerHTML = '<div class="room-modal-in" role="dialog" aria-label="옷장"><button class="btn btn-sm room-x" type="button">옷장 닫기 ✕</button><div class="room-closet"></div></div>';
@@ -366,7 +413,8 @@
               : `${Hub.user ? '<a class="btn btn-room" href="#room"><span>내 방으로</span></a>' : ''}`}</div>
           </div>
           <div class="room-stage${edit ? ' editing' : ''}"><canvas id="rmCv" width="${VW * S}" height="${VH * S}" aria-label="${esc(owner.nickname)}의 방"></canvas>
-            ${!edit ? `<p class="room-tip">${own ? '바닥을 누르면 걸어가요 · <b>옷장</b>을 누르면 옷을 갈아입어요 · 침대·의자·조명·창문도 눌러 보세요' : '가구를 눌러 보세요 · 아래에 방명록을 남길 수 있어요'}</p>` : ''}</div>
+            <div class="rm-tut" id="rmTut" hidden></div>
+            ${!edit ? `<p class="room-tip">${own ? '바닥을 누르면 걸어가요 · <b>옷장</b>을 누르면 옷을 갈아입어요 · 침대·의자·조명·창문도 눌러 보세요 <button class="link" type="button" data-tut="again">도움말</button>' : (Hub.user ? '나는 <b>손님</b>이에요 · 바닥·가구를 누르면 내 아바타가 움직여요 (옷장은 주인만) · 아래에 방명록을 남길 수 있어요' : '로그인하면 내 아바타로 놀러 갈 수 있어요 · 아래에 방명록을 남길 수 있어요')}</p>` : ''}</div>
           <div class="room-bar" id="rmBar" hidden></div>
           ${Hub.noRoom && own ? '<p class="small err">아직 서버에 내 방 저장 칸이 없어요. 관리자가 supabase/room_v88.sql 을 실행하면 저장돼요.</p>' : ''}
         </div>
@@ -377,6 +425,8 @@
     cv = $('#rmCv'); ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
     cv.addEventListener('click', onTap); cv.addEventListener('pointerdown', onDown); cv.addEventListener('pointermove', onMove); cv.addEventListener('pointerup', onUp);
     renderBar();
+    if (own && !edit && tut < 0 && !tutSeen()) tut = 0;
+    renderTut();
     if (!raf) { loop.t = 0; raf = requestAnimationFrame(loop); }
   }
   function partial() {   // 방명록 · 기록만 다시
@@ -393,7 +443,13 @@
     if (!root) return;
     if (!owner) { loadErr = '그런 아이디의 방을 찾지 못했어요.'; render(); return; }
     room = Hub.normRoom(owner.room);
-    const b = blocks(room); me.i = 4.5; me.j = 5.5; me.path = []; me.act = null; if (b.has('4,5')) freeSpotFor(room);
+    const b = blocks(room); me.i = 4.5; me.j = 5.5; me.path = []; me.act = null; me.after = null; if (b.has('4,5')) freeSpotFor(room);
+    if (!mine()) {   // 친구 방: 나는 방 앞쪽(입구)에서, 주인은 방 안쪽에서 시작
+      const free = (i, j) => i >= 0 && j >= 0 && i < N && j < N && !b.has(i + ',' + j);
+      const spot = [[7, 7], [6, 7], [7, 6], [5, 7], [7, 5], [6, 6]].find(([i, j]) => free(i, j)); if (spot) { me.i = spot[0] + 0.5; me.j = spot[1] + 0.5; }
+      const hs = [[3, 3], [4, 3], [3, 4], [2, 3], [4, 4], [2, 2]].find(([i, j]) => free(i, j)) || [Math.floor(me.i), Math.floor(me.j)]; host.i = hs[0] + 0.5; host.j = hs[1] + 0.5; host.path = []; host.act = null; host.idleT = 2;
+      me.face = -1;
+    }
     render();
     Hub.roomVisit(owner.id).then(v => { visits = v; partial(); }).catch(() => {});
     Hub.guestList(owner.id).then(g => { guests = g; partial(); }).catch(() => { guests = []; partial(); });
@@ -402,14 +458,15 @@
   function freeSpotFor(rm) { const b = blocks(rm); for (let j = N - 1; j >= 0; j--) for (let i = N - 1; i >= 0; i--) if (!b.has(i + ',' + j)) { me.i = i + 0.5; me.j = j + 0.5; return; } }
 
   async function onClick(e) {
-    const t = e.target.closest('[data-rm],[data-rmtab],[data-rmit],[data-gdel],[data-ghide]');
+    const t = e.target.closest('[data-rm],[data-rmtab],[data-rmit],[data-gdel],[data-ghide],[data-tut]');
     if (!t || !root || !root.contains(t)) return;
+    if (t.dataset.tut) { const a2 = t.dataset.tut; if (a2 === 'skip') tutDone(); else if (a2 === 'again') { tut = 0; renderTut(); } else if (a2 === 'prev') { tut = Math.max(0, tut - 1); renderTut(); } else { if (tut >= TUT.length - 1) tutDone(); else { tut++; renderTut(); } } return; }
     if (t.dataset.rmtab) { tab = t.dataset.rmtab; renderBar(); return; }
     if (t.dataset.rmit) { pickFromBar(t.dataset.rmit); return; }
     if (t.dataset.gdel) { if (!confirm('이 방명록 글을 지울까요?')) return; try { await Hub.guestDelete(+t.dataset.gdel); guests = guests.filter(g => g.id !== +t.dataset.gdel); partial(); } catch (err) { A.toast(err.message); } return; }
     if (t.dataset.ghide) { try { await Hub.guestHide(+t.dataset.ghide, t.dataset.v === '1'); guests = await Hub.guestList(owner.id); partial(); } catch (err) { A.toast(err.message); } return; }
     const a = t.dataset.rm;
-    if (a === 'edit') { edit = true; draft = JSON.parse(JSON.stringify(room)); sel = null; carry = null; me.act = null; me.path = []; render(); }
+    if (a === 'edit') { if (tut >= 0) tutDone(); edit = true; draft = JSON.parse(JSON.stringify(room)); sel = null; carry = null; me.act = null; me.path = []; render(); }
     else if (a === 'cancel') { edit = false; draft = null; carry = null; sel = null; render(); }
     else if (a === 'save') {
       if (busy) return; busy = true; t.disabled = true;
@@ -445,6 +502,6 @@
     },
     refresh() { if (!root || edit) return; if (!key || (owner && Hub.user && owner.id === Hub.user.id)) load(); else render(); },
     // 시험용
-    _state: () => ({ owner, room, draft, edit, me, st, sel, carry })
+    _state: () => ({ owner, room, draft, edit, me, host, st, sel, carry, tut })
   };
 })();
