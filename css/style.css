@@ -1340,3 +1340,57 @@ a.card .card-foot .r-rank b { color: #B4560B; }
 /* v77: 관리자 메뉴 6개일 때 한 줄에 들어가게 (넓지 않은 PC 에서는 '관리'·'테스트' 로 줄임, 버튼 조금 작게) */
 @media (max-width: 1500px) { .top .nav .t-full { display: none; } }
 @media (min-width: 561px) and (max-width: 1500px) { .top .nav:has(.nav-admin:not([hidden])) { gap: 6px; } .top .nav:has(.nav-admin:not([hidden])) a { padding: 5px 10px 4px 6px; font-size: 15px; } }
+
+/* ---------- v88 내 방 (js/room.js) · 상점 가구 ---------- */
+.room-box { padding: 14px; }
+.room-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 10px; }
+.room-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.room-who .rm-hav { width: 32px; height: 32px; border-radius: 8px; background: var(--surface-2); }
+.room-title small { font-size: 0.6em; margin-left: 2px; color: var(--ink-2); }
+.room-count { display: flex; gap: 6px; margin-left: auto; font-size: 12px; font-weight: 700; }
+.room-count span { background: #1D2340; color: #FFFFFF; border-radius: 6px; padding: 3px 8px; }
+.room-count b { color: #FFD23F; margin-left: 4px; }
+.room-btns { margin: 0; gap: 6px; }
+.room-stage { position: relative; max-width: 760px; margin: 0 auto; border: 3px solid #1D2340; border-radius: 10px; overflow: hidden; background: linear-gradient(180deg, #C8E4FF, #F4F0E8); }
+.room-stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 480 / 380; touch-action: manipulation; cursor: pointer; }
+.room-stage.editing { border-color: #FFD23F; box-shadow: 0 0 0 3px rgba(255, 210, 63, .35); }
+.room-stage.editing canvas { touch-action: none; cursor: grab; }
+.room-tip { margin: 0; font-size: 12px; text-align: center; color: #1D2340; background: #FFF6D6; border-top: 2px solid #1D2340; padding: 5px 8px; }
+.room-bar { margin-top: 10px; }
+.rm-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 34px; margin-bottom: 8px; }
+.rm-hint { font-size: 13px; margin-right: auto; }
+.rm-tabs { margin-bottom: 8px; flex-wrap: wrap; }
+.rm-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+.rm-it { position: relative; flex: none; width: 84px; display: grid; justify-items: center; gap: 2px; padding: 6px 4px; border: 2px solid #1D2340; border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; text-decoration: none; }
+.rm-it canvas { width: 64px; height: 64px; }
+.rm-it span { font-size: 11px; line-height: 1.2; text-align: center; }
+.rm-it i { position: absolute; top: 3px; right: 3px; font-style: normal; font-size: 10px; background: #3DDC84; color: #1D2340; border-radius: 4px; padding: 0 4px; }
+.rm-it.on { border-color: #3DDC84; }
+.rm-it.rm-buy { justify-content: center; align-content: center; border-style: dashed; }
+.rm-it.rm-buy b { font-size: 26px; line-height: 1; }
+.rm-guest h3 small, .rm-prof h3 small { font-size: 14px; color: var(--ink-2); }
+.rm-gform { display: flex; gap: 6px; margin: 8px 0 10px; }
+.rm-gform input { flex: 1; min-width: 0; padding: 8px 10px; border: 2px solid #1D2340; border-radius: 8px; font: inherit; background: var(--surface); color: var(--ink); }
+.rm-glist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rm-glist li { display: flex; gap: 8px; align-items: flex-start; padding: 8px; border-radius: 8px; background: var(--surface-2); }
+.rm-glist li.is-hidden { opacity: .55; }
+.rm-gav { width: 32px; height: 32px; flex: none; border-radius: 6px; background: var(--surface); }
+.rm-gb { flex: 1; min-width: 0; }
+.rm-gb p { margin: 2px 0 0; overflow-wrap: anywhere; }
+.rm-gh { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.rm-gh a { color: inherit; text-decoration: none; }
+.rm-gact { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.rm-tiles { margin: 8px 0 10px; }
+.room-modal { position: fixed; inset: 0; z-index: 90; background: rgba(10, 14, 36, .6); display: grid; place-items: center; padding: 16px; }
+.room-modal-in { position: relative; width: min(960px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--bg); border: 3px solid #1D2340; border-radius: 14px; padding: 46px 14px 14px; animation: rmPop .22s ease-out; }
+.room-x { position: absolute; top: 10px; right: 10px; }
+body.room-modal-open { overflow: hidden; }
+@keyframes rmPop { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .room-modal-in { animation: none; } }
+.shop-mode { margin: 0 0 12px; }
+.furn-grid .item canvas { width: 80px; height: 80px; }
+.furn-pv { display: grid; place-items: center; min-height: 180px; }
+.furn-pv canvas { width: 160px; height: 160px; }
+a.nm-t { color: inherit; text-decoration: none; }
+a.nm-t:hover { text-decoration: underline; }
+@media (max-width: 560px) { .room-count { margin-left: 0; } .room-head { gap: 8px; } .rm-it { width: 74px; } .rm-it canvas { width: 56px; height: 56px; } }

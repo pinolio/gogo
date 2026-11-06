@@ -46,10 +46,27 @@
     const cur = 4 * (level - 1) ** 2, next = 4 * level ** 2;
     return { level, cur, next, toNext: next - earned, progress: (earned - cur) / (next - cur) };
   };
-  Hub.owns = id => { const it = AV.byId[id]; return !!it && (Hub.price(id) === 0 || (Hub.user && Hub.user.owned.includes(id))); };
+  const itemOf = id => AV.byId[id] || (window.GoFurn && window.GoFurn.byId[id]) || null;   // v88 옷 + 내 방 가구
+  Hub.owns = id => { const it = itemOf(id); return !!it && (Hub.price(id) === 0 || (Hub.user && Hub.user.owned.includes(id))); };
   // 상점 가격: 온라인이면 서버(shop_items) 가격, 아니면 avatar.js 가격
   let serverPrices = null;
-  Hub.price = id => (serverPrices && id in serverPrices ? serverPrices[id] : (AV.byId[id] ? AV.byId[id].price : 0));
+  Hub.price = id => (serverPrices && id in serverPrices ? serverPrices[id] : (itemOf(id) ? itemOf(id).price : 0));
+  /* v88 내 방: 배치 정보 정리 { wp, fl, wd, wdAt:[i,j,r], items:[[id,i,j,r]…], walls:[[id,'L'|'R',t]…] } (가진 것만 · 칸 안만 · 최대 40개) */
+  const ROOM_N = 8, GUEST_MAX = 120;
+  function normRoom(r) {
+    const F = window.GoFurn; r = r && typeof r === 'object' ? r : {};
+    const D0 = F ? F.DEFAULT_ROOM : { wp: 'wp_basic', fl: 'fl_wood', wd: 'wd_basic', wdAt: [0, 2, 1], items: [], walls: [] };
+    if (!r.wp && !r.items) r = JSON.parse(JSON.stringify(D0));
+    const ok = (id, slot) => F && F.byId[id] && F.byId[id].slot === slot;
+    const n = v => Math.max(0, Math.min(ROOM_N - 1, Math.round(+v || 0)));
+    const out = { wp: ok(r.wp, 'wallpaper') ? r.wp : 'wp_basic', fl: ok(r.fl, 'floor') ? r.fl : 'fl_wood', wd: ok(r.wd, 'wardrobe') ? r.wd : 'wd_basic',
+      wdAt: Array.isArray(r.wdAt) ? [n(r.wdAt[0]), n(r.wdAt[1]), r.wdAt[2] ? 1 : 0] : D0.wdAt.slice(), items: [], walls: [] };
+    const seen = {};
+    (Array.isArray(r.items) ? r.items : []).slice(0, 40).forEach(x => { if (Array.isArray(x) && F && F.byId[x[0]] && /^(furn|rug)$/.test(F.byId[x[0]].slot) && !seen[x[0]]) { seen[x[0]] = 1; out.items.push([x[0], n(x[1]), n(x[2]), x[3] ? 1 : 0]); } });
+    (Array.isArray(r.walls) ? r.walls : []).slice(0, 12).forEach(x => { if (Array.isArray(x) && ok(x[0], 'wall') && !seen[x[0]]) { seen[x[0]] = 1; out.walls.push([x[0], x[1] === 'L' ? 'L' : 'R', n(x[2])]); } });
+    return out;
+  }
+  Hub.normRoom = normRoom;
 
   function check({ username, password, nickname, signup }) {
     username = String(username || '').trim().toLowerCase();
@@ -247,7 +264,7 @@
       },
       async loadPrices() { return null; },
       async buyItem(id) {
-        const u = me(), it = AV.byId[id];
+        const u = me(), it = itemOf(id);
         if (!it) throw new Error('없는 아이템이에요.');
         if (Hub.owns(id)) throw new Error('이미 가지고 있는 아이템이에요.');
         const price = Hub.price(id);
@@ -259,6 +276,45 @@
         const u = me(); u.avatar = validateAvatar(av); persist(); setUser(pub(u));
       },
       /* ---- 옷장: 코디 3칸 ---- */
+      /* ---- v88 내 방 · 방명록 · 방문 수 · 프로필 (체험 모드: 이 브라우저) ---- */
+      async profileOf(key) {
+        const d = db(), u = Object.values(d.users).find(x => x.id === key || x.username === String(key || '').toLowerCase());
+        if (!u) return null;
+        return { id: u.id, username: u.username, nickname: u.nickname, avatar: AV.normalize(u.avatar), earned: u.earned || 0, room: normRoom(u.room), owned: (u.owned || []).slice(), sample: !!u.sample };
+      },
+      async userStats(uid) { return summarize(db().records.filter(r => r.user_id === uid)); },
+      async saveRoom(room) {
+        const u = me(), r = normRoom(room), F = window.GoFurn;
+        const ids = [r.wp, r.fl, r.wd].concat(r.items.map(x => x[0]), r.walls.map(x => x[0]));
+        const bad = ids.find(id => !(F.byId[id].price === 0 || (u.owned || []).includes(id)));
+        if (bad) throw new Error('아직 사지 않은 가구가 있어요: ' + F.byId[bad].name);
+        u.room = r; persist(); return r;
+      },
+      async roomVisit(owner) {
+        const d = db(), day = kstDay(new Date().toISOString()); d.visits = d.visits || [];
+        if (Hub.user && Hub.user.id !== owner && !d.visits.some(v => v.owner === owner && v.visitor === Hub.user.id && v.day === day)) { d.visits.push({ owner, visitor: Hub.user.id, day }); persist(); }
+        const mine = d.visits.filter(v => v.owner === owner);
+        return { today: mine.filter(v => v.day === day).length, total: mine.length };
+      },
+      async guestList(owner) {
+        const d = db();
+        return (d.guest || []).filter(g => g.owner === owner && (!g.hidden || Hub.isAdmin() || (Hub.user && (g.user_id === Hub.user.id || owner === Hub.user.id))))
+          .map(g => withUser(d, g)).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 100);
+      },
+      async guestAdd(owner, body) {
+        const u = me(); if (u.banned) throw new Error('이용이 정지된 계정이에요.');
+        body = cleanText(body, GUEST_MAX); const d = db(); d.guest = d.guest || [];
+        const last = d.guest.filter(g => g.user_id === u.id).sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+        if (last && Date.now() - new Date(last.created_at).getTime() < 10000) throw new Error('방명록은 10초에 한 번 쓸 수 있어요.');
+        const row = { id: Date.now(), owner, user_id: u.id, body, hidden: false, created_at: new Date().toISOString() };
+        d.guest.push(row); persist(); return withUser(d, row);
+      },
+      async guestDelete(id) {
+        const d = db(), g = (d.guest || []).find(x => x.id === id); if (!g) return;
+        if (!(Hub.isAdmin() || (Hub.user && (g.user_id === Hub.user.id || g.owner === Hub.user.id)))) throw new Error('지울 수 없어요.');
+        d.guest = d.guest.filter(x => x.id !== id); persist();
+      },
+      async guestHide(id, v) { if (!Hub.isAdmin()) throw new Error('관리자만 할 수 있어요.'); const g = (db().guest || []).find(x => x.id === id); if (g) { g.hidden = !!v; persist(); } },
       async getOutfits() { const u = me(); return normOutfits(u.outfits); },
       async saveOutfits(list) { const u = me(); u.outfits = normOutfits(list); persist(); return u.outfits; },
       /* ---- 댓글 · 피드백 ---- */
@@ -603,6 +659,47 @@
         if (error) throw new Error(friendly(error, '착용하지 못했어요'));
         await loadProfile(Hub.user.id);
       },
+      /* ---- v88 내 방 · 방명록 · 방문 수 · 프로필 (supabase/room_v88.sql) ---- */
+      async profileOf(key) {
+        key = String(key || ''); const byId = /^[0-9a-f-]{36}$/i.test(key);
+        const q = cols => { let x = sb.from('profiles').select(cols); x = byId ? x.eq('id', key) : x.eq('username', key.toLowerCase()); return x.maybeSingle(); };
+        let { data, error } = await q('id,username,nickname,avatar,earned,owned,room');
+        Hub.noRoom = !!(error && /room/i.test(error.message || ''));
+        if (Hub.noRoom) ({ data, error } = await q('id,username,nickname,avatar,earned,owned'));
+        if (error) throw new Error(friendly(error, '프로필을 불러오지 못했어요'));
+        if (!data) return null;
+        return Object.assign({}, data, { avatar: AV.normalize(data.avatar), room: normRoom(data.room) });
+      },
+      async userStats(uid) {
+        const { data, error } = await sb.from('play_records').select('game_id,score,result,duration_sec,played_at').eq('user_id', uid).order('played_at', { ascending: false }).limit(1000);
+        if (error) throw new Error(friendly(error, '전적을 불러오지 못했어요'));
+        return summarize(data || []);
+      },
+      async saveRoom(room) {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const r = normRoom(room);
+        const { error } = await sb.rpc('save_room', { p_room: r });
+        if (error) throw new Error(/save_room|function/i.test(error.message || '') ? '내 방 저장 칸이 아직 없어요. 관리자가 supabase/room_v88.sql 을 실행해야 해요.' : friendly(error, '방을 저장하지 못했어요'));
+        return r;
+      },
+      async roomVisit(owner) {
+        const { data, error } = await sb.rpc('room_visit', { p_owner: owner });
+        if (error) return { today: 0, total: 0, off: true };
+        return data || { today: 0, total: 0 };
+      },
+      async guestList(owner) {
+        const { data, error } = await sb.from('guestbook').select('id,owner,user_id,body,hidden,created_at,profiles!guestbook_user_id_fkey(nickname,avatar,username)').eq('owner', owner).order('created_at', { ascending: false }).limit(100);
+        if (error) { Hub.noGuest = true; return []; }
+        return (data || []).map(flat);
+      },
+      async guestAdd(owner, body) {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const { data, error } = await sb.from('guestbook').insert({ owner, body: cleanText(body, GUEST_MAX) }).select('id,owner,user_id,body,hidden,created_at,profiles!guestbook_user_id_fkey(nickname,avatar,username)').single();
+        if (error) throw new Error(friendly(error, '방명록을 쓰지 못했어요'));
+        return flat(data);
+      },
+      async guestDelete(id) { const { error } = await sb.from('guestbook').delete().eq('id', id); if (error) throw new Error(friendly(error, '지우지 못했어요')); },
+      async guestHide(id, v) { const { error } = await sb.from('guestbook').update({ hidden: !!v }).eq('id', id); if (error) throw new Error(friendly(error, '바꾸지 못했어요')); },
       /* ---- 옷장: 코디 3칸 (profiles.outfits) ---- */
       async getOutfits() {
         if (!Hub.user) throw new Error('로그인이 필요해요.');

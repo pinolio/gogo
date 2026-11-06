@@ -51,7 +51,7 @@
   function rankItems(rows, valueKey, gid) {
     if (!rows.length) return '<li class="empty">아직 기록이 없어요. 첫 1위가 되어 보세요!</li>';
     const me = Hub.user && Hub.user.id;
-    return rows.map((r, i) => `<li class="${r.user_id === me ? 'mine' : ''}"><span class="rk">${i + 1}</span><span class="nm">${avCanvas(r.user_id === me ? Hub.user.avatar : r.avatar, 1.5, 'bust', 'rk-av')}<span class="nm-t">${esc(r.nickname)}</span>${r.sample ? '<span class="ex">예시</span>' : ''}</span><span class="sc">${valueKey === 'best_score' ? sfmt(gid, r[valueKey]) : fmt(r[valueKey])}${valueKey === 'earned' ? 'P' : ''}</span></li>`).join('');
+    return rows.map((r, i) => `<li class="${r.user_id === me ? 'mine' : ''}"><span class="rk">${i + 1}</span><span class="nm">${avCanvas(r.user_id === me ? Hub.user.avatar : r.avatar, 1.5, 'bust', 'rk-av')}${!r.user_id ? `<span class="nm-t">${esc(r.nickname)}</span>` : `<a class="nm-t" href="#room/${esc(r.user_id)}" title="${esc(r.nickname)}님의 방 구경">${esc(r.nickname)}</a>`}${r.sample ? '<span class="ex">예시</span>' : ''}</span><span class="sc">${valueKey === 'best_score' ? sfmt(gid, r[valueKey]) : fmt(r[valueKey])}${valueKey === 'earned' ? 'P' : ''}</span></li>`).join('');
   }
   function fillRank(el, rows, key, gid) { if (!el || !el.isConnected) return; el.innerHTML = rankItems(rows, key, gid); AV.paintAll(el); }
 
@@ -278,7 +278,7 @@
         <div class="me">${avCanvas(u.avatar, 4, 'full', 'me-av', true)}
           <div><b>${esc(u.nickname)}</b><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span>${levelBlock(u)}</div></div>
         <div class="row"><a class="btn btn-sun" href="#shop">아바타 꾸미기</a><a class="btn" href="#my">내 전적</a></div>
-        <p class="small acct-links"><a class="btn btn-sm btn-room" href="#closet" title="내 방 (지금은 옷 갈아입기)"><span>내 방</span><i class="room-spark" aria-hidden="true">✦</i></a><button class="link" type="button" data-logout>로그아웃</button></p>`;
+        <p class="small acct-links"><a class="btn btn-sm btn-room" href="#room" title="내 방 (가구 꾸미기 · 옷장 · 방명록)"><span>내 방</span><i class="room-spark" aria-hidden="true">✦</i></a><button class="link" type="button" data-logout>로그아웃</button></p>`;
       AV.paintAll(box);
     } else {
       box.innerHTML = `
@@ -1078,7 +1078,7 @@
         <div class="panel profile">
           ${avCanvas(u.avatar, 6, 'full', 'profile-av', true)}
           <div><h1>${esc(u.nickname)} <span class="lv">Lv.${L.level}</span></h1><div class="sub">@${esc(u.username)}</div>
-            <a class="btn btn-sun btn-sm" href="#shop" style="margin-top:10px">아바타 꾸미기</a> <a class="btn btn-sm btn-room" href="#closet" style="margin-top:10px"><span>내 방</span><i class="room-spark" aria-hidden="true">✦</i></a></div>
+            <a class="btn btn-sun btn-sm" href="#shop" style="margin-top:10px">아바타 꾸미기</a> <a class="btn btn-sm btn-room" href="#room" style="margin-top:10px"><span>내 방</span><i class="room-spark" aria-hidden="true">✦</i></a></div>
           ${levelBlock(u)}
         </div>
         <div class="tiles">
@@ -1109,9 +1109,13 @@
       current = 'battle'; setNav('home');
       cleanups.push(window.GoBattle.render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText }));
     }
-    else if (h === 'shop') {
+    else if (h === 'shop' || h === 'shop/furn') {
       current = 'shop'; setNav('shop');
-      cleanups.push(window.GoShop.render(view(), { toast, esc, fmt, openAuth, avCanvas }));
+      cleanups.push(window.GoShop.render(view(), { toast, esc, fmt, openAuth, avCanvas }, h === 'shop/furn' ? 'furn' : null));
+    }
+    else if (h === 'room' || h.startsWith('room/')) {   // v88 내 방 · 친구 방 (#room/아이디)
+      current = 'room'; setNav('my');
+      cleanups.push(window.GoRoom.render(view(), { toast, esc, fmt, ago, openAuth, avCanvas }, h.startsWith('room/') ? decodeURIComponent(h.slice(5)) : null));
     }
     else if (h === 'closet') {
       current = 'closet'; setNav('shop');
@@ -1176,6 +1180,7 @@
       else if (current === 'play') { refreshBest(); refreshGameRank(); if (session && session.board) renderBoardCard(); else renderPlayerCard(); if (session && session.state === 'ready') renderOverlay(); }
       else if (current === 'shop' && window.GoShop.refresh) window.GoShop.refresh();
       else if (current === 'closet' && window.GoCloset.refresh) window.GoCloset.refresh();
+      else if (current === 'room' && window.GoRoom.refresh) window.GoRoom.refresh();
       else if (current === 'admin' || String(current).startsWith('test')) route();
     });
     try { await Hub.init(); } catch (e) { console.error(e); }

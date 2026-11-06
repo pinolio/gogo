@@ -12,6 +12,8 @@
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let A = null, root = null, slot = 'top', theme = 'all', picked = null, trial = null, confirmBuy = false, busy = false, walkTimer = 0, walking = false;
+  let mode = 'avatar', fcat = 'furn', fpick = null;   // v88 '내 방 가구' 상점 (mode = 'furn')
+  const F = window.GoFurn;
 
   const saved = () => (Hub.user ? Hub.user.avatar : AV.normalize({}));
   const slotName = id => (AV.SLOTS.find(s => s[0] === id) || [])[1] || id;
@@ -36,14 +38,65 @@
     return `<span class="it-badge price num ${price >= PREMIUM ? 'premium' : ''}">${price >= PREMIUM ? '★' : ''}${price}P</span>`;
   }
 
+  const modeTabs = () => `<div class="shop-mode mini-tabs"><button type="button" data-mode="avatar" aria-pressed="${mode === 'avatar'}">아바타 꾸미기</button><button type="button" data-mode="furn" aria-pressed="${mode === 'furn'}">내 방 가구</button></div>`;
+  /* v88 내 방 가구 상점 */
+  function renderFurn() {
+    const u = Hub.user, list = F.ITEMS.filter(it => it.slot === fcat || (fcat === 'furn' && it.slot === 'furn')).sort((a, b) => Hub.price(a.id) - Hub.price(b.id));
+    const fbadge = id => { const p = Hub.price(id); if (p === 0) return '<span class="it-badge free">기본</span>'; if (Hub.owns(id)) return '<span class="it-badge owned">보유</span>'; return `<span class="it-badge price num ${p >= PREMIUM ? 'premium' : ''}">${p >= PREMIUM ? '★' : ''}${p}P</span>`; };
+    root.innerHTML = `
+      <div class="page-head shop-head shop-hero">
+        <div><h1>상점</h1><p>포인트로 가구를 사서 <a href="#room">내 방</a>을 꾸며요. 산 가구는 내 방의 <b>방 꾸미기</b>에서 놓을 수 있어요.</p></div>
+        <div class="wallet-big">${u ? `<span class="lbl">MY POINTS</span><b class="num">${A.fmt(u.points)}P</b>` : '<button class="btn btn-primary" type="button" data-auth="login">로그인하고 쇼핑하기</button>'}</div>
+      </div>
+      ${modeTabs()}
+      <div class="shop-layout">
+      <div class="panel shop-items">
+        <div class="slot-tabs" role="tablist" aria-label="가구 종류">${F.CATS.map(([id, name]) => `<button type="button" role="tab" aria-selected="${id === fcat}" data-fcat="${id}">${name}</button>`).join('')}</div>
+        <div class="item-grid furn-grid">${list.map(it => `<button type="button" class="item ${fpick === it.id ? 'sel' : ''}" data-fitem="${it.id}" aria-pressed="${fpick === it.id}"><canvas data-fth="${it.id}" width="160" height="160" aria-hidden="true"></canvas><span class="it-name">${A.esc(it.name)}</span>${fbadge(it.id)}</button>`).join('')}</div>
+      </div>
+      <div class="panel shop-preview">
+        <h3>미리보기</h3>
+        <div class="pv-stage furn-pv">${fpick ? `<canvas data-fth="${fpick}" data-big width="320" height="320" aria-hidden="true"></canvas>` : '<p class="small">왼쪽에서 가구를 눌러 보세요.</p>'}</div>
+        <div class="pv-info" id="pvInfo">${fpick ? furnInfo() : ''}</div>
+      </div>
+      </div>`;
+    $$('canvas[data-fth]', root).forEach(c => { const big = c.hasAttribute('data-big'), t = F.thumb(c.dataset.fth, big ? 160 : 80), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); g.drawImage(t, 0, 0, c.width, c.height); });
+    $$('[data-mode]', root).forEach(b => b.addEventListener('click', () => { mode = b.dataset.mode; render(); }));
+    $$('[data-fcat]', root).forEach(b => b.addEventListener('click', () => { fcat = b.dataset.fcat; fpick = null; confirmBuy = false; render(); }));
+    $$('[data-fitem]', root).forEach(b => b.addEventListener('click', () => { fpick = b.dataset.fitem; confirmBuy = false; render(); }));
+    $$('[data-fact]', root).forEach(b => b.addEventListener('click', () => furnAct(b.dataset.fact)));
+  }
+  function furnInfo() {
+    const u = Hub.user, it = F.byId[fpick], price = Hub.price(fpick), cat = (F.CATS.find(c => c[0] === it.slot) || [, '가구'])[1];
+    const actDesc = { sleep: '누우면 쿨쿨 잠들어요', sit: '앉을 수 있어요', light: '눌러서 켜고 꺼요', screen: '화면을 켜요', music: '음악이 나와요', play: '눌러서 놀아요', window: '눌러서 낮 ↔ 밤', wardrobe: '누르면 옷을 갈아입어요' }[it.act] || '';
+    let actions = '';
+    if (!u) actions = '<button class="btn btn-primary" type="button" data-auth="login">로그인하고 구입하기</button>';
+    else if (Hub.owns(fpick)) actions = '<a class="btn btn-sun" href="#room">내 방에서 놓기</a>';
+    else if (u.points < price) actions = `<button class="btn" type="button" disabled>${price - u.points}P 부족해요</button>`;
+    else if (!confirmBuy) actions = `<button class="btn btn-primary" type="button" data-fact="ask">${price}P로 구입하기</button>`;
+    else actions = `<span class="reset-q">${A.esc(it.name)}을(를) ${price}P에 살까요?</span><button class="btn btn-primary" type="button" data-fact="buy">구입</button><button class="btn btn-ghost" type="button" data-fact="cancel">취소</button>`;
+    return `<div class="pv-item"><div><span class="cat">${cat}</span><b class="pv-name">${A.esc(it.name)}</b><span class="pv-price num">${price === 0 ? '기본' : price + 'P'}</span></div><div class="pv-actions">${actions}</div></div>
+      <p class="small">${it.w ? `크기 ${it.w}×${it.d || 1}칸 · ` : ''}${actDesc}${Hub.owns(fpick) ? ' · 가지고 있어요' : ''}</p>`;
+  }
+  async function furnAct(a) {
+    if (busy) return;
+    if (a === 'ask') { confirmBuy = true; render(); return; }
+    if (a === 'cancel') { confirmBuy = false; render(); return; }
+    busy = true;
+    try { await Hub.buyItem(fpick); A.toast(F.byId[fpick].name + ' 구입 완료! 내 방의 방 꾸미기에서 놓아 보세요.'); confirmBuy = false; } catch (e) { A.toast(e.message); }
+    busy = false; render();
+  }
+
   function render() {
     if (!root) return;
+    if (mode === 'furn') return renderFurn();
     const u = Hub.user;
     root.innerHTML = `
       <div class="page-head shop-head shop-hero">
         <div><h1>상점</h1><p>게임에서 이기면 포인트를 받아요. 아이템을 누르면 옆에서 미리 입어 볼 수 있어요. 산 옷은 <a href="#closet">옷장</a>에서 언제든 갈아입어요.</p></div>
         <div class="wallet-big">${u ? `<span class="lbl">MY POINTS</span><b class="num">${A.fmt(u.points)}P</b>` : '<button class="btn btn-primary" type="button" data-auth="login">로그인하고 쇼핑하기</button>'}</div>
       </div>
+      ${modeTabs()}
       <div class="shop-layout">
       <div class="panel shop-items">
         <div class="slot-tabs" role="tablist" aria-label="아이템 종류">
@@ -75,6 +128,7 @@
     AV.paintAll(root);
     paintTry(0);
     renderInfo();
+    $$('[data-mode]', root).forEach(b => b.addEventListener('click', () => { mode = b.dataset.mode; fpick = null; confirmBuy = false; render(); }));
     $$('[data-slot]', root).forEach(b => b.addEventListener('click', () => { slot = b.dataset.slot; picked = undefined; confirmBuy = false; render(); }));
     $$('[data-theme]', root).forEach(b => b.addEventListener('click', () => { theme = b.dataset.theme; picked = undefined; confirmBuy = false; render(); }));
     $$('[data-item]', root).forEach(b => b.addEventListener('click', () => pick(b.dataset.item === '' ? null : b.dataset.item)));
@@ -171,8 +225,8 @@
   }
 
   window.GoShop = {
-    render(el, app) {
-      A = app; root = el; picked = undefined; confirmBuy = false; walking = false;
+    render(el, app, m) {
+      A = app; root = el; picked = undefined; confirmBuy = false; walking = false; mode = m === 'furn' ? 'furn' : 'avatar'; fpick = null;
       trial = Object.assign({}, saved());
       render();
       Hub.loadPrices().then(p => { if (p && root) render(); }).catch(() => {});

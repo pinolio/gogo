@@ -26,7 +26,7 @@
     if (!root) return;
     const u = Hub.user;
     if (!u) {
-      root.innerHTML = `<div class="panel gate"><h2>로그인하면 내 방이 보여요</h2><p>구입한 옷과 배경이 모두 옷장에 모여, 언제든 갈아입을 수 있어요.</p>
+      root.innerHTML = `<div class="panel gate"><h2>로그인하면 옷장이 보여요</h2><p>구입한 옷과 배경이 모두 옷장에 모여, 언제든 갈아입을 수 있어요.</p>
         <div class="row" style="justify-content:center"><button class="btn btn-primary" type="button" data-auth="login">로그인</button></div></div>`;
       return;
     }
@@ -35,7 +35,7 @@
     const list = ownedOf(slot);
     root.innerHTML = `
       <div class="page-head shop-head">
-        <div><h1 class="room-title">내 방</h1><p>지금은 <b>옷장</b>이 열려 있어요. 내가 가진 옷과 배경을 눌러서 입혀 보고 <b>이대로 입기</b>를 누르면 저장돼요. <span class="room-soon">방 꾸미기는 곧 열려요!</span></p></div>
+        <div><h1 class="room-title">옷장</h1><p>내가 가진 옷과 배경을 눌러서 입혀 보고 <b>이대로 입기</b>를 누르면 저장돼요. 옷장 모양은 <a href="#room">내 방</a>의 <b>방 꾸미기</b>에서 바꿀 수 있어요.</p></div>
         <div class="row" style="margin:0"><a class="btn btn-sun" href="#shop">상점 가기</a></div>
       </div>
       <div class="closet">
