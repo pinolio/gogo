@@ -182,7 +182,11 @@
     map.water = []; map.objs = []; map.glows = [];
     // v80 Meshy 재질 그림 (땅·길·물 192px 이어 붙는 무늬). 아직 안 불러왔으면 옛 색 무늬로 그리고, 다 불러오면 다시 그림
     const TX = texOf(map), ok = TX.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
-    if (!ok && !map.texWait) { map.texWait = true; let left = TX.length; TX.forEach(n => img79(n, () => { if (--left <= 0 && mapCache[map.id] === map) { map.texWait = false; map.ground = paintGround(map); } })); }
+    if (!ok && !map.texWait) {   // v82 고침: 이미 받은 그림은 기다릴 수에서 빼야 함 (전에는 하나라도 먼저 받아져 있으면 영영 다시 안 그렸음)
+      map.texWait = true; const need = TX.filter(n => !img79(n)); let left = need.length;
+      const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) map.ground = paintGround(map); };
+      need.forEach(n => img79(n, done));
+    }
     if (ok) {   // 1) 땅 = 재질 무늬 + 큰 얼룩(밝게·어둡게)으로 단조로움 깨기
       x.fillStyle = pat[0]; x.fillRect(0, 0, w * TS, h * TS);
       const [nc, nx] = mk(w, h);   // 칸 하나 = 1점짜리 얼룩 지도를 부드럽게 크게 늘려 덮음 (네모 자국 없게)

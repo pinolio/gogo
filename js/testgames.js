@@ -65,7 +65,9 @@
   @media (max-width: 560px) { .gg-frame { aspect-ratio: auto; min-height: 150px; } .gg-mascot { width: 72px; } }
   @media (max-width: 560px) { .gg-light i { width: 40px; height: 40px; } .gg-pad button { padding: 10px 0; } }
   /* v77 Meshy 꾸미기 2 (첫째 키): 제목 간판 · 도트 신호등(꺼짐·빨강·초록) · 마스코트 기쁨/앗 · 트로피 · 숫자 키 3색 · 아이콘 */
-  .gg-title { width: min(520px, 100%); aspect-ratio: 640 / 232; background: url(img/test/gugu_title.png) center / 100% 100% no-repeat; display: grid; place-items: center; padding: 0 16% 7%; margin-bottom: -4px; }
+  .gg-title { width: min(520px, 100%); aspect-ratio: 640 / 232; background: url(img/test/gugu_title.png) center / 100% 100% no-repeat; position: relative; margin-bottom: -4px; }
+  /* v81 글자를 노란 칸(그림 640×232 의 x 78~560 · y 46~158) 정가운데에 */
+  .gg-title b { position: absolute; left: 12.2%; width: 75.3%; top: 19.8%; height: 48.3%; display: flex; align-items: center; justify-content: center; line-height: 1; margin: 0; }
   .gg-title b { font-family: var(--f-display, inherit); font-size: clamp(22px, 5.4vw, 40px); color: #1D2340; letter-spacing: 2px; text-shadow: 0 3px 0 #FFF6B0; white-space: nowrap; }
   .gg-top span { display: inline-flex; align-items: center; gap: 6px; }
   .gg-top img { width: 26px; height: 26px; image-rendering: pixelated; margin: -4px 0; }
@@ -82,6 +84,9 @@
   .gg-pad button { background: url(img/test/gugu_key.png) center / 100% 100% no-repeat; border: 0; box-shadow: none; border-radius: 0; aspect-ratio: 1 / .78; padding: 0 0 6%; font-size: 30px; text-shadow: 0 2px 0 #FFFFFF; transition: transform .06s; }
   .gg-pad button:active { transform: translateY(3px) scale(.97); }
   .gg-pad button.ok { background-image: url(img/test/gugu_key_ok.png); color: #FFFFFF; text-shadow: 0 2px 0 #1D2340; font-size: 22px; }
+  /* v81 숫자판 깔끔하게: ←·확인도 그림 전체가 보이게(위쪽 .ok/.del 색 규칙이 그림 크기를 덮어써서 잘렸음) · 12칸 모두 같은 크기 · 화면 안에 들어오게 조금 작게 */
+  .gg-pad { width: min(330px, 100%); gap: 8px; }
+  .gg-pad button, .gg-pad button.ok, .gg-pad button.del { background-size: 100% 100%; background-position: center; background-repeat: no-repeat; background-color: transparent; aspect-ratio: 1 / .74; padding: 0 0 7%; display: flex; align-items: center; justify-content: center; line-height: 1; }
   .gg-pad button.del { background-image: url(img/test/gugu_key_del.png); color: #FFFFFF; text-shadow: 0 2px 0 #1D2340; }
   .gg-over { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: center; text-align: left; }
   .gg-over .trophy { width: 110px; height: auto; image-rendering: pixelated; animation: ggBounce 1s ease-in-out infinite; }
