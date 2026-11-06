@@ -142,14 +142,8 @@
     view().innerHTML = `
       <div class="home">
         <div class="home-main">
-          <section class="hero" aria-roledescription="carousel" aria-label="이벤트 · 업데이트 소개">
-            <canvas id="heroRain" aria-hidden="true"></canvas>
-            <div class="hero-copy" id="heroCopy" aria-live="polite"></div>
-            <div class="hero-nav">
-              <button type="button" class="hero-arrow" id="heroPrev" aria-label="이전 소개">◀</button>
-              <div class="hero-dots" id="heroDots" role="tablist" aria-label="소개 고르기"></div>
-              <button type="button" class="hero-arrow" id="heroNext" aria-label="다음 소개">▶</button>
-            </div>
+          <section class="hero hero-img" id="heroBox" aria-roledescription="carousel" aria-label="이벤트 · 업데이트 소개">
+            <div class="hero-slides" id="heroSlides" aria-live="polite"></div>
             <div class="hero-timer" aria-hidden="true"><i id="heroBar"></i></div>
           </section>
           ${eventHTML()}
@@ -307,119 +301,58 @@
 
   /* ---------- 맨 위 소개: 10초마다 다른 게임 ----------
    * 문구는 각 게임 폴더 settings.js 의 hero 값, 그림은 각 게임의 썸네일을 크게 그림 */
-  // v90 '내 방' 소개 그림 (가구 도트 + 내 아바타)
-  function roomThumb(c, w, h) {
-    const F = window.GoFurn; if (!F) return;
-    c.save(); c.fillStyle = '#C8E4FF'; c.fillRect(0, 0, w, h); c.imageSmoothingEnabled = true; c.lineJoin = 'round';
-    const k = 0.42; c.translate(w * 0.56, 66); c.scale(k, k);   // v91 가운데에서 살짝 오른쪽 · 위아래 가운데
-    const g = F.pen(c, 0, 0); F.drawRoomShell(g, 6, 120, 'wp_star', 'fl_light');
-    const room = [['r_heart', 2, 2, 0], ['f_bed2', 4, 0, 0], ['f_sofa', 0, 3, 1], ['f_floorlamp', 5, 3, 0], ['f_tree', 0, 0, 0], ['f_tv', 2, 0, 0]];
-    room.forEach(([id, i, j, r]) => { const it = F.byId[id]; if (it) F.drawItem(g, it, i, j, r, { on: id === 'f_floorlamp' }); });
-    F.drawWallItem(g, F.byId.w_bigwin, 'L', 2, {}); F.drawWallItem(g, F.byId.w_clock, 'R', 3, {});
-    const av = Hub.user ? Hub.user.avatar : AV.random('room');
-    const p = g.P(3.6, 4.2, 0); AV.draw(c, av, p[0] - 27, p[1] - 84, 3, {});
-    c.restore();
-  }
   const HERO_MS = 10000;
   let heroIndex = 0;
+  // v92 선생님 그림 2장을 그대로 소개 화면으로 (그림 속 버튼 · ◀ ▶ 자리를 누르면 동작)
+  //   자리는 그림 크기에 대한 % (왼쪽, 위, 너비, 높이)
+  const HERO_SLIDES = [
+    { id: 'event', img: 'img/hero/event.jpg', w: 1024, h: 525, alt: '신호등 구구단 이벤트 — 이번 시즌 1위에 도전! 녹색불이면 구구단 바른 답, 빨간불이면 답의 십의 자리와 일의 자리를 바꿔서. 45초 동안 맞으면 +1점, 틀리면 -1점.', cta: '이벤트 도전하기',
+      go: [6.0, 73.0, 18.4, 10.0], prev: [5.6, 84.6, 4.6, 8.6], next: [16.6, 84.6, 4.6, 8.6] },
+    { id: 'room', href: '#room', img: 'img/hero/room.jpg', w: 1024, h: 444, alt: '내 방 업데이트 — 가구를 사서 꾸미는 나만의 미니룸! 옷장을 누르면 아바타가 걸어가 옷을 갈아입어요.', cta: '내 방 가기',
+      go: [3.2, 73.5, 14.8, 12.4], prev: [3.0, 87.6, 4.6, 9.0], next: [14.6, 87.6, 4.6, 9.0] }
+  ];
   function startHeroRain() {
-    const c = $('#heroRain'); if (!c) return;
-    // v90 선생님: 게임 소개 대신 ① 지금 이벤트(settings 의 event: true · 신호등 구구단) ② '내 방' 업데이트 소개
+    const box = $('#heroSlides'); if (!box) return;
     const evg = SET.listAll().find(g => g.event && !g.hidden);
-    const slides = [];
-    if (evg) slides.push({ id: evg.id, name: evg.name, href: '#' + evg.id, hero: { eyebrow: 'EVENT · 이벤트 진행 중', title: evg.eventTitle || evg.name, em: '이번 시즌 1위에 도전!', desc: String(evg.eventDesc || evg.blurb || '').replace(/<[^>]+>/g, ''), cta: '이벤트 도전하기' } });
-    slides.push({ id: 'room', name: '내 방', href: '#room', thumb: roomThumb, hero: { eyebrow: 'UPDATE · 내 방', title: '가구를 사서 꾸미는', em: '나만의 미니룸!', desc: '옷장을 누르면 아바타가 걸어가 옷을 갈아입어요. 상점의 \u2018내 방 가구\u2019로 방을 꾸미고, 게임 음악을 방 음악으로 틀어요. 프로필에 자기소개를 쓰고 친구 방에도 놀러 가 보세요!', cta: '내 방 가기' } });
+    const slides = HERO_SLIDES.filter(s => s.id !== 'event' || evg).map(s => Object.assign({}, s, { href: s.href || '#' + evg.id }));
     if (!slides.length) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const keys = Object.keys(P.PIECE), S = 16;
-    const thumbs = {};          // 게임별 썸네일 그림 (한 번만 그려 둠)
-    slides.forEach(g => {
-      const off = document.createElement('canvas'); off.width = 240; off.height = 150;
-      const octx = off.getContext('2d'); octx.imageSmoothingEnabled = false;
-      try { (g.thumb || window.GoGames[g.id].thumb.bind(window.GoGames[g.id]))(octx, 240, 150); } catch (e) { /* noop */ }
-      thumbs[g.id] = off;
-    });
-    // 게임 그림을 다 불러오면 썸네일 다시 그리기
-    window.addEventListener('gogo:img', () => slides.forEach(g => { const o = thumbs[g.id], c2 = o.getContext('2d'); c2.clearRect(0, 0, 240, 150); try { (g.thumb || window.GoGames[g.id].thumb.bind(window.GoGames[g.id]))(c2, 240, 150); } catch (e) { /* noop */ } }));
-    let ctx, w = 0, h = 0, drops = [], raf = 0, last = 0, elapsed = 0, paused = false, fade = 1;
-    function size() {
-      const r = c.getBoundingClientRect(); w = Math.max(1, Math.round(r.width)); h = Math.max(1, Math.round(r.height));
-      ctx = P.setup(c, w, h);
-      drops = Array.from({ length: Math.ceil(w / 40) }, (_, i) => ({ x: Math.floor((i * 40 + 8) / S) * S, y: Math.random() * h, v: 18 + Math.random() * 30, k: keys[i % 7], n: 1 + (i % 3) }));
-      draw();
+    const pos = r => `left:${r[0]}%;top:${r[1]}%;width:${r[2]}%;height:${r[3]}%`;
+    box.innerHTML = slides.map((g, i) => `
+      <div class="hero-slide" data-i="${i}" ${i ? 'hidden' : ''}>
+        <a class="hero-pic" href="${g.href}" tabindex="-1" aria-hidden="true"><img src="${g.img}?v=92" width="${g.w}" height="${g.h}" alt="" draggable="false"></a>
+        <span class="sr-only">${esc(g.alt)}</span>
+        <a class="hero-hot" style="${pos(g.go)}" href="${g.href}" aria-label="${esc(g.cta)}"></a>
+        <button type="button" class="hero-hot" style="${pos(g.prev)}" data-step="-1" aria-label="이전 소개"></button>
+        <button type="button" class="hero-hot" style="${pos(g.next)}" data-step="1" aria-label="다음 소개"></button>
+      </div>`).join('');
+    const els = $$('.hero-slide', box);
+    let elapsed = 0, paused = false, raf = 0, last = 0;
+    function go(i) {
+      heroIndex = (i + slides.length) % slides.length; elapsed = 0;
+      els.forEach((el, k) => { el.hidden = k !== heroIndex; if (k === heroIndex && !reduce) { el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); } });
     }
-    function draw() {
-      const g = slides[heroIndex];
-      ctx.fillStyle = P.BOARD; ctx.fillRect(0, 0, w, h);
-      if (g.id === 'blocks') {
-        // 블록 게임: 떨어지는 블록
-        for (let x = 0; x * S < w; x++) { const hh = 1 + ((x * 7) % 4); for (let y = 0; y < hh; y++) P.block(ctx, x * S, h - (y + 1) * S, S, P.PIECE[keys[(x + y) % 7]]); }
-        ctx.globalAlpha = (w > 600 ? 1 : 0.6) * fade;
-        drops.forEach(d => { if (d.x < w * 0.45 && w > 600) return; for (let i = 0; i < d.n; i++) P.block(ctx, d.x, Math.floor(d.y / S) * S - i * S, S, P.PIECE[d.k]); });
-        ctx.globalAlpha = 1;
-      }
-      if (g.id !== 'blocks') {
-        // 그 게임의 썸네일을 오른쪽에 크게 (도트 그대로 확대)
-        const t = thumbs[g.id], sc = w > 600 ? Math.min(h * 0.9 / 150, (w * 0.45) / 240) : Math.min(h / 150, w / 240);
-        const tw = 240 * sc, th = 150 * sc, tx = w - tw - Math.max(16, (w * 0.04) | 0), ty = (h - th) / 2;
-        ctx.globalAlpha = (w > 600 ? 1 : 0.45) * fade;
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(t, tx, ty, tw, th);
-        ctx.globalAlpha = 1;
-      }
-      // 글 영역이 잘 읽히도록 왼쪽을 어둡게
-      const gr = ctx.createLinearGradient(0, 0, w * 0.7, 0); gr.addColorStop(0, 'rgba(22,28,58,.95)'); gr.addColorStop(1, 'rgba(22,28,58,0)');
-      ctx.fillStyle = gr; ctx.fillRect(0, 0, w, h);
-    }
-    function showCopy() {
-      const g = slides[heroIndex], hr = g.hero, box = $('#heroCopy'); if (!box) return;
-      box.innerHTML = `
-        <p class="eyebrow">${esc(hr.eyebrow)}</p>
-        <h1>${esc(hr.title)}<br><em>${esc(hr.em)}</em></h1>
-        <p>${esc(hr.desc)}</p>
-        <a class="btn btn-sun" href="${g.href || '#' + g.id}">${esc(hr.cta || '시작하기')} ▶</a>`;
-      if (!reduce) { box.classList.remove('in'); void box.offsetWidth; box.classList.add('in'); }
-      $$('#heroDots button').forEach((b, i) => b.setAttribute('aria-selected', String(i === heroIndex)));
-    }
-    function go(i, user) {
-      heroIndex = (i + slides.length) % slides.length; elapsed = 0; fade = reduce ? 1 : 0;
-      showCopy(); draw();
-      if (user) elapsed = 0;
-    }
-    $('#heroDots').innerHTML = slides.map((g, i) => `<button type="button" role="tab" aria-label="${esc(g.name)}" title="${esc(g.name)}"></button>`).join('');
-    $$('#heroDots button').forEach((b, i) => b.addEventListener('click', () => go(i, true)));
-    $('#heroPrev').addEventListener('click', () => go(heroIndex - 1, true));
-    $('#heroNext').addEventListener('click', () => go(heroIndex + 1, true));
-    const hero = c.parentElement;
-    // 마우스를 올리거나 글자에 포커스가 있으면 잠시 멈춤
+    $$('button[data-step]', box).forEach(b => b.addEventListener('click', e => { e.preventDefault(); go(heroIndex + Number(b.dataset.step)); }));
+    const hero = $('#heroBox');
     hero.addEventListener('mouseenter', () => { paused = true; });
     hero.addEventListener('mouseleave', () => { paused = false; });
     hero.addEventListener('focusin', () => { paused = true; });
     hero.addEventListener('focusout', () => { paused = false; });
-    // 손가락으로 밀어서 넘기기
-    let sx = null;
-    hero.addEventListener('pointerdown', e => { sx = e.clientX; });
-    hero.addEventListener('pointerup', e => { if (sx == null) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 40) go(heroIndex + (dx < 0 ? 1 : -1), true); });
+    // 손가락으로 밀어서 넘기기 (민 경우에는 그림 링크로 가지 않음)
+    let sx = null, swiped = false;
+    hero.addEventListener('pointerdown', e => { sx = e.clientX; swiped = false; });
+    hero.addEventListener('pointerup', e => { if (sx == null) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 40) { swiped = true; go(heroIndex + (dx < 0 ? 1 : -1)); } });
+    hero.addEventListener('click', e => { if (swiped) { e.preventDefault(); swiped = false; } }, true);
     const bar = $('#heroBar');
     function tick(t) {
       raf = requestAnimationFrame(tick);
       const dt = Math.min(64, t - (last || t)); last = t;
-      if (!paused && !document.hidden) {
-        elapsed += dt;
-        if (elapsed >= HERO_MS) go(heroIndex + 1);
-      }
+      if (!paused && !document.hidden) { elapsed += dt; if (elapsed >= HERO_MS) go(heroIndex + 1); }
       if (bar) bar.style.width = (elapsed / HERO_MS * 100).toFixed(1) + '%';
-      if (!reduce) {
-        fade = Math.min(1, fade + dt / 400);
-        drops.forEach(d => { d.y += d.v * dt / 1000; if (d.y > h + S * 3) { d.y = -S; d.k = keys[Math.random() * 7 | 0]; } });
-      }
-      draw();
     }
-    heroIndex = heroIndex % slides.length;
-    size(); showCopy();
-    const ro = new ResizeObserver(size); ro.observe(c);
+    go(heroIndex % slides.length);
     raf = requestAnimationFrame(tick);
-    cleanups.push(() => { cancelAnimationFrame(raf); ro.disconnect(); });
+    cleanups.push(() => cancelAnimationFrame(raf));
   }
 
   /* ---------- 게임 화면: 채팅 · 댓글 ---------- */

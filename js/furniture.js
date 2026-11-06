@@ -116,7 +116,38 @@
     ['w_poster', '게임 포스터', 8, 'wall', 1, 0, 0, null, null, { z0: 60, z1: 104, kind: 'poster' }],
     ['w_shelf', '벽 선반', 12, 'wall', 2, 0, 0, null, null, { z0: 72, z1: 80, kind: 'shelf' }],
     ['w_mirror', '거울', 18, 'wall', 1, 0, 0, null, null, { z0: 30, z1: 104, kind: 'mirror' }],
-    ['w_board', '화이트보드', 15, 'wall', 2, 0, 0, null, null, { z0: 60, z1: 100, kind: 'board' }]
+    ['w_board', '화이트보드', 15, 'wall', 2, 0, 0, null, null, { z0: 60, z1: 100, kind: 'board' }],
+    // v92 벽 장식 30종 (그림은 SPR)
+    ['w_rmirror', '원형 거울', 10, 'wall', 1, 0, 0, null, null, { z0: 74, z1: 112, kind: 'spr' }],
+    ['w_heartgar', '하트 가랜드', 12, 'wall', 2, 0, 0, null, null, { z0: 98, z1: 126, kind: 'spr' }],
+    ['w_hangplant', '행잉 플랜트', 15, 'wall', 1, 0, 0, null, null, { z0: 62, z1: 128, kind: 'spr' }],
+    ['w_neon', '네온 사인', 25, 'wall', 2, 0, 0, null, null, { z0: 72, z1: 108, kind: 'spr' }],
+    ['w_map', '세계 지도', 20, 'wall', 2, 0, 0, null, null, { z0: 70, z1: 108, kind: 'spr' }],
+    ['w_calendar', '미니 달력', 8, 'wall', 1, 0, 0, null, null, { z0: 74, z1: 104, kind: 'spr' }],
+    ['w_memo', '메모판', 12, 'wall', 2, 0, 0, null, null, { z0: 66, z1: 104, kind: 'spr' }],
+    ['w_rclock', '둥근 벽시계', 10, 'wall', 1, 0, 0, null, null, { z0: 86, z1: 120, kind: 'spr' }],
+    ['w_dart', '다트판', 15, 'wall', 1, 0, 0, null, null, { z0: 76, z1: 112, kind: 'spr' }],
+    ['w_rose', '넝쿨 장미', 18, 'wall', 1, 0, 0, null, null, { z0: 52, z1: 128, kind: 'spr' }],
+    ['w_scissor', '가위와 빗 장식', 12, 'wall', 1, 0, 0, null, null, { z0: 70, z1: 110, kind: 'spr' }],
+    ['w_retro', '레트로 포스터', 10, 'wall', 1, 0, 0, null, null, { z0: 62, z1: 108, kind: 'spr' }],
+    ['w_sea', '바다 그림 액자', 15, 'wall', 1, 0, 0, null, null, { z0: 72, z1: 106, kind: 'spr' }],
+    ['w_starlight', '별자리 조명', 22, 'wall', 2, 0, 0, null, null, { z0: 96, z1: 126, kind: 'spr' }],
+    ['w_dream', '드림캐처', 18, 'wall', 1, 0, 0, null, null, { z0: 58, z1: 118, kind: 'spr' }],
+    ['w_dollshelf', '선반 위 인형', 15, 'wall', 2, 0, 0, null, null, { z0: 70, z1: 104, kind: 'spr' }],
+    ['w_album', '음악 앨범', 12, 'wall', 2, 0, 0, null, null, { z0: 70, z1: 110, kind: 'spr' }],
+    ['w_wreath', '크리스마스 리스', 20, 'wall', 1, 0, 0, null, null, { z0: 76, z1: 116, kind: 'spr' }],
+    ['w_doodle', '낙서 화이트보드', 15, 'wall', 2, 0, 0, null, null, { z0: 62, z1: 102, kind: 'spr' }],
+    ['w_rainbow', '무지개 스티커', 10, 'wall', 2, 0, 0, null, null, { z0: 82, z1: 114, kind: 'spr' }],
+    ['w_tv', '벽걸이 TV', 30, 'wall', 2, 0, 0, null, null, { z0: 62, z1: 104, kind: 'spr' }],
+    ['w_fan', '소형 선풍기', 15, 'wall', 1, 0, 0, null, null, { z0: 62, z1: 112, kind: 'spr' }],
+    ['w_vinelight', '넝쿨 조명', 18, 'wall', 2, 0, 0, null, null, { z0: 92, z1: 126, kind: 'spr' }],
+    ['w_scroll', '동양화 족자', 20, 'wall', 1, 0, 0, null, null, { z0: 40, z1: 122, kind: 'spr' }],
+    ['w_bookshelf', '도서 선반', 15, 'wall', 2, 0, 0, null, null, { z0: 70, z1: 102, kind: 'spr' }],
+    ['w_plane', '종이비행기', 8, 'wall', 2, 0, 0, null, null, { z0: 80, z1: 116, kind: 'spr' }],
+    ['w_cutlery', '수저 세트 장식', 12, 'wall', 1, 0, 0, null, null, { z0: 64, z1: 112, kind: 'spr' }],
+    ['w_bag', '아기자기한 가방', 15, 'wall', 1, 0, 0, null, null, { z0: 52, z1: 110, kind: 'spr' }],
+    ['w_catclock', '고양이 벽시계', 20, 'wall', 1, 0, 0, null, null, { z0: 44, z1: 122, kind: 'spr' }],
+    ['w_flags', '화려한 깃발', 15, 'wall', 2, 0, 0, null, null, { z0: 96, z1: 126, kind: 'spr' }]
   ];
   // 벽지 · 바닥 (기본 0P)
   const WALLS = [['wp_basic', '하얀 벽', 0, '#F4F0E8', null], ['wp_sky', '하늘색 벽', 10, '#BDE6FF', null], ['wp_pink', '분홍 벽', 10, '#FFD6E6', null], ['wp_mint', '민트 벽', 10, '#C8F5E4', null],
@@ -166,6 +197,60 @@
   }
 
   /* ---------- 벽 장식 그림 ---------- side 'R' = 뒤 오른쪽 벽(j=0 면) · 'L' = 뒤 왼쪽 벽(i=0 면) · t = 벽을 따라 칸 위치 */
+  /* v92 벽 장식 30종 — 벽 면에 붙인 평면 그림 (가로 = 칸 수 × 32, 세로 = z1 - z0, 왼쪽 위가 0,0) */
+  function sprPen(c) {
+    const st = (line, lw) => { if (line !== false) { c.strokeStyle = line || O; c.lineWidth = lw || 1.4; c.stroke(); } };
+    const fl = col => { if (col) { c.fillStyle = col; c.fill(); } };
+    return {
+      c,
+      R: (x, y, w, h, col, line, rr) => { c.beginPath(); if (rr && c.roundRect) c.roundRect(x, y, w, h, rr); else c.rect(x, y, w, h); fl(col); st(line); },
+      C: (x, y, r, col, line) => { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); fl(col); st(line); },
+      E: (x, y, rx, ry, col, line, rot) => { c.beginPath(); c.ellipse(x, y, rx, ry, rot || 0, 0, Math.PI * 2); fl(col); st(line); },
+      P: (pts, col, line) => { c.beginPath(); pts.forEach((p, k) => (k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.closePath(); fl(col); st(line); },
+      L: (pts, col, lw) => { c.beginPath(); pts.forEach((p, k) => (k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.strokeStyle = col || O; c.lineWidth = lw || 1.2; c.stroke(); },
+      Q: (x0, y0, cx, cy, x1, y1, col, lw) => { c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(cx, cy, x1, y1); c.strokeStyle = col || O; c.lineWidth = lw || 1.2; c.stroke(); },
+      heart: (x, y, s, col) => { c.beginPath(); c.moveTo(x, y + s); c.bezierCurveTo(x - s * 1.6, y - s * 0.1, x - s * 0.8, y - s * 1.4, x, y - s * 0.4); c.bezierCurveTo(x + s * 0.8, y - s * 1.4, x + s * 1.6, y - s * 0.1, x, y + s); c.closePath(); fl(col); st(O, 1); },
+      star: (x, y, r, col) => { c.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.closePath(); fl(col); st(O, 1); },
+      glow: (x, y, r, col) => { const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(255,240,180,0)'); c.fillStyle = gr; c.fillRect(x - r, y - r, r * 2, r * 2); },
+      T: (s, x, y, size, col, bold) => { c.font = `${bold ? 900 : 700} ${size}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = col; c.fillText(s, x, y); }
+    };
+  }
+  const SILVER = '#C8D4EC', WOOD = '#B8783E', PAPER = '#F4E8C8';
+  // 줄에 매달린 것 (가랜드 · 조명 · 깃발): 처진 줄 위의 점들
+  const sag = (W, n, dip) => Array.from({ length: n }, (_, k) => { const x = W * (k + 0.5) / n, t = x / W; return [x, 4 + dip * 4 * t * (1 - t)]; });
+  const clockHands = (d, x, y, r) => { const now = new Date(), hA = ((now.getHours() % 12) + now.getMinutes() / 60) / 12 * Math.PI * 2, mA = now.getMinutes() / 60 * Math.PI * 2; d.L([[x, y], [x + Math.sin(hA) * r * 0.5, y - Math.cos(hA) * r * 0.5]], O, 1.8); d.L([[x, y], [x + Math.sin(mA) * r * 0.78, y - Math.cos(mA) * r * 0.78]], O, 1.2); d.C(x, y, 1.4, O, false); };
+  const SPR = {
+    w_rmirror(d, W, H) { d.C(W / 2, H / 2, 15, WOOD); d.C(W / 2, H / 2, 11.5, '#D8F0FF'); d.L([[W / 2 - 6, H / 2 - 2], [W / 2 - 1, H / 2 - 7]], '#FFFFFF', 2); d.L([[W / 2 - 4, H / 2 + 2], [W / 2 + 3, H / 2 - 5]], '#FFFFFF', 1.2); },
+    w_heartgar(d, W, H) { d.Q(0, 3, W / 2, 16, W, 3, '#8A5A34', 1); const C = ['#B07CFF', '#FF8A3D', '#FFD23F', '#7FE0C4', '#FF6AA8', '#7FB8FF']; sag(W, 6, 9).forEach(([x, y], k) => { d.L([[x, y], [x, y + 5]], '#8A5A34', 0.8); d.heart(x, y + 10, 4.2, C[k]); }); },
+    w_hangplant(d, W, H) { const x = W / 2; d.L([[x, 0], [x - 9, 34]], '#8A5A34', 0.8); d.L([[x, 0], [x + 9, 34]], '#8A5A34', 0.8); d.C(x, 2, 2, '#E8A050'); [[-9, 26], [-4, 22], [3, 21], [9, 25], [0, 28]].forEach(([u, v]) => d.E(x + u, v, 5.5, 3.5, '#3EA85A', O, u / 20)); d.P([[x - 11, 32], [x + 11, 32], [x + 8, 46], [x - 8, 46]], '#D87A4A'); d.R(x - 12, 30, 24, 4, '#E89A6A'); [[-9, 50], [-6, 58], [6, 54], [9, 62], [0, 60]].forEach(([u, v]) => { d.L([[x + u * 0.6, 44], [x + u, v]], '#2A8A4A', 1); d.E(x + u, v, 3, 2, '#5AC86A', O, 1); }); },
+    w_neon(d, W, H, s) { d.R(4, 6, W - 8, H - 12, '#1D2340', '#4AD8FF', 4); d.c.save(); d.c.shadowColor = '#FF4AA8'; d.c.shadowBlur = s && s.night ? 12 : 6; d.T('L', 14, H / 2, 17, '#FF6AC0', true); d.heart(26, H / 2 - 1, 5, '#FF4A8A'); d.T('VE', 46, H / 2, 17, '#FF6AC0', true); d.c.restore(); d.L([[8, 10], [W - 8, 10]], 'rgba(74,216,255,.5)', 1); },
+    w_map(d, W, H) { d.P([[2, 4], [W - 2, 2], [W - 3, H - 3], [3, H - 2]], PAPER, '#8A5A34'); d.R(6, 7, W - 12, H - 14, '#EAD8A8', false); [[14, 13, 7, 5], [16, 25, 4, 7], [31, 12, 6, 4], [33, 24, 5, 7], [47, 14, 9, 5], [52, 28, 4, 3]].forEach(([x, y, rx, ry]) => d.E(x, y, rx, ry, '#B8925A', false)); d.L([[6, H / 2], [W - 6, H / 2]], 'rgba(138,90,52,.4)', 0.6); d.L([[W / 2, 7], [W / 2, H - 7]], 'rgba(138,90,52,.4)', 0.6); d.star(W - 10, H - 10, 3, '#E8505A'); },
+    w_calendar(d, W, H) { d.R(5, 6, W - 10, H - 8, '#FFFFFF', O, 2); d.R(5, 6, W - 10, 8, '#E8505A', O, 2); d.C(11, 6, 1.6, '#FFFFFF'); d.C(W - 11, 6, 1.6, '#FFFFFF'); for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) d.R(8 + k * 4.4, 17 + r * 4.4, 3, 3, (r * 4 + k) === 6 ? '#E8505A' : '#C8D4EC', false); },
+    w_memo(d, W, H) { d.R(2, 2, W - 4, H - 4, '#8A5A34', O, 2); d.R(6, 6, W - 12, H - 12, '#D8A464', false); [[12, 10, '#FFF3B0'], [28, 13, '#BDE6FF'], [44, 9, '#FFD6E6'], [16, 24, '#C8F5E4'], [38, 24, '#FFFFFF']].forEach(([x, y, col], k) => { d.R(x, y, 11, 10, col, O); d.L([[x + 2, y + 5], [x + 9, y + 5]], 'rgba(29,35,64,.5)', 0.7); d.C(x + 5.5, y + 1.5, 1.6, ['#E8505A', '#4A8AE8', '#3EA85A', '#FFD23F', '#B07CFF'][k], false); }); },
+    w_rclock(d, W, H) { d.C(W / 2, H / 2, 15, '#E8505A'); d.C(W / 2, H / 2, 11.5, '#FFFFFF'); for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; d.C(W / 2 + Math.sin(a) * 9.5, H / 2 - Math.cos(a) * 9.5, k % 3 ? 0.6 : 1.1, O, false); } clockHands(d, W / 2, H / 2, 10); },
+    w_dart(d, W, H) { const x = W / 2, y = H / 2; [[15, '#1D2340'], [12.5, '#F4E8C8'], [10, '#E8505A'], [7.5, '#F4E8C8'], [5, '#3EA85A'], [2.2, '#E8505A']].forEach(([r, col]) => d.C(x, y, r, col, r === 15 ? O : false)); for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; d.L([[x, y], [x + Math.cos(a) * 12.5, y + Math.sin(a) * 12.5]], 'rgba(29,35,64,.35)', 0.6); } [[x + 3, y - 2, '#FF8A3D'], [x - 4, y + 4, '#4A8AE8']].forEach(([px, py, col]) => { d.L([[px, py], [px + 9, py - 6]], O, 1.2); d.P([[px + 8, py - 6], [px + 12, py - 9], [px + 11, py - 4]], col, false); }); },
+    w_rose(d, W, H) { d.c.beginPath(); d.c.moveTo(4, 4); d.c.bezierCurveTo(30, 20, 2, 40, 26, 58); d.c.bezierCurveTo(34, 64, 18, 70, 14, H - 2); d.c.strokeStyle = '#2A8A4A'; d.c.lineWidth = 1.8; d.c.stroke(); [[8, 9], [20, 18], [12, 30], [20, 44], [26, 56], [20, 66]].forEach(([x, y], k) => { d.E(x + (k % 2 ? -5 : 5), y + 2, 3.5, 2, '#3EA85A', O, k % 2 ? -0.6 : 0.6); }); [[14, 12], [10, 26], [23, 40], [17, 54], [24, 66]].forEach(([x, y]) => { d.C(x, y, 4, '#E84A5A'); d.C(x, y, 2, '#B82A3A', false); d.C(x - 1, y - 1, 0.8, '#FF9AA8', false); }); },
+    w_scissor(d, W, H) { d.C(8, 30, 3.5, null, '#E86AA8'); d.c.lineWidth = 2; d.C(14, 31, 3.5, null, '#E86AA8'); d.P([[9, 26], [12, 26], [7, 4], [6, 5]], SILVER); d.P([[12, 26], [14, 27], [13, 5], [11, 4]], SILVER); d.R(19, 4, 5, 34, '#C8925A', O, 2); for (let y = 7; y < 36; y += 3) d.L([[24, y], [27, y]], '#8A5A34', 1.2); },
+    w_retro(d, W, H) { d.R(4, 2, W - 8, H - 4, '#2A3266', O); d.R(6, 4, W - 12, H - 8, '#3A4A9A', false); d.R(6, H - 14, W - 12, 10, '#3EA85A', false); d.P([[W / 2, 9], [W / 2 + 4, 17], [W / 2 + 4, 28], [W / 2 - 4, 28], [W / 2 - 4, 17]], '#FFFFFF'); d.C(W / 2, 19, 1.8, '#4AD8FF', false); d.P([[W / 2 - 4, 24], [W / 2 - 8, 30], [W / 2 - 4, 28]], '#E8505A', false); d.P([[W / 2 + 4, 24], [W / 2 + 8, 30], [W / 2 + 4, 28]], '#E8505A', false); d.P([[W / 2 - 3, 28], [W / 2, 35], [W / 2 + 3, 28]], '#FF8A3D', false); [[9, 9], [22, 12], [10, 22]].forEach(([x, y]) => d.C(x, y, 0.9, '#FFF3B0', false)); d.R(10, H - 11, 12, 3, '#FFD23F', false); },
+    w_sea(d, W, H) { d.R(3, 3, W - 6, H - 6, '#6A4026', O); d.R(6, 6, W - 12, H - 12, '#BDE6FF', false); d.c.beginPath(); d.c.moveTo(6, H - 6); d.c.lineTo(6, 22); d.c.quadraticCurveTo(14, 8, 22, 16); d.c.quadraticCurveTo(17, 14, 18, 20); d.c.quadraticCurveTo(22, 24, W - 6, 20); d.c.lineTo(W - 6, H - 6); d.c.closePath(); d.c.fillStyle = '#2A6AC8'; d.c.fill(); d.Q(8, 20, 14, 10, 21, 15, '#FFFFFF', 1.4); d.L([[8, H - 11], [W - 8, H - 12]], '#8AC8FF', 1); d.C(W - 11, 11, 2.5, '#FFF3B0', false); },
+    w_starlight(d, W, H, s) { d.Q(0, 3, W / 2, 14, W, 3, '#8A5A34', 0.8); sag(W, 5, 7).forEach(([x, y], k) => { const yy = y + 6 + (k % 2) * 5; d.L([[x, y], [x, yy - 4]], '#8A5A34', 0.6); if (s && s.night) d.glow(x, yy, 9, 'rgba(255,240,150,.8)'); d.star(x, yy, 4.2, '#FFD23F'); }); },
+    w_dream(d, W, H) { const x = W / 2; d.L([[x, 0], [x, 4]], '#8A5A34', 0.8); d.C(x, 14, 10, null, '#C8925A'); d.c.lineWidth = 2; d.C(x, 14, 10, null, '#C8925A'); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; d.L([[x + Math.cos(a) * 10, 14 + Math.sin(a) * 10], [x + Math.cos(a + 2.1) * 4, 14 + Math.sin(a + 2.1) * 4]], '#E8D4A8', 0.6); } d.C(x, 14, 1.4, '#7FE0C4', false); [[-7, '#7FE0C4'], [0, '#FF9AC0'], [7, '#4A8AE8']].forEach(([u, col], k) => { const top = k === 1 ? 24 : 21; d.L([[x + u * 0.8, top], [x + u, top + 10]], '#8A5A34', 0.6); d.E(x + u, top + 18, 2.6, 7, col, O); d.L([[x + u, top + 12], [x + u, top + 25]], 'rgba(29,35,64,.4)', 0.5); }); },
+    w_dollshelf(d, W, H) { const y = H - 7; d.R(2, y, W - 4, 4, '#B8783E', O); d.P([[8, y + 4], [12, y + 4], [8, y + 9]], '#8A5A34'); d.P([[W - 12, y + 4], [W - 8, y + 4], [W - 8, y + 9]], '#8A5A34'); d.C(15, y - 7, 7, '#C8925A'); d.C(15, y - 17, 5.5, '#C8925A'); d.C(11, y - 21, 2, '#C8925A'); d.C(19, y - 21, 2, '#C8925A'); d.C(13, y - 18, 0.8, O, false); d.C(17, y - 18, 0.8, O, false); d.E(15, y - 15, 2, 1.4, '#E8C8A0', false); d.E(30, y - 6, 6, 6, '#FFD6E6'); d.C(30, y - 15, 5, '#FFD6E6'); d.E(27.5, y - 24, 1.6, 5, '#FFD6E6', O); d.E(32.5, y - 24, 1.6, 5, '#FFD6E6', O); d.C(28.5, y - 15.5, 0.7, O, false); d.C(31.5, y - 15.5, 0.7, O, false); d.C(46, y - 5, 5, '#E8A050'); d.C(46, y - 12, 4, '#E8A050'); d.C(43, y - 15, 1.5, '#E8A050'); d.C(49, y - 15, 1.5, '#E8A050'); d.R(52, y - 8, 7, 8, '#FFD23F', O); },
+    w_album(d, W, H) { d.R(4, 4, 26, 26, '#E8505A', O); d.C(17, 17, 9, '#1D2340'); d.C(17, 17, 3, '#FFD23F', false); d.C(36, 18, 12, '#1D2340'); d.C(36, 18, 8, null, '#3A4270'); d.C(36, 18, 3.5, '#FF8A3D', false); d.R(34, 12, 26, 26, '#F4E8C8', O); d.C(47, 25, 7, '#4A8AE8', false); d.T('♪', 47, 25, 9, '#FFFFFF', true); },
+    w_wreath(d, W, H) { const x = W / 2, y = H / 2 + 2; for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2; d.E(x + Math.cos(a) * 11, y + Math.sin(a) * 11, 5, 3.5, k % 2 ? '#2A8A4A' : '#3EA85A', O, a + 1.2); } [[0.3], [1.6], [2.9], [4.4], [5.4]].forEach(([a]) => d.C(x + Math.cos(a) * 11, y + Math.sin(a) * 11, 1.6, '#E8303A', false)); d.P([[x, y - 12], [x - 8, y - 17], [x - 8, y - 8]], '#E8505A'); d.P([[x, y - 12], [x + 8, y - 17], [x + 8, y - 8]], '#E8505A'); d.C(x, y - 12, 2.4, '#C8303A'); d.C(x - 3, y - 6, 2.4, '#FFD23F'); d.C(x + 3, y - 6, 2.4, '#FFD23F'); },
+    w_doodle(d, W, H) { d.R(2, 2, W - 4, H - 6, '#FFFFFF', '#5A6A9A', 2); d.R(10, H - 5, W - 20, 2, '#8AA0D0', false); d.C(16, 14, 6, null, '#E8505A'); d.Q(13, 15, 16, 19, 19, 15, '#E8505A', 1); d.C(14, 12, 0.7, '#E8505A', false); d.C(18, 12, 0.7, '#E8505A', false); d.L([[28, 22], [32, 12], [36, 22], [40, 12], [44, 22]], '#4A8AE8', 1.2); d.L([[52, 30], [52, 18]], '#8A5A34', 1.4); d.C(52, 15, 5, null, '#3EA85A'); d.L([[10, 30], [22, 30], [18, 26]], '#B07CFF', 1.2); d.R(W - 14, H - 9, 8, 2.5, '#E8505A', false); },
+    w_rainbow(d, W, H) { const x = W / 2, y = H - 6; ['#E8505A', '#FF8A3D', '#FFD23F', '#3EA85A', '#4A8AE8', '#B07CFF'].forEach((col, k) => { d.c.beginPath(); d.c.arc(x, y, 24 - k * 3, Math.PI, 0); d.c.strokeStyle = col; d.c.lineWidth = 3.2; d.c.stroke(); }); [[x - 22, y], [x + 22, y]].forEach(([cx, cy]) => { d.C(cx - 4, cy, 4, '#FFFFFF', '#BDE6FF'); d.C(cx + 4, cy, 4, '#FFFFFF', '#BDE6FF'); d.C(cx, cy - 3, 5, '#FFFFFF', '#BDE6FF'); }); },
+    w_tv(d, W, H, s) { d.R(2, 3, W - 4, H - 8, '#1D2340', O, 2); const g2 = d.c.createLinearGradient(0, 6, 0, H - 8); g2.addColorStop(0, '#3A5AC8'); g2.addColorStop(1, '#7FE0C4'); d.R(5, 6, W - 10, H - 14, g2, false); d.C(16, 22, 4, '#FFF3B0', false); d.P([[5, H - 8], [22, 24], [36, H - 8]], '#3EA85A', false); d.P([[28, H - 8], [44, 20], [W - 5, H - 8]], '#2A8A4A', false); d.R(W / 2 - 3, H - 5, 6, 3, '#1D2340', false); },
+    w_fan(d, W, H) { const x = W / 2, y = 16; d.R(x - 5, H - 8, 10, 6, '#2A9A9A', O, 2); d.R(x - 1.5, y + 10, 3, H - 34, '#2A9A9A', O); d.C(x, y, 13, '#BDF0EC', '#2A9A9A'); for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + (Date.now() / 150 % 6.3); d.E(x + Math.cos(a) * 6, y + Math.sin(a) * 6, 6, 3, '#7FE0C4', O, a); } d.C(x, y, 2.5, '#2A9A9A'); for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; d.L([[x + Math.cos(a) * 4, y + Math.sin(a) * 4], [x + Math.cos(a) * 13, y + Math.sin(a) * 13]], 'rgba(42,154,154,.5)', 0.6); } },
+    w_vinelight(d, W, H, s) { d.Q(0, 3, W / 2, 16, W, 3, '#2A8A4A', 1); d.Q(0, 8, W / 2, 26, W, 8, '#2A8A4A', 1); [...sag(W, 6, 9), ...sag(W, 5, 13).map(([x, y]) => [x, y + 5])].forEach(([x, y], k) => { if (k % 2) d.E(x + 2, y, 2.4, 1.3, '#3EA85A', false, 0.6); if (s && s.night) d.glow(x, y + 4, 7, 'rgba(255,236,150,.85)'); d.E(x, y + 4, 2, 2.8, '#FFE68A', O); }); },
+    w_scroll(d, W, H) { const x0 = 5, x1 = W - 5; d.L([[W / 2, 0], [x0 + 2, 6], [W / 2, 0], [x1 - 2, 6]], '#8A5A34', 0.7); d.R(x0 - 2, 5, x1 - x0 + 4, 3, '#6A4026', O, 1); d.R(x0, 8, x1 - x0, H - 15, '#F4EBD4', O); d.R(x0 + 3, 12, x1 - x0 - 6, H - 23, '#FAF4E4', false); d.P([[x0 + 3, H - 20], [x0 + 9, H - 40], [x0 + 13, H - 30], [x0 + 18, H - 50], [x1 - 3, H - 22]], '#3A4270', false); d.P([[x0 + 6, H - 20], [x0 + 12, H - 32], [x0 + 16, H - 24], [x1 - 6, H - 20]], '#7A86B0', false); d.C(x1 - 8, 22, 3, '#E8505A', false); d.L([[x0 + 5, 18], [x0 + 5, 34]], '#3A4270', 1); d.L([[x0 + 8, 20], [x0 + 8, 30]], '#3A4270', 1); d.R(x0 - 2, H - 7, x1 - x0 + 4, 3.5, '#6A4026', O, 1); },
+    w_bookshelf(d, W, H) { const y = H - 7; d.R(2, y, W - 4, 4, '#8A5A34', O); d.P([[10, y + 4], [14, y + 4], [10, y + 9]], '#6A4026'); d.P([[W - 14, y + 4], [W - 10, y + 4], [W - 10, y + 9]], '#6A4026'); const BK = ['#E8505A', '#4A8AE8', '#3EA85A', '#FFD23F', '#B07CFF', '#FF8A3D', '#2A3266', '#7FE0C4']; let x = 6; BK.forEach((col, k) => { const w = 4 + (k % 3), h = 16 + ((k * 5) % 7); d.R(x, y - h, w, h, col, O); d.L([[x + 1, y - h + 3], [x + w - 1, y - h + 3]], 'rgba(255,255,255,.6)', 0.6); x += w + 0.4; }); d.P([[x + 1, y], [x + 4, y], [x + 14, y - 16], [x + 11, y - 18]], '#E86AA8'); d.R(W - 12, y - 7, 6, 7, '#FFD23F', O); },
+    w_plane(d, W, H) { d.c.setLineDash([2, 2]); d.Q(8, H - 6, 26, H - 2, 40, 18, '#4A8AE8', 1); d.c.setLineDash([]); d.R(3, H - 18, 13, 9, '#FFF3B0', O); d.L([[3, H - 18], [9.5, H - 13], [16, H - 18]], '#E8505A', 0.8); d.P([[38, 18], [W - 4, 6], [48, 26]], '#FFFFFF'); d.P([[38, 18], [W - 4, 6], [46, 20]], '#BDE6FF'); d.P([[46, 20], [W - 4, 6], [48, 26]], '#8AC8FF'); },
+    w_cutlery(d, W, H) { d.E(8, 9, 3.5, 6, SILVER); d.R(7, 14, 2, 30, SILVER, O, 1); d.R(13, 3, 1.2, 9, SILVER, false); d.R(15.5, 3, 1.2, 9, SILVER, false); d.R(18, 3, 1.2, 9, SILVER, false); d.R(13, 10, 6.2, 4, SILVER, O, 1); d.R(15, 14, 2.2, 30, SILVER, O, 1); d.P([[23, 3], [27, 3], [27, 22], [23, 24]], SILVER); d.R(23, 23, 3, 21, '#8A5A34', O, 1); },
+    w_bag(d, W, H) { const x = W / 2; d.C(x, 3, 2, '#C8925A'); d.L([[x, 3], [x - 9, 34], [x, 3], [x + 9, 34]], '#E86AA8', 1.6); d.R(x - 12, 32, 24, 22, '#FFB0CC', O, 4); d.P([[x - 12, 34], [x + 12, 34], [x + 12, 42], [x, 46], [x - 12, 42]], '#FF8AB8'); d.C(x, 45, 2, '#FFD23F'); d.heart(x + 6, 50, 2.2, '#FFFFFF'); },
+    w_catclock(d, W, H) { const x = W / 2, sw = Math.sin(Date.now() / 300) * 4; d.c.beginPath(); d.c.moveTo(x, 50); d.c.quadraticCurveTo(x + sw, 62, x + sw * 1.5 + 4, H - 4); d.c.strokeStyle = '#1D2340'; d.c.lineWidth = 3; d.c.stroke(); d.E(x, 40, 8, 13, '#1D2340'); d.C(x, 14, 10, '#1D2340'); d.P([[x - 9, 10], [x - 8, 1], [x - 3, 6]], '#1D2340'); d.P([[x + 9, 10], [x + 8, 1], [x + 3, 6]], '#1D2340'); const ey = Math.sin(Date.now() / 300) * 1.2; d.E(x - 4, 12, 2.6, 2.2, '#FFD23F', false); d.E(x + 4, 12, 2.6, 2.2, '#FFD23F', false); d.C(x - 4 + ey, 12, 1, '#1D2340', false); d.C(x + 4 + ey, 12, 1, '#1D2340', false); d.C(x, 40, 5.5, '#FFFFFF', '#FFD23F'); clockHands(d, x, 40, 5); },
+    w_flags(d, W, H) { d.Q(0, 3, W / 2, 14, W, 3, '#8A5A34', 0.8); const C = ['#E8505A', '#FFD23F', '#3EA85A', '#4A8AE8', '#B07CFF', '#FF8A3D', '#7FE0C4']; sag(W, 7, 9).forEach(([x, y], k) => { d.P([[x - 4.2, y - 1], [x + 4.2, y - 1], [x, y + 11]], C[k]); d.C(x, y + 3, 0.9, '#FFFFFF', false); }); }
+  };
   function drawWallItem(g, it, side, t, state) {
     const S = it.wall, w = it.w, e = 0.04;
     const Q = (a0, a1, z0, z1, col, line) => { if (side === 'R') g.face('j', e, t + a0, t + a1, z0, z1, col, line); else g.face('i', e, t + a0, t + a1, z0, z1, col, line); };
@@ -182,6 +267,13 @@
     else if (S.kind === 'poster') { Q(0.15, 0.85, z0, z1, '#2A3266'); Q(0.25, 0.75, z1 - 20, z1 - 6, '#FF6A3D', false); Q(0.3, 0.7, z0 + 6, z0 + 12, YEL, false); }
     else if (S.kind === 'shelf') { Q(0, w, z0, z1, W); const P2 = side === 'R' ? (a, z) => g.P(t + a, 0.3, z) : (a, z) => g.P(0.3, t + a, z); g.poly([side === 'R' ? g.P(t, e, z1) : g.P(e, t, z1), side === 'R' ? g.P(t + w, e, z1) : g.P(e, t + w, z1), P2(w, z1), P2(0, z1)], shade(W, 0.15)); [[0.3, RED, 14], [0.6, BLUE, 10], [1.2, GRN, 12], [1.5, YEL, 9]].forEach(([a, col, hh]) => Q(a, a + 0.12, z1, z1 + hh, col)); }
     else if (S.kind === 'mirror') { Q(0.2, 0.8, z0, z1, '#E8C870'); Q(0.27, 0.73, z0 + 4, z1 - 4, '#D8F0FF'); Q(0.35, 0.42, z1 - 30, z1 - 10, '#FFFFFF', false); }
+    else if (S.kind === 'spr' && SPR[it.id]) {
+      // 벽 면 좌표로 바꿔 평면 그림을 붙임 (오른쪽 벽: +i 방향 · 왼쪽 벽: 보는 사람 기준 왼→오 = -j 방향)
+      const o = side === 'R' ? g.P(t, e, z1) : g.P(e, t + w, z1), o2 = side === 'R' ? g.P(t + 1, e, z1) : g.P(e, t + w - 1, z1);
+      const c = g.c; c.save(); c.transform((o2[0] - o[0]) / 32, (o2[1] - o[1]) / 32, 0, 1, o[0], o[1]); c.lineJoin = 'round'; c.lineCap = 'round';
+      try { SPR[it.id](sprPen(c), w * 32, z1 - z0, state || {}); } catch (err) { /* noop */ }
+      c.restore();
+    }
     else if (S.kind === 'board') { Q(0.05, w - 0.05, z0, z1, '#9AA8C8'); Q(0.1, w - 0.1, z0 + 3, z1 - 3, '#FFFFFF'); Q(0.3, 0.9, z1 - 12, z1 - 10, BLUE, false); Q(0.3, 1.3, z1 - 20, z1 - 18, RED, false); Q(1.2, 1.7, z0 + 8, z0 + 10, GRN, false); }
   }
 
@@ -293,7 +385,7 @@
     g.poly([g.P(n, 0, 0), g.P(n, n, 0), g.P(n, n, -6), g.P(n, 0, -6)], shade(flI.color, -0.42), O);
   }
 
-  window.GoFurn = { ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, drawItem, drawWallItem, drawRoomShell, thumb, shade,
+  window.GoFurn = { ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, local, drawItem, drawWallItem, drawRoomShell, thumb, shade,
     free: () => ITEMS.filter(it => it.price === 0).map(it => it.id),
     // 처음 방 (기본 가구만)
     DEFAULT_ROOM: { wp: 'wp_basic', fl: 'fl_wood', wd: 'wd_basic', wdAt: [0, 2, 1], items: [['f_bed1', 6, 0, 0], ['f_desk', 0, 5, 1], ['f_chair', 1, 5, 1], ['f_pot', 7, 7, 0]], walls: [['w_window', 'R', 3]] } };

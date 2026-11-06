@@ -1445,3 +1445,18 @@ a.nm-t:hover { text-decoration: underline; }
 .rm-music select { width: 100%; padding: 6px 8px; border: 2px solid #1D2340; border-radius: 8px; font: inherit; background: var(--surface); color: var(--ink); }
 .rm-song { margin: 0 0 4px; font-weight: 700; }
 @media (max-width: 900px) { .room-layout { grid-template-columns: 1fr; } .rm-side { order: 2; } }
+
+/* v92 메인 소개: 선생님 그림 2장 (그림 속 버튼 자리에 투명 단추) */
+.hero.hero-img { min-height: 0; padding: 0; border: 0; border-radius: 12px; box-shadow: 0 5px 0 #0B0E22; background: #1D2340; }
+.hero.hero-img::after { content: none; }
+.hero-slide { position: relative; }
+.hero-slide[hidden] { display: none; }
+.hero-slide.in { animation: heroFade .45s ease-out both; }
+@keyframes heroFade { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.hero-pic { display: block; line-height: 0; }
+.hero-pic img { display: block; width: 100%; height: auto; border-radius: 12px; user-select: none; -webkit-user-drag: none; }
+.hero-hot { position: absolute; z-index: 2; display: block; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 10px; }
+.hero-hot:hover { box-shadow: 0 0 0 3px #FFD23F; }
+.hero-hot:focus-visible { outline: 3px solid #FFD23F; outline-offset: 2px; }
+.hero.hero-img .hero-timer { border-radius: 0 0 12px 12px; overflow: hidden; z-index: 3; }
+@media (prefers-reduced-motion: reduce) { .hero-slide.in { animation: none; } }

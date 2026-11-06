@@ -23,7 +23,7 @@
     ['👕', '옷장 = 옷 갈아입기', '반짝이는 <b>옷장</b>을 누르면 아바타가 걸어가 문을 열어요. 옷을 골라 <b>이대로 입기</b>를 누르면 짠! 갈아입어요.', '#rmCv', 'wd'],
     ['🛏️', '가구를 눌러 보세요', '침대는 <b>눕기</b>, 의자·소파는 <b>앉기</b>, 조명·TV는 <b>켜기</b>, 창문은 <b>낮 ↔ 밤</b>, 스피커·피아노는 <b>음악</b>이 나와요.', '#rmCv', null],
     ['🛠️', '방 꾸미기', '<b>방 꾸미기</b>를 누르면 아래에 내 가구가 나와요. 골라서 놓고, <b>끌어서 옮기고</b>, 돌리고, 보관할 수 있어요. 다 했으면 <b>저장</b>!', '[data-rm="edit"]', null],
-    ['🛒', '가구 상점', '게임에서 모은 포인트로 <b>가구 상점</b>에서 가구·벽지·바닥·옷장을 사요. (67종 · 8~80P)', '.room-btns [data-shopfurn]', null],
+    ['🛒', '가구 상점', '게임에서 모은 포인트로 <b>가구 상점</b>에서 가구·벽지·바닥·옷장을 사요. (97종 · 8~80P)', '.room-btns [data-shopfurn]', null],
     ['💌', '프로필 · 음악 · 친구 방', '왼쪽 <b>프로필</b>에 자기소개를 쓰고 <b>저장</b>하세요. 상점에서 산 <b>게임 음악</b>을 방 음악으로 고를 수 있어요. 랭킹에서 친구 이름을 누르면 <b>친구 방</b>에 놀러 가요. 방 아래에는 내 <b>게임 기록</b>이 모여요.', '#rmSide', null]
   ];
   let tut = -1;
@@ -111,7 +111,8 @@
     const L = [];
     rm.items.forEach((x, k) => { const it = F.byId[x[0]]; if (!it || it.slot === 'rug') return; const [w, d] = size(it, x[3]); L.push({ k, it, i: x[1], j: x[2], w, d, r: x[3] }); });
     const wd = F.byId[rm.wd]; L.push({ k: 'wd', it: wd, i: rm.wdAt[0], j: rm.wdAt[1], w: 1, d: 1, r: rm.wdAt[2] });
-    if (!edit && hasMe()) L.push({ k: 'me', av: me, i: me.i - 0.3, j: me.j - 0.3, w: 0.6, d: 0.6 });
+    const onFurn = () => me.act && me.actItem != null && rm.items[me.actItem];
+    if (!edit && hasMe() && !onFurn()) L.push({ k: 'me', av: me, i: me.i - 0.3, j: me.j - 0.3, w: 0.6, d: 0.6 });
     if (!edit && visiting()) L.push({ k: 'host', av: host, i: host.i - 0.3, j: host.j - 0.3, w: 0.6, d: 0.6 });
     // 앞뒤 순서: 겹치지 않는 상자는 한쪽이 확실히 뒤 → 위상 정렬
     const behind = (a, b) => (a.i + a.w <= b.i + 0.001) || (a.j + a.d <= b.j + 0.001);
@@ -123,30 +124,56 @@
     }
     return out;
   }
+  // v92 앉는 자리 [가로 u, 깊이 v, 앉는 높이] (가구 좌표) · 침대 [매트리스 높이, 이불 색, 이불 가로 u0~u1]
+  const SEAT = { f_chair: [0.35, 0.44, 18], f_sofa: [0.62, 0.6, 16], f_beanbag: [0.5, 0.55, 20], f_rocking: [0.35, 0.48, 22] };
+  const BED = { f_bed1: [16, '#4A8AE8', 0.05, 0.95], f_bed2: [17, '#FF9AC0', 0.06, 0.98], f_bunk: [13, '#7FE0C4', 0.05, 0.95] };
+  function nameTag(c, e, x, y) {
+    if (!visiting()) return;
+    const isHost = e === host;
+    c.font = '10px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center';
+    const t = isHost ? owner.nickname + ' (주인)' : '나', tw = c.measureText(t).width + 10;
+    c.fillStyle = isHost ? 'rgba(29,35,64,.85)' : 'rgba(255,210,63,.95)'; c.fillRect(x - tw / 2, y - 10, tw, 13);
+    c.fillStyle = isHost ? '#FFFFFF' : '#1D2340'; c.fillText(t, x, y); c.textAlign = 'left';
+  }
+  const myAv = () => (Hub.user ? Hub.user.avatar : AV.normalize({}));
   function drawAvatar(c, now, e) {
     e = e || me;
-    const isHost = e === host, av = isHost ? owner.avatar : (Hub.user ? Hub.user.avatar : AV.normalize({}));
-    let [x, y] = P(e.i, e.j, 0), frame = 0, z = 0;
+    const isHost = e === host, av = isHost ? owner.avatar : myAv();
+    const [x, y] = P(e.i, e.j, 0);
     const moving = e.path.length > 0;
-    if (moving && !reduce) frame = [1, 0, 3, 0][Math.floor(e.walkT * 7) % 4];
-    if (e.act === 'sit') z = 14;
-    if (visiting()) {   // 친구 방: 머리 위 이름표 (주인 · 나)
-      c.font = '10px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center';
-      const t = isHost ? owner.nickname + ' (주인)' : '나', ty = y - z - (e.act === 'sleep' ? 40 : 62), tw = c.measureText(t).width + 10;
-      c.fillStyle = isHost ? 'rgba(29,35,64,.85)' : 'rgba(255,210,63,.95)'; c.fillRect(x - tw / 2, ty - 10, tw, 13);
-      c.fillStyle = isHost ? '#FFFFFF' : '#1D2340'; c.fillText(t, x, ty); c.textAlign = 'left';
-    }
+    // 걷기: 다리와 팔을 번갈아 (RPG 와 같은 4단계)
+    const frame = moving && !reduce ? [1, 0, 3, 0][Math.floor(e.walkT * 7) % 4] : 0;
+    nameTag(c, e, x, y - 62);
     c.save();
     c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y, 11, 5, 0, 0, Math.PI * 2); c.fill();
-    if (e.act === 'sleep') {
-      c.translate(x, y - 22); c.rotate(-Math.PI / 2.4); AV.draw(c, av, -18, -29, 2, { frame: 0 });
-      c.restore(); c.font = '12px "Jua", sans-serif'; c.fillStyle = '#4A5AA8'; const t = (now / 600) % 3; c.fillText('Z', x + 14 + t * 4, y - 40 - t * 8); c.fillText('z', x + 22 + t * 3, y - 54 - t * 6); return;
-    }
-    const bob = moving || reduce ? 0 : Math.round(Math.sin(now / 500));
-    c.translate(x, y - z);
+    const bob = moving ? (frame === 0 ? -1 : 0) : (reduce ? 0 : Math.round(Math.sin(now / 500)));
+    c.translate(x, y);
     if (e.face < 0) c.scale(-1, 1);
-    AV.draw(c, av, -18, -56 + bob, 2, { frame });
+    AV.draw(c, av, -18, -56 + bob, 2, { frame, pose: moving ? 'walk' : null });
     c.restore();
+  }
+  // 의자에 앉은 모습 · 침대에 누워 이불 덮은 모습 (그 가구를 그린 바로 다음에 그림)
+  function drawOnFurn(c, g, now, o) {
+    const it = o.it, L = F.local(g, o.i, o.j, o.r), av = myAv();
+    if (me.act === 'sit') {
+      const s = SEAT[it.id] || [it.w / 2, it.d / 2, 16], [x, y] = L.P(s[0], s[1], 0);
+      nameTag(c, me, x, y - s[2] - 46);
+      c.save(); c.translate(x, y); if (me.face < 0) c.scale(-1, 1);
+      AV.draw(c, av, -18, -s[2] - 41, 2, { pose: 'sit' });   // 엉덩이(그림 41px)를 앉는 높이에
+      c.restore(); return;
+    }
+    const b = BED[it.id] || [16, '#4A8AE8', 0.05, 0.95], z = b[0] + 2;
+    // 아바타 그림(36 × 58)을 매트리스 위 평면에 눕힘: 머리 = 베개 쪽(v 작음) · 발 = 침대 끝
+    const o0 = L.P(0.05, 0.02, z + 16), ox = L.P(1.05, 0.02, z + 16), oy = L.P(0.05, 1.86, z + 1);   // 머리 쪽을 베개 위로 살짝 세움
+    const hi = AV.hires(av, 0, 'sleep');
+    c.save(); c.transform((ox[0] - o0[0]) / 36, (ox[1] - o0[1]) / 36, (oy[0] - o0[0]) / 58, (oy[1] - o0[1]) / 58, o0[0], o0[1]);
+    const sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = false; c.drawImage(hi, 0, 0, 36, 58); c.imageSmoothingEnabled = sm; c.restore();
+    // 이불: 어깨 아래부터 덮음 (접힌 하얀 끝단 + 이불)
+    L.box(b[2], 0.9, b[3] - b[2], 1.05, 6, b[0], b[1]);
+    L.flat(b[2], 0.9, b[3], 1.04, b[0] + 6, '#FFFFFF');
+    const [x, y] = L.P(0.5, 0.4, z + 10);
+    nameTag(c, me, x, y - 18);
+    c.font = '12px "Jua", sans-serif'; c.fillStyle = '#4A5AA8'; const t = (now / 600) % 3; c.fillText('Z', x + 10 + t * 4, y - 6 - t * 8); c.fillText('z', x + 18 + t * 3, y - 20 - t * 6);
   }
   function drawWallItems(c, g, rm) {
     rm.walls.forEach((x, k) => { const it = F.byId[x[0]]; if (!it) return; if (edit && sel && sel.kind === 'wall' && sel.k === k) { c.save(); c.shadowColor = '#FFD23F'; c.shadowBlur = 10; } F.drawWallItem(g, it, x[1], x[2], { night: st.night }); if (edit && sel && sel.kind === 'wall' && sel.k === k) c.restore(); });
@@ -168,6 +195,7 @@
       if (hl) { c.save(); c.shadowColor = '#FFD23F'; c.shadowBlur = 12; }
       F.drawItem(g, o.it, o.i, o.j, o.r, { on: st.on[o.it.id], open: o.k === 'wd' ? st.wdOpen : 0 });
       if (hl) c.restore();
+      if (!edit && me.act && me.actItem === o.k && hasMe()) drawOnFurn(c, g, now, o);
     });
     if (st.night) { c.fillStyle = 'rgba(16,14,60,.38)'; c.fillRect(0, 0, VW, VH); Object.keys(st.on).forEach(id => { if (!st.on[id]) return; const x = rm.items.find(y => y[0] === id); const it = F.byId[id]; if (!x || !it || it.act !== 'light') return; const p = P(x[1] + 0.5, x[2] + 0.5, it.h - 8); const gr = c.createRadialGradient(p[0], p[1], 2, p[0], p[1], 110); gr.addColorStop(0, 'rgba(255,230,160,.45)'); gr.addColorStop(1, 'rgba(255,230,160,0)'); c.fillStyle = gr; c.fillRect(p[0] - 110, p[1] - 110, 220, 220); }); }
     if (tut >= 0 && TUT[tut][4] === 'wd') {   // 안내 중: 옷장 반짝
@@ -237,15 +265,15 @@
     walkTo(spot, () => {
       const [ci, cj] = [o.i + o.w / 2, o.j + o.d / 2]; me.face = (ci - cj) - (me.i - me.j) >= 0 ? 1 : -1;
       if (it.act === 'wardrobe') openWardrobe();
-      else if (it.act === 'sleep') { me.i = o.i + o.w / 2; me.j = o.j + o.d / 2; me.act = 'sleep'; bubble('쿨쿨…'); }
-      else if (it.act === 'sit') { me.i = o.i + o.w / 2; me.j = o.j + o.d / 2; me.act = 'sit'; bubble('편하다~'); }
+      else if (it.act === 'sleep') { me.i = o.i + o.w / 2; me.j = o.j + o.d / 2; me.act = 'sleep'; me.actItem = o.k; bubble('쿨쿨…'); }
+      else if (it.act === 'sit') { me.i = o.i + o.w / 2; me.j = o.j + o.d / 2; me.act = 'sit'; me.actItem = o.k; bubble('편하다~'); }
       else if (it.act === 'light' || it.act === 'screen') { st.on[it.id] = !st.on[it.id]; bubble(st.on[it.id] ? '켰어요' : '껐어요'); }
       else if (it.act === 'music') { st.notes = 5; bubble('♪ 랄랄라'); }
       else if (it.act === 'play') bubble(['재밌다!', '좋아요 ♥', '헤헤'][Math.floor(Math.random() * 3)]);
       else bubble(it.name);
     });
   }
-  function getUp() { if (me.act) { const t = frontOf(R(), Math.floor(me.i), Math.floor(me.j), 1, 1, 0); me.act = null; if (t) { me.i = t[0] + 0.5; me.j = t[1] + 0.5; } } }
+  function getUp() { if (me.act) { const t = frontOf(R(), Math.floor(me.i), Math.floor(me.j), 1, 1, 0); me.act = null; me.actItem = null; if (t) { me.i = t[0] + 0.5; me.j = t[1] + 0.5; } } }
   function onTap(ev) {
     const [x, y] = toLogical(ev);
     if (edit) return;

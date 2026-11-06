@@ -384,10 +384,36 @@
     return o;
   }
   const hiCache = new Map();
-  function hires(av, frame) {
-    const key = JSON.stringify(normalize(av)) + '|' + (frame || 0);
+  /* v92 자세 (내 방): 'walk' = 걸을 때 팔을 다리와 반대로 흔듦(RPG 와 같은 방식, frame 1·3) · 'sit' = 앉기(다리를 접어 짧게) · 'sleep' = 눈 감기
+   *  다 그린 칸 그림(옷 포함)에서 부분만 옮기고 테두리를 다시 그림 → 옷 160종 그대로 사용 */
+  function poseGrid(grid0, pose, frame) {
+    if (!pose) return grid0;
+    const H2 = grid0.length, W2 = grid0[0].length, empty = (x, y) => x < 0 || y < 0 || x >= W2 || y >= H2 || !grid0[y][x];
+    const raw = grid0.map((r, y) => r.map((c, x) => (c === OUT && (empty(x - 1, y) || empty(x + 1, y) || empty(x, y - 1) || empty(x, y + 1)) ? null : c)));
+    const move = (x0, x1, y0, y1, dx, dy, stretch) => {
+      const part = [];
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (raw[y] && raw[y][x]) { part.push([x, y, raw[y][x]]); if (!stretch) raw[y][x] = null; }
+      if (stretch && dy < 0) for (let y = y1 + dy + 1; y <= y1; y++) for (let x = x0; x <= x1; x++) if (raw[y]) raw[y][x] = null;
+      part.sort((a, b) => (dy > 0 ? b[1] - a[1] : a[1] - b[1])).forEach(([x, y, c]) => { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W2 && ny < H2) raw[ny][nx] = c; });
+    };
+    if (pose === 'walk' && (frame === 1 || frame === 3)) {
+      // 왼다리가 나가면(frame 1) 오른팔이 앞으로 → 화면에서는 팔을 위아래로 2칸씩 엇갈리게
+      const L = [0, 5], R = [12, 17], up = frame === 1 ? R : L, dn = frame === 1 ? L : R;
+      move(up[0], up[1], 13, 20, 0, -2, true); move(dn[0], dn[1], 13, 20, 0, 2, true);
+    } else if (pose === 'sit') {
+      // 다리 가운데 3줄을 빼고 발을 끌어올림 + 무릎을 양옆으로 1칸 벌림
+      for (let y = 22; y <= 24; y++) for (let x = 0; x < W2; x++) raw[y][x] = null;
+      for (let y = 25; y < H2; y++) for (let x = 0; x < W2; x++) { if (raw[y][x]) raw[y - 3][x] = raw[y][x]; raw[y][x] = null; }
+      for (let y = 20; y <= 21; y++) { const l = raw[y][6], r = raw[y][11]; if (l && !raw[y][5]) raw[y][5] = l; if (r && !raw[y][12]) raw[y][12] = r; }
+    } else if (pose === 'sleep') {
+      [7, 10].forEach(x => { if (raw[8][x] === OUT && raw[8][x - 1] && raw[8][x - 1] !== OUT) { raw[8][x - 1] = OUT; } });   // 감은 눈: 가로로 짧은 선
+    }
+    return raw.map((r, y) => r.map((c, x) => c || ((x > 0 && raw[y][x - 1]) || (x + 1 < W2 && raw[y][x + 1]) || (y > 0 && raw[y - 1][x]) || (y + 1 < H2 && raw[y + 1][x]) ? OUT : null)));
+  }
+  function hires(av, frame, pose) {
+    const key = JSON.stringify(normalize(av)) + '|' + (frame || 0) + '|' + (pose || '');
     if (hiCache.has(key)) return hiCache.get(key);
-    const cells = refine(grid(av, frame), true), cv = document.createElement('canvas');
+    const cells = refine(poseGrid(grid(av, frame), pose, frame), true), cv = document.createElement('canvas');
     cv.width = GW * 2; cv.height = GH * 2;
     const g = cv.getContext('2d');
     for (let y = 0; y < GH * 2; y++) for (let x = 0; x < GW * 2; x++) { const col = cells[y][x]; if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } }
@@ -414,7 +440,7 @@
       if (col) { ctx.fillStyle = col; ctx.fillRect(x + i * half, y + j * half, Math.ceil(half), Math.ceil(half)); }
     }
     const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(hires(av, opt.frame), cx * 2, cy * 2, cw * 2, ch * 2, x, y, cw * scale, ch * scale);
+    ctx.drawImage(hires(av, opt.frame, opt.pose), cx * 2, cy * 2, cw * 2, ch * 2, x, y, cw * scale, ch * scale);
     ctx.imageSmoothingEnabled = sm;
   }
   // 캔버스 크기를 맞춰서 그림
