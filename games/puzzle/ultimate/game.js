@@ -31,15 +31,15 @@
     BGM.load(EMB ? 'p512' : GAME);
     el.innerHTML = `
       <div class="ult">
-        <div class="play-head">${EMB ? '<a class="back" href="#p512" data-ult-back>← 퍼즐512 처음으로</a><span class="cat ult-tag">랭킹 대전</span><h1>퍼즐512 랭킹 대전</h1>' : '<a class="back" href="#home">← 게임 목록</a><span class="cat ult-tag">EVENT</span><h1>Ultimate mode</h1>'}<span class="small" style="margin:0">퍼즐512 · ${LIMIT / 60000}분 · 판 위 숫자 합 = 점수</span></div>
+        <div class="play-head">${EMB ? '<a class="back" href="#p512" data-ult-back>← 퍼즐512 처음으로</a><span class="cat ult-tag">랭킹 대전</span><h1>퍼즐512 랭킹 대전</h1>' : '<a class="back" href="#home">← 게임 목록</a><span class="cat ult-tag">랭킹 대전</span><h1>퍼즐512 랭킹 대전</h1>'}<span class="small" style="margin:0">퍼즐512 · ${LIMIT / 60000}분 · 판 위 숫자 합 = 점수</span></div>
         <div class="ult-grid">
           <div class="ult-stage">
-            <div class="cabinet cab-ult" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas id="ultCanvas" aria-label="Ultimate mode 게임 화면"></canvas><div class="overlay" id="ultOv"></div></div></div>
+            <div class="cabinet cab-ult" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas id="ultCanvas" aria-label="퍼즐512 랭킹 대전 게임 화면"></canvas><div class="overlay" id="ultOv"></div></div></div>
             <div class="pad cross" id="pad"><span class="sp"></span><button type="button" data-act="up" aria-label="위">▲</button><span class="sp"></span><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="down" aria-label="아래">▼</button><button type="button" data-act="right" aria-label="오른쪽">▶</button></div>
           </div>
           <aside class="ult-side">
             <div class="panel ult-rank-panel">
-              <h3>${EMB ? '퍼즐512 랭킹' : 'Ultimate 랭킹'} <small>최고 점수</small></h3>
+              <h3>${EMB ? '퍼즐512 랭킹' : '퍼즐512 랭킹'} <small>최고 점수</small></h3>
               <ol class="rank" id="ultRank"><li class="empty">불러오는 중…</li></ol>
               <p class="small ult-mine" id="ultMine"></p>
             </div>
@@ -120,7 +120,7 @@
     if (st.phase === 'play' || st.phase === 'count') return;
     ov.hidden = false;
     if (st.phase === 'ready') {
-      ov.innerHTML = `<div class="ov-box"><span class="ov-best">EVENT</span><div class="ov-title">Ultimate mode</div>
+      ov.innerHTML = `<div class="ov-box"><span class="ov-best">랭킹 대전</span><div class="ov-title">퍼즐512</div>
         <p class="ov-goal">${LIMIT / 60000}분 동안 숫자를 밀어요.<br>끝났을 때 <b>판 위 숫자의 합</b>이 점수!</p>
         <button class="btn btn-primary" type="button" id="ultStart">도전 시작 ▶</button>
         <p class="ov-note">${Hub.user ? '최고 기록이 오른쪽 랭킹에 올라가요' : '손님 플레이 · 로그인하면 랭킹에 올라가요'}</p></div>`;

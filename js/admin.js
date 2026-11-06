@@ -310,7 +310,7 @@
           <div class="bn-form">
             <label class="chk bn-on"><input type="checkbox" id="bnOn" ${cur.enabled ? 'checked' : ''}> <b>배너 켜기</b> <span class="small">(끄면 아무에게도 안 보여요)</span></label>
             <label>제목 <span class="small">(40자)</span><input id="bnTitle" maxlength="40" value="${ui.esc(cur.title)}" placeholder="예) 11월 게임 대회 안내"></label>
-            <label>내용 <span class="small">(200자, 줄바꿈 가능)</span><textarea id="bnBody" maxlength="200" rows="3" placeholder="예) 11월 15일까지 Ultimate mode 1등에게 상품!">${ui.esc(cur.body)}</textarea></label>
+            <label>내용 <span class="small">(200자, 줄바꿈 가능)</span><textarea id="bnBody" maxlength="200" rows="3" placeholder="예) 11월 15일까지 퍼즐512 랭킹 대전 1등에게 상품!">${ui.esc(cur.body)}</textarea></label>
             <label>링크 주소 <span class="small">(누르면 새 탭으로 열림 · 비워 두면 링크 없음)</span><input id="bnLink" maxlength="500" value="${ui.esc(cur.link || '')}" placeholder="https://..."></label>
             <div class="bn-imgrow">
               <span>그림 <span class="small">(선택 · 큰 그림은 가로 600 크기로 자동으로 줄여요)</span></span>
@@ -410,7 +410,7 @@
         <div class="panel">
           <h2>시즌 1위</h2>
           <p class="small">시즌은 <b>매월 1일 0시(한국 시간)</b>에 새로 시작해요. 시즌이 끝나면 게임마다 <b>1위에게 +${Hub.SEASON_POINTS}P</b>를 주고, 그 학생이 들어오면 <b>쪽지</b>가 떠요. (누군가 로그인하면 자동 정산 · 두 번 주지 않음)<br>
-          빠지는 게임: <b>skillcom RPG · Ultimate</b> (따로 정하기). 관리자·정지 계정은 1위에서 빠져요. Skillcom Fight 는 <b>그 달 승리 수</b>, 같은 기록이면 <b>먼저 낸 사람</b>이 1위예요.</p>
+          빠지는 게임: <b>skillcom RPG · 퍼즐512 랭킹 대전</b> (따로 정하기). 관리자·정지 계정은 1위에서 빠져요. Skillcom Fight 는 <b>그 달 승리 수</b>, 같은 기록이면 <b>먼저 낸 사람</b>이 1위예요.</p>
           <div class="admin-tools">
             <label class="sr-only" for="sSeason">시즌</label><select id="sSeason">${sel}</select>
             <span class="small" id="sInfo"></span><button class="btn btn-sm" type="button" id="csvSeason">CSV 내려받기</button>

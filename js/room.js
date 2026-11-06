@@ -15,7 +15,7 @@
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let A = null, root = null, key = null, owner = null, room = null, draft = null, edit = false, raf = 0, cv = null, ctx = null, closetCleanup = null;
-  let shell = null, shellKey = '', tab = 'furn', sel = null, carry = null, busy = false, stats = null, guests = null, visits = null, loadErr = null;
+  let shell = null, shellKey = '', tab = 'furn', sel = null, carry = null, busy = false, stats = null,  visits = null, loadErr = null;
   const st = { on: {}, night: false, wdOpen: 0, wdTarget: 0, sparkle: 0, bubble: null, notes: 0 };
   /* v90 처음 내 방에 오면 보여 주는 안내 (이 기기에서 한 번 · 방 아래 '도움말'로 다시 보기) */
   const TUT = [
@@ -24,7 +24,7 @@
     ['🛏️', '가구를 눌러 보세요', '침대는 <b>눕기</b>, 의자·소파는 <b>앉기</b>, 조명·TV는 <b>켜기</b>, 창문은 <b>낮 ↔ 밤</b>, 스피커·피아노는 <b>음악</b>이 나와요.', '#rmCv', null],
     ['🛠️', '방 꾸미기', '<b>방 꾸미기</b>를 누르면 아래에 내 가구가 나와요. 골라서 놓고, <b>끌어서 옮기고</b>, 돌리고, 보관할 수 있어요. 다 했으면 <b>저장</b>!', '[data-rm="edit"]', null],
     ['🛒', '가구 상점', '게임에서 모은 포인트로 <b>가구 상점</b>에서 가구·벽지·바닥·옷장을 사요. (67종 · 8~80P)', '.room-btns [data-shopfurn]', null],
-    ['💌', '친구 방 · 방명록 · 기록', '랭킹에서 친구 이름을 누르면 <b>친구 방</b>에 놀러 가요. <b>방명록</b>은 방 주인과 글쓴이만 볼 수 있어요. 방 아래에는 <b>TODAY·TOTAL 방문 수</b>와 내 <b>게임 기록</b>이 모여요.', '.room-count', null]
+    ['💌', '프로필 · 음악 · 친구 방', '왼쪽 <b>프로필</b>에 자기소개를 쓰고 <b>저장</b>하세요. 상점에서 산 <b>게임 음악</b>을 방 음악으로 고를 수 있어요. 랭킹에서 친구 이름을 누르면 <b>친구 방</b>에 놀러 가요. 방 아래에는 내 <b>게임 기록</b>이 모여요.', '#rmSide', null]
   ];
   let tut = -1;
   const tutKey = () => 'gogo.roomTut.' + (Hub.user ? Hub.user.id : 'guest');
@@ -383,42 +383,57 @@
       ${games.map(g => { const p = stats.per[g.id]; return `<tr><td><a href="#${g.id}"><b>${esc(g.name)}</b></a></td><td class="n">${sfmt(g.id, p.best)}</td><td class="n plus">${A.fmt(p.wins)}</td><td class="n minus">${A.fmt(p.losses)}</td><td class="n">${A.fmt(p.plays)}</td><td>${p.last ? A.ago(p.last) : '-'}</td></tr>`; }).join('')}
       </tbody></table></div>` : '<p class="empty">아직 게임 기록이 없어요.</p>'}`;
   }
-  function guestHTML() {
-    if (!guests) return '<p class="empty">방명록을 불러오는 중…</p>';
-    const u = Hub.user, canWrite = u && !u.banned;
-    const form = canWrite ? `<form class="rm-gform" id="rmGForm"><input id="rmGIn" maxlength="120" placeholder="${mine() ? '내 방에 한마디 남기기' : esc(owner.nickname) + '님에게 한마디 (120자)'}" autocomplete="off"><button class="btn btn-primary btn-sm" type="submit">남기기</button></form>`
-      : `<p class="small">방명록을 쓰려면 <button class="link" type="button" data-auth="login">로그인</button>해 주세요.</p>`;
-    const FL = window.GoFilter;
-    const note = `<p class="small rm-gnote">🔒 방명록 글은 <b>방 주인</b>과 <b>글쓴이</b>만 볼 수 있어요.${mine() ? '' : ' 다른 사람이 남긴 글은 보이지 않아요.'}</p>`;
-    const list = guests.length ? `<ul class="rm-glist">${guests.map(g => { const canDel = u && (u.id === g.user_id || u.id === owner.id || Hub.isAdmin());
-      return `<li class="${g.hidden ? 'is-hidden' : ''}">${A.avCanvas(g.avatar, 2, 'bust', 'rm-gav')}<div class="rm-gb"><div class="rm-gh"><a href="#room/${esc(g.username || g.user_id)}"><b>${esc(g.nickname)}</b></a><span class="small">${A.ago(g.created_at)}</span>${g.hidden ? '<span class="cm-tag hid">숨김</span>' : ''}</div><p>${FL ? FL.html(g.body) : esc(g.body)}</p></div>
-        <div class="rm-gact">${Hub.isAdmin() ? `<button class="link" type="button" data-ghide="${g.id}" data-v="${g.hidden ? 0 : 1}">${g.hidden ? '보이기' : '숨기기'}</button>` : ''}${canDel ? `<button class="link" type="button" data-gdel="${g.id}">지우기</button>` : ''}</div></li>`; }).join('')}</ul>` : (mine() ? '<p class="empty">아직 방명록이 없어요.</p>' : '<p class="empty">아직 내가 남긴 글이 없어요. 한마디 남겨 보세요!</p>');
-    return form + note + list;
+  /* v91 방 왼쪽 프로필: 아바타 · 이름 · 레벨 · 자기소개(100자, 주인만 고침) · 방 음악(상점에서 산 게임 BGM) */
+  let music = null, musicId = null, musicOn = false;
+  function stopMusic() { if (music) { music.pause(); music.removeAttribute('src'); try { music.load(); } catch (e) { /* noop */ } } music = null; musicId = null; musicOn = false; syncMusicBtn(); }
+  function playMusic(id) {
+    const it = id && F.byId[id]; if (!it || it.slot !== 'music') { stopMusic(); return; }
+    if (musicId !== id) { stopMusic(); music = new Audio(it.file); music.loop = true; music.volume = 0.4; musicId = id; }
+    music.play().then(() => { musicOn = true; syncMusicBtn(); }).catch(() => { musicOn = false; syncMusicBtn(); });
+  }
+  function syncMusicBtn() { const b = root && $('[data-rm="mplay"]', root); if (b) b.textContent = musicOn ? '■ 멈추기' : '▶ 듣기'; }
+  function sideHTML() {
+    const own = mine(), rm = room || {}, L = Hub.levelInfo(owner.earned || 0), FL = window.GoFilter, bio = rm.bio || '';
+    const cur = rm.bgm && F.byId[rm.bgm];
+    const mine2 = own ? F.ITEMS.filter(it => it.slot === 'music' && Hub.owns(it.id)) : [];
+    const bioBox = own
+      ? `<form class="rm-bio-form" id="rmBioForm"><textarea id="rmBio" maxlength="100" rows="4" placeholder="나를 소개해 보세요 (100자)">${esc(bio)}</textarea><div class="rm-bio-row"><small id="rmBioN">${bio.length}/100</small><button class="btn btn-sm btn-primary" type="submit">저장</button></div></form>`
+      : `<p class="rm-bio">${bio ? (FL ? FL.html(bio) : esc(bio)) : '<span class="small">아직 자기소개가 없어요.</span>'}</p>`;
+    const musicBox = own
+      ? (mine2.length ? `<select id="rmBgm" aria-label="방 음악 고르기"><option value="">음악 없음</option>${mine2.map(it => `<option value="${it.id}" ${rm.bgm === it.id ? 'selected' : ''}>${esc(it.game)}</option>`).join('')}</select>` : '<p class="small">아직 가진 음악이 없어요.</p>')
+        + `<div class="rm-bio-row">${cur ? `<button class="btn btn-sm" type="button" data-rm="mplay">${musicOn ? '■ 멈추기' : '▶ 듣기'}</button>` : ''}<a class="btn btn-sm btn-sun" href="#shop/music">음악 사기 (50P)</a></div>`
+      : (cur ? `<p class="rm-song">♪ ${esc(cur.game)}</p><button class="btn btn-sm" type="button" data-rm="mplay">${musicOn ? '■ 멈추기' : '▶ 듣기'}</button>` : '<p class="small">음악이 없는 방이에요.</p>');
+    return `<div class="rm-side-av">${A.avCanvas(own ? Hub.user.avatar : owner.avatar, 5, 'full', 'rm-side-cv', true)}</div>
+      <b class="rm-side-nm">${esc(owner.nickname)}</b><span class="lv">Lv.${L.level}</span>${own ? `<div class="sub">@${esc(owner.username)} <small>(나만 보여요)</small></div>` : ''}
+      <h4>자기소개</h4>${bioBox}
+      <h4>🎵 방 음악</h4><div class="rm-music">${musicBox}</div>`;
   }
   function render() {
     if (!root) return;
     if (loadErr) { root.innerHTML = `<div class="panel"><p class="err">${esc(loadErr)}</p><a class="btn" href="#room">내 방으로</a></div>`; return; }
     if (!owner) {
-      if (!key && !Hub.user) { root.innerHTML = `<div class="panel gate"><h2>로그인하면 내 방이 생겨요</h2><p>가구를 사서 방을 꾸미고, 옷장을 열어 옷을 갈아입고, 친구 방에 놀러 가 방명록을 남겨 보세요.</p><div class="row" style="justify-content:center"><button class="btn" type="button" data-auth="login">로그인</button><button class="btn btn-primary" type="button" data-auth="signup">회원가입</button></div></div>`; return; }
+      if (!key && !Hub.user) { root.innerHTML = `<div class="panel gate"><h2>로그인하면 내 방이 생겨요</h2><p>가구를 사서 방을 꾸미고, 옷장을 열어 옷을 갈아입고, 게임 음악을 틀고, 친구 방에 놀러 가 보세요.</p><div class="row" style="justify-content:center"><button class="btn" type="button" data-auth="login">로그인</button><button class="btn btn-primary" type="button" data-auth="signup">회원가입</button></div></div>`; return; }
       root.innerHTML = '<div class="panel"><p class="empty">방을 불러오는 중…</p></div>'; return;
     }
     const own = mine();
     root.innerHTML = `
       <div class="stack room-page">
+        <div class="room-layout">
+        <aside class="panel rm-side" id="rmSide">${sideHTML()}</aside>
         <div class="panel room-box">
           <div class="room-head">
-            <div class="room-who">${A.avCanvas(own ? Hub.user.avatar : owner.avatar, 2, 'bust', 'rm-hav')}<div><h1 class="room-title">${esc(owner.nickname)}<small>의 방</small></h1><div class="sub">@${esc(owner.username)}</div></div></div>
+            <div class="room-who"><div><h1 class="room-title">${esc(owner.nickname)}<small>의 방</small></h1>${own ? `<div class="sub">@${esc(owner.username)}</div>` : ''}</div></div>
             <div class="room-count"><span>TODAY <b class="num" id="rmToday">${visits ? A.fmt(visits.today) : '-'}</b></span><span>TOTAL <b class="num" id="rmTotal">${visits ? A.fmt(visits.total) : '-'}</b></span></div>
             <div class="row room-btns">${own ? (edit ? '<button class="btn btn-primary" type="button" data-rm="save">저장</button><button class="btn" type="button" data-rm="cancel">취소</button>' : '<button class="btn btn-sun" type="button" data-rm="edit">방 꾸미기</button><a class="btn" href="#shop/furn" data-shopfurn>가구 상점</a>')
               : `${Hub.user ? '<a class="btn btn-room" href="#room"><span>내 방으로</span></a>' : ''}`}</div>
           </div>
           <div class="room-stage${edit ? ' editing' : ''}"><canvas id="rmCv" width="${VW * S}" height="${VH * S}" aria-label="${esc(owner.nickname)}의 방"></canvas>
             <div class="rm-tut" id="rmTut" hidden></div>
-            ${!edit ? `<p class="room-tip">${own ? '바닥을 누르면 걸어가요 · <b>옷장</b>을 누르면 옷을 갈아입어요 · 침대·의자·조명·창문도 눌러 보세요 <button class="link" type="button" data-tut="again">도움말</button>' : (Hub.user ? '나는 <b>손님</b>이에요 · 바닥·가구를 누르면 내 아바타가 움직여요 (옷장은 주인만) · 아래에 방명록을 남길 수 있어요' : '로그인하면 내 아바타로 놀러 갈 수 있어요 · 아래에 방명록을 남길 수 있어요')}</p>` : ''}</div>
+            ${!edit ? `<p class="room-tip">${own ? '바닥을 누르면 걸어가요 · <b>옷장</b>을 누르면 옷을 갈아입어요 · 침대·의자·조명·창문도 눌러 보세요 <button class="link" type="button" data-tut="again">도움말</button>' : (Hub.user ? '나는 <b>손님</b>이에요 · 바닥·가구를 누르면 내 아바타가 움직여요 (옷장은 주인만)' : '로그인하면 내 아바타로 놀러 갈 수 있어요')}</p>` : ''}</div>
           <div class="room-bar" id="rmBar" hidden></div>
           ${Hub.noRoom && own ? '<p class="small err">아직 서버에 내 방 저장 칸이 없어요. 관리자가 supabase/room_v88.sql 을 실행하면 저장돼요.</p>' : ''}
         </div>
-        <div class="panel rm-guest"><h3>방명록 <small>${guests ? guests.length : 0}</small></h3><div id="rmGuest">${guestHTML()}</div></div>
+        </div>
         <div class="panel rm-prof"><h3>${esc(owner.nickname)}님의 게임 기록</h3><div id="rmProf">${profileHTML()}</div></div>
       </div>`;
     AV.paintAll(root);
@@ -429,13 +444,12 @@
     renderTut();
     if (!raf) { loop.t = 0; raf = requestAnimationFrame(loop); }
   }
-  function partial() {   // 방명록 · 기록만 다시
-    const g = $('#rmGuest'); if (g) { g.innerHTML = guestHTML(); AV.paintAll(g); const h = $('.rm-guest h3 small'); if (h) h.textContent = guests ? guests.length : 0; }
+  function partial() {   // 기록 · 방문 수만 다시
     const p = $('#rmProf'); if (p) p.innerHTML = profileHTML();
     const t = $('#rmToday'), tt = $('#rmTotal'); if (t && visits) { t.textContent = A.fmt(visits.today); tt.textContent = A.fmt(visits.total); }
   }
   async function load() {
-    loadErr = null; owner = null; stats = null; guests = null; visits = null; edit = false; carry = null; sel = null;
+    loadErr = null; owner = null; stats = null; visits = null; stopMusic(); edit = false; carry = null; sel = null;
     const k = key || (Hub.user && Hub.user.id);
     if (!k) { render(); return; }
     render();
@@ -452,19 +466,17 @@
     }
     render();
     Hub.roomVisit(owner.id).then(v => { visits = v; partial(); }).catch(() => {});
-    Hub.guestList(owner.id).then(g => { guests = g; partial(); }).catch(() => { guests = []; partial(); });
+    if (room.bgm && !(window.GoBGM && window.GoBGM.isMuted())) playMusic(room.bgm);   // 방 음악 (브라우저가 막으면 '▶ 듣기')
     Hub.userStats(owner.id).then(s => { stats = s; partial(); }).catch(() => { stats = { per: {}, total: { plays: 0, wins: 0, losses: 0 } }; partial(); });
   }
   function freeSpotFor(rm) { const b = blocks(rm); for (let j = N - 1; j >= 0; j--) for (let i = N - 1; i >= 0; i--) if (!b.has(i + ',' + j)) { me.i = i + 0.5; me.j = j + 0.5; return; } }
 
   async function onClick(e) {
-    const t = e.target.closest('[data-rm],[data-rmtab],[data-rmit],[data-gdel],[data-ghide],[data-tut]');
+    const t = e.target.closest('[data-rm],[data-rmtab],[data-rmit],[data-tut]');
     if (!t || !root || !root.contains(t)) return;
     if (t.dataset.tut) { const a2 = t.dataset.tut; if (a2 === 'skip') tutDone(); else if (a2 === 'again') { tut = 0; renderTut(); } else if (a2 === 'prev') { tut = Math.max(0, tut - 1); renderTut(); } else { if (tut >= TUT.length - 1) tutDone(); else { tut++; renderTut(); } } return; }
     if (t.dataset.rmtab) { tab = t.dataset.rmtab; renderBar(); return; }
     if (t.dataset.rmit) { pickFromBar(t.dataset.rmit); return; }
-    if (t.dataset.gdel) { if (!confirm('이 방명록 글을 지울까요?')) return; try { await Hub.guestDelete(+t.dataset.gdel); guests = guests.filter(g => g.id !== +t.dataset.gdel); partial(); } catch (err) { A.toast(err.message); } return; }
-    if (t.dataset.ghide) { try { await Hub.guestHide(+t.dataset.ghide, t.dataset.v === '1'); guests = await Hub.guestList(owner.id); partial(); } catch (err) { A.toast(err.message); } return; }
     const a = t.dataset.rm;
     if (a === 'edit') { if (tut >= 0) tutDone(); edit = true; draft = JSON.parse(JSON.stringify(room)); sel = null; carry = null; me.act = null; me.path = []; render(); }
     else if (a === 'cancel') { edit = false; draft = null; carry = null; sel = null; render(); }
@@ -474,27 +486,41 @@
       catch (err) { A.toast(err.message); t.disabled = false; }
       finally { busy = false; }
     }
+    else if (a === 'mplay') { if (musicOn) { if (music) music.pause(); musicOn = false; syncMusicBtn(); } else playMusic(room.bgm); }
     else if (a === 'rot') rotateSel();
     else if (a === 'store') storeSel();
     else if (a === 'cancelCarry') { carry = null; renderBar(); }
   }
-  async function onSubmit(e) {
-    if (e.target.id !== 'rmGForm') return; e.preventDefault();
-    const inp = $('#rmGIn'), body = inp.value.trim(); if (!body || busy) return;
-    busy = true;
-    try { const row = await Hub.guestAdd(owner.id, body); guests = [row].concat(guests || []); inp.value = ''; partial(); }
+  async function saveSide(patch, msg) {   // 자기소개 · 음악 저장 (방 배치는 그대로)
+    if (busy || !mine()) return; busy = true;
+    try { room = await Hub.saveRoom(Object.assign({}, room, patch)); A.toast(msg); const sd = $('#rmSide'); if (sd) { sd.innerHTML = sideHTML(); AV.paintAll(sd); } }
     catch (err) { A.toast(err.message); }
     finally { busy = false; }
+  }
+  async function onSubmit(e) {
+    if (e.target.id !== 'rmBioForm') return; e.preventDefault();
+    const v = $('#rmBio').value.replace(/\s+/g, ' ').trim().slice(0, 100);
+    if (window.GoFilter && window.GoFilter.has(v)) { A.toast('고운 말로 소개해 주세요.'); return; }
+    await saveSide({ bio: v }, '자기소개를 저장했어요!');
+  }
+  function onInput(e) {
+    if (e.target.id === 'rmBio') { const n = $('#rmBioN'); if (n) n.textContent = e.target.value.length + '/100'; }
+  }
+  async function onChange(e) {
+    if (e.target.id !== 'rmBgm') return;
+    const id = e.target.value || null;
+    await saveSide({ bgm: id }, id ? '방 음악을 바꿨어요 ♪' : '방 음악을 껐어요');
+    if (id) playMusic(id); else stopMusic();
   }
 
   window.GoRoom = {
     render(el, app, k) {
       A = app; root = el; key = k || null; tab = 'furn'; st.on = {}; st.night = false; st.wdOpen = 0; st.wdTarget = 0;
-      el.addEventListener('click', onClick); el.addEventListener('submit', onSubmit);
+      el.addEventListener('click', onClick); el.addEventListener('submit', onSubmit); el.addEventListener('input', onInput); el.addEventListener('change', onChange);
       load();
       Hub.loadPrices && Hub.loadPrices().catch(() => {});
       return function cleanup() {
-        el.removeEventListener('click', onClick); el.removeEventListener('submit', onSubmit);
+        el.removeEventListener('click', onClick); el.removeEventListener('submit', onSubmit); el.removeEventListener('input', onInput); el.removeEventListener('change', onChange); stopMusic();
         if (raf) cancelAnimationFrame(raf); raf = 0; root = null; cv = null; ctx = null;
         if (closetCleanup) { try { closetCleanup(); } catch (e) { /* noop */ } closetCleanup = null; }
         const m = document.querySelector('.room-modal'); if (m) { m.remove(); document.body.classList.remove('room-modal-open'); }

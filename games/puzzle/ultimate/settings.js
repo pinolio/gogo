@@ -6,7 +6,7 @@
  */
 GoSettings.register({
   id: 'ultimate',
-  name: 'Ultimate mode',
+  name: '퍼즐512 랭킹 대전',   // v91 선생님: 'Ultimate mode' 이름 안 씀 (기록 id 'ultimate' 는 그대로)
   category: 'puzzle',
   folder: 'games/puzzle/ultimate',
   order: 90,
@@ -16,7 +16,7 @@ GoSettings.register({
   blurb: '퍼즐512 판으로 2분 동안! 판 위 숫자를 모두 더한 값이 점수예요.',
   timeLimit: 120,                      // 한 판 시간(초)
   points: { win: 0, lose: 0 },         // 이벤트는 포인트 없이 랭킹만
-  eventTitle: 'ULTIMATE MODE',
+  eventTitle: '퍼즐512 랭킹 대전',
   eventDesc: '퍼즐512 판에서 2분 동안 혼자 도전! 끝났을 때 <b>판 위 숫자를 모두 더한 값</b>이 점수예요. 더 움직일 수 없으면 그 자리에서 끝나니 판이 꽉 차지 않게 조심하세요.',
-  bgm: { file: '../2048/bgm/bgm.mp3', volume: 0.5 }
+  bgm: { file: 'bgm/bgm.mp3', volume: 0.5 }
 });

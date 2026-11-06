@@ -60,7 +60,8 @@
     const ok = (id, slot) => F && F.byId[id] && F.byId[id].slot === slot;
     const n = v => Math.max(0, Math.min(ROOM_N - 1, Math.round(+v || 0)));
     const out = { wp: ok(r.wp, 'wallpaper') ? r.wp : 'wp_basic', fl: ok(r.fl, 'floor') ? r.fl : 'fl_wood', wd: ok(r.wd, 'wardrobe') ? r.wd : 'wd_basic',
-      wdAt: Array.isArray(r.wdAt) ? [n(r.wdAt[0]), n(r.wdAt[1]), r.wdAt[2] ? 1 : 0] : D0.wdAt.slice(), items: [], walls: [] };
+      wdAt: Array.isArray(r.wdAt) ? [n(r.wdAt[0]), n(r.wdAt[1]), r.wdAt[2] ? 1 : 0] : D0.wdAt.slice(), items: [], walls: [],
+      bio: String(r.bio || '').replace(/[\u0000-\u0009\u000B-\u001F]/g, '').slice(0, 100), bgm: ok(r.bgm, 'music') ? r.bgm : null };   // v91 자기소개(100자) · 방 음악
     const seen = {};
     (Array.isArray(r.items) ? r.items : []).slice(0, 40).forEach(x => { if (Array.isArray(x) && F && F.byId[x[0]] && /^(furn|rug)$/.test(F.byId[x[0]].slot) && !seen[x[0]]) { seen[x[0]] = 1; out.items.push([x[0], n(x[1]), n(x[2]), x[3] ? 1 : 0]); } });
     (Array.isArray(r.walls) ? r.walls : []).slice(0, 12).forEach(x => { if (Array.isArray(x) && ok(x[0], 'wall') && !seen[x[0]]) { seen[x[0]] = 1; out.walls.push([x[0], x[1] === 'L' ? 'L' : 'R', n(x[2])]); } });
@@ -285,7 +286,7 @@
       async userStats(uid) { return summarize(db().records.filter(r => r.user_id === uid)); },
       async saveRoom(room) {
         const u = me(), r = normRoom(room), F = window.GoFurn;
-        const ids = [r.wp, r.fl, r.wd].concat(r.items.map(x => x[0]), r.walls.map(x => x[0]));
+        const ids = [r.wp, r.fl, r.wd].concat(r.items.map(x => x[0]), r.walls.map(x => x[0]), r.bgm ? [r.bgm] : []);
         const bad = ids.find(id => !(F.byId[id].price === 0 || (u.owned || []).includes(id)));
         if (bad) throw new Error('아직 사지 않은 가구가 있어요: ' + F.byId[bad].name);
         u.room = r; persist(); return r;

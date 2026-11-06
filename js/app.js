@@ -311,7 +311,7 @@
   function roomThumb(c, w, h) {
     const F = window.GoFurn; if (!F) return;
     c.save(); c.fillStyle = '#C8E4FF'; c.fillRect(0, 0, w, h); c.imageSmoothingEnabled = true; c.lineJoin = 'round';
-    const k = 0.42; c.translate(w / 2, 22); c.scale(k, k);
+    const k = 0.42; c.translate(w * 0.56, 66); c.scale(k, k);   // v91 가운데에서 살짝 오른쪽 · 위아래 가운데
     const g = F.pen(c, 0, 0); F.drawRoomShell(g, 6, 120, 'wp_star', 'fl_light');
     const room = [['r_heart', 2, 2, 0], ['f_bed2', 4, 0, 0], ['f_sofa', 0, 3, 1], ['f_floorlamp', 5, 3, 0], ['f_tree', 0, 0, 0], ['f_tv', 2, 0, 0]];
     room.forEach(([id, i, j, r]) => { const it = F.byId[id]; if (it) F.drawItem(g, it, i, j, r, { on: id === 'f_floorlamp' }); });
@@ -328,7 +328,7 @@
     const evg = SET.listAll().find(g => g.event && !g.hidden);
     const slides = [];
     if (evg) slides.push({ id: evg.id, name: evg.name, href: '#' + evg.id, hero: { eyebrow: 'EVENT · 이벤트 진행 중', title: evg.eventTitle || evg.name, em: '이번 시즌 1위에 도전!', desc: String(evg.eventDesc || evg.blurb || '').replace(/<[^>]+>/g, ''), cta: '이벤트 도전하기' } });
-    slides.push({ id: 'room', name: '내 방', href: '#room', thumb: roomThumb, hero: { eyebrow: 'UPDATE · 내 방', title: '가구를 사서 꾸미는', em: '나만의 미니룸!', desc: '옷장을 누르면 아바타가 걸어가 옷을 갈아입어요. 상점의 \u2018내 방 가구\u2019 67종으로 방을 꾸미고, 친구 방에 놀러 가 방명록을 남겨 보세요. 방 아래에는 내 게임 기록이 모여요!', cta: '내 방 가기' } });
+    slides.push({ id: 'room', name: '내 방', href: '#room', thumb: roomThumb, hero: { eyebrow: 'UPDATE · 내 방', title: '가구를 사서 꾸미는', em: '나만의 미니룸!', desc: '옷장을 누르면 아바타가 걸어가 옷을 갈아입어요. 상점의 \u2018내 방 가구\u2019로 방을 꾸미고, 게임 음악을 방 음악으로 틀어요. 프로필에 자기소개를 쓰고 친구 방에도 놀러 가 보세요!', cta: '내 방 가기' } });
     if (!slides.length) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const keys = Object.keys(P.PIECE), S = 16;
@@ -1126,9 +1126,9 @@
       current = 'battle'; setNav('home');
       cleanups.push(window.GoBattle.render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText }));
     }
-    else if (h === 'shop' || h === 'shop/furn') {
+    else if (h === 'shop' || h === 'shop/furn' || h === 'shop/music') {
       current = 'shop'; setNav('shop');
-      cleanups.push(window.GoShop.render(view(), { toast, esc, fmt, openAuth, avCanvas }, h === 'shop/furn' ? 'furn' : null));
+      cleanups.push(window.GoShop.render(view(), { toast, esc, fmt, openAuth, avCanvas }, h === 'shop/furn' ? 'furn' : h === 'shop/music' ? 'music' : null));
     }
     else if (h === 'room' || h.startsWith('room/')) {   // v88 내 방 · 친구 방 (#room/아이디)
       current = 'room'; setNav('my');

@@ -33,5 +33,5 @@ GoSettings.register({
     hard: { name: '어려움', delay: 420, err: 0.02 }
   },
 
-  bgm: { file: '../2048/bgm/bgm.mp3', volume: 0.5 }
+  bgm: { file: 'bgm/bgm.mp3', volume: 0.5 }
 });

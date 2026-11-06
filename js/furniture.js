@@ -128,12 +128,20 @@
   // 옷장 (방에 꼭 하나 · 누르면 옷 갈아입기). img = Meshy 그림(있으면): img/room/<id>_closed.png · _open.png
   const WARDROBES = [['wd_basic', '나무 옷장', 0, '#C8925A'], ['wd_white', '하얀 옷장', 30, '#F4F0E8'], ['wd_pink', '공주 옷장', 50, '#FFB0CC'], ['wd_space', '우주 옷장', 80, '#3A3E7A']];
 
+  // v91 방 음악 (각 게임 BGM · 50P 통일). [id, 이름, 파일]
+  const MUSIC = [['m_battle', '블록 대전 · 신호등 구구단', 'games/puzzle/battle/bgm/bgm.mp3'], ['m_p512', '퍼즐512', 'games/puzzle/p512/bgm/bgm.mp3'], ['m_ultimate', '퍼즐512 랭킹 대전', 'games/puzzle/ultimate/bgm/bgm.mp3'],
+    ['m_mines', '지뢰찾기', 'games/puzzle/mines/bgm/bgm.mp3'], ['m_snake', '스네이크', 'games/arcade/snake/bgm/bgm.mp3'], ['m_baduk', '바둑', 'games/board/baduk/bgm/bgm.mp3'], ['m_omok', '오목', 'games/board/omok/bgm/bgm.mp3'],
+    ['m_janggi', '장기', 'games/board/janggi/bgm/bgm.mp3'], ['m_chess', '체스', 'games/board/chess/bgm/bgm.mp3'], ['m_alkkagi', '장기 알까기', 'games/board/alkkagi/bgm/bgm.mp3'], ['m_code', '숫자 코드', 'games/board/code/bgm/bgm.mp3'],
+    ['m_volley', '아바타 배구', 'games/sports/volley/bgm/bgm.mp3'], ['m_tennis', '아바타 테니스', 'games/sports/tennis/bgm/bgm.mp3'], ['m_fight', '일단 덤벼', 'games/sports/fight/bgm/bgm.mp3'],
+    ['m_rpg', 'skillcom RPG', 'games/action/rpg/bgm/bgm.mp3'], ['m_scfight', 'Skillcom Fight', 'games/action/scfight/bgm/bgm.mp3'], ['m_mecha', '메카 대전', 'games/action/mecha/bgm/bgm.mp3'], ['m_sky', '6.25. 하늘', 'games/shooting/sky/bgm/bgm.mp3']];
   const ITEMS = [], byId = {};
   FURN.forEach(([id, name, price, cat, w, d, h, draw, act, wall]) => { const it = { id, name, price, slot: cat === 'wall' ? 'wall' : cat === 'rug' ? 'rug' : 'furn', cat, w, d, h, draw, act, wall }; ITEMS.push(it); byId[id] = it; });
   WALLS.forEach(([id, name, price, color, pat]) => { const it = { id, name, price, slot: 'wallpaper', cat: 'wallpaper', color, pat }; ITEMS.push(it); byId[id] = it; });
   FLOORS.forEach(([id, name, price, color, pat]) => { const it = { id, name, price, slot: 'floor', cat: 'floor', color, pat }; ITEMS.push(it); byId[id] = it; });
   WARDROBES.forEach(([id, name, price, color]) => { const it = { id, name, price, slot: 'wardrobe', cat: 'wardrobe', color, w: 1, d: 1, h: 96, act: 'wardrobe' }; ITEMS.push(it); byId[id] = it; });
   const CATS = [['furn', '가구'], ['wall', '벽 장식'], ['rug', '러그'], ['wardrobe', '옷장'], ['wallpaper', '벽지'], ['floor', '바닥']];
+  MUSIC.forEach(([id, name, file]) => { const it = { id, name: name + ' 음악', game: name, price: 50, slot: 'music', cat: 'music', file }; ITEMS.push(it); byId[id] = it; });
+  const SHOP_CATS = CATS.concat([['music', '음악']]);
 
   /* ---------- 옷장 그림 (코드) ---------- open: 0(닫힘) ~ 1(활짝) */
   const wdImgs = {};
@@ -228,23 +236,64 @@
     const it = byId[id], cv = document.createElement('canvas'); cv.width = size * 2; cv.height = size * 2;
     const c = cv.getContext('2d'); c.scale(2, 2); c.lineJoin = 'round';
     if (!it) return cv;
-    if (it.slot === 'wallpaper' || it.slot === 'floor') {
-      const g = pen(c, size / 2, size * 0.18); c.save(); c.translate(0, 0); c.scale(size / 120, size / 120); const g2 = pen(c, 60, 14);
-      if (it.slot === 'wallpaper') drawRoomShell(g2, 2, 56, id, 'fl_wood'); else drawRoomShell(g2, 2, 20, 'wp_basic', id);
-      c.restore(); void g; thumbC[key] = cv; return cv;
+    if (it.slot === 'music') {   // 음반 그림
+      const r = size * 0.4, cx = size / 2, cy = size / 2; let h2 = 0; for (const ch of id) h2 = (h2 * 31 + ch.charCodeAt(0)) % 360;
+      c.fillStyle = O; c.beginPath(); c.arc(cx, cy, r + 2, 0, Math.PI * 2); c.fill(); c.fillStyle = '#2A2E40'; c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = 1; [0.8, 0.62].forEach(k => { c.beginPath(); c.arc(cx, cy, r * k, 0, Math.PI * 2); c.stroke(); });
+      c.fillStyle = `hsl(${h2},75%,62%)`; c.beginPath(); c.arc(cx, cy, r * 0.38, 0, Math.PI * 2); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(cx, cy, r * 0.08, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#FFE45C'; c.font = `${Math.round(size * 0.28)}px sans-serif`; c.fillText('♪', cx + r * 0.45, cy - r * 0.45);
+      thumbC[key] = cv; return cv;
     }
-    const w = it.w || 1, d = it.d || 1, hgt = it.slot === 'wall' ? it.wall.z1 - it.wall.z0 + 20 : (it.h || 40);
-    const spanX = (w + d) * TW, spanY = (w + d) * TH + hgt, k = Math.min(1.6, (size - 6) / Math.max(spanX, spanY));
-    c.translate(size / 2, size - 4 - (w + d) * TH * k); c.scale(k, k);
-    const g = pen(c, (d - w) * TW / 2 * 0, 0);
-    const ox = (d - w) * TW / 2;
-    const g3 = pen(c, ox, 0); void g;
-    if (it.slot === 'wall') { c.translate(0, hgt - 10); drawWallItem(pen(c, ox + w * TW / 2 * 0, -it.wall.z0 + 4), it, 'R', 0, {}); }
-    else drawItem(g3, it, 0, 0, 0, {});
-    thumbC[key] = cv; return cv;
+    // v92: 큰 캔버스에 그린 뒤 칠해진 부분만 잘라 칸 가운데에 맞춤 (바닥 = 바닥만 · 벽 장식 = 작은 벽 조각 위에)
+    const BIG = 520, tmp = document.createElement('canvas'); tmp.width = BIG; tmp.height = BIG;
+    const t = tmp.getContext('2d'); t.lineJoin = 'round'; t.scale(2, 2);
+    const g = pen(t, BIG / 4, BIG / 4 + 20);
+    let ready = true;
+    if (it.slot === 'floor') {
+      drawFloorOnly(g, 3, id);
+    } else if (it.slot === 'wallpaper') drawRoomShell(pen(t, BIG / 4, BIG / 4 + 10), 2, 70, id, 'fl_wood');
+    else if (it.slot === 'wall') {
+      const S2 = it.wall;
+      g.face('j', 0, -0.3, it.w + 0.3, S2.z0 - 14, S2.z1 + 14, '#EDE6D8', '#C8BFAE');
+      drawWallItem(g, it, 'R', 0, {});
+    } else {
+      if (it.slot === 'wardrobe' && !wdImg(id, false)) ready = false;
+      drawItem(g, it, 0, 0, 0, {});
+    }
+    // 칠해진 영역 찾기
+    const data = t.getImageData(0, 0, BIG, BIG).data; let x0 = BIG, y0 = BIG, x1 = -1, y1 = -1;
+    for (let y = 0; y < BIG; y++) for (let x = 0; x < BIG; x++) if (data[(y * BIG + x) * 4 + 3] > 12) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 >= 0) {
+      const bw = x1 - x0 + 1, bh = y1 - y0 + 1, room = size * 2 * 0.86, k = Math.min(room / bw, room / bh, 1.6);
+      const dw = bw * k, dh = bh * k;
+      c.setTransform(1, 0, 0, 1, 0, 0); c.imageSmoothingEnabled = true;
+      c.drawImage(tmp, x0, y0, bw, bh, (size * 2 - dw) / 2, (size * 2 - dh) / 2 + (it.slot === 'wall' ? 0 : size * 0.04), dw, dh);
+    }
+    if (ready) thumbC[key] = cv;
+    return cv;
+  }
+  // 바닥 미리보기용: 벽 없이 바닥 타일만 (N×N)
+  function drawFloorOnly(g, n, fl) {
+    const flI = byId[fl] || byId.fl_wood;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      let col = flI.color; const pat = flI.pat, odd = (i + j) % 2;
+      if (pat === 'check') col = odd ? '#3A3E5A' : '#F4F0E8';
+      else if (pat === 'plank' || pat === 'maru') col = shade(flI.color, (i % 2 ? -0.05 : 0.03) + (pat === 'maru' && j % 2 ? -0.06 : 0));
+      else if (pat === 'tatami') col = shade(flI.color, odd ? -0.06 : 0.02);
+      else if (pat === 'marble') col = shade(flI.color, ((i * 7 + j * 3) % 5) * 0.012);
+      else if (pat === 'grass') col = shade(flI.color, ((i * 5 + j * 11) % 4) * -0.03);
+      else if (pat === 'cloud') col = shade(flI.color, odd ? 0.08 : 0);
+      g.flat(i, j, i + 1, j + 1, 0, col, pat === 'plank' || pat === 'maru' || pat === 'tatami' ? shade(flI.color, -0.25) : pat === 'check' ? false : shade(col, -0.06));
+      if (pat === 'star' && (i + j) % 2 === 0) g.dot(i + 0.5, j + 0.5, 0, 1.5, '#FFF3B0');
+      if (pat === 'grass' && (i * 3 + j) % 3 === 0) g.dot(i + 0.3, j + 0.6, 0, 1, shade(flI.color, 0.35));
+    }
+    g.poly([g.P(0, 0, 0), g.P(n, 0, 0), g.P(n, n, 0), g.P(0, n, 0)], null, O);
+    // 두께 (바닥판 옆면)
+    g.poly([g.P(0, n, 0), g.P(n, n, 0), g.P(n, n, -6), g.P(0, n, -6)], shade(flI.color, -0.3), O);
+    g.poly([g.P(n, 0, 0), g.P(n, n, 0), g.P(n, n, -6), g.P(n, 0, -6)], shade(flI.color, -0.42), O);
   }
 
-  window.GoFurn = { ITEMS, byId, CATS, TW, TH, pen, drawItem, drawWallItem, drawRoomShell, thumb, shade,
+  window.GoFurn = { ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, drawItem, drawWallItem, drawRoomShell, thumb, shade,
     free: () => ITEMS.filter(it => it.price === 0).map(it => it.id),
     // 처음 방 (기본 가구만)
     DEFAULT_ROOM: { wp: 'wp_basic', fl: 'fl_wood', wd: 'wd_basic', wdAt: [0, 2, 1], items: [['f_bed1', 6, 0, 0], ['f_desk', 0, 5, 1], ['f_chair', 1, 5, 1], ['f_pot', 7, 7, 0]], walls: [['w_window', 'R', 3]] } };
