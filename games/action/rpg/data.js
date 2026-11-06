@@ -498,6 +498,7 @@
     e_earth: { name: '땅 속성 방어', max: 20, el: 'earth' },
     e_thunder: { name: '전기(번개) 속성 방어', max: 20, el: 'thunder' },
     e_light: { name: '빛 속성 방어', max: 20, el: 'light' },
+    e_dark: { name: '어둠 속성 방어', max: 20, el: 'dark' },   // v87
     e_all: { name: '모든 속성 방어', max: 8 },
     atkP: { name: '공격력', max: 18 },
     magP: { name: '마력', max: 18 },
@@ -530,6 +531,14 @@
   const SELL = { base: 10, perLv: 3, grade: [1, 1.5, 2.2, 3.2, 5], enh: 0.3, other: 0.4 };
   // v60 지역마다 몬스터 속성 (원거리 탄 · 보스 내려찍기가 이 속성 → 속성 방어로 줄어듦. 몸통 박치기는 물리)
   const RG_EL = ['wind', 'earth', 'water', 'fire', 'earth', 'water', 'light', 'thunder', 'fire'];
+  /* v87 일반 사냥터 몬스터에도 속성 (상성: 약점 ×1.3 · 같은 속성 ×0.7 — 저승과 같은 표 HELL.weak)
+   *  그 지역 몬스터·보스 = 지역 속성(RG_EL) · 왜군 = 종류마다 속성 (아래 WAE_EL) */
+  const WAE_EL = { wae_bow: 'wind', wae_spear: 'earth', wae_gun: 'fire', wae_ronin: 'water', wae_ninja: 'dark', wae_flag: 'wind', wae_drum: 'thunder', wae_monk: 'light',
+    wae_samurai: 'thunder', wae_captain: 'earth', wae_cavalry: 'wind', wae_general: 'dark' };
+  MAPS.forEach(m => {
+    if (m.kind !== 'field' || m.hell) return;
+    [m.mon, m.mon2].forEach(d => { if (d && !d.el) d.el = (d.img79 && WAE_EL[d.img79]) || RG_EL[m.region]; });
+  });
 
   /* ---------------- 소모품 (포션 가게) ---------------- */
   // 마을 n 의 포션 가게는 1 ~ n 단계 포션을 팜
@@ -562,7 +571,7 @@
     earth: { name: '땅', color: '#B0804A', light: '#E8C88A', fx: 'heavy' },
     thunder: { name: '번개', color: '#FFE45C', light: '#FFFFFF', fx: 'stun' },
     light: { name: '빛', color: '#FFF3B0', light: '#FFFFFF', fx: 'holy' },
-    dark: { name: '어둠', color: '#B08AFF', light: '#E8DCFF', fx: 'none', monOnly: true }   // v79 저승 10관문 몬스터 전용 (마법에는 없음)
+    dark: { name: '어둠', color: '#B08AFF', light: '#E8DCFF', fx: 'curse' }   // v87 어둠 마법 추가 · 저주 = 받는 피해 +20% (4초)
   };
   // [id, 이름, 원소, 배우는 레벨, kind, 위력, 마나, 재사용(초), 추가 값]
   const SK = [
@@ -592,7 +601,12 @@
     ['thorspear', '천둥의 창', 'thunder', 88, 'beam', 4.8, 40, 6, { len: 400, w: 50 }],
     ['earthrage', '대지의 분노', 'earth', 92, 'rain', 4.2, 44, 8, { count: 9, radius: 80 }],
     ['judgement', '심판의 빛', 'light', 96, 'rain', 4.8, 50, 9, { count: 8, radius: 90 }],
-    ['elemental', '원소 해방', 'light', 100, 'nova', 6.0, 70, 15, { radius: 260 }]
+    ['elemental', '원소 해방', 'light', 100, 'nova', 6.0, 70, 15, { radius: 260 }],
+    // v87 어둠 마법 4개 (저주: 맞은 적이 4초 동안 받는 피해 +20%)
+    ['darkorb', '어둠 구슬', 'dark', 12, 'bolt', 1.6, 8, 1.2, {}],
+    ['cursefog', '저주의 안개', 'dark', 42, 'nova', 2.3, 18, 5, { radius: 120 }],
+    ['shadowspear', '그림자 창', 'dark', 70, 'beam', 3.4, 28, 4.5, { len: 330, w: 34 }],
+    ['abyss', '심연의 비', 'dark', 90, 'rain', 4.4, 46, 8, { count: 8, radius: 80 }]
   ];
   const SKILLS = {};
   SK.forEach(([id, name, el, lv, kind, pow, mp, cd, ex]) => {
@@ -617,7 +631,14 @@
     ['wind', 'light', '빛의 깃털', 'bolt', { count: 5, pierce: true }],
     ['earth', 'thunder', '자력 폭발', 'nova', { radius: 150 }],
     ['earth', 'light', '수호의 바위', 'shield', { dur: 10 }],
-    ['thunder', 'light', '섬광 돌진', 'dash', { len: 280 }]
+    ['thunder', 'light', '섬광 돌진', 'dash', { len: 280 }],
+    // v87 어둠 융합 6개
+    ['fire', 'dark', '지옥불', 'pool', { radius: 100, dur: 4 }],
+    ['water', 'dark', '검은 소용돌이', 'nova', { radius: 150 }],
+    ['wind', 'dark', '그림자 칼바람', 'bolt', { count: 4, pierce: true }],
+    ['earth', 'dark', '무덤 가시', 'rain', { count: 8, radius: 65 }],
+    ['thunder', 'dark', '검은 번개', 'beam', { len: 340, w: 46 }],
+    ['light', 'dark', '혼돈의 일격', 'nova', { radius: 180 }]
   ];
   const fusionOf = (e1, e2) => FUSION.find(f => (f[0] === e1 && f[1] === e2) || (f[0] === e2 && f[1] === e1)) || null;
 
@@ -678,5 +699,5 @@
     hello: ['불이 잘 달궈졌네! 뭘 두드려 볼까?', '강화는 운이야. 실패하면 장비가 산산조각 나니 각오하게!', '+10 까지 가면 전설이 되는 거지. 허허!', '높이 올라갈수록 망치가 무거워진다네. 골드도 두 배씩!'],
     lines: ['땅! 땅! 땅!', '강화하러 왔나?', '불꽃이 좋구먼!'] };
 
-  window.GoRPGData = { STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  window.GoRPGData = { WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();
