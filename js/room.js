@@ -342,10 +342,11 @@
     const form = canWrite ? `<form class="rm-gform" id="rmGForm"><input id="rmGIn" maxlength="120" placeholder="${mine() ? '내 방에 한마디 남기기' : esc(owner.nickname) + '님에게 한마디 (120자)'}" autocomplete="off"><button class="btn btn-primary btn-sm" type="submit">남기기</button></form>`
       : `<p class="small">방명록을 쓰려면 <button class="link" type="button" data-auth="login">로그인</button>해 주세요.</p>`;
     const FL = window.GoFilter;
+    const note = `<p class="small rm-gnote">🔒 방명록 글은 <b>방 주인</b>과 <b>글쓴이</b>만 볼 수 있어요.${mine() ? '' : ' 다른 사람이 남긴 글은 보이지 않아요.'}</p>`;
     const list = guests.length ? `<ul class="rm-glist">${guests.map(g => { const canDel = u && (u.id === g.user_id || u.id === owner.id || Hub.isAdmin());
       return `<li class="${g.hidden ? 'is-hidden' : ''}">${A.avCanvas(g.avatar, 2, 'bust', 'rm-gav')}<div class="rm-gb"><div class="rm-gh"><a href="#room/${esc(g.username || g.user_id)}"><b>${esc(g.nickname)}</b></a><span class="small">${A.ago(g.created_at)}</span>${g.hidden ? '<span class="cm-tag hid">숨김</span>' : ''}</div><p>${FL ? FL.html(g.body) : esc(g.body)}</p></div>
-        <div class="rm-gact">${Hub.isAdmin() ? `<button class="link" type="button" data-ghide="${g.id}" data-v="${g.hidden ? 0 : 1}">${g.hidden ? '보이기' : '숨기기'}</button>` : ''}${canDel ? `<button class="link" type="button" data-gdel="${g.id}">지우기</button>` : ''}</div></li>`; }).join('')}</ul>` : '<p class="empty">아직 방명록이 없어요. 첫 글을 남겨 보세요!</p>';
-    return form + list;
+        <div class="rm-gact">${Hub.isAdmin() ? `<button class="link" type="button" data-ghide="${g.id}" data-v="${g.hidden ? 0 : 1}">${g.hidden ? '보이기' : '숨기기'}</button>` : ''}${canDel ? `<button class="link" type="button" data-gdel="${g.id}">지우기</button>` : ''}</div></li>`; }).join('')}</ul>` : (mine() ? '<p class="empty">아직 방명록이 없어요.</p>' : '<p class="empty">아직 내가 남긴 글이 없어요. 한마디 남겨 보세요!</p>');
+    return form + note + list;
   }
   function render() {
     if (!root) return;

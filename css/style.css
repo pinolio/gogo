@@ -1394,3 +1394,4 @@ body.room-modal-open { overflow: hidden; }
 a.nm-t { color: inherit; text-decoration: none; }
 a.nm-t:hover { text-decoration: underline; }
 @media (max-width: 560px) { .room-count { margin-left: 0; } .room-head { gap: 8px; } .rm-it { width: 74px; } .rm-it canvas { width: 56px; height: 56px; } }
+.rm-gnote { margin: 0 0 8px; color: var(--ink-2); }

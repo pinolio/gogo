@@ -298,7 +298,7 @@
       },
       async guestList(owner) {
         const d = db();
-        return (d.guest || []).filter(g => g.owner === owner && (!g.hidden || Hub.isAdmin() || (Hub.user && (g.user_id === Hub.user.id || owner === Hub.user.id))))
+        return (d.guest || []).filter(g => g.owner === owner && (Hub.isAdmin() || (Hub.user && (g.user_id === Hub.user.id || owner === Hub.user.id))))   // v89 글은 방 주인 · 글쓴이(· 관리자)만
           .map(g => withUser(d, g)).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 100);
       },
       async guestAdd(owner, body) {
