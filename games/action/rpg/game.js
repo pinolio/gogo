@@ -1091,7 +1091,7 @@
           c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = '#1D2340'; c.strokeText('▼ 나가기', dx, dy - 22 + k * 3); c.fillStyle = '#FFF6C2'; c.fillText('▼ 나가기', dx, dy - 22 + k * 3);
         }
         // 분수 물보라
-        if (map.fountain && Math.random() < 0.5) Fx.emit({ x: map.fountain.x + rand(-4, 4), y: map.fountain.y, vx: rand(-50, 50), vy: rand(-150, -90), g: 420, life: 0.7, size: 3, color: pick(['#FFFFFF', '#BDE8FF', '#8AD0FF']), shape: 'drop', add: false });
+        if (map.fountain && Math.random() < 0.5) Fx.emit({ x: (imgOk('bld_fountain') ? 18 * TS - 24 : map.fountain.x) + rand(-4, 4), y: imgOk('bld_fountain') ? 15 * TS - 26 : map.fountain.y, vx: rand(-50, 50), vy: rand(-150, -90), g: 420, life: 0.7, size: 3, color: pick(['#FFFFFF', '#BDE8FF', '#8AD0FF']), shape: 'drop', add: false });
         // 탄
         G.shots.forEach(s => Fx.drawShot(c, s, now));
         // 빛나는 효과 · 입자
@@ -1132,6 +1132,14 @@
       function drawObj(c, o, now) {
         if (o.p79) { const im = img79(o.p79); if (im) { const hh = im.naturalHeight * o.pw / im.naturalWidth; c.drawImage(im, Math.round(o.cx - o.pw / 2), Math.round(o.by - hh), o.pw, Math.round(hh)); } return; }   // v80 진영 소품
         // Meshy 그림이 있으면: 장애물은 칸 아래 가운데에 세움, 건물은 건물 칸 폭에 맞춤 (+ 이름표)
+        if (o.fountain && imgOk('bld_fountain')) {   // v86 분수: Meshy 그림 (6×4 칸, 가운데 맞춤) + 물 반짝임
+          const fim = imgOk('bld_fountain'), ww = 6 * TS, hh = fim.naturalHeight * ww / fim.naturalWidth, x0 = 18 * TS - ww / 2, y0 = 15 * TS - hh / 2;
+          c.drawImage(fim, Math.round(x0), Math.round(y0), ww, Math.round(hh));
+          c.fillStyle = '#FFFFFF';
+          for (let i = 0; i < 6; i++) { const ph = (now / 700 + i * 1.7) % 3; if (ph > 1) continue; const a = Math.sin(ph * Math.PI); c.globalAlpha = a * 0.9; const sx = x0 + ww * (0.3 + 0.4 * ((i * 0.37) % 1)), sy0 = y0 + hh * (0.32 + 0.22 * ((i * 0.61) % 1)); c.fillRect(Math.round(sx), Math.round(sy0), 2, 2); c.fillRect(Math.round(sx) - 2, Math.round(sy0), 1, 1); c.fillRect(Math.round(sx) + 3, Math.round(sy0), 1, 1); }
+          c.globalAlpha = 1;
+          return;
+        }
         if (o.station) {   // v85 역참: Meshy 그림(bld_station) 이 있으면 그것, 없으면 간단한 도트 그림 + 이름표
           const st = o.station, sim = imgOk('bld_station'), cx0 = (st.x + st.w / 2) * TS, by = (st.y + st.h) * TS + 6;
           let top;

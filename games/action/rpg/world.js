@@ -298,6 +298,7 @@
     });
     if (map.at(17, 14) === 8) {
       x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.ellipse(17 * TS + 32, 16 * TS - 2, 34, 10, 0, 0, Math.PI * 2); x.fill();
+      for (let yy = 13; yy <= 15; yy++) for (let xx = 16; xx <= 19; xx++) set8(map, xx, yy);   // v86 새 분수 그림(돌 거북 · 연꽃 · 석등)은 6×4 칸 크기 → 가운데 4×3 칸을 막음
       map.objs.push({ img: fountainSprite(R), x: 17 * TS - 8, y: 14 * TS - 40, sy: 16 * TS - 1, fountain: true });
       map.fountain = { x: 17 * TS + 32, y: 14 * TS - 8 };
     }
@@ -474,6 +475,7 @@
     }
     return (bldC[key] = { c, ox, oy });
   }
+  function set8(map, x, y) { map.t[y * map.w + x] = 8; }
   function fountainSprite(R) {
     if (bldC.fountain) return bldC.fountain;
     const [c, x] = mk(80, 100), p = (a, d, ww, hh, col) => { x.fillStyle = col; x.fillRect(8 + a, 40 + d, ww, hh); };
@@ -486,13 +488,13 @@
    *  img/ 폴더의 그림을 불러 두었다가 있으면 쓰고, 없으면(또는 늦으면) 코드로 그린 그림을 씀
    *  bld_potion·bld_school·bld_chief·bld_castle / boss_r0~8 / mon_r0~8 (9칸 × 64px) / obj_r0~8_1·2 / key.jpg */
   const RIMG = {}, IMG_DIR = 'games/action/rpg/img/';
-  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
+  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
   let imgPromise = null;
   function loadImages(timeoutMs) {
     if (!imgPromise) imgPromise = Promise.all(IMG_LIST.concat(['key']).map(n => new Promise(res => {
       const im = new Image(); im.decoding = 'async';
       im.onload = () => { RIMG[n] = im; res(); }; im.onerror = () => res();
-      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (/^bld_(potion|school|chief|castle|station)$/.test(n) ? '?v=85' : '?v=40');   // v84 마을 건물 그림 새로
+      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (/^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
     })));
     [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(i => ['_ground', '_path', '_water'].forEach(k => img79('r' + i + k)));   // v80 재질은 미리 (기다리지는 않음)
     return Promise.race([imgPromise, new Promise(r => setTimeout(r, timeoutMs || 6000))]);
