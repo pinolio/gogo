@@ -162,10 +162,6 @@
             <div class="mini-tabs" id="rankTabs">${GAMES.map(g => `<button type="button" data-g="${g.id}" aria-pressed="${g.id === homeRankGame}">${g.name}</button>`).join('')}</div>
             <ol class="rank" id="rankList"><li class="empty">불러오는 중…</li></ol>
           </div>
-          <div class="panel">
-            <h3>포인트 랭킹 <small>누적 포인트</small></h3>
-            <ol class="rank" id="pointList"><li class="empty">불러오는 중…</li></ol>
-          </div>
         </aside>
       </div>`;
     renderGrid();
@@ -181,7 +177,6 @@
     });
     loadHomeRank();
     loadEventRank();
-    Hub.pointRanking(10).then(rows => fillRank($('#pointList'), rows, 'earned')).catch(() => {});
   }
 
   /* ---------- 홈 이벤트 칸 (맨 위 소개와 게임 목록 사이) ----------
@@ -999,13 +994,11 @@
   async function renderRank() {
     current = 'rank'; setNav('rank');
     view().innerHTML = `
-      <div class="page-head"><h1>랭킹</h1><p>게임별 최고 점수와 누적 포인트 순위예요. 상점에서 포인트를 써도 누적 포인트는 줄지 않아요.</p></div>
+      <div class="page-head"><h1>랭킹</h1><p>게임별 최고 점수 순위예요.</p></div>
       <div class="rank-grid">
         ${GAMES.map(g => `<div class="panel"><h3>${g.name} <small>${g.scoreText ? '최고 기록' : '최고 점수'} TOP 20</small></h3><ol class="rank" data-rank="${g.id}"><li class="empty">불러오는 중…</li></ol></div>`).join('')}
-        <div class="panel"><h3>포인트 <small>누적 포인트 TOP 20</small></h3><ol class="rank" id="rankPoints"><li class="empty">불러오는 중…</li></ol></div>
       </div>`;
     GAMES.forEach(g => Hub.leaderboard(g.id, 20).then(rows => fillRank($(`[data-rank="${g.id}"]`), rows, 'best_score', g.id)).catch(() => {}));
-    Hub.pointRanking(20).then(rows => fillRank($('#rankPoints'), rows, 'earned')).catch(() => {});
   }
 
   /* ---------- 내 전적 ---------- */
