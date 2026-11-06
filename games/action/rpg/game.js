@@ -66,7 +66,7 @@
     const keys = Object.keys(OPTS), out = [];
     while (out.length < n) {
       const q = pick(keys); if (out.some(o => o[0] === q)) continue;
-      const neg = out.length > 0 && Math.random() < 0.3, v = Math.max(0.1, r1(OPTS[q].max * (0.15 + 0.85 * t / 9) * rand(0.2, 1) * (neg ? 0.5 : 1)));
+      const neg = out.length > 0 && Math.random() < 0.35, v = Math.max(0.1, r1(OPTS[q].max * (0.25 + 0.75 * t / 9) * rand(0.2, 1) * (neg ? rand(0.5, 1) : 1)));   // v84 폭 키움
       out.push([q, neg ? -v : v]);
     }
     return out;
@@ -613,7 +613,7 @@
           G.mons.push(makeMon(M.mon, M.rec + 2, true));
           const minion = D.MAPS.find(m => m.kind === 'field' && m.no === M.no - 1);
           for (let i = 0; i < 6; i++) G.mons.push(makeMon(minion.mon, M.rec - 1));
-        } else for (let i = 0; i < 12; i++) G.mons.push(makeMon(M.mon2 && i % 3 === 2 ? M.mon2 : M.mon, M.rec - 1 + (Math.random() < 0.5 ? 0 : 1)));   // v80 왜군 진지: 다른 왜군이 섞여 나옴
+        } else for (let i = 0; i < 12; i++) G.mons.push(makeMon(M.mon2 && i % (M.mix || 3) === (M.mix || 3) - 1 ? M.mon2 : M.mon, M.rec - 1 + (Math.random() < 0.5 ? 0 : 1)));   // v80 왜군 진지: 다른 왜군이 섞여 나옴
       }
       /* v69 저승 보스 기술: 기술 목록(data.js HELL.gates 의 skills)에서 골라 씀. 체력 절반 아래 = 분노(더 자주·더 많이)
        *  slam 내려찍기 · charge 돌진 · blades 칼비 · ring 사방 탄 · fan 부채꼴 탄 · summon 망령 3마리 */
@@ -683,9 +683,16 @@
         for (let i = 0; i < 12 && Math.hypot(p.x - G.px, p.y - G.py) < 260; i++) p = pick(sp);
         return p;
       }
+      // v83 보스 자리: 지도 62% 지점 큰길 — 그 칸이 바위·나무면 가장 가까운 빈 칸 (전에는 바위 속에 나와 못 움직이는 일이 있었음)
+      function bossPoint() {
+        const x0 = G.map.w * TS * 0.62, y0 = (G.map.mid + 1) * TS; let best = { x: x0, y: y0 }, bd = 1e9;
+        if (!solidAt(G.map, x0, y0 - 4) && !solidAt(G.map, x0 - 20, y0 - 4) && !solidAt(G.map, x0 + 20, y0 - 4)) return best;
+        G.map.spawns.forEach(q => { const d = Math.hypot(q.x - x0, q.y - y0); if (d < bd && !solidAt(G.map, q.x - 20, q.y - 4) && !solidAt(G.map, q.x + 20, q.y - 4)) { bd = d; best = q; } });
+        return { x: best.x, y: best.y };
+      }
       function makeMon(def, lvl, boss) {
         lvl = clamp(lvl, 1, G.map && G.map.M.hell ? D.HELL.maxMonLv : D.MAX_LV); const F = D.F, B = F.boss;   // v69 저승 몬스터는 Lv.100 넘음
-        const p = boss ? { x: G.map.w * TS * 0.62, y: (G.map.mid + 1) * TS } : spawnPoint();
+        const p = boss ? bossPoint() : spawnPoint();
         const sc = boss ? 6 : 3, spr = monSprite(def, sc);
         const hp = Math.round(F.monHp(lvl) * (boss ? B.hp : 1));
         return { def, name: def.name, lvl, boss: !!boss, kind: boss ? 'boss' : def.kind, x: p.x, y: p.y, hx: p.x, hy: p.y, hp, max: hp,
@@ -1149,10 +1156,11 @@
         const im = img79(n.def.img), H0 = n.def.h || 64;
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(n.x, n.y, n.still ? 28 : 16, 5, 0, 0, Math.PI * 2); c.fill();
         if (!im) return;
-        const h = H0, w = Math.round(im.naturalWidth * h / im.naturalHeight), hop = n.moving ? Math.abs(Math.sin((n.walk || 0) * 9)) * 3 : n.still ? 0 : Math.round(Math.sin(now / 520 + n.ph)), tilt = n.moving ? Math.sin((n.walk || 0) * 9) * 0.04 : 0;
-        const y = Math.round(n.y - h + 3 - hop);
-        c.save(); c.translate(n.x, n.y - hop); c.rotate(tilt); if (n.face < 0) c.scale(-1, 1);
-        c.imageSmoothingEnabled = true; c.drawImage(im, -w / 2, -h + 3, w, h); c.restore();
+        const h = H0, w = Math.round(im.naturalWidth * h / im.naturalHeight), y = Math.round(n.y - h + 3);
+        if (!n.cv) { const [cv, cx] = P.mk(w, h); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high'; cx.drawImage(im, 0, 0, w, h); n.cv = cv; }   // v83 병사도 팔다리 움직임 (그림을 한 번 줄여 둠)
+        c.save(); c.translate(n.x, y); if (n.face < 0) c.scale(-1, 1); c.translate(-w / 2, 0);
+        if (n.still) c.drawImage(n.cv, 0, 0); else rig(c, n.cv, w, h, n.def.img === 'jo_horse' ? 'quad' : 'biped', n.moving ? (n.walk || 0) * 8.5 : now / 700 + n.ph, n.moving, 0);
+        c.restore();
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         c.strokeText(n.def.name, n.x, y - 6); c.fillStyle = n.def.color || '#9AE6FF'; c.fillText(n.def.name, n.x, y - 6);
         if (n.say && n.sayT > 0) {
@@ -1179,17 +1187,57 @@
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         const nm = (Hub.user ? Hub.user.nickname : '손님') + ' Lv.' + S.lv; c.strokeText(nm, G.px, y - 6); c.fillStyle = '#FFE45C'; c.fillText(nm, G.px, y - 6);
       }
+      /* v83 몬스터·병사 움직임: 그림 한 장을 조각내어 다리·팔을 따로 흔듦 (Meshy 그림·도트 그림 모두)
+       *  biped 두 발(왜군·해골·도깨비·골렘…): 다리 두 쪽을 엉덩이 기준으로 번갈아 앞뒤로 · 팔(몸 양옆)은 다리와 반대로 · 공격하면 앞팔을 휘두름
+       *  quad 네 발(짐승·구미호·전갈·용·기마): 다리 네 조각을 짝지어 번갈아 · float 유령·박쥐: 둥실 + 날갯짓 · plant 식물: 줄기째 흔들림
+       *  blob 슬라임·버섯 / hop 장승: 예전처럼 통통 튀며 찌그러짐 */
+      const RIG = { ashigaru: 'biped', gunner: 'biped', samurai: 'biped', skeleton: 'biped', imp: 'biped', golem: 'biped', beast: 'quad', gumiho: 'quad', scorpion: 'quad', dragon: 'quad', ghost: 'float', bat: 'flap', plant: 'plant', slime: 'blob', mushroom: 'blob', jangseung: 'hop' };
+      const rigKind = def => (def.rig || (def.img79 === 'wae_cavalry' ? 'quad' : RIG[def.shape] || 'blob'));
+      function rig(c, im, w, h, kind, p, mv, atk) {
+        const SW = im.width, SH = im.height, kx = w / SW, ky = h / SH;
+        // 조각 그리기: 그림의 (x0~x1, y0~y1) 비율 부분을, 기준선 ay(비율) 를 축으로 sh 만큼 기울이고 (dx, dy) 옮김
+        const pc = (x0, y0, x1, y1, sh, ay, dx, dy) => {
+          const sx = Math.round(x0 * SW), sy = Math.round(y0 * SH), sw = Math.max(1, Math.round((x1 - x0) * SW)), shh = Math.max(1, Math.round((y1 - y0) * SH));
+          c.save(); if (sh) { c.translate(0, ay * h); c.transform(1, 0, sh, 1, 0, 0); c.translate(0, -ay * h); }
+          c.drawImage(im, sx, sy, sw, shh, sx * kx + (dx || 0), sy * ky + (dy || 0), sw * kx, shh * ky); c.restore();
+        };
+        const s = mv ? Math.sin(p) : 0, cs = mv ? Math.cos(p) : 0;
+        if (kind === 'biped') {
+          const HIP = 0.64, SHO = 0.3, bob = mv ? -Math.abs(cs) * h * 0.03 : Math.sin(p) * h * 0.006, leg = s * 0.42, arm = -s * 0.2;
+          pc(0, HIP - 0.03, 0.53, 1, leg, HIP, 0, -Math.max(0, -cs) * h * 0.025);         // 뒷다리
+          pc(0.47, HIP - 0.03, 1, 1, -leg, HIP, 0, -Math.max(0, cs) * h * 0.025);          // 앞다리
+          c.save(); if (atk) { c.translate(w * 0.5, HIP * h); c.rotate(atk * 0.16); c.translate(-w * 0.5 + atk * w * 0.07, -HIP * h); }   // 공격: 윗몸을 앞으로 숙이며 내지름 (무기는 몸과 함께)
+          pc(0, SHO, 0.4, HIP + 0.03, arm, SHO, 0, bob);                                    // 뒷팔 쪽
+          pc(0.28, 0, 0.72, HIP + 0.04, 0, 0, 0, bob); pc(0, 0, 1, SHO + 0.02, 0, 0, 0, bob);  // 몸통 · 머리
+          pc(0.6, SHO, 1, HIP + 0.03, -arm + atk * 0.2, SHO, 0, bob);                       // 앞팔 쪽
+          c.restore();
+        } else if (kind === 'quad') {
+          const HIP = 0.6, bob = mv ? -Math.abs(cs) * h * 0.025 : Math.sin(p) * h * 0.006, leg = s * 0.4;
+          [[0, 0.27, leg], [0.25, 0.5, -leg], [0.48, 0.75, leg * 0.9], [0.73, 1, -leg * 0.9]].forEach(([a, b, k]) => pc(a, HIP - 0.03, b, 1, k, HIP, 0, -Math.max(0, k > 0 ? -cs : cs) * h * 0.02));
+          pc(0, 0, 1, HIP + 0.03, 0, 0, atk * w * 0.08, bob);
+        } else if (kind === 'float' || kind === 'flap') {
+          const t = performance.now() / 380, fy = Math.sin(t + p) * h * 0.05;
+          if (kind === 'flap') { const f = 1 + Math.sin(t * 4 + p) * 0.12; c.save(); c.translate(w / 2, h / 2 + fy); c.scale(1, f); c.drawImage(im, -w / 2, -h / 2, w, h); c.restore(); }
+          else { pc(0, 0, 1, 0.7, 0, 0, atk * w * 0.08, fy); pc(0, 0.68, 1, 1, Math.sin(t * 2 + p) * 0.15, 0.68, atk * w * 0.08, fy); }   // 유령: 아래 꼬리가 하늘하늘
+        } else if (kind === 'plant') {
+          const t = performance.now() / 600; pc(0, 0, 1, 1, Math.sin(t + p) * 0.09 + atk * 0.3, 1, 0, 0);
+        } else c.drawImage(im, 0, 0, w, h);
+      }
       function drawMon(c, m, now) {
         if (m.spr.wait) { const s2 = monSprite(m.def, m.boss ? 6 : 3); if (!s2.wait) m.spr = s2; }   // v80 Meshy 그림이 늦게 오면 바꿔 끼움
-        const sp = m.spr, moving = m.aggro || Math.abs(m.wx) + Math.abs(m.wy) > 0.1;
-        const ph = now / (moving ? 110 : 260) + m.hx, hop = moving ? Math.abs(Math.sin(ph)) * (m.boss ? 6 : 5) : 0, sq = moving ? 1 + Math.cos(ph * 2) * 0.05 : 1 + Math.sin(ph) * 0.04;
+        const sp = m.spr, moving = m.aggro || Math.abs(m.wx) + Math.abs(m.wy) > 0.1, kind = rigKind(m.def);
+        const ph = now / (moving ? 110 : 260) + m.hx, bounce = kind === 'blob' || kind === 'hop';   // v83 통통 튀기·찌그러지기는 슬라임·버섯·장승만
+        const hop = bounce && moving ? Math.abs(Math.sin(ph)) * (m.boss ? 6 : 5) : 0, sq = !bounce ? 1 : moving ? 1 + Math.cos(ph * 2) * 0.05 : 1 + Math.sin(ph) * 0.04;
         const lunge = m.lunge > 0 ? Math.sin(m.lunge / 0.25 * Math.PI) * 10 : 0, la = Math.atan2(G.py - m.y, G.px - m.x);
         const w = sp.w * (2 - sq), h = sp.h * sq, bx = m.x + Math.cos(la) * lunge + (m.knock || 0), x = Math.round(bx - w / 2), y = Math.round(m.y - h - hop + Math.sin(la) * lunge * 0.5);
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(m.x, m.y, sp.w * 0.38 * (1 - hop / 30), sp.w * 0.12, 0, 0, Math.PI * 2); c.fill();
         if (m.boss) { c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, m.x, m.y - sp.h / 2, sp.w * 0.9, m.def.colors.d || '#FF3D4A', 0.35 + 0.15 * Math.sin(now / 300)); c.restore(); if (Math.random() < 0.3) Fx.emit({ x: m.x + rand(-sp.w / 2, sp.w / 2), y: m.y - rand(0, sp.h), vx: 0, vy: rand(-60, -20), life: 0.8, size: rand(3, 5), color: m.def.colors.d || '#FF3D4A', shape: 'glow', add: true }); }
-        const flip = G.px < m.x;
+        const flip = m.aggro || Math.abs(m.wx) < 0.1 ? G.px < m.x : m.wx < 0;   // v83 돌아다닐 때는 가는 쪽을 봄
         c.save(); if (flip) { c.translate(x + w, y); c.scale(-1, 1); } else c.translate(x, y);
-        c.drawImage(m.flash > 0 ? sp.flash : sp.img, 0, 0, w, h); c.restore();
+        const atk = m.lunge > 0 ? Math.sin(Math.min(1, m.lunge / 0.25) * Math.PI) : 0, wp = now / (m.boss ? 170 : kind === 'quad' ? 95 : 125) + m.hx * 3;
+        if (bounce) c.drawImage(m.flash > 0 ? sp.flash : sp.img, 0, 0, w, h);
+        else rig(c, m.flash > 0 ? sp.flash : sp.img, w, h, kind, moving ? wp : now / 700 + m.hx, moving, atk);
+        c.restore();
         if (m.stun > 0) for (let i = 0; i < 3; i++) { const a = now / 150 + i * 2.1; c.fillStyle = '#FFE45C'; c.fillRect(m.x + Math.cos(a) * 14 - 2, y - 6 + Math.sin(a) * 4, 4, 4); }
         if (m.slow > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5; c.drawImage(Fx.glow('#5AB8F5', 24), m.x - 24, m.y - sp.h / 2 - 24); c.restore(); if (Math.random() < 0.1) Fx.emit({ x: m.x + rand(-10, 10), y: m.y - rand(0, sp.h), vx: 0, vy: 20, life: 0.5, size: 2, color: '#BDE8FF', shape: 'star', add: true }); }
         if (m.burn && Math.random() < 0.4) Fx.emit({ x: m.x + rand(-sp.w / 3, sp.w / 3), y: m.y - rand(4, sp.h * 0.8), vx: rand(-10, 10), vy: rand(-80, -40), life: 0.5, size: rand(3, 5), color: pick(['#FFE45C', '#FF9A3D', '#E8402A']), shape: 'glow', add: true });
@@ -1644,7 +1692,7 @@
             <li><b>스탯</b>: 레벨이 오를 때마다 포인트 2개 — 왼쪽 위 얼굴(또는 C)을 눌러 힘(피해)·민첩(이동 속도)·지혜(마나 회복)·체력(최대 체력)·<b>저항</b>(물리 방어 +0.5% · 속성 방어 +0.5%)에 올려요. 스탯마다 최대 50.</li>
             <li><b>거래</b>: 온라인 서버에서 같은 지도에 있는 사람을 누르거나 가까이 가서 F → 거래 신청. 둘 다 확인을 누르면 아이템·골드가 바뀌어요.</li>
             <li>직업은 없어요. 레벨이 오르면 도술 서원에서 새 마법을 배우고, 두 원소를 섞어 <b>융합 마법</b>을 만들어요.</li>
-            <li>장비는 몬스터가 떨어뜨려요(보스는 꼭). 장비마다 <b>옵션</b>이 무작위로 붙어요 (예: 번개 속성 방어 +0.8% · 물리 방어 −0.1%). 옵션 수에 따라 일반·고급·희귀·영웅, Lv.100 <b>전설</b> 장비도 있어요. 장비마다 입을 수 있는 레벨이 달라요.</li>
+            <li>장비는 몬스터가 떨어뜨려요(보스는 꼭). 장비마다 <b>옵션</b>이 무작위로 붙어요 (예: 공격력 +12% · 물리 방어 −6%). 같은 장비라도 옵션에 따라 성능이 크게 달라져요. 옵션 수에 따라 일반·고급·희귀·영웅, Lv.100 <b>전설</b> 장비도 있어요. 장비마다 입을 수 있는 레벨이 달라요.</li>
             <li><b>대장간</b>(마을마다)의 대장장이에게 가까이 가면 <b>강화</b>: +0 → +10, 1강마다 기본 능력치 +10%. 골드는 100 G 에서 두 배씩(+10 은 51,200 G), 성공 확률은 95% → 30% 로 낮아지고 <b>실패하면 장비가 부서져요!</b></li>
             <li>입으면 아바타 위에 보이고, 가방의 <b>장비 안보이기</b>로 그림만 숨길 수 있어요.</li>
             <li>쓰러지면 경험치가 조금 줄고 마지막 마을에서 다시 시작해요. <b>귀환 주문서</b>로 언제든 마을로 돌아갈 수 있어요.</li>
@@ -1908,7 +1956,7 @@
         else if (Hub.user) { G.srvAsked = true; openPanel('servers'); }
         loadRank();
         if (Hub.user) Hub.myBest(GAME).then(b => { if ((b || 0) < rankScore()) submitRank(); }).catch(() => {});
-        window.__rpg = { net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, mkGear: (b, en, op) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
+        window.__rpg = { rig, rigKind, rollOpts, optCount, step: dt => update(dt), drawNow: () => draw(performance.now()), usePotion, basicAttack, net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, mkGear: (b, en, op) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
       })();
       raf = requestAnimationFrame(loop);
       BGM.play();

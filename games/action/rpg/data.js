@@ -297,8 +297,12 @@
   MAPS.forEach(m => {
     if (m.kind !== 'field' || m.hell || !m.mon) return;
     if (WAE_IMG[m.mon.name]) { m.mon.img79 = WAE_IMG[m.mon.name]; if (m.mon.img79 === 'wae_cavalry') m.mon.h = 72; }
-    if (!m.boss && /왜/.test(m.name)) {
-      const pool = WAE_MIX.filter(w => w[1] !== m.mon.img79), w = pool[(m.no * 7) % pool.length];
+    // v83 선생님: 왜군이 잘 안 보임 → 보스 사냥터 말고는 모든 사냥터에 왜군이 섞여 나옴 (지역마다 그 지역다운 왜군 · '왜' 사냥터는 더 많이)
+    if (!m.boss) {
+      const RP = [['wae_bow', 'wae_spear', 'wae_ronin'], ['wae_spear', 'wae_gun', 'wae_bow'], ['wae_ronin', 'wae_gun', 'wae_flag'], ['wae_flag', 'wae_gun', 'wae_ninja'], ['wae_drum', 'wae_monk', 'wae_gun'],
+        ['wae_samurai', 'wae_gun', 'wae_monk'], ['wae_ninja', 'wae_samurai', 'wae_captain'], ['wae_captain', 'wae_cavalry', 'wae_samurai'], ['wae_samurai', 'wae_cavalry', 'wae_gun']][m.region];
+      const pick = RP.filter(n => n !== m.mon.img79), im = pick[m.no % pick.length], w = WAE_MIX.find(x => x[1] === im);
+      m.mix = /왜/.test(m.name) ? 3 : 4;   // 12마리 중 3마리마다 1 (= 4마리) · 4마리마다 1 (= 3마리)
       m.mon2 = { name: w[0], img79: w[1], h: w[1] === 'wae_cavalry' ? 72 : 64, shape: w[2] === 'shoot' ? 'gunner' : 'ashigaru', colors: { a: '#3A4260', b: '#22283E', c: '#F0C8A0', d: '#D2343A' }, kind: w[2], ri: m.region, k: 0, dot: true };
     }
   });
@@ -412,7 +416,8 @@
         boss: { name: '오도전륜대왕', img: 'hell10_king', shape: 'golem', colors: { a: '#3A2A5A', b: '#B08AFF', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '마지막 대왕 뒤에서 윤회의 바퀴가 돌기 시작합니다!', skills: ['ring', 'blades', 'fan', 'charge', 'summon', 'slam'] } }
     ]
   };
-  HELL.gates.forEach(g => { ['mob', 'mob2', 'guard', 'judge', 'boss'].forEach(k => { if (g[k]) g[k].el = g.el; }); });   // 관문 몬스터 = 관문 속성
+  HELL.gates.forEach(g => { ['mob', 'mob2', 'guard', 'judge', 'boss'].forEach(k => { if (g[k]) g[k].el = g.el; }); });
+  HELL.gates.forEach(g => ['guard', 'judge', 'boss'].forEach(k => { if (g[k]) g[k].rig = 'biped'; }));   // v83 옥졸·판관·대왕 Meshy 그림은 사람 모양 → 두 발로 걷기   // 관문 몬스터 = 관문 속성
   HELL.gates.forEach(g => { for (let s = 1; s <= 5; s++) MAPS.push({ id: `h${g.no}-${s}`, kind: 'field', hell: true, gate: g.no, stage: s, region: 8, no: 0, prev: null, next: null,
     name: `${g.hell} ${g.no}-${s} · ${g.stageName[s - 1]}`, rec: 100 + (g.no - 1) * 5 + s + (s === 5 ? HELL.bossPlus : 0), boss: false, mon: g.mob }); });
 
@@ -482,29 +487,29 @@
   });
 
   /* ---------------- v60 장비 옵션 (떨어질 때 무작위로 붙음) ----------------
-   *  max = 가장 높은 단계(전설)에서 나올 수 있는 최댓값(%). 낮은 단계일수록 작게: max × (0.15 + 0.85 × 단계/9) × (0.2~1)
-   *  25% 확률로 마이너스 옵션(값 절반) — 예) 번개 속성 방어 +0.1% · 물리 방어 −0.1%
+   *  max = 가장 높은 단계(전설)에서 나올 수 있는 최댓값(%). 낮은 단계일수록 작게: max × (0.25 + 0.75 × 단계/9) × (0.2~1)
+   *  v84 옵션 폭 약 3배 · 두 번째 옵션부터 35% 확률로 마이너스 옵션(값 0.5~1배) — 예) 공격력 +12% · 물리 방어 −6%
    *  옵션 개수 → 등급: 1 일반 · 2 고급 · 3 희귀 · 4 영웅 · 전설 단계 = 전설 (4개) */
   const OPTS = {
-    pdef: { name: '물리 방어', max: 5 },
-    e_fire: { name: '불 속성 방어', max: 8, el: 'fire' },
-    e_water: { name: '물 속성 방어', max: 8, el: 'water' },
-    e_wind: { name: '바람 속성 방어', max: 8, el: 'wind' },
-    e_earth: { name: '땅 속성 방어', max: 8, el: 'earth' },
-    e_thunder: { name: '전기(번개) 속성 방어', max: 8, el: 'thunder' },
-    e_light: { name: '빛 속성 방어', max: 8, el: 'light' },
-    e_all: { name: '모든 속성 방어', max: 3 },
-    atkP: { name: '공격력', max: 6 },
-    magP: { name: '마력', max: 6 },
-    dmg: { name: '주는 피해', max: 5 },
-    hpP: { name: '최대 체력', max: 8 },
-    mpP: { name: '최대 마나', max: 8 },
-    spdP: { name: '이동 속도', max: 4 },
-    crit: { name: '치명타 확률', max: 3 },
-    critD: { name: '치명타 피해', max: 10 },
-    mpReg: { name: '마나 회복', max: 10 },
-    goldP: { name: '골드 획득', max: 10 },
-    expP: { name: '경험치 획득', max: 6 }
+    pdef: { name: '물리 방어', max: 12 },
+    e_fire: { name: '불 속성 방어', max: 20, el: 'fire' },
+    e_water: { name: '물 속성 방어', max: 20, el: 'water' },
+    e_wind: { name: '바람 속성 방어', max: 20, el: 'wind' },
+    e_earth: { name: '땅 속성 방어', max: 20, el: 'earth' },
+    e_thunder: { name: '전기(번개) 속성 방어', max: 20, el: 'thunder' },
+    e_light: { name: '빛 속성 방어', max: 20, el: 'light' },
+    e_all: { name: '모든 속성 방어', max: 8 },
+    atkP: { name: '공격력', max: 18 },
+    magP: { name: '마력', max: 18 },
+    dmg: { name: '주는 피해', max: 15 },
+    hpP: { name: '최대 체력', max: 24 },
+    mpP: { name: '최대 마나', max: 24 },
+    spdP: { name: '이동 속도', max: 8 },
+    crit: { name: '치명타 확률', max: 8 },
+    critD: { name: '치명타 피해', max: 30 },
+    mpReg: { name: '마나 회복', max: 30 },
+    goldP: { name: '골드 획득', max: 30 },
+    expP: { name: '경험치 획득', max: 18 }
   };
   const GRADE = [
     { name: '일반', color: '#FFFFFF' }, { name: '고급', color: '#9AF0B0' }, { name: '희귀', color: '#7FC8FF' },
