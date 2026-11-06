@@ -666,10 +666,17 @@
     hurt1: { name: '다친 병사', img: 'jo_hurt1', color: '#FF8A8E', h: 46, lines: ['으윽… 왜군 조총에 맞았소…', '물… 물 한 모금만…', '조금만 쉬면 다시 싸울 수 있소…'] },
     hurt2: { name: '다친 병사', img: 'jo_hurt2', color: '#FF8A8E', h: 52, lines: ['다리를 다쳐 걸을 수가 없소…', '동료들은 아직 사냥터에…', '꼭 왜군을 몰아내 주시오!'] }
   };
+  // v85 역참 (마을마다 하나) — 다른 마을로 한 번에 이동
+  //  레벨 제한 = 가는 마을의 시작 레벨(LV_RANGE[도착][0]) 이상 · 이용료 = 거리(마을 칸 수) × 도착 마을 번호(1~9) × feeUnit G
+  //  예) 솔뫼(1) → 대숲(2) = 1 × 2 × 20 = 40G · 솔뫼 → 도원수 진영(9) = 8 × 9 × 20 = 1,440G · 도원수 진영 → 솔뫼 = 8 × 1 × 20 = 160G
+  const STATION = { name: '역참지기 바람이', color: '#9AE6FF', feeUnit: 20, av: { skin: 's2', hair: 'h_short', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
+    hello: ['어디로 모실까요? 말이 바람처럼 달립니다!', '먼 마을일수록 말을 여러 번 갈아타야 해서 값이 올라요.', '그 마을 시작 레벨이 안 되면 위험해서 못 모셔요.', '한 번에 휙! 걸어가는 것보다 훨씬 빠르지요.'],
+    lines: ['히히힝~', '말 먹이를 줘야겠군.', '역참 이용하세요!'] };
+  const stationFee = (from, to) => Math.abs(to - from) * (to + 1) * STATION.feeUnit;   // from·to = 마을 번호 0~8
   // v60 마을 대장간 (마을마다 한 명 · 서 있음 · 가까이 가면 강화 창)
   const SMITH = { name: '대장장이 무쇠', color: '#FFB86B', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
     hello: ['불이 잘 달궈졌네! 뭘 두드려 볼까?', '강화는 운이야. 실패하면 장비가 산산조각 나니 각오하게!', '+10 까지 가면 전설이 되는 거지. 허허!', '높이 올라갈수록 망치가 무거워진다네. 골드도 두 배씩!'],
     lines: ['땅! 땅! 땅!', '강화하러 왔나?', '불꽃이 좋구먼!'] };
 
-  window.GoRPGData = { MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  window.GoRPGData = { STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();

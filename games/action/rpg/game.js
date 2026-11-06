@@ -472,7 +472,7 @@
       function enter(id, side, quiet) {
         const M = MAPBY[id]; if (!M) return;
         const map = getMap(id);
-        G.map = map; S.map = id; G.room = null; G.npcs = M.kind === 'village' ? villagers(map).concat(smithNpc(map), hellNpc(map)) : []; G.hellRun = null; G.onNpc = null; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
+        G.map = map; S.map = id; G.room = null; G.npcs = M.kind === 'village' ? villagers(map).concat(smithNpc(map), stationNpc(map), hellNpc(map)) : []; G.hellRun = null; G.onNpc = null; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
         if (!quiet) G.title = { t: 0, text: M.kind === 'village' ? M.name : M.name, sub: M.hell ? `저승 ${M.gate}관문 · 몬스터 Lv.${100 + (M.gate - 1) * 5 + M.stage}${M.stage >= 5 ? ' · 대왕 Lv.' + M.rec : M.stage >= 3 ? ` · ${D.HELL.kills}마리 뒤 ${M.stage === 3 ? '옥졸' : '판관'}` : ` · ${D.HELL.kills}마리 잡으면 통과`}` : M.kind === 'village' ? (D.REGIONS[M.region].castle ? '마지막 마을 · 도원수 진영' : `마을 ${M.region + 1}`) : `사냥터 ${M.no} · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}` };
         const p = side && typeof side === 'object' ? side : side === 'R' ? map.startR : side === 'door' ? doorFront(map) : side === 'pos' && S.x ? { x: S.x, y: S.y } : map.startL;
         G.px = p.x; G.py = p.y;
@@ -890,10 +890,22 @@
       /* ---------- 사람(NPC) ---------- */
       // v60 대장장이: 대장간 앞에 서 있음 · 가까이 가면 강화 창
       const smithNpc = map => (map.forge ? [{ key: 'forge', def: D.SMITH, x: (map.forge.x + map.forge.w + 1) * TS, y: (map.forge.y + map.forge.h + 0.2) * TS, face: -1, ph: 2, smith: true }] : []);
+      // v85 역참지기: 역참 앞에 서 있음 · 가까이 가면 마을 이동 창
+      const stationNpc = map => (map.station ? [{ key: 'station', def: D.STATION, x: map.station.nx * TS, y: (map.station.y + map.station.h + 0.4) * TS, face: map.station.nx > map.station.x ? -1 : 1, ph: 3, smith: true }] : []);
+      const villageNo = id => +String(id).slice(1) - 1;   // 'v3' → 2
+      const stationFront = id => { const m = getMap(id), st = m.station; return st ? { x: (st.path + 0.5) * TS, y: (st.y + st.h + 1.2) * TS } : doorFront(m); };
+      function stationGo(id) {
+        const M = MAPBY[id]; if (!M || M.kind !== 'village' || G.map.M.kind !== 'village' || id === S.map) return;
+        const to = villageNo(id), fee = D.stationFee(villageNo(S.map), to), need = D.LV_RANGE[to][0];
+        if (S.lv < need) { say(`Lv.${need} 부터 갈 수 있어요`); return; }
+        if (S.gold < fee) { say('골드가 모자라요'); return; }
+        S.gold -= fee; pane = null; panel.hidden = true; G.paused = false;
+        enter(id, stationFront(id)); say(`역참 말을 타고 ${M.name}에 왔어요 (−${fmtN(fee)} G)`, 3); markDirty(true);
+      }
       // v69 저승차사 강림: Lv.100 이 되면 마지막 마을(도원수 진영) 큰길 오른쪽에 나타남
       const hellNpc = map => (map.R.castle && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: 30.5 * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);
       function talk(n) {
-        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
+        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
         n.say = null; openPanel(n.key, { npc: n, hello: pick(n.def.hello) });
       }
       function updateNpcs(dt) {
@@ -1120,6 +1132,24 @@
       function drawObj(c, o, now) {
         if (o.p79) { const im = img79(o.p79); if (im) { const hh = im.naturalHeight * o.pw / im.naturalWidth; c.drawImage(im, Math.round(o.cx - o.pw / 2), Math.round(o.by - hh), o.pw, Math.round(hh)); } return; }   // v80 진영 소품
         // Meshy 그림이 있으면: 장애물은 칸 아래 가운데에 세움, 건물은 건물 칸 폭에 맞춤 (+ 이름표)
+        if (o.station) {   // v85 역참: Meshy 그림(bld_station) 이 있으면 그것, 없으면 간단한 도트 그림 + 이름표
+          const st = o.station, sim = imgOk('bld_station'), cx0 = (st.x + st.w / 2) * TS, by = (st.y + st.h) * TS + 6;
+          let top;
+          if (sim) { const ww = st.w * TS + 66, hh = sim.naturalHeight * ww / sim.naturalWidth; top = by - hh; c.drawImage(sim, Math.round(cx0 - ww / 2), Math.round(top), Math.round(ww), Math.round(hh)); }
+          else {
+            const x0 = st.x * TS, w0 = st.w * TS; top = by - 112;
+            c.fillStyle = '#7A5A3A'; c.fillRect(x0 + 6, by - 58, w0 - 12, 52); c.fillStyle = '#F2E6CC'; c.fillRect(x0 + 14, by - 52, w0 - 28, 36);
+            c.fillStyle = '#8A6A44'; for (let i = 0; i < 4; i++) c.fillRect(x0 + 22 + i * 26, by - 50, 3, 32);
+            c.fillStyle = '#2E3444'; c.beginPath(); c.moveTo(x0 - 6, by - 56); c.lineTo(x0 + 18, by - 86); c.lineTo(x0 + w0 - 18, by - 86); c.lineTo(x0 + w0 + 6, by - 56); c.closePath(); c.fill();
+            c.fillStyle = '#4A5266'; c.fillRect(x0 + 14, by - 82, w0 - 28, 4);
+            c.fillStyle = '#6A4A2A'; c.fillRect(x0 + w0 - 10, top + 6, 4, 106); c.fillStyle = '#D2343A'; c.fillRect(x0 + w0 - 6, top + 8, 22, 30);
+            c.fillStyle = '#B8B0A0'; c.fillRect(x0 + 2, by - 8, w0 - 4, 8);
+          }
+          const label = '역참 · 마을 이동'; c.font = '13px "Jua", "Malgun Gothic", sans-serif'; const lw = c.measureText(label).width + 20, ly = top - 6;
+          c.fillStyle = 'rgba(10,14,36,.82)'; c.fillRect(cx0 - lw / 2, ly - 11, lw, 22); c.fillStyle = '#9AE6FF'; c.fillRect(cx0 - lw / 2, ly + 10, lw, 2);
+          c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#9AE6FF'; c.fillText(label, cx0, ly + 1);
+          return;
+        }
         if (o.forge) {   // v60 대장간: Meshy 그림(bld_forge) 이 있으면 그것, 없으면 도트 그림 · 불빛 깜빡임 · 불티
           const f = o.forge, fim = imgOk('bld_forge'), cx0 = (f.x + f.w / 2) * TS, by = (f.y + f.h) * TS + 4;
           let top = o.y, fireX = o.x + 35, fireY = o.y + 95, anX = o.x + 90, anY = o.y + 74;
@@ -1594,6 +1624,12 @@
           else h += D.HELL.gates.map(g => { const base = (g.no - 1) * 5;
             return `<div class="rg-gate"><b class="gt">제${g.no}관문 · ${g.hell} <small>${g.king} · ${g.day}</small></b> <span class="rg-el">속성 ${ELEM[g.el].name} · 약점 <b>${ELEM[D.HELL.weak[g.el]].name}</b> 마법 (×${D.HELL.weakMul})</span><p class="sub" style="margin:4px 0 8px">${g.about}</p><div class="rg-stages">${[1, 2, 3, 4, 5].map(st => { const n = base + st, open = n <= best + 1, done = n <= best, lv = 100 + base + st;
               return `<button type="button" class="rg-stage${done ? ' done' : ''}" data-hellgo="h${g.no}-${st}" ${open ? '' : 'disabled'}><b>${g.no}-${st}</b><span>${g.stageName[st - 1]}</span><small>${st === 5 ? '대왕 Lv.' + (lv + D.HELL.bossPlus) : `Lv.${lv} · ${D.HELL.kills}마리${st === 3 ? ` + 옥졸 Lv.${lv + D.HELL.midPlus}` : st === 4 ? ` + 판관 Lv.${lv + D.HELL.midPlus}` : ''}`}</small><i>${done ? '통과' : open ? '들어가기' : '잠김'}</i></button>`; }).join('')}</div></div>`; }).join('') + `<p class="sub">앞 단계를 깨야 다음 단계가 열려요 (1-1 → … → 10-5). 10관문 오도전륜대왕을 이기면 명부를 되찾아요! 저승에서 쓰러지면 그 단계는 처음부터 다시 해요.</p>`;
+        } else if (k === 'station') {   // v85 역참: 다른 마을로 한 번에 (레벨 제한 · 이용료)
+          const here = villageNo(S.map);
+          h = head('역참 · 마을 이동', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 가는 마을의 <b style="color:#FFD23F">시작 레벨</b> 이상이면 갈 수 있어요 · 이용료 = 거리 × 마을 번호 × ${D.STATION.feeUnit} G`) + npcBox();
+          h += `<ul class="rg-list">${D.REGIONS.map((r, i) => { const id = 'v' + (i + 1), need = D.LV_RANGE[i][0], fee = D.stationFee(here, i), lvOk = S.lv >= need, gOk = S.gold >= fee, cur = i === here;
+            const why = cur ? '지금 있는 마을' : !lvOk ? `Lv.${need} 부터` : !gOk ? '골드 부족' : '';
+            return `<li class="rg-row${cur ? ' sel' : ''}"><span class="grow"><span class="nm">${i + 1}. ${r.name} <small style="color:#AEB7E0">Lv.${D.LV_RANGE[i][0]}~${D.LV_RANGE[i][1]}</small></span><span class="ds">${cur ? '여기예요' : `이용료 <b style="color:#FFE45C">${fmtN(fee)} G</b> · 시작 레벨 <b style="color:${lvOk ? '#9AF0B0' : '#FF8A8E'}">Lv.${need}</b>`}</span></span><button type="button" class="rg-mini" data-stgo="${id}" ${why ? 'disabled' : ''}>${why || '출발'}</button></li>`; }).join('')}</ul>`;
         } else if (k === 'forge') {   // v60 대장간: 장비 강화 (+0 → +10 · 실패하면 부서짐)
           const mine = Object.keys(S.eq).map(sl => ({ id: S.eq[sl], worn: true })).concat(S.inv.filter(x => ITEMS[x.id] && ITEMS[x.id].slot).map(x => ({ id: x.id, worn: false })));
           if (!mine.some(x => x.id === tab.fgSel)) tab.fgSel = (mine.find(x => (ITEMS[x.id].en || 0) < ENH.max) || mine[0] || {}).id || null;
@@ -1693,6 +1729,7 @@
             <li><b>거래</b>: 온라인 서버에서 같은 지도에 있는 사람을 누르거나 가까이 가서 F → 거래 신청. 둘 다 확인을 누르면 아이템·골드가 바뀌어요.</li>
             <li>직업은 없어요. 레벨이 오르면 도술 서원에서 새 마법을 배우고, 두 원소를 섞어 <b>융합 마법</b>을 만들어요.</li>
             <li>장비는 몬스터가 떨어뜨려요(보스는 꼭). 장비마다 <b>옵션</b>이 무작위로 붙어요 (예: 공격력 +12% · 물리 방어 −6%). 같은 장비라도 옵션에 따라 성능이 크게 달라져요. 옵션 수에 따라 일반·고급·희귀·영웅, Lv.100 <b>전설</b> 장비도 있어요. 장비마다 입을 수 있는 레벨이 달라요.</li>
+            <li><b>역참</b>(마을마다, 오른쪽 아래)의 역참지기에게 가까이 가면 <b>다른 마을로 한 번에</b> 이동해요. 가는 마을의 시작 레벨 이상이어야 하고, 이용료 = 거리 × 마을 번호 × ${D.STATION.feeUnit} G (예: 솔뫼 → 대숲 40 G).</li>
             <li><b>대장간</b>(마을마다)의 대장장이에게 가까이 가면 <b>강화</b>: +0 → +10, 1강마다 기본 능력치 +10%. 골드는 100 G 에서 두 배씩(+10 은 51,200 G), 성공 확률은 95% → 30% 로 낮아지고 <b>실패하면 장비가 부서져요!</b></li>
             <li>입으면 아바타 위에 보이고, 가방의 <b>장비 안보이기</b>로 그림만 숨길 수 있어요.</li>
             <li>쓰러지면 경험치가 조금 줄고 마지막 마을에서 다시 시작해요. <b>귀환 주문서</b>로 언제든 마을로 돌아갈 수 있어요.</li>
@@ -1813,6 +1850,7 @@
           if (S.gold < price || S.skills.includes(id) || !skill(id)) return;
           S.gold -= price; S.skills.push(id); const free = S.fslots.indexOf(null); if (free >= 0) S.fslots[free] = id;
           say(`융합 성공! '${skill(id).name}'${free >= 0 ? ` ${FKEY[free]} 키로 써 보세요` : ' 마법 창(K)에서 Q W E R 칸에 넣어요'}`, 3); markDirty(true);
+        } else if (d.stgo) { stationGo(d.stgo); return;   // v85 역참 출발
         } else if (d.hellgo) { const id = d.hellgo, M = MAPBY[id]; if (!M || S.lv < D.MAX_LV || (M.gate - 1) * 5 + M.stage > (S.hell || 0) + 1) return; pane = null; panel.hidden = true; G.paused = false; enter(id, 'L'); return; }   // v69 저승 단계 들어가기
         else if (d.go) { const id = d.go; pane = null; panel.hidden = true; G.paused = false; enter(id, MAPBY[id].kind === 'village' ? 'door' : 'L'); return; }
         else if (d.addst) { const [q, n0] = d.addst.split(':'), n = Math.min(+n0, S.sp, D.STAT.max - (S.stat[q] || 0)); if (n > 0 && S.stat[q] != null) { S.stat[q] += n; S.sp -= n; const hr = S.hp / ST.hp; restat(); if (q === 'vit') S.hp = Math.round(ST.hp * hr); markDirty(true); } }
@@ -1956,7 +1994,7 @@
         else if (Hub.user) { G.srvAsked = true; openPanel('servers'); }
         loadRank();
         if (Hub.user) Hub.myBest(GAME).then(b => { if ((b || 0) < rankScore()) submitRank(); }).catch(() => {});
-        window.__rpg = { rig, rigKind, rollOpts, optCount, step: dt => update(dt), drawNow: () => draw(performance.now()), usePotion, basicAttack, net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, mkGear: (b, en, op) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
+        window.__rpg = { stationGo, rig, rigKind, rollOpts, optCount, step: dt => update(dt), drawNow: () => draw(performance.now()), usePotion, basicAttack, net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, mkGear: (b, en, op) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
       })();
       raf = requestAnimationFrame(loop);
       BGM.play();

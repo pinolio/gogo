@@ -38,7 +38,7 @@
 
   /* ================= 지도 만들기 =================
    * 칸 값: 0 땅 · 1 길 · 2 장애물(큰) · 3 장애물(작은) · 4 물 · 5 꽃(지나갈 수 있음) · 6 건물 · 7 문 · 8 분수 · 9 대장간(v60) */
-  const SOLID = { 2: 1, 3: 1, 4: 1, 6: 1, 8: 1, 9: 1, 10: 1 };   // 9 = v60 대장간 · 10 = v80 진영 소품(천막·대포…)
+  const SOLID = { 2: 1, 3: 1, 4: 1, 6: 1, 8: 1, 9: 1, 10: 1, 11: 1 };   // 9 = v60 대장간 · 10 = v80 진영 소품(천막·대포…) · 11 = v85 역참
   const mapCache = {};
   function getMap(id) {
     if (mapCache[id]) return mapCache[id];
@@ -79,6 +79,13 @@
       for (let y = mid + 2; y <= fy0 + 3; y++) set(fx0 - 1, y, 1);
       for (let x = fx0 - 1; x <= fx0 + 3; x++) set(x, fy0 + 3, 1);
       map.forge = { x: fx0, y: fy0, w: 3, h: 2 };
+      // v85 역참 (4×2 칸, 오른쪽 아래 · 마지막 마을은 왼쪽 아래) + 역참지기 자리 + 길
+      const st = R.castle ? { x: 1, y: 19, w: 4, h: 2, nx: 5.6, path: 5 } : { x: 30, y: 19, w: 4, h: 2, nx: 29.4, path: 29 };
+      for (let y = st.y - 2; y <= st.y + st.h; y++) for (let x = st.x - 1; x <= st.x + st.w; x++) if ([2, 3, 5].includes(at(x, y))) set(x, y, 0);
+      for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) set(x, y, 11);
+      for (let y = R.castle ? mid + 2 : fy0 + 3; y <= st.y + st.h; y++) set(st.path, y, 1);
+      for (let x = Math.min(st.path, st.x); x <= Math.max(st.path, st.x + st.w - 1); x++) set(x, st.y + st.h, 1);
+      map.station = st;
       armyCamp(map, rnd);   // v80 임진왜란 진영 꾸미기 (천막·대포·깃발 + 조선 병사 · 다친 병사)
     } else {
       // 굽은 길 (왼쪽 → 오른쪽)
@@ -279,6 +286,11 @@
       map.objs.push({ img: spr, x: f.x * TS + (f.w * TS - spr.width) / 2, y: (f.y + f.h) * TS - spr.height + 4, sy: (f.y + f.h) * TS - 1, forge: f });
       map.glows.push({ x: (f.x + 0.7) * TS, y: (f.y + 1.2) * TS, r: 80, col: '#FF8A3D' });
     }
+    if (map.station) {   // v85 역참 (그림은 game.js drawObj 에서)
+      const st = map.station;
+      x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(st.x * TS - 4, (st.y + st.h) * TS - 10, st.w * TS + 8, 12);
+      map.objs.push({ station: st, img: { width: st.w * TS, height: 120 }, x: st.x * TS, y: (st.y + st.h) * TS - 120, sy: (st.y + st.h) * TS - 1 });
+    }
     (map.props || []).forEach(p => {   // v80 진영 소품 (Meshy) — 그림 폭 pw 에 맞춰 칸 아래 가운데에 세움
       const cx0 = (p.x + p.fw / 2) * TS, by = (p.y + p.fh) * TS + 2;
       x.fillStyle = 'rgba(0,0,0,.22)'; x.beginPath(); x.ellipse(cx0, by - 6, p.pw * 0.42, 9, 0, 0, Math.PI * 2); x.fill();
@@ -298,7 +310,7 @@
   }
   // 작은 지도 (1칸 = 1점)
   function paintMini(map) {
-    const { w, h, R, at } = map, [c, x] = mk(w, h), col = { 0: R.ground[0], 1: R.path, 2: shade(R.ground[0], -0.45), 3: shade(R.ground[0], -0.35), 4: R.water, 5: R.ground[0], 6: '#B8A080', 7: '#FFD27A', 8: '#9AD8F5', 9: '#FF8A3D', 10: '#B8A080' };
+    const { w, h, R, at } = map, [c, x] = mk(w, h), col = { 0: R.ground[0], 1: R.path, 2: shade(R.ground[0], -0.45), 3: shade(R.ground[0], -0.35), 4: R.water, 5: R.ground[0], 6: '#B8A080', 7: '#FFD27A', 8: '#9AD8F5', 9: '#FF8A3D', 10: '#B8A080', 11: '#9AE6FF' };
     for (let y = 0; y < h; y++) for (let i = 0; i < w; i++) { x.fillStyle = col[at(i, y)] || R.ground[0]; x.fillRect(i, y, 1, 1); }
     return c;
   }
@@ -474,13 +486,13 @@
    *  img/ 폴더의 그림을 불러 두었다가 있으면 쓰고, 없으면(또는 늦으면) 코드로 그린 그림을 씀
    *  bld_potion·bld_school·bld_chief·bld_castle / boss_r0~8 / mon_r0~8 (9칸 × 64px) / obj_r0~8_1·2 / key.jpg */
   const RIMG = {}, IMG_DIR = 'games/action/rpg/img/';
-  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
+  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
   let imgPromise = null;
   function loadImages(timeoutMs) {
     if (!imgPromise) imgPromise = Promise.all(IMG_LIST.concat(['key']).map(n => new Promise(res => {
       const im = new Image(); im.decoding = 'async';
       im.onload = () => { RIMG[n] = im; res(); }; im.onerror = () => res();
-      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + '?v=40';
+      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (/^bld_(potion|school|chief|castle|station)$/.test(n) ? '?v=85' : '?v=40');   // v84 마을 건물 그림 새로
     })));
     [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(i => ['_ground', '_path', '_water'].forEach(k => img79('r' + i + k)));   // v80 재질은 미리 (기다리지는 않음)
     return Promise.race([imgPromise, new Promise(r => setTimeout(r, timeoutMs || 6000))]);
