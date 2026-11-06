@@ -1460,3 +1460,8 @@ a.nm-t:hover { text-decoration: underline; }
 .hero-hot:focus-visible { outline: 3px solid #FFD23F; outline-offset: 2px; }
 .hero.hero-img .hero-timer { border-radius: 0 0 12px 12px; overflow: hidden; z-index: 3; }
 @media (prefers-reduced-motion: reduce) { .hero-slide.in { animation: none; } }
+
+/* v94 가구 미리보기: 아바타용 발밑 그림자(큰 원) 빼고 배경만 */
+/* v94 아바타 미리보기 그림자: 신발 밑에 납작한 타원 (예전: 다리 뒤 세로로 긴 원) */
+.shop-layout .pv-stage { background: radial-gradient(52px 10px at 50% calc(100% - 17px), rgba(29,35,64,.30) 0 45%, rgba(29,35,64,0) 100%), linear-gradient(180deg, #FFE9A8 0 74%, #E7B97A 74% 100%); }
+.shop-layout .pv-stage.furn-pv { background: linear-gradient(180deg, #FFE9A8 0 74%, #E7B97A 74% 100%); }

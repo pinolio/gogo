@@ -373,6 +373,23 @@
     ['f_ballpool', '볼풀', 40, 'deco', 2, 2, 22, (L, k) => { L.box(0, 0, 2, 2, 16, 0, k || '#7FE0C4', { top: '#FFFFFF' }); const rn = seeded(301), C = [RED, YEL, BLUE, PINK, GRN, '#B07CFF']; for (let n = 0; n < 40; n++) L.dot(0.2 + rn() * 1.6, 0.2 + rn() * 1.6, 17, 2.2, C[n % 6]); }, 'play'],
     ['f_telescope', '천체 망원경', 30, 'deco', 1, 1, 66, (L, k) => { const T = [L.P(0.5, 0.5, 34), L.P(0.2, 0.75, 0), L.P(0.8, 0.75, 0), L.P(0.5, 0.15, 0)]; T.slice(1).forEach(p => { L.c.beginPath(); L.c.moveTo(T[0][0], T[0][1]); L.c.lineTo(p[0], p[1]); L.c.strokeStyle = NAVY; L.c.lineWidth = 2; L.c.stroke(); }); const a = L.P(0.3, 0.65, 40), b = L.P(0.7, 0.3, 62); L.c.beginPath(); L.c.moveTo(a[0], a[1]); L.c.lineTo(b[0], b[1]); L.c.lineCap = 'round'; L.c.strokeStyle = O; L.c.lineWidth = 9; L.c.stroke(); L.c.strokeStyle = k || '#F4F0E8'; L.c.lineWidth = 7; L.c.stroke(); L.c.strokeStyle = BLUE; L.c.lineWidth = 7; L.c.beginPath(); L.c.moveTo(b[0] - 3, b[1] + 2); L.c.lineTo(b[0], b[1]); L.c.stroke(); L.c.lineCap = 'butt'; }, null]
   ].forEach(x => FURN.push(x));
+  /* v94 그림자: 가구·옷장이 바닥에 닿는 모양대로 (가구 좌표 u0, v0, u1, v1 · 'e' = 둥근 그림자) · 벽지·바닥·러그·벽 장식은 그림자 없음 */
+  const ROUND = new Set(['f_pot', 'f_tree', 'f_cactus', 'f_vase', 'f_round', 'f_beanbag', 'f_stool', 'f_globe', 'f_snowman', 'f_xmastree', 'f_sunflower', 'f_monstera', 'f_mushlamp', 'f_guitar', 'f_bear', 'f_basket', 'f_floorlamp', 'f_lamp', 'f_starlamp', 'f_swing', 'f_telescope', 'f_robot', 'f_easel', 'f_drum']);
+  const SHB = { f_chair: [0.02, 0.02, 0.68, 0.72], f_rocking: [0, 0.02, 0.7, 0.82], f_pot: [0.25, 0.25, 0.75, 0.75], f_cactus: [0.28, 0.28, 0.72, 0.72], f_vase: [0.3, 0.3, 0.7, 0.7], f_lamp: [0.25, 0.25, 0.75, 0.75], f_globe: [0.28, 0.28, 0.72, 0.72], f_sunflower: [0.28, 0.28, 0.72, 0.72], f_mushlamp: [0.2, 0.22, 0.8, 0.8], f_floorlamp: [0.25, 0.25, 0.75, 0.75], f_tree: [0.15, 0.15, 0.85, 0.85], f_monstera: [0.1, 0.1, 0.9, 0.9], f_guitar: [0.25, 0.3, 0.75, 0.85], f_basket: [0.25, 0.25, 0.75, 0.75], f_swing: [0.15, 0.1, 1, 0.95], f_telescope: [0.12, 0.1, 0.88, 0.85], f_robot: [0.15, 0.3, 0.85, 0.75], f_easel: [0.12, 0.15, 0.88, 0.75], f_tent: [0.05, 0.05, 1.95, 1.95], f_tvstand: [0.02, 0.38, 1.98, 1.02], f_fireplace: [-0.05, 0.25, 2.05, 1.05], f_vending: [0.05, 0.25, 0.95, 1.02], f_arcade: [0.1, 0.2, 0.9, 1.02], f_dresser: [0.02, 0.3, 0.98, 1], f_kitchen: [0, 0.2, 2, 1.02], f_bench: [0, 0.2, 2, 0.88], f_cattower: [0, 0, 1, 1], f_gamechair: [0.1, 0.1, 0.9, 0.9], f_bear: [0.22, 0.25, 0.78, 0.85], f_stool: [0.2, 0.2, 0.8, 0.8], f_round: [0.12, 0.12, 0.88, 0.88], f_snowman: [0.15, 0.15, 0.85, 0.85], f_xmastree: [0.08, 0.08, 0.92, 0.92], f_beanbag: [0.05, 0.08, 0.95, 0.92], f_drum: [0.2, 0.05, 1.8, 0.98] };
+  function drawShadow(g, it, i, j, r) {
+    if (!it || (it.slot !== 'furn' && it.slot !== 'wardrobe')) return;
+    const L = local(g, i, j, r), w = it.w || 1, d = it.d || 1;
+    let b = SHB[it.id];
+    if (!b) b = it.slot === 'wardrobe' ? (WDS[it.id] ? (WDS[it.id].box === false ? [0.04, 0.3, 0.96, 0.96] : [0.04, 0.42, 0.96, 1.02]) : [0.04, 0.12, 0.96, 1]) : [0.02, 0.02, w - 0.02, d - 0.02];
+    const round = ROUND.has(it.id), c = g.c, sh = 0;   // 빛이 왼쪽 위에서 → 그림자는 조금 앞(화면 아래)으로
+    const path = (grow) => {
+      c.beginPath();
+      if (round) { const cu = (b[0] + b[2]) / 2 + sh, cv = (b[1] + b[3]) / 2 + sh, ru = (b[2] - b[0]) / 2 + grow, rv = (b[3] - b[1]) / 2 + grow; for (let k = 0; k <= 24; k++) { const a = k / 24 * Math.PI * 2, p = L.P(cu + Math.cos(a) * ru, cv + Math.sin(a) * rv, 0); k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); } }
+      else [[b[0] - grow, b[1] - grow], [b[2] + grow, b[1] - grow], [b[2] + grow, b[3] + grow], [b[0] - grow, b[3] + grow]].forEach(([u, v], k) => { const p = L.P(u + sh, v + sh, 0); k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); });
+      c.closePath();
+    };
+    c.save(); c.translate(5, 2); c.fillStyle = 'rgba(29,35,64,.09)'; path(0.08); c.fill(); c.fillStyle = 'rgba(29,35,64,.17)'; path(0.01); c.fill(); c.restore();   // 오른쪽 아래로 살짝 (빛은 왼쪽 위)
+  }
   const ITEMS = [], byId = {};
   FURN.forEach(([id, name, price, cat, w, d, h, draw, act, wall]) => { const it = { id, name, price, slot: cat === 'wall' ? 'wall' : cat === 'rug' ? 'rug' : 'furn', cat, w, d, h, draw, act, wall }; ITEMS.push(it); byId[id] = it; });
   WALLS.forEach(([id, name, price, color, pat]) => { const it = { id, name, price, slot: 'wallpaper', cat: 'wallpaper', color, pat }; ITEMS.push(it); byId[id] = it; });
@@ -566,6 +583,7 @@
       drawWallItem(g, it, 'R', 0, {});
     } else {
       if (it.slot === 'wardrobe' && !WDS[id] && !wdImg(id, false)) ready = false;
+      drawShadow(g, it, 0, 0, 0);
       drawItem(g, it, 0, 0, 0, {});
     }
     // 칠해진 영역 찾기
@@ -602,7 +620,7 @@
     g.poly([g.P(n, 0, 0), g.P(n, n, 0), g.P(n, n, -6), g.P(n, 0, -6)], shade(flI.color, -0.42), O);
   }
 
-  window.GoFurn = { ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, local, drawItem, drawWallItem, drawRoomShell, thumb, shade,
+  window.GoFurn = { ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, local, drawItem, drawShadow, drawWallItem, drawRoomShell, thumb, shade,
     free: () => ITEMS.filter(it => it.price === 0).map(it => it.id),
     // 처음 방 (기본 가구만)
     DEFAULT_ROOM: { wp: 'wp_basic', fl: 'fl_wood', wd: 'wd_basic', wdAt: [0, 2, 1], items: [['f_bed1', 6, 0, 0], ['f_desk', 0, 5, 1], ['f_chair', 1, 5, 1], ['f_pot', 7, 7, 0]], walls: [['w_window', 'R', 3]] } };

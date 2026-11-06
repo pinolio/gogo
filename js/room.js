@@ -146,7 +146,7 @@
     const frame = moving && !reduce ? [1, 0, 3, 0][Math.floor(e.walkT * 7) % 4] : 0;
     nameTag(c, e, x, y - 62);
     c.save();
-    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y, 11, 5, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(29,35,64,.2)'; c.beginPath(); c.ellipse(x + 2, y + 1, 12, 5, 0, 0, Math.PI * 2); c.fill();   // v94 가구 그림자와 같은 색 · 같은 방향
     const bob = moving ? (frame === 0 ? -1 : 0) : (reduce ? 0 : Math.round(Math.sin(now / 500)));
     c.translate(x, y);
     if (e.face < 0) c.scale(-1, 1);
@@ -188,6 +188,9 @@
     const g = F.pen(c, OX, OY);
     // 러그 → 벽 장식 → 가구·아바타 (뒤부터)
     rm.items.forEach((x, k) => { const it = F.byId[x[0]]; if (it && it.slot === 'rug' && !(carry && carry.from === k)) F.drawItem(g, it, x[1], x[2], x[3], {}); });
+    // v94 가구·옷장 그림자 (러그 위 · 가구 아래)
+    rm.items.forEach((x, k) => { const it = F.byId[x[0]]; if (it && it.slot !== 'rug' && !(carry && carry.from === k)) F.drawShadow(g, it, x[1], x[2], x[3]); });
+    if (!(carry && carry.from === 'wd')) F.drawShadow(g, F.byId[rm.wd], rm.wdAt[0], rm.wdAt[1], rm.wdAt[2]);
     drawWallItems(c, g, rm);
     drawList(rm).forEach(o => {
       if (carry && carry.from === o.k) return;
@@ -216,6 +219,7 @@
     else {
       const [w, d] = it.slot === 'wardrobe' ? [1, 1] : size(it, carry.r);
       g.flat(carry.i, carry.j, carry.i + w, carry.j + d, 0, carry.ok ? 'rgba(90,220,140,.45)' : 'rgba(255,60,60,.5)', carry.ok ? '#2E9A5A' : '#C82020');
+      F.drawShadow(g, it, carry.i, carry.j, carry.r);
       F.drawItem(g, it, carry.i, carry.j, carry.r, { open: 0 });
     }
     c.restore();
