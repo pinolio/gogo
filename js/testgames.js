@@ -117,7 +117,7 @@
       <div class="gg-light" id="ggLight" aria-label="신호등"><i class="r"></i><i class="g"></i></div>
       <div class="gg-frame"><div class="gg-q" id="ggQ">? <span class="x">×</span> ?</div><div class="gg-hint" id="ggHint">시작을 누르세요</div><div class="gg-flash" id="ggFlash" hidden></div><img class="gg-react" id="ggReact" src="img/test/gugu_happy.png" alt=""></div>
       <form class="gg-form" id="ggForm" autocomplete="off"><input id="ggIn" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="답" aria-label="답 입력" disabled><button class="btn btn-sun" type="submit" id="ggGo">시작 ▶</button><button class="btn" type="button" id="ggRe" title="처음부터 다시">↻ 다시 하기</button><button class="btn" type="button" id="ggMusic" title="배경음악 켜기·끄기" hidden>♪</button></form>
-      <div class="gg-pad" id="ggPad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-n="${n}">${n}</button>`).join('')}<button type="button" class="del" data-n="del">←</button><button type="button" data-n="0">0</button><button type="button" class="ok" data-n="ok">확인</button></div>
+      <div class="gg-pad" id="ggPad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" tabindex="-1" data-n="${n}">${n}</button>`).join('')}<button type="button" tabindex="-1" class="del" data-n="del">←</button><button type="button" tabindex="-1" data-n="0">0</button><button type="button" tabindex="-1" class="ok" data-n="ok">확인</button></div>
       <div class="gg-log" id="ggLog">녹색불이면 바른 답, 빨간불이면 자리를 바꾼 답!</div>
       </div>
       <div class="gg-rules"><img class="gg-mascot" src="img/test/gugu_mascot.png" alt="신호등 마스코트"><b>규칙</b><br>
@@ -182,10 +182,18 @@
     }
     form.addEventListener('submit', e => { e.preventDefault(); submit(); });
     $('#ggRe', el).addEventListener('click', start);   // v71 다시 하기: 언제든 처음부터 (점수·시간 처음으로)
+    // v81 버그 고침: 숫자판을 마우스로 누르면 그 버튼에 초점이 남아, 다음 Enter 가 그 숫자를 한 번 더 눌러 '12 → 122' 가 됨
+    //  → 숫자판 버튼은 초점을 받지 않게 하고(초점은 답 칸에 그대로), 혹시 초점이 버튼에 있어도 Enter 는 '내기'로 처리
+    $('#ggPad', el).addEventListener('mousedown', e => { if (e.target.closest('[data-n]')) e.preventDefault(); });
+    el.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || !e.target.closest || !e.target.closest('#ggPad')) return;
+      e.preventDefault(); submit();
+    });
     $('#ggPad', el).addEventListener('click', e => {
       const b = e.target.closest('[data-n]'); if (!b) return; const n = b.dataset.n;
       if (st.phase !== 'play') { if (n === 'ok') start(); return; }
       if (n === 'del') inp.value = inp.value.slice(0, -1); else if (n === 'ok') submit(); else if (inp.value.length < 3) inp.value += n;
+      if (st.phase === 'play' && document.activeElement !== inp && !matchMedia('(pointer: coarse)').matches) inp.focus({ preventScroll: true });   // 컴퓨터: 초점을 답 칸으로 (휴대폰은 화면 자판이 뜨지 않게 그대로)
     });
     return () => { clearInterval(timer); offM(); if (BGM) BGM.stop(); };
   }
