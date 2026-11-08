@@ -40,6 +40,19 @@
     [0, 2, 4, 6, 8].forEach(x => { put(x, 6, 'S', CHO); put(x, 3, 'S', HAN); });
     return b;
   }
+  /* v98 마·상 배치 (각자 자기 쪽에서 볼 때 왼쪽 두 칸 · 오른쪽 두 칸) — 초가 먼저 고르고, 한이 보고 고름 */
+  const SETUPS = [
+    { name: '마상상마', l: ['H', 'E'], r: ['E', 'H'] },
+    { name: '상마상마', l: ['E', 'H'], r: ['E', 'H'] },
+    { name: '마상마상', l: ['H', 'E'], r: ['H', 'E'] },
+    { name: '상마마상', l: ['E', 'H'], r: ['H', 'E'] }
+  ];
+  function applySetup(b, s, i) {
+    const S = SETUPS[i] || SETUPS[0], nb = b.map(r => r.slice()), y = s === CHO ? 9 : 0;
+    const xs = s === CHO ? [1, 2, 6, 7] : [7, 6, 2, 1];   // 한은 판 위쪽에서 아래를 보므로 왼쪽·오른쪽이 반대
+    [S.l[0], S.l[1], S.r[0], S.r[1]].forEach((t, k) => { nb[y][xs[k]] = { t, s }; });
+    return nb;
+  }
   // 한 기물의 이동 후보 (자기 궁이 잡히는지는 따지지 않음)
   function pseudo(b, x, y) {
     const p = b[y][x]; if (!p) return [];
@@ -286,7 +299,7 @@
   }
 
   window.GoGames.janggi = {
-    id: 'janggi', size: [W, H], initial, legalFrom, allLegal, inCheck, applyMove, aiMove, material, pseudo,
+    id: 'janggi', size: [W, H], initial, SETUPS, applySetup, legalFrom, allLegal, inCheck, applyMove, aiMove, material, pseudo,
     thumb(ctx, w, h) {
       B.wood(ctx, 0, 0, w, h);
       for (let y = 0; y < 5; y++) B.line(ctx, 16, 15 + y * 30, w - 16, 15 + y * 30, B.INK, 2);
@@ -301,6 +314,8 @@
       let st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0 }, mode = 'ai', level = 'normal', busy = false, over = false, timer = 0, side = CHO;
       const name = s => (s === CHO ? '초' : '한');
       const human = () => mode === 'local' || (mode === 'online' ? st.turn === side : st.turn === CHO);
+      // v98 배치 고르기: 지금 고르는 쪽이 이 기기 사람인지
+      const picker = () => st.setup && (mode === 'local' || (mode === 'online' ? st.setup.who === side : st.setup.who === CHO));
       const send = m => { if (mode === 'online' && hooks.onMove) hooks.onMove(m); };
       const cfg = (window.GoSettings && GoSettings.get('janggi')) || {}, MO = cfg.motion || {};
       let names = {};
@@ -314,7 +329,25 @@
         B.tag(ctx, '한', homes[HAN][0], 22, 14); if (names[HAN]) B.tag(ctx, names[HAN], homes[HAN][0], homes[HAN][1] + mv.size.h * 0.42 + 16, 11);
         ctx.save(); ctx.translate(SIDE, 0); drawBoard(ctx, st, labels); ctx.restore();
         mv.draw(ctx);
+        drawCheck();
       };
+      // v98 장군 표시: 장군을 받은 궁에 빨간 테두리 + 판 가운데 '○ 장군!' (두 진영 모두, 온라인 두 화면 모두)
+      function drawCheck() {
+        if (over || st.setup || busy || !inCheck(st.b, st.turn)) return;
+        const k = findKing(st.b, st.turn); if (!k) return;
+        const [cx, cy] = cellXY(k[0], k[1]), pulse = 0.5 + 0.5 * Math.sin(performance.now() / 160);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(232,48,58,' + (0.55 + 0.45 * pulse) + ')'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(cx, cy, C * 0.55, 0, Math.PI * 2); ctx.stroke();
+        const bx = SIDE + px(4), by = py(4.5), w = 220, h = 64;
+        ctx.fillStyle = 'rgba(29,35,64,.82)'; ctx.fillRect(bx - w / 2, by - h / 2, w, h);
+        ctx.strokeStyle = st.turn === CHO ? '#E8303A' : '#2E9E5B'; ctx.lineWidth = 4; ctx.strokeRect(bx - w / 2 + 2, by - h / 2 + 2, w - 4, h - 4);
+        ctx.font = '900 34px "Jua", "Malgun Gothic", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#FFD84D'; ctx.fillText(name(1 - st.turn) + ' 장군!', bx, by + 1);
+        ctx.restore();
+        if (!checkRaf) checkRaf = requestAnimationFrame(() => { checkRaf = 0; if (!over && !st.setup && inCheck(st.b, st.turn)) draw(); });   // 깜빡임
+      }
+      let checkRaf = 0;
       // 말 하나를 아바타가 옮김: 집는 순간 원래 자리에서 사라지고, 내려놓는 순간 수가 둬짐
       function carry(m, done) {
         busy = true;
@@ -324,9 +357,33 @@
           onPlace: () => { st.hide = null; doMove(m, true); draw(); },
           onDone: () => { busy = mv.busy(); if (!over) done(); } });
       }
-      function buttons() { hooks.onButtons([]); }
+      function buttons() {
+        if (st.setup && picker()) return hooks.onButtons(SETUPS.map((S, i) => ({ id: 'set' + i, label: (st.setup.cur === i ? '✔ ' : '') + S.name })).concat([{ id: 'setok', label: '이 배치로 확정 ▶' }]));
+        hooks.onButtons([]);
+      }
+      // v98 배치 단계: 초 → 한 순서로 고르고, 둘 다 끝나면 대국 시작 (초 먼저)
+      function setupText() {
+        const w = st.setup.who, mine = picker();
+        hooks.onTurn({ text: mine ? `${name(w)}: 마·상 배치를 고르세요 (${SETUPS[st.setup.cur].name})` + (w === HAN ? ` · 초는 ${SETUPS[st.setup.pick[CHO]].name}` : '') : (mode === 'ai' ? '컴퓨터(한)가 배치를 고르는 중…' : `상대(${name(w)})가 배치를 고르는 중…`), side: w });
+      }
+      function previewSetup(i) { st.setup.cur = i; st.b = applySetup(st.b, st.setup.who, i); draw(); buttons(); setupText(); }
+      function confirmSetup(i, remote) {
+        if (!st.setup) return;
+        const w = st.setup.who;
+        st.b = applySetup(st.b, w, i); st.setup.pick[w] = i;
+        if (!remote) send({ setup: [w, i] });
+        if (hooks.onToast) hooks.onToast(`${name(w)}: ${SETUPS[i].name}`);
+        if (w === CHO) {
+          st.setup.who = HAN; st.setup.cur = 0; draw(); buttons(); setupText();
+          if (mode === 'ai') { busy = true; timer = setTimeout(() => { busy = false; if (st.setup) confirmSetup(Math.random() * SETUPS.length | 0); }, 900); }   // 컴퓨터는 초 배치를 보고 아무거나
+          return;
+        }
+        st.setupDone = [st.setup.pick[CHO], st.setup.pick[HAN]]; st.setup = null;
+        clock.reset(); clock.start(); buttons(); after();
+      }
       function turnText() {
         if (over) return;
+        if (st.setup) return setupText();
         const chk = inCheck(st.b, st.turn) ? ' · 장군!' : '';
         const who = mode === 'ai' ? (st.turn === CHO ? '내 차례 (초)' : '컴퓨터 생각 중… (한)') : mode === 'online' ? (human() ? '내 차례 (' + name(st.turn) + ')' : '상대 차례… (' + name(st.turn) + ')') : name(st.turn) + ' 차례';
         hooks.onTurn({ text: who + chk + ' · ' + st.moves + '수', side: st.turn });
@@ -343,6 +400,7 @@
       }
       function after() {
         draw();
+        if (!st.setup && inCheck(st.b, st.turn) && allLegal(st.b, st.turn).length && hooks.onToast) hooks.onToast(name(1 - st.turn) + ' 장군! · ' + name(st.turn) + '은(는) 궁을 지키세요');
         const legal = allLegal(st.b, st.turn);
         if (!legal.length) { const w = 1 - st.turn; return end(w, (inCheck(st.b, st.turn) ? '외통수! ' : '둘 수가 없어요! ') + name(w) + ' 승'); }
         if (st.moves >= 200) {
@@ -358,10 +416,10 @@
       function end(w, msg) {
         over = true; mv.clear(); busy = false; st.hide = null; clock.stop(); draw();
         hooks.onTurn({ text: msg, side: -1 });
-        hooks.onOver({ winner: w, message: msg, moves: st.moves, duration_sec: clock.sec(), extra: { moves: st.moves }, record: { side, moves: log.slice() } });
+        hooks.onOver({ winner: w, message: msg, moves: st.moves, duration_sec: clock.sec(), extra: { moves: st.moves, setup: st.setupDone && st.setupDone.map(i => SETUPS[i].name) }, record: { side, moves: log.slice(), setup: st.setupDone } });
       }
       const off = B.pointer(canvas, W, H, (t, x, y) => {
-        if (t !== 'up' || over || busy || !human()) return;
+        if (t !== 'up' || over || busy || st.setup || !human()) return;
         const gx = Math.round((x - SIDE - MX) / C), gy = Math.round((y - MY) / C); if (!inB(gx, gy)) return;
         const p = st.b[gy][gx];
         if (st.sel && st.targets.some(([a, c]) => a === gx && c === gy)) { const m = [st.sel[0], st.sel[1], gx, gy]; send(m); st.sel = null; st.targets = []; carry(m, after); return turnText(); }
@@ -376,17 +434,20 @@
         start(o) {
           clearTimeout(timer); o = o || {}; mode = o.mode || 'ai'; level = o.level || 'normal'; side = o.side || CHO;
           mv.clear(); { const pl = B.players(mode, o, side, 'janggi', level); mv.setAvatars({ [CHO]: pl.av[0], [HAN]: pl.av[1] }); names = { [CHO]: pl.name[0], [HAN]: pl.name[1] }; }
-          st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0, hide: null }; log = []; over = false; busy = false;
-          clock.reset(); clock.start(); hooks.onState('playing'); buttons(); after();
+          st = { b: initial(), turn: CHO, sel: null, targets: [], last: null, moves: 0, hide: null, setup: { who: CHO, cur: 0, pick: {} }, setupDone: null }; log = []; over = false; busy = false;
+          clock.reset(); hooks.onState('playing'); buttons(); draw(); setupText();
         },
-        press(id) { if (id === 'resign' && !over) { clearTimeout(timer); mv.clear(); busy = false; const loser = mode === 'ai' ? CHO : mode === 'online' ? side : st.turn; send({ resign: 1 }); end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
+        press(id) {
+          if (st.setup && picker() && !busy) { if (id === 'setok') return confirmSetup(st.setup.cur); const k = /^set(\d)$/.exec(id); if (k) return previewSetup(+k[1]); }
+          if (id === 'resign' && !over) { clearTimeout(timer); mv.clear(); busy = false; const loser = mode === 'ai' ? CHO : mode === 'online' ? side : st.turn; send({ resign: 1 }); end(1 - loser, name(loser) + ' 기권 · ' + name(1 - loser) + ' 승'); } },
         remote(m) {
           if (over) return;
+          if (m && m.setup && st.setup && m.setup[0] === st.setup.who) return confirmSetup(m.setup[1], true);   // v98 상대가 고른 배치
           if (m && m.resign) { const loser = 1 - side; return end(side, (m.left ? '상대가 나갔어요 · ' : name(loser) + ' 기권 · ') + name(side) + ' 승'); }
           if (Array.isArray(m) && m.length === 4) { const p = st.b[m[1]] && st.b[m[1]][m[0]]; if (p && p.s === st.turn && legalFrom(st.b, m[0], m[1]).some(([a, c]) => a === m[2] && c === m[3])) carry(m, after); }
         },
         togglePause() {}, action() {},
-        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); cancelAnimationFrame(raf); mv.clear(); off(); }
+        destroy() { window.removeEventListener('gogo:img', onImg); clearTimeout(timer); cancelAnimationFrame(checkRaf); cancelAnimationFrame(raf); mv.clear(); off(); }
       };
     }
   };

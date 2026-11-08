@@ -1507,3 +1507,15 @@ a.nm-t:hover { text-decoration: underline; }
 @keyframes itTag { 0% { opacity: 0; transform: translate(-50%, 6px); } 15% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -6px); } }
 @media (prefers-reduced-motion: reduce) { .it-tag { animation: none; } .it-trail { display: none; } }
 @media (max-width: 560px) { .it-chip small { display: none; } .it-chip b { margin: 0; } }
+
+/* v98 상점 닉네임 변경권 */
+.shop-mode { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.nick-shop { display: grid; grid-template-columns: 200px 1fr; gap: 20px 24px; align-items: start; max-width: 760px; }
+.nick-ticket { display: grid; place-items: center; gap: 4px; padding: 20px 10px; border: 3px dashed #1D2340; border-radius: 14px; background: #FFE9A8; color: #1D2340; text-align: center; }
+.nick-ticket span { font-size: 40px; line-height: 1; }
+.nick-ticket b { font-size: 17px; }
+.nick-ticket em { font-style: normal; font-weight: 800; font-size: 20px; }
+.nick-form input { flex: 1; min-width: 0; font-size: 16px; }
+.nick-rules { grid-column: 1 / -1; margin: 0; padding-left: 18px; }
+.small.bad { color: #D9363E; }
+@media (max-width: 640px) { .nick-shop { grid-template-columns: 1fr; } .shop-mode .sm-tx small { display: none; } }

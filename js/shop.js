@@ -41,7 +41,40 @@
   const modeTabs = () => `<div class="shop-mode" role="tablist" aria-label="상점 고르기">
     <button type="button" role="tab" data-mode="avatar" aria-selected="${mode === 'avatar'}" class="sm-tab sm-av"><span class="sm-ic" aria-hidden="true">👕</span><span class="sm-tx"><b>아바타 꾸미기</b><small>옷 · 헤어 · 배경 ${AV.ITEMS.length}종</small></span></button>
     <button type="button" role="tab" data-mode="furn" aria-selected="${mode === 'furn'}" class="sm-tab sm-room"><span class="sm-ic" aria-hidden="true">🛋️</span><span class="sm-tx"><b>내 방 가구</b><small>가구 · 벽지 · 옷장 · 음악 ${F.ITEMS.length}종</small></span></button>
+    <button type="button" role="tab" data-mode="nick" aria-selected="${mode === 'nick'}" class="sm-tab sm-nick"><span class="sm-ic" aria-hidden="true">🏷️</span><span class="sm-tx"><b>닉네임 변경권</b><small>${Hub.NICK_PRICE || 100}P로 닉네임 바꾸기</small></span></button>
   </div>`;
+  /* v98 닉네임 변경권 */
+  function renderNick() {
+    const u = Hub.user, price = Hub.NICK_PRICE || 100;
+    root.innerHTML = `
+      <div class="page-head shop-head shop-hero">
+        <div><h1>상점</h1><p>포인트로 <b>닉네임</b>을 바꿀 수 있어요. 랭킹·채팅·내 방에 새 닉네임이 보여요.</p></div>
+        <div class="wallet-big">${u ? `<span class="lbl">MY POINTS</span><b class="num">${A.fmt(u.points)}P</b>` : '<button class="btn btn-primary" type="button" data-auth="login">로그인하고 쇼핑하기</button>'}</div>
+      </div>
+      ${modeTabs()}
+      <div class="panel nick-shop">
+        <div class="nick-ticket" aria-hidden="true"><span>🏷️</span><b>닉네임 변경권</b><em class="num">${price}P</em></div>
+        ${u ? `<form class="nick-form" id="nickForm">
+          <p class="small" style="margin:0 0 6px">지금 닉네임: <b>${A.esc(u.nickname)}</b></p>
+          <label class="lbl" for="nickNew">새 닉네임 (2~10자)</label>
+          <div class="row" style="margin:6px 0 0"><input id="nickNew" maxlength="10" autocomplete="off" placeholder="새 닉네임" value=""><button class="btn btn-sun" type="submit" ${u.points < price ? 'disabled' : ''}>${price}P로 바꾸기</button></div>
+          <p class="small ${u.points < price ? 'bad' : ''}" style="margin:8px 0 0">${u.points < price ? `포인트가 ${price - u.points}P 부족해요. 게임을 해서 포인트를 모아 보세요.` : '바꾸면 포인트는 돌려받을 수 없어요.'}</p>
+        </form>` : '<p class="small">로그인하면 닉네임을 바꿀 수 있어요.</p>'}
+        <ul class="small nick-rules"><li>2~10자 · 나쁜 말은 쓸 수 없어요.</li><li>다른 사람이 쓰고 있는 닉네임은 쓸 수 없어요.</li><li>아이디(로그인할 때 쓰는 것)는 바뀌지 않아요.</li></ul>
+      </div>`;
+    $$('[data-mode]', root).forEach(b => b.addEventListener('click', () => { mode = b.dataset.mode; render(); }));
+    $$('[data-auth]', root).forEach(b => b.addEventListener('click', () => A.openAuth(b.dataset.auth)));
+    const f = $('#nickForm'); if (!f) return;
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const n = $('#nickNew').value.trim();
+      if (n.length < 2) return A.toast('새 닉네임을 2자 이상 써 주세요.');
+      if (!confirm(`'${n}'(으)로 바꿀까요? ${price}P가 빠져요.`)) return;
+      const btn = f.querySelector('button[type=submit]'); btn.disabled = true;
+      try { await Hub.changeNickname(n); A.toast(`닉네임을 '${Hub.user.nickname}'(으)로 바꿨어요!`); render(); }
+      catch (err) { A.toast(err.message); btn.disabled = false; }
+    });
+  }
   /* v88 내 방 가구 상점 */
   function renderFurn() {
     const u = Hub.user, list = F.ITEMS.filter(it => it.slot === fcat).sort((a, b) => Hub.price(a.id) - Hub.price(b.id) || (a.name < b.name ? -1 : 1));
@@ -97,6 +130,7 @@
   function render() {
     if (!root) return;
     if (mode === 'furn') return renderFurn();
+    if (mode === 'nick') return renderNick();
     const u = Hub.user;
     root.innerHTML = `
       <div class="page-head shop-head shop-hero">
@@ -233,7 +267,7 @@
 
   window.GoShop = {
     render(el, app, m) {
-      A = app; root = el; picked = undefined; confirmBuy = false; walking = false; mode = m === 'furn' || m === 'music' ? 'furn' : 'avatar'; fpick = null; if (m === 'music') fcat = 'music'; else if (m === 'furn' && fcat === 'music') fcat = 'furn';
+      A = app; root = el; picked = undefined; confirmBuy = false; walking = false; mode = m === 'furn' || m === 'music' ? 'furn' : m === 'nick' ? 'nick' : 'avatar'; fpick = null; if (m === 'music') fcat = 'music'; else if (m === 'furn' && fcat === 'music') fcat = 'furn';
       trial = Object.assign({}, saved());
       render();
       Hub.loadPrices().then(p => { if (p && root) render(); }).catch(() => {});

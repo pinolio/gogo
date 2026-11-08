@@ -1052,9 +1052,9 @@
       current = 'battle'; setNav('home');
       cleanups.push(window.GoBattle.render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText }));
     }
-    else if (h === 'shop' || h === 'shop/furn' || h === 'shop/music') {
+    else if (h === 'shop' || h === 'shop/furn' || h === 'shop/music' || h === 'shop/nick') {
       current = 'shop'; setNav('shop');
-      cleanups.push(window.GoShop.render(view(), { toast, esc, fmt, openAuth, avCanvas }, h === 'shop/furn' ? 'furn' : h === 'shop/music' ? 'music' : null));
+      cleanups.push(window.GoShop.render(view(), { toast, esc, fmt, openAuth, avCanvas }, h === 'shop/furn' ? 'furn' : h === 'shop/music' ? 'music' : h === 'shop/nick' ? 'nick' : null));
     }
     else if (h === 'room' || h.startsWith('room/')) {   // v88 내 방 · 친구 방 (#room/아이디)
       current = 'room'; setNav('my');

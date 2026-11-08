@@ -34,6 +34,7 @@
   /* v68 무단 이탈: 온라인 대결 시작 QUIT_SEC 초 안에 상대가 나가거나 기권하면 그 판은 무효 (승패·무승부·포인트 없음)
    *  + 관리자만 보는 기록 한 줄 (Hub.logQuit). 숫자를 바꾸려면 여기 QUIT_SEC 만 고치면 됨 */
   Hub.QUIT_SEC = 5;
+  Hub.NICK_PRICE = 100;   // v98 상점 '닉네임 변경권' 가격 (서버 supabase/nick_v98.sql 의 v_price 와 같게)
   let quitOff = false;
   const quitRow = r => ({ game_id: String(r.game_id || '').slice(0, 30), quitter: r.quitter || null, quitter_nick: String(r.quitter_nick || '').slice(0, 30) || null,
     kind: r.kind === 'resign' ? 'resign' : 'left', sec: Math.max(0, Math.min(60, Math.round((+r.sec || 0) * 10) / 10)), extra: r.extra || null });
@@ -264,6 +265,17 @@
           .sort((a, b) => b.earned - a.earned).slice(0, limit || 10);
       },
       async loadPrices() { return null; },
+      // v98 닉네임 변경권 (100P)
+      async changeNickname(n) {
+        const u = me(); if (!u) throw new Error('로그인이 필요해요.');
+        const nickname = String(n || '').trim();
+        if (nickname.length < 2 || nickname.length > 10) throw new Error('닉네임은 2~10자로 정해 주세요.');
+        if (window.GoFilter && window.GoFilter.has(nickname)) throw new Error('닉네임에 쓸 수 없는 말이 들어 있어요.');
+        if (nickname === u.nickname) throw new Error('지금 닉네임과 같아요.');
+        if (Object.values(db().users).some(x => x.id !== u.id && String(x.nickname).toLowerCase() === nickname.toLowerCase())) throw new Error('이미 다른 사람이 쓰는 닉네임이에요.');
+        if (u.points < Hub.NICK_PRICE) throw new Error('포인트가 ' + (Hub.NICK_PRICE - u.points) + 'P 부족해요.');
+        u.points -= Hub.NICK_PRICE; u.nickname = nickname; persist(); setUser(pub(u));
+      },
       async buyItem(id) {
         const u = me(), it = itemOf(id);
         if (!it) throw new Error('없는 아이템이에요.');
@@ -645,6 +657,15 @@
         if (error) throw error;
         serverPrices = {}; (data || []).forEach(r => { serverPrices[r.id] = r.price; });
         return serverPrices;
+      },
+      async changeNickname(n) {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const nickname = String(n || '').trim();
+        if (nickname.length < 2 || nickname.length > 10) throw new Error('닉네임은 2~10자로 정해 주세요.');
+        if (window.GoFilter && window.GoFilter.has(nickname)) throw new Error('닉네임에 쓸 수 없는 말이 들어 있어요.');
+        const { error } = await sb.rpc('change_nickname', { p_nick: nickname });
+        if (error) throw new Error(friendly(error, '닉네임을 바꾸지 못했어요'));
+        await loadProfile(Hub.user.id);
       },
       async buyItem(id) {
         if (!Hub.user) throw new Error('로그인이 필요해요.');
