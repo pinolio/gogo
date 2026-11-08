@@ -16,14 +16,32 @@
     S: [[0, 1, 1], [1, 1, 0], [0, 0, 0]],
     Z: [[1, 1, 0], [0, 1, 1], [0, 0, 0]],
     J: [[1, 0, 0], [1, 1, 1], [0, 0, 0]],
-    L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]]
+    L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]],
+    // v96 아이템전 '기괴한 모양' (5칸짜리 · 보통 순서에는 안 나옴)
+    a: [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
+    b: [[1, 0, 1], [1, 1, 1], [0, 0, 0]],
+    c: [[0, 0, 0, 0], [1, 1, 1, 1], [1, 0, 0, 0], [0, 0, 0, 0]],
+    d: [[1, 0, 0], [1, 1, 0], [0, 1, 1]],
+    e: [[1, 1, 0], [0, 1, 0], [0, 1, 1]],
+    f: [[1, 0, 0], [1, 0, 0], [1, 1, 1]],
+    g: [[1, 1, 1], [0, 1, 0], [0, 1, 0]]
   };
-  const KEYS = Object.keys(SHAPES);
+  const WEIRD = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+  const WEIRD_COL = { a: '#FF5FD2', b: '#B26BFF', c: '#FF8A3D', d: '#3FE0C8', e: '#E8FF5A', f: '#FF4A6E', g: '#8AA0FF' };
+  const ITEM_CELL = '@', ITEM_COL = '#FFC83D';
+  const KEYS = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
   const LINE_PTS = [0, 100, 300, 500, 800];
   const GARBAGE = '#5B6390';
   const rotCW = m => m[0].map((_, i) => m.map(r => r[i]).reverse());
   const KICKS = [[0, 0], [-1, 0], [1, 0], [-2, 0], [2, 0], [0, -1]];
-  const colorOf = k => (k === 'G' ? GARBAGE : P.PIECE[k]);
+  const colorOf = k => (k === 'G' ? GARBAGE : k === ITEM_CELL ? ITEM_COL : P.PIECE[k] || WEIRD_COL[k] || GARBAGE);
+  // 아이템 칸: 금색 블록 위에 반짝이는 별
+  function itemMark(ctx, x, y, C) {
+    const t = (typeof performance !== 'undefined' ? performance.now() : 0) / 260, cx = x + C / 2, cy = y + C / 2, r = C * (0.3 + 0.05 * Math.sin(t));
+    ctx.fillStyle = '#FFFFFF'; ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4, rr = i % 2 ? r * 0.42 : r; ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    ctx.closePath(); ctx.fill();
+  }
 
   // 같은 씨앗(seed)이면 모두에게 같은 블록 순서 → 공정한 대전
   function mulberry32(a) {
@@ -39,7 +57,7 @@
   function Engine(opt) {
     opt = opt || {};
     const rnd = opt.seed != null ? mulberry32(opt.seed) : Math.random;
-    const e = { grid: null, cur: null, queue: [], hold: null, canHold: true, score: 0, lines: 0, level: 1, sent: 0, over: false, acc: 0, pending: [], elapsed: 0 };
+    const e = { grid: null, cur: null, queue: [], hold: null, canHold: true, score: 0, lines: 0, level: 1, sent: 0, over: false, acc: 0, pending: [], elapsed: 0, hidePieces: 0 };
     let bag = [];
     // 다음 블록: 5개까지 미리 보임 (e.next = 바로 다음 1개)
     Object.defineProperty(e, 'next', { get: () => e.queue[0] || null });
@@ -83,7 +101,8 @@
     e.reset = function () {
       e.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
       bag = []; e.queue = []; e.hold = null; e.canHold = true; e.score = 0; e.lines = 0; e.level = 1; e.sent = 0;
-      e.over = false; e.acc = 0; e.pending = []; e.elapsed = 0;
+      e.over = false; e.acc = 0; e.pending = []; e.elapsed = 0; e.hidePieces = 0;
+      if (opt.startRows) e.setRows(opt.startRows);   // v96 아이템전: 모두 같은 줄로 시작
       spawn();
     };
     e.interval = () => Math.max(90, 800 - (e.level - 1) * 65) / (opt.speed || 1);   // v58: opt.speed = 빠르기 배수 (랭킹 대전 1.5)
@@ -121,7 +140,9 @@
       const full = [];
       e.grid.forEach((row, i) => { if (row.every(Boolean)) full.push(i); });
       if (full.length) {
+        const items = full.reduce((a, i) => a + e.grid[i].filter(k => k === ITEM_CELL).length, 0);   // v96 아이템 칸이 든 줄을 지우면 아이템
         full.forEach(i => { e.grid.splice(i, 1); e.grid.unshift(Array(COLS).fill(null)); });
+        if (items && opt.onItems) opt.onItems(items);
         e.lines += full.length;
         e.score += LINE_PTS[full.length] * e.level;
         e.level = opt.levelFn ? opt.levelFn(e) : 1 + Math.floor(e.lines / 10);
@@ -131,6 +152,7 @@
       applyGarbage();
       if (e.over) return;
       e.acc = 0;
+      if (e.hidePieces > 0) e.hidePieces--;
       spawn();
       opt.onLock && opt.onLock();
     }
@@ -143,6 +165,29 @@
       if (e.acc >= e.interval()) { e.acc = 0; if (!e.move(0, 1)) lock(); }
     };
     e.addGarbage = n => { if (!e.over && n > 0) e.pending.push(n); };
+    /* ---- v96 아이템전 ---- */
+    // 문자열 줄(위→아래, '.' = 빈칸)로 판을 바꿈 (시작 줄 · 판 바꾸기)
+    e.setRows = function (rows) {
+      const g = Array.from({ length: ROWS }, () => Array(COLS).fill(null)), off = ROWS - rows.length;
+      rows.forEach((row, r) => { for (let c = 0; c < COLS; c++) { const k = row[c]; if (k && k !== '.' && r + off >= 0) g[r + off][c] = k; } });
+      e.grid = g;
+      if (e.cur) { let n = 0; while (e.hit(e.cur.m, e.cur.x, e.cur.y) && n++ < 4) e.cur.y--; }   // 지금 블록이 겹치면 위로
+    };
+    // 맨 아래 n줄 없애기
+    e.removeBottom = function (n) { for (let i = 0; i < n; i++) { e.grid.pop(); e.grid.unshift(Array(COLS).fill(null)); } };
+    // 판 비우기 (받을 공격 줄도 없앰)
+    e.clearAll = function () { e.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null)); e.pending = []; };
+    // 다음 블록 n개를 5칸짜리 기괴한 모양으로
+    e.makeWeird = function (n) { for (let i = 0; i < n && i < e.queue.length; i++) { const k = WEIRD[Math.random() * WEIRD.length | 0]; e.queue[i] = { k, m: SHAPES[k].map(r => r.slice()), x: 0, y: 0 }; } };
+    // 쌓인 블록 한 칸을 아이템 칸으로 (이미 max 개 있으면 안 함)
+    e.addItemCell = function (max) {
+      const cells = [];
+      let have = 0;
+      e.grid.forEach((row, r) => row.forEach((k, c) => { if (k === ITEM_CELL) have++; else if (k) cells.push([r, c]); }));
+      if (have >= (max || 3) || !cells.length) return false;
+      const [r, c] = cells[Math.random() * cells.length | 0]; e.grid[r][c] = ITEM_CELL; return true;
+    };
+    e.height = function () { for (let r = 0; r < ROWS; r++) if (e.grid[r].some(Boolean)) return ROWS - r; return 0; };
     e.pendingLines = () => e.pending.reduce((a, b) => a + b, 0);
     e.ghostY = function () { let y = e.cur.y; while (!e.hit(e.cur.m, e.cur.x, y + 1)) y++; return y; };
     e.rows = () => e.grid.map(r => r.map(k => k || '.').join(''));
@@ -157,22 +202,23 @@
     ctx.fillStyle = 'rgba(120,140,230,.16)';
     for (let c = 1; c < COLS; c++) ctx.fillRect(ox + c * C, oy, 1, ROWS * C);
     for (let r = 1; r < ROWS; r++) ctx.fillRect(ox, oy + r * C, COLS * C, 1);
-    e.grid.forEach((row, r) => row.forEach((k, c) => { if (k) P.block(ctx, ox + c * C, oy + r * C, C, colorOf(k)); }));
-    if (!e.over && e.cur && opts.live !== false) {
+    e.grid.forEach((row, r) => row.forEach((k, c) => { if (k) { P.block(ctx, ox + c * C, oy + r * C, C, colorOf(k)); if (k === ITEM_CELL) itemMark(ctx, ox + c * C, oy + r * C, C); } }));
+    if (!e.over && e.cur && opts.live !== false && !(e.hidePieces > 0)) {
       const gy = e.ghostY();
-      ctx.strokeStyle = P.PIECE[e.cur.k]; ctx.globalAlpha = 0.45; ctx.lineWidth = 2;
+      ctx.strokeStyle = colorOf(e.cur.k); ctx.globalAlpha = 0.45; ctx.lineWidth = 2;
       e.cur.m.forEach((row, r) => row.forEach((v, c) => { if (v && gy + r >= 0) ctx.strokeRect(ox + (e.cur.x + c) * C + 2, oy + (gy + r) * C + 2, C - 4, C - 4); }));
       ctx.globalAlpha = 1;
-      e.cur.m.forEach((row, r) => row.forEach((v, c) => { if (v && e.cur.y + r >= 0) P.block(ctx, ox + (e.cur.x + c) * C, oy + (e.cur.y + r) * C, C, P.PIECE[e.cur.k]); }));
+      e.cur.m.forEach((row, r) => row.forEach((v, c) => { if (v && e.cur.y + r >= 0) P.block(ctx, ox + (e.cur.x + c) * C, oy + (e.cur.y + r) * C, C, colorOf(e.cur.k)); }));
     }
+    if (!e.over && e.hidePieces > 0 && opts.live !== false) { ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(ox, oy, COLS * C, ROWS * C); P.text(ctx, '??? ' + e.hidePieces, ox + COLS * C / 2, oy + 24, 12, '#B9C2FF', 'center'); }
   }
   // 상대 화면(작은 판): 문자열 20줄을 그대로 그림
   function drawRows(ctx, rows, ox, oy, C) {
     P.boardBg(ctx, ox, oy, COLS * C, ROWS * C);
-    (rows || []).forEach((row, r) => { for (let c = 0; c < COLS; c++) { const k = row[c]; if (k && k !== '.') P.block(ctx, ox + c * C, oy + r * C, C, colorOf(k)); } });
+    (rows || []).forEach((row, r) => { for (let c = 0; c < COLS; c++) { const k = row[c]; if (k && k !== '.') { P.block(ctx, ox + c * C, oy + r * C, C, colorOf(k)); if (k === ITEM_CELL) itemMark(ctx, ox + c * C, oy + r * C, C); } } });
   }
   function drawPiece(ctx, k, m, ox, oy, s) {
-    m.forEach((row, r) => row.forEach((v, c) => { if (v) P.block(ctx, ox + c * s, oy + r * s, s, P.PIECE[k]); }));
+    m.forEach((row, r) => row.forEach((v, c) => { if (v) P.block(ctx, ox + c * s, oy + r * s, s, colorOf(k)); }));
   }
   // 블록 하나를 상자 가운데에 (k 없으면 빈 상자)
   function drawBox(ctx, k, x, y, w, h, s, dim) {
@@ -261,7 +307,7 @@
     };
   }
 
-  window.GoBlocks = { Engine, Bot, BOT_LEVELS, drawBoard, drawRows, drawNext, drawPiece, drawBox, drawQueue, bestMove, COLS, ROWS, SHAPES, colorOf };
+  window.GoBlocks = { Engine, Bot, BOT_LEVELS, drawBoard, drawRows, drawNext, drawPiece, drawBox, drawQueue, bestMove, COLS, ROWS, SHAPES, colorOf, mulberry32, ITEM_CELL, itemMark };
 
   /* ---------------- 혼자 하기 모드 ---------------- */
   const C = 24, SIDE = 132, W = COLS * C + SIDE, H = ROWS * C;

@@ -1,6 +1,7 @@
 /*
  * gogo?gogo! — 블록 대전 (최대 6명 실시간)
- *  공격 규칙: 한 번에 3줄 지우면 상대 모두에게 1줄, 4줄 지우면 3줄 (빈칸 위치는 무작위)
+ *  공격 규칙(스피드전): 한 번에 3줄 지우면 상대 모두에게 1줄, 4줄 지우면 3줄 (빈칸 위치는 무작위)
+ *  v96 아이템전: 3줄 = 약한 아이템 · 4줄 = 좋은 아이템 · ★칸 줄을 지워도 아이템, 숫자 키로 그 번호 사람에게 사용 (settings.js item)
  *  흐름: 로비(방 목록·코드 입장) → 대기실(방장이 컴퓨터 추가·시작) → 경기 → 결과
  */
 (function () {
@@ -47,6 +48,35 @@
     online: { name: '온라인 대결', desc: '방 코드로 다른 기기의 친구와 실시간으로 겨뤄요.', pts: '사람과 대결 승리 +2P · 패배 -1P' }
   };
   const fakeCh = { send() {}, track() {}, untrack() {}, leave() {} };
+  /* v96 아이템전 */
+  const IT = () => Object.assign({ startRows: 10, startItems: 5, maxItems: 10, cellEverySec: 9, maxCells: 3, cellStrong: 0.35, shieldSec: 2, weirdCount: 5, hideCount: 3, weak: ['add1', 'sub1', 'shield', 'hide'], strong: ['add2', 'sub2', 'swap', 'weird', 'clear'] }, (window.GoSettings.get('battle') || {}).item || {});
+  // bad = 상대에게 쓰는 공격 아이템 (방패로 막힘) · 나머지는 나·같은 편에게 쓰는 도움 아이템
+  const ITEM = {
+    add1: { name: '1줄 추가', ic: '+1', bad: true },
+    add2: { name: '2줄 추가', ic: '+2', bad: true },
+    swap: { name: '판 바꾸기', ic: '⇄', bad: true },
+    sub1: { name: '1줄 빼기', ic: '−1' },
+    sub2: { name: '2줄 빼기', ic: '−2' },
+    shield: { name: '방패', ic: '盾' },
+    weird: { name: '기괴한 모양', ic: '✶', bad: true },
+    clear: { name: '모두 사라지기', ic: '✦' },
+    hide: { name: '안 보이기', ic: '?', bad: true }
+  };
+  const RULE = { speed: { name: '스피드전', desc: '빈 판 · 3줄=1줄, 4줄=3줄 공격' }, item: { name: '아이템전', desc: '아이템으로 공격·방어' } };
+  const isStrong = k => IT().strong.includes(k);
+  const randItem = strong => { const l = strong ? IT().strong : IT().weak; return l[Math.random() * l.length | 0]; };
+  const ALL_ITEMS = () => IT().weak.concat(IT().strong);
+  // 아이템전 시작 줄: 씨앗이 같으면 모두 같은 모양 (줄마다 빈칸 1개 · 아이템 칸 2개)
+  function startRowsOf(seed) {
+    const rnd = B.mulberry32((seed ^ 0x5EED1) | 0), n = IT().startRows, keys = 'IOTSZJL', rows = [];
+    for (let r = 0; r < n; r++) {
+      const hole = rnd() * B.COLS | 0; let row = '';
+      for (let c = 0; c < B.COLS; c++) row += c === hole ? '.' : keys[rnd() * keys.length | 0];
+      rows.push(row);
+    }
+    for (let k = 0; k < 2; k++) { const r = 2 + (rnd() * (n - 2) | 0), c = rnd() * B.COLS | 0; if (rows[r][c] !== '.') rows[r] = rows[r].slice(0, c) + B.ITEM_CELL + rows[r].slice(c + 1); }
+    return rows;
+  }
 
   let A = null;          // app 도우미 { toast, esc, fmt, dur, openAuth }
   let root = null;       // 화면 영역
@@ -103,6 +133,7 @@
             <li><b>팀전 (블루 vs 레드)</b>: 공격은 상대 팀에게만 가요. 한 팀이 모두 탈락하면 끝!</li>
             <li>올라오는 줄은 빈칸 위치가 <b>무작위</b>예요. 왼쪽 빨간 막대가 받을 줄 수예요.</li>
             <li>모두 같은 순서로 블록이 나오고, 20초마다 빨라져요.</li>
+            <li><b>아이템전</b>: 10줄이 깔린 같은 판과 같은 아이템 5개로 시작해요. 3줄 = 약한 아이템, 4줄 = 좋은 아이템, 금색 ★칸이 든 줄을 지워도 아이템! 숫자 키(또는 상대 판 누르기)로 사용해요. 최대 10개.</li>
             <li>개인전 점수 = (참가자 수 − 순위) × 100 + 보낸 공격 줄 × 10</li>
             <li>팀전 점수 = 승리 팀 200 + 보낸 공격 줄 × 10</li>
           </ul>
@@ -136,7 +167,7 @@
       return `<li><button type="button" class="room-item" ${full ? 'disabled' : ''} data-code="${esc(r.code)}">
         <span class="room-code">${esc(r.code)}</span>
         <span class="room-host">${esc(r.nick)}의 방</span>
-        <span class="room-meta">${r.mode === 'team' ? '팀전' : '개인전'} · ${r.count}/${MAX}명 · ${r.status === 'playing' ? '경기 중' : full ? '꽉 참' : '대기 중'}</span></button></li>`;
+        <span class="room-meta">${r.rule === 'item' ? '아이템전' : '스피드전'} · ${r.mode === 'team' ? '팀전' : '개인전'} · ${r.count}/${MAX}명 · ${r.status === 'playing' ? '경기 중' : full ? '꽉 참' : '대기 중'}</span></button></li>`;
     }).join('');
   }
 
@@ -174,7 +205,7 @@
   function createLocal(play) {
     leaveRoom(true);
     const me = { id: Hub.clientId, nick: myNick(), avatar: myAvatar(), joinedAt: Date.now(), team: null };
-    room = { code: '', local: true, play, ch: fakeCh, peers: [me], bots: [], status: 'waiting', mode: 'solo', myTeam: null, hostId: Hub.clientId, joinedAt: me.joinedAt, checkedFull: true };
+    room = { code: '', local: true, play, ch: fakeCh, peers: [me], bots: [], status: 'waiting', mode: 'solo', rule: 'speed', banned: new Set(), myTeam: null, hostId: Hub.clientId, joinedAt: me.joinedAt, checkedFull: true };
     if (play === 'rank') { startRank(); return; }
     if (play === 'offline') room.bots.push({ id: P2, nick: '2P', human: true, owner: Hub.clientId, team: null, avatar: AV.random('2p-friend') });
     else room.bots.push({ id: 'bot-' + Math.random().toString(36).slice(2, 8), nick: BOT_NAMES[0], level: 'normal', owner: Hub.clientId, team: null, avatar: AV.random('bot-a') });
@@ -184,7 +215,7 @@
   /* ================= 방 (대기실) ================= */
   function joinRoom(code) {
     leaveRoom(true);
-    room = { code, peers: [], bots: [], status: 'waiting', mode: 'solo', myTeam: null, hostId: null, joinedAt: Date.now(), checkedFull: false };
+    room = { code, peers: [], bots: [], status: 'waiting', mode: 'solo', rule: 'speed', banned: new Set(), myTeam: null, hostId: null, joinedAt: Date.now(), checkedFull: false };
     room.ch = Hub.channel('room-' + code, { onMsg: onRoomMsg, onPeers: onRoomPeers, onError() { A.toast('방에 연결하지 못했어요.'); } });
     retrack();
     renderRoom();
@@ -247,14 +278,14 @@
         if (gone && match.alive.has(r.id)) { earlyQuit(r, here); koLocal(r.id, true); }
       });
     }
-    if (isHost()) { broadcastRoom(); advertise(); }
+    if (isHost()) { broadcastRoom(); advertise(); room.peers.forEach(p => { if (room.banned.has(p.id)) room.ch.send({ t: 'kick', id: p.id }); }); }   // v96 내보낸 사람이 다시 오면 또 내보냄
     autoTeam();
     if (!match) renderRoom();
   }
-  function broadcastRoom() { room.ch.send({ t: 'room', bots: room.bots, status: room.status, mode: room.mode }); }
+  function broadcastRoom() { room.ch.send({ t: 'room', bots: room.bots, status: room.status, mode: room.mode, rule: room.rule }); }
   function advertise() {
     if (!lobby || !room || room.local || !isHost()) return;
-    lobby.ch.track({ code: room.code, nick: myNick(), count: totalCount(), status: room.status, mode: room.mode, at: room.joinedAt });
+    lobby.ch.track({ code: room.code, nick: myNick(), count: totalCount(), status: room.status, mode: room.mode, rule: room.rule, at: room.joinedAt });
   }
   function setMode(mode) {
     room.mode = mode;
@@ -266,16 +297,27 @@
     }
     broadcastRoom(); advertise(); renderRoom();
   }
+  function setRule(rule) { room.rule = rule; broadcastRoom(); advertise(); renderRoom(); }
+  // v96 방장이 내보내기
+  function kick(id) {
+    if (!isHost() || id === Hub.clientId) return;
+    const p = room.peers.find(x => x.id === id);
+    room.banned.add(id); room.ch.send({ t: 'kick', id });
+    A.toast((p ? p.nick : '참가자') + ' 님을 내보냈어요.');
+  }
 
   function onRoomMsg(m) {
     if (!room || !m) return;
     if (m.t === 'room') {
-      if (!isHost()) { room.bots = m.bots || []; room.status = m.status; room.mode = m.mode || 'solo'; autoTeam(); if (!match) renderRoom(); }
-    } else if (m.t === 'start') startMatch(m.seed, m.roster, m.mode);
+      if (!isHost()) { room.bots = m.bots || []; room.status = m.status; room.mode = m.mode || 'solo'; room.rule = m.rule || 'speed'; autoTeam(); if (!match) renderRoom(); }
+    } else if (m.t === 'kick') { if (m.id === Hub.clientId) { A.toast('방장이 나를 방에서 내보냈어요.'); leaveRoom(); } }
+    else if (m.t === 'start') startMatch(m.seed, m.roster, m.mode, m.rule, m.items);
     else if (!match) return;
     else if (m.t === 'board') { match.others[m.id] = m; drawMini(m.id); if (match.ended) showResult(); }
     else if (m.t === 'atk') applyAttackLocal(m.from, m.n);
     else if (m.t === 'ko') koLocal(m.id, false);
+    else if (m.t === 'item') onItem(m);
+    else if (m.t === 'swapback') { const L = match.local[m.to]; if (L && match.alive.has(m.to)) { L.eng.setRows(m.rows); sendBoard(m.to, true); } }
   }
 
   const TEAM_NAME = { blue: '블루', red: '레드' };
@@ -284,7 +326,7 @@
     let ctrl = '';
     if (t && mine) ctrl = `<button class="link" type="button" data-myteam="${t === 'blue' ? 'red' : 'blue'}">${TEAM_NAME[t === 'blue' ? 'red' : 'blue']} 팀으로</button>`;
     else if (t && (isBot || isLocal) && host) ctrl = `<button class="link" type="button" data-botteam="${esc(m.id)}">팀 바꾸기</button>`;
-    const rm = isBot && host ? `<button class="link" type="button" data-rmbot="${esc(m.id)}">빼기</button>` : '';
+    const rm = isBot && host ? `<button class="link" type="button" data-rmbot="${esc(m.id)}">빼기</button>` : !isBot && !isLocal && !mine && host && !room.local ? `<button class="link danger" type="button" data-kick="${esc(m.id)}">내보내기</button>` : '';
     return `<li class="${t ? 'team-' + t : ''}">${bust(m.avatar || AV.random(m.id), 2)}<span class="nm">${esc(m.nick)}</span>`
       + (m.id === room.hostId && !room.local ? '<span class="badge host">방장</span>' : '')
       + (mine ? `<span class="badge me">${room.play === 'offline' ? '1P · 나' : '나'}</span>` : '')
@@ -341,11 +383,13 @@
                 <button type="button" role="radio" aria-checked="${!team}" data-mode="solo">개인전<small>모두가 서로 공격</small></button>
                 <button type="button" role="radio" aria-checked="${team}" data-mode="team">팀전<small>블루 vs 레드</small></button>
               </div>
+              <p class="small" style="margin:16px 0 8px">대전 종류</p>
+              <div class="seg" role="radiogroup" aria-label="대전 종류">${Object.entries(RULE).map(([k, v]) => `<button type="button" role="radio" aria-checked="${room.rule === k}" data-rule="${k}">${v.name}<small>${v.desc}</small></button>`).join('')}</div>
               <p class="small" style="margin:16px 0 8px">컴퓨터 상대 추가</p>
               <div class="bot-add">${Object.entries(B.BOT_LEVELS).map(([k, v]) => `<button class="btn btn-sm" type="button" data-addbot="${k}" ${total >= MAX ? 'disabled' : ''}>+ ${v.name}</button>`).join('')}</div>
               <button class="btn btn-primary btn-block" type="button" id="btStart" ${cs.ok ? '' : 'disabled'} style="margin-top:16px">대전 시작 ▶</button>
               <p class="small">${cs.why}</p>`
-            : `<h3>준비 완료</h3><p class="small" style="margin:0">${team ? `<b>${TEAM_NAME[room.myTeam] || ''} 팀</b>으로 참가해요. 팀은 왼쪽에서 바꿀 수 있어요. ` : ''}${esc(hostPeer ? hostPeer.nick : '방장')} 님이 시작하면 바로 경기가 시작돼요.</p>
+            : `<h3>준비 완료</h3><p class="small" style="margin:0 0 6px"><b>${RULE[room.rule].name}</b> · ${RULE[room.rule].desc}</p><p class="small" style="margin:0">${team ? `<b>${TEAM_NAME[room.myTeam] || ''} 팀</b>으로 참가해요. 팀은 왼쪽에서 바꿀 수 있어요. ` : ''}${esc(hostPeer ? hostPeer.nick : '방장')} 님이 시작하면 바로 경기가 시작돼요.</p>
                <div class="waiting-dots" aria-hidden="true"><i></i><i></i><i></i></div>`}
           </div>
         </div>
@@ -359,6 +403,8 @@
     $$('[data-myteam]', root).forEach(b => b.addEventListener('click', () => setMyTeam(b.dataset.myteam)));
     if (host) {
       $$('[data-mode]', root).forEach(b => b.addEventListener('click', () => { if (room.mode !== b.dataset.mode) setMode(b.dataset.mode); }));
+      $$('[data-rule]', root).forEach(b => b.addEventListener('click', () => { if (room.rule !== b.dataset.rule) setRule(b.dataset.rule); }));
+      $$('[data-kick]', root).forEach(b => b.addEventListener('click', () => { const p = room.peers.find(x => x.id === b.dataset.kick); if (p && confirm(p.nick + ' 님을 방에서 내보낼까요?')) kick(p.id); }));
       $$('[data-addbot]', root).forEach(b => b.addEventListener('click', () => {
         if (totalCount() >= MAX) return;
         const used = new Set(room.bots.map(x => x.nick));
@@ -384,8 +430,10 @@
     const seed = (Math.random() * 2147483647) | 0, mode = room.mode, team = id => (mode === 'team' ? roomTeamOf(id) : null);
     const roster = room.peers.map(p => ({ id: p.id, uid: p.uid || null, nick: p.nick, team: team(p.id), avatar: p.avatar }))
       .concat(room.bots.map(b => ({ id: b.id, nick: b.nick, bot: !b.human, human: !!b.human, level: b.level, owner: b.owner, team: team(b.id), avatar: b.avatar })));
-    room.ch.send({ t: 'start', seed, roster, mode });
-    startMatch(seed, roster, mode);
+    const rule = room.rule === 'item' ? 'item' : 'speed';
+    const all = ALL_ITEMS(), items = rule === 'item' ? Array.from({ length: IT().startItems }, () => all[Math.random() * all.length | 0]) : [];   // 모두 같은 아이템으로 시작
+    room.ch.send({ t: 'start', seed, roster, mode, rule, items });
+    startMatch(seed, roster, mode, rule, items);
   }
 
   function startRank() {
@@ -394,7 +442,7 @@
   }
 
   /* ================= 경기 ================= */
-  function startMatch(seed, roster, mode) {
+  function startMatch(seed, roster, mode, rule, startItems) {
     if (!room) return;
     stopMatch();
     room.status = 'playing';
@@ -405,13 +453,14 @@
     match = {
       seed, roster, n: roster.length, alive: new Set(roster.map(r => r.id)), places: {}, others: {},
       mode: mode === 'team' ? 'team' : 'solo', teamOf: Object.fromEntries(roster.map(r => [r.id, r.team || null])), winTeam: null,
-      running: false, ended: false, raf: 0, last: 0, clock: P.clock(), flash: {}, popups: {}, saved: null, play: room.local ? room.play : 'online',
+      running: false, ended: false, raf: 0, last: 0, clock: P.clock(), flash: {}, popups: {}, saved: null, play: room.local ? room.play : 'online', rule: rule === 'item' && !(room.local && room.play === 'rank') ? 'item' : 'speed', log: [],
       local: {} // 이 기기에서 돌리는 참가자: 나 + (방장이면) 컴퓨터 + (오프라인이면) 2P
     };
-    const rank = room.local && room.play === 'rank';
+    const rank = room.local && room.play === 'rank', itemMode = match.rule === 'item', sRows = itemMode ? startRowsOf(seed) : null;
     const mk = id => ({
-      seed, levelFn: rank ? rankLevelFn : levelFn, speed: rank ? RK().speed : 1,
+      seed, levelFn: rank ? rankLevelFn : levelFn, speed: rank ? RK().speed : 1, startRows: sRows,
       onClear: n => onClear(id, n),
+      onItems: n => { for (let i = 0; i < n; i++) gainItem(id, randItem(Math.random() < IT().cellStrong), '★ 아이템 칸'); },
       onLock: () => sendBoard(id),
       onTopOut: () => { sendBoard(id, true); ko(id); }
     });
@@ -422,6 +471,7 @@
       match.local[r.id] = { eng: bot.eng, bot };
     });
     roster.forEach(r => { match.others[r.id] = { id: r.id, rows: null, sent: 0, lines: 0 }; });
+    Object.values(match.local).forEach(L => { L.items = itemMode ? (startItems || []).slice(0, IT().maxItems) : []; L.cellT = Math.random() * 3000; L.botT = 0; L.shieldUntil = 0; });
     renderMatch();
     countdown();
   }
@@ -448,6 +498,11 @@
       (match.popups[id] = match.popups[id] || []).push({ text: n + '줄! +' + add + (mul > 1 ? ' (×' + mul + ')' : '') + (n >= 4 && st.chain > 1 ? ' ' + st.chain + '연속' : ''), t: 0, hot: n >= 3 });
       return;
     }
+    if (match.rule === 'item') {   // v96 아이템전: 3줄 = 약한 아이템 · 4줄 = 좋은 아이템 (줄 공격 없음)
+      if (mainIds().includes(id)) (match.popups[id] = match.popups[id] || []).push({ text: n + '줄!', t: 0, hot: n >= 3 });
+      if (n >= 3) gainItem(id, randItem(n >= 4), n + '줄');
+      return;
+    }
     const atk = ATTACK[n] || 0;
     if (mainIds().includes(id)) (match.popups[id] = match.popups[id] || []).push({ text: n + '줄!' + (atk ? ' 공격 +' + atk : ''), t: 0, hot: !!atk });
     if (!atk) return;
@@ -464,6 +519,116 @@
       if (id === Hub.clientId || L.human) match.flash[id] = 400;
     });
   }
+  /* ================= v96 아이템전 ================= */
+  const slotOf = id => match ? match.roster.findIndex(r => r.id === id) + 1 : 0;
+  const nickOf = id => { const r = match && match.roster.find(x => x.id === id); return r ? (r.id === Hub.clientId ? '나' : r.nick) : '?'; };
+  const sameSide = (a, b) => a === b || (match.mode === 'team' && match.teamOf[a] === match.teamOf[b]);
+  function gainItem(id, kind, why) {
+    const L = match && match.local[id]; if (!L || !match.alive.has(id) || match.ended) return;
+    const mine = mainIds().includes(id);
+    if (L.items.length >= IT().maxItems) { if (mine) (match.popups[id] = match.popups[id] || []).push({ text: '아이템 칸이 가득!', t: 0 }); return; }
+    L.items.push(kind);
+    if (mine) { (match.popups[id] = match.popups[id] || []).push({ text: (why ? why + ' → ' : '') + ITEM[kind].name, t: 0, hot: isStrong(kind) }); renderItemBar(); }
+  }
+  // 맨 앞 아이템을 to 에게 사용 (from = 이 기기에서 돌리는 참가자)
+  function useItem(from, to) {
+    if (!match || match.rule !== 'item' || !match.running || match.ended) return false;
+    const L = match.local[from]; if (!L || !L.items.length || !match.alive.has(from)) return false;
+    if (!to || !match.alive.has(to)) { if (from === Hub.clientId) A.toast('살아 있는 사람에게만 쓸 수 있어요.'); return false; }
+    const kind = L.items[0], def = ITEM[kind];
+    if (def.bad && sameSide(from, to)) { if (from === Hub.clientId) A.toast(`'${def.name}'은 공격 아이템이라 상대에게만 쓸 수 있어요.`); return false; }
+    L.items.shift(); L.eng.sent++;
+    const m = { t: 'item', from, to, kind, k: Math.random().toString(36).slice(2, 8) };
+    if (kind === 'swap') m.rows = L.eng.rows();
+    room.ch.send(m);
+    onItem(m);
+    if (from === Hub.clientId) renderItemBar();
+    return true;
+  }
+  // 아이템이 날아감: 모두의 화면에 반짝이 + 아래 기록, 받는 사람을 돌리는 기기가 효과 적용
+  function onItem(m) {
+    if (!match || !ITEM[m.kind]) return;
+    const def = ITEM[m.kind];
+    match.log.unshift({ from: m.from, to: m.to, kind: m.kind }); match.log.length = Math.min(match.log.length, 4);
+    renderLog();
+    flySparkle(m.from, m.to, def.bad);
+    if (match.local[m.to]) { const mm = match; setTimeout(() => { if (match === mm) applyItem(m); }, 650); }
+  }
+  function applyItem(m) {
+    const L = match.local[m.to], eng = L && L.eng, def = ITEM[m.kind], cfg = IT();
+    if (!eng || eng.over || !match.alive.has(m.to) || match.ended) return;
+    const mine = mainIds().includes(m.to), pop = (text, hot) => { if (mine) (match.popups[m.to] = match.popups[m.to] || []).push({ text, t: 0, hot }); };
+    tagAt(m.to, def.name, def.bad);
+    if (def.bad && L.shieldUntil > Date.now()) { pop('방패로 막았어요!', true); tagAt(m.to, '막음!', false); return; }
+    if (m.kind === 'add1' || m.kind === 'add2') eng.addGarbage(m.kind === 'add1' ? 1 : 2);
+    else if (m.kind === 'sub1' || m.kind === 'sub2') eng.removeBottom(m.kind === 'sub1' ? 1 : 2);
+    else if (m.kind === 'shield') L.shieldUntil = Date.now() + cfg.shieldSec * 1000;
+    else if (m.kind === 'weird') eng.makeWeird(cfg.weirdCount);
+    else if (m.kind === 'clear') eng.clearAll();
+    else if (m.kind === 'hide') eng.hidePieces = cfg.hideCount;
+    else if (m.kind === 'swap') {
+      const F = match.local[m.from], mineRows = eng.rows();
+      if (F) { eng.setRows(F.eng.rows()); F.eng.setRows(mineRows); sendBoard(m.from, true); }   // 둘 다 이 기기에 있으면 바로 바꿈
+      else { eng.setRows(m.rows); room.ch.send({ t: 'swapback', to: m.from, rows: mineRows }); }
+    }
+    pop(nickOf(m.from) + ' → ' + def.name, def.bad);
+    if (def.bad && mine) match.flash[m.to] = 400;
+    sendBoard(m.to, true);
+  }
+  // 반짝이: 보낸 사람 판 → 받은 사람 판
+  function boardEl(id) { return root && (root.querySelector(`canvas[data-main="${CSS.escape(id)}"]`) || root.querySelector(`[data-mini="${CSS.escape(id)}"] .mini-screen`)); }
+  function flySparkle(from, to, bad) {
+    const host = root && root.querySelector('.match'), a = boardEl(from), b = boardEl(to); if (!host || !a || !b) return;
+    const hr = host.getBoundingClientRect(), ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    const x0 = ra.left + ra.width / 2 - hr.left, y0 = ra.top + ra.height / 2 - hr.top, x1 = rb.left + rb.width / 2 - hr.left, y1 = rb.top + rb.height / 2 - hr.top;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const star = document.createElement('div'); star.className = 'it-spark' + (bad ? ' bad' : ''); host.appendChild(star);
+    const t0 = performance.now(), dur = reduce ? 1 : 650, lift = Math.min(160, Math.abs(x1 - x0) * 0.35 + 50);
+    const step = now => {
+      const t = Math.min(1, (now - t0) / dur), x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t - Math.sin(t * Math.PI) * lift;
+      star.style.transform = `translate(${x}px, ${y}px) rotate(${t * 540}deg)`;
+      if (!reduce && Math.random() < 0.8) { const d = document.createElement('i'); d.className = 'it-trail' + (bad ? ' bad' : ''); d.style.transform = `translate(${x + (Math.random() - 0.5) * 14}px, ${y + (Math.random() - 0.5) * 14}px)`; host.appendChild(d); setTimeout(() => d.remove(), 450); }
+      if (t < 1) requestAnimationFrame(step); else { star.remove(); burst(host, x1, y1, bad); }
+    };
+    requestAnimationFrame(step);
+  }
+  function burst(host, x, y, bad) {
+    for (let i = 0; i < 10; i++) {
+      const d = document.createElement('i'); d.className = 'it-trail big' + (bad ? ' bad' : ''); const a = i / 10 * Math.PI * 2, r = 26 + Math.random() * 14;
+      d.style.transform = `translate(${x}px, ${y}px)`; host.appendChild(d);
+      requestAnimationFrame(() => { d.style.transform = `translate(${x + Math.cos(a) * r}px, ${y + Math.sin(a) * r}px) scale(.4)`; d.style.opacity = '0'; });
+      setTimeout(() => d.remove(), 500);
+    }
+  }
+  // 받은 판 아래에 작은 글씨로 무엇을 맞았는지
+  function tagAt(id, text, bad) {
+    const host = root && root.querySelector('.match'), el = boardEl(id); if (!host || !el) return;
+    const hr = host.getBoundingClientRect(), r = el.getBoundingClientRect();
+    const t = document.createElement('div'); t.className = 'it-tag' + (bad ? ' bad' : ''); t.textContent = text;
+    t.style.left = (r.left + r.width / 2 - hr.left) + 'px'; t.style.top = (r.bottom - hr.top - 4) + 'px'; host.appendChild(t);
+    setTimeout(() => t.remove(), 1600);
+  }
+  function renderLog() {
+    const el = root && root.querySelector('#itemLog'); if (!el || !match) return;
+    el.innerHTML = match.log.map(l => `<li class="${ITEM[l.kind].bad ? 'bad' : 'good'}"><b>${slotOf(l.from)} ${esc(nickOf(l.from))}</b> → <b>${slotOf(l.to)} ${esc(nickOf(l.to))}</b> · ${ITEM[l.kind].name}</li>`).join('') || '<li class="empty">아이템을 쓰면 여기에 나와요</li>';
+  }
+  function renderItemBar() {
+    const el = root && root.querySelector('#itemBar'), L = match && match.local[Hub.clientId]; if (!el || !L) return;
+    const max = IT().maxItems;
+    el.innerHTML = Array.from({ length: max }, (_, i) => { const k = L.items[i]; return k ? `<span class="it-chip ${ITEM[k].bad ? 'bad' : 'good'} ${isStrong(k) ? 'strong' : ''} ${i === 0 ? 'first' : ''}" title="${ITEM[k].name}"><b>${ITEM[k].ic}</b><small>${ITEM[k].name}</small></span>` : '<span class="it-chip empty"></span>'; }).join('');
+  }
+  // 컴퓨터 상대: 공격 아이템은 상대에게, 도움 아이템은 가장 높이 쌓인 같은 편(또는 자기)에게
+  function botItems(id, L, dt) {
+    if (!L.items.length) return;
+    L.botT += dt; if (L.botT < 2600 + Math.random() * 2600) return; L.botT = 0;
+    const k = L.items[0], def = ITEM[k], alive = Array.from(match.alive);
+    if (def.bad) { const foes = alive.filter(x => !sameSide(id, x)); if (foes.length) useItem(id, foes[Math.random() * foes.length | 0]); return; }
+    const hOf = x => match.local[x] ? match.local[x].eng.height() : rowsHeight((match.others[x] || {}).rows);
+    const friends = alive.filter(x => sameSide(id, x)).sort((a, b) => hOf(b) - hOf(a));
+    if (k === 'shield' || hOf(friends[0]) >= 7 || L.items.length >= IT().maxItems - 1) useItem(id, k === 'shield' ? id : friends[0]);
+  }
+  const rowsHeight = rows => { if (!rows) return 0; for (let r = 0; r < rows.length; r++) if (/[^.]/.test(rows[r])) return rows.length - r; return 0; };
+
   // 상대 화면 갱신은 참가자마다 최대 2초에 1번만 전송 (무료 요금제 메시지 한도 절약)
   const BOARD_EVERY = 2000;
   function sendBoard(id, now) {
@@ -560,7 +725,7 @@
     if (!Hub.user) return;
     const m = match;
     try {
-      const r = await Hub.submitScore({ game_id: 'battle', score: res.score, result: res.win ? 'win' : 'lose', points_delta: res.delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: m.play, mode: m.mode, team: m.teamOf[Hub.clientId], win: res.win, place, players: m.n, sent: eng.sent, lines: eng.lines, bots: m.roster.filter(x => x.bot).length } });
+      const r = await Hub.submitScore({ game_id: 'battle', score: res.score, result: res.win ? 'win' : 'lose', points_delta: res.delta, duration_sec: Math.max(m.clock.sec(), 3), extra: { play: m.play, rule: m.rule, mode: m.mode, team: m.teamOf[Hub.clientId], win: res.win, place, players: m.n, sent: eng.sent, lines: eng.lines, bots: m.roster.filter(x => x.bot).length } });
       m.saved = { ...m.saved, status: r.queued ? 'queued' : 'saved', gained: r.gained };
     } catch (e) { m.saved = { ...m.saved, status: 'error', msg: e.message }; }
     if (match === m) showResult();
@@ -572,9 +737,10 @@
     // 팀전: 우리 팀을 먼저, 상대 팀을 뒤에
     const others = match.roster.filter(r => !mains.includes(r.id)).sort((a, b) => team ? (a.team === myTeam ? 0 : 1) - (b.team === myTeam ? 0 : 1) : 0);
     const half = Math.ceil(others.length / 2), sides = [others.slice(0, half), others.slice(half)];
-    const miniHTML = r => `<div class="mini ${team ? 'team-' + r.team : ''}" data-mini="${esc(r.id)}"><div class="mini-screen"><canvas aria-hidden="true"></canvas><div class="mini-ko" hidden></div></div><div class="mini-name"><span>${bust(r.avatar || AV.random(r.id), 1)}${team ? `<i class="dot t-${r.team}"></i>` : ''}${esc(r.nick)}</span>${team ? `<small>${r.team === myTeam ? '우리 팀' : '상대 팀'}</small>` : ''}${r.bot ? `<small>컴퓨터·${B.BOT_LEVELS[r.level].name}</small>` : ''}</div><div class="mini-stat num" data-stat>ATK 0</div></div>`;
+    const itemMode = match.rule === 'item';
+    const miniHTML = r => `<div class="mini ${team ? 'team-' + r.team : ''} ${itemMode ? 'pickable' : ''}" data-mini="${esc(r.id)}"><div class="mini-screen"><canvas aria-hidden="true"></canvas><div class="mini-ko" hidden></div></div><div class="mini-name"><span>${itemMode ? `<b class="slot-no">${slotOf(r.id)}</b>` : ''}${bust(r.avatar || AV.random(r.id), 1)}${team ? `<i class="dot t-${r.team}"></i>` : ''}${esc(r.nick)}</span>${team ? `<small>${r.team === myTeam ? '우리 팀' : '상대 팀'}</small>` : ''}${r.bot ? `<small>컴퓨터·${B.BOT_LEVELS[r.level].name}</small>` : ''}</div><div class="mini-stat num" data-stat>ATK 0</div></div>`;
     const nameOfMain = id => { const r = match.roster.find(x => x.id === id); return r ? r.nick : ''; };
-    const title = match.play === 'online' ? (team ? `팀전 · <span class="team-word t-${myTeam}">${TEAM_NAME[myTeam]} 팀</span>` : '블록 대전') : PLAY[match.play].name;
+    const title = (match.play === 'online' ? (team ? `팀전 · <span class="team-word t-${myTeam}">${TEAM_NAME[myTeam]} 팀</span>` : '블록 대전') : PLAY[match.play].name) + (itemMode ? ' · <span class="rule-word">아이템전</span>' : match.play === 'online' ? ' · 스피드전' : '');
     root.innerHTML = `
       <div class="match ${team ? 'team-' + myTeam : ''}">
         <div class="play-head">${match.play === 'online' ? `<span class="cat">방 ${esc(room.code)}</span>` : '<span class="cat">블록 대전</span>'}<h1>${title}</h1><span class="small" id="aliveTxt" style="margin:0">${aliveText()}</span></div>
@@ -582,10 +748,11 @@
           <div class="minis side-l" style="--n:${sides[0].length}">${sides[0].map(miniHTML).join('')}</div>
           <div class="stage-col">
             <div class="mains">
-              ${mains.map((id, i) => `<div class="main-col">${mains.length > 1 ? `<div class="main-tag">${i ? '2P · 방향키' : '1P · WASD'} <b>${esc(nameOfMain(id))}</b></div>` : ''}<div class="cabinet ${team ? 'cab-' + match.teamOf[id] : ''}" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas data-main="${esc(id)}" aria-label="${i ? '2P' : '내'} 게임 화면"></canvas></div></div></div>`).join('')}
+              ${mains.map((id, i) => `<div class="main-col">${mains.length > 1 ? `<div class="main-tag">${i ? '2P · 방향키' : '1P · WASD'} <b>${esc(nameOfMain(id))}</b></div>` : ''}${itemMode && !i ? `<div class="main-tag"><b class="slot-no">${slotOf(id)}</b> 내 번호 · 숫자 키 1~${match.n}로 그 사람에게 맨 앞 아이템 사용</div>` : ''}<div class="cabinet ${team ? 'cab-' + match.teamOf[id] : ''}" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas data-main="${esc(id)}" aria-label="${i ? '2P' : '내'} 게임 화면"></canvas></div></div>${itemMode && !i ? '<div class="item-bar" id="itemBar" aria-label="내 아이템 (왼쪽부터 순서대로 사용)"></div>' : ''}</div>`).join('')}
               <div class="overlay" id="btOv"></div>
             </div>
-            <div class="pad pad6" id="pad"><button type="button" data-act="hold" aria-label="블록 저장">HOLD</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟲</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button></div>
+            <div class="pad pad6" id="pad"><button type="button" data-act="hold" aria-label="블록 저장">HOLD</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟲</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button>${itemMode ? '<button type="button" class="pad-it" data-act="itemself" aria-label="맨 앞 아이템을 나에게">나에게</button>' : ''}</div>
+            ${itemMode ? '<ul class="item-log" id="itemLog" aria-live="polite"></ul><p class="small it-help">상대 판을 누르거나 숫자 키를 누르면 맨 앞 아이템이 날아가요. 공격 아이템(빨강)은 상대에게, 도움 아이템(파랑)은 나·같은 편에게!</p>' : ''}
           </div>
           <div class="minis side-r" style="--n:${sides[1].length}">${sides[1].map(miniHTML).join('')}</div>
         </div>
@@ -595,12 +762,16 @@
     $$('.mini-screen canvas', root).forEach(c => P.setup(c, B.COLS * MINI, B.ROWS * MINI));
     AV.paintAll(root);
     others.forEach(r => drawMini(r.id));
+    if (itemMode) {
+      renderItemBar(); renderLog();
+      $$('.mini.pickable', root).forEach(el => el.addEventListener('click', () => useItem(Hub.clientId, el.dataset.mini)));
+    }
     // 터치 패드 (1P = 나)
     $$('#pad [data-act]', root).forEach(b => {
       let t1 = 0, t2 = 0;
       const stop = () => { clearTimeout(t1); clearInterval(t2); };
       b.addEventListener('pointerdown', e => {
-        e.preventDefault(); act(b.dataset.act);
+        e.preventDefault(); if (b.dataset.act === 'itemself') { useItem(Hub.clientId, Hub.clientId); return; } act(b.dataset.act);
         if (['left', 'right', 'down'].includes(b.dataset.act)) t1 = setTimeout(() => { t2 = setInterval(() => act(b.dataset.act), b.dataset.act === 'down' ? SOFT : ARR); }, b.dataset.act === 'down' ? 0 : DAS);
       });
       ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, stop));
@@ -613,6 +784,10 @@
       if (match.running && !match.ended) Object.entries(match.local).forEach(([id, L]) => {
         if (!match.alive.has(id)) return;
         if (L.bot) L.bot.update(dt); else L.eng.update(dt);
+        if (match.rule === 'item' && !L.eng.over) {   // v96 쌓인 블록 한 칸이 가끔 아이템 칸(★)으로
+          L.cellT += dt; if (L.cellT >= IT().cellEverySec * 1000) { L.cellT = 0; if (L.eng.addItemCell(IT().maxCells)) sendBoard(id); }
+          if (L.bot) botItems(id, L, dt);
+        }
       });
       mains.forEach(id => drawMain(id, dt));
       const at = $('#aliveTxt'); if (at) at.textContent = aliveText();
@@ -625,9 +800,10 @@
     const hint = () => match.play === 'offline'
       ? '1P: WASD · Space 한 번에 · 왼쪽 Shift 저장<br>2P: 방향키 · Enter 한 번에 · 오른쪽 Shift 저장'
       : match.play === 'rank' ? '랭킹 대전 · 1줄 1점 · 2줄 2점 · 3줄 6점 · 4줄 10점 (연속 20·30·40) · 20초마다 빨라지고 점수 ×1.2·×1.4…' : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
+    const hint2 = () => match.rule === 'item' ? '아이템전 · 3줄 = 약한 아이템 · 4줄 = 좋은 아이템 · ★칸이 든 줄을 지워도 아이템!<br>숫자 키 1~' + match.n + ' = 그 사람에게 맨 앞 아이템 사용 (내 번호 ' + slotOf(Hub.clientId) + ')' : hint();
     const step = () => {
       if (!match || !ov.isConnected) return;
-      if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${hint()}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
+      if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${hint2()}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
       else { ov.hidden = true; match.running = true; match.t0 = Date.now(); match.clock.start(); BGM.restart(); }
     };
     step();
@@ -662,6 +838,11 @@
       ctx.fillRect(HOLDW + 2, H - Math.min(H, pend * C), METER - 4, Math.min(H, pend * C));
     }
     B.drawBoard(ctx, eng, BX, 0, C, { live: match.running && !eng.over });
+    if (L.shieldUntil > Date.now()) {   // v96 방패
+      const a = 0.35 + 0.15 * Math.sin(performance.now() / 90);
+      ctx.strokeStyle = 'rgba(111,207,255,' + a + ')'; ctx.lineWidth = 6; ctx.strokeRect(BX + 3, 3, B.COLS * C - 6, H - 6);
+      P.text(ctx, 'SHIELD', BX + B.COLS * C / 2, 46, 13, '#8FE3FF', 'center');
+    }
     const fl = match.flash[id] || 0;
     if (fl > 0) { match.flash[id] = fl - dt; ctx.fillStyle = 'rgba(255,90,95,' + (0.25 * fl / 400) + ')'; ctx.fillRect(BX, 0, B.COLS * C, H); }
     // 오른쪽: 다음 블록 5개 + 정보
@@ -676,6 +857,10 @@
       P.text(ctx, 'LINES', cx, 340, 9, P.DIM); P.text(ctx, eng.lines, cx, 354, 13, P.INK);
       P.text(ctx, 'STAGE', cx + 56, 340, 9, P.DIM); P.text(ctx, rankStep(eng) + ' ×' + rankMult(eng), cx + 56, 354, 11, P.PIECE.O);   // v62 단계 · 점수 배율
       if ((rk.chain || 0) > 0) { P.text(ctx, '4LINE', cx, 386, 9, P.DIM); P.text(ctx, rk.chain + ' COMBO', cx, 400, 11, P.PIECE.I); }
+    } else if (match.rule === 'item') {
+      P.text(ctx, 'ITEMS', cx, 290, 9, P.DIM); P.text(ctx, (L.items || []).length + '/' + IT().maxItems, cx, 304, 13, '#FFC83D');
+      P.text(ctx, 'LINES', cx + 56, 290, 9, P.DIM); P.text(ctx, eng.lines, cx + 56, 304, 13, P.INK);
+      P.text(ctx, 'SPEED', cx, 336, 9, P.DIM); P.text(ctx, eng.level, cx, 350, 13, P.PIECE.O);
     } else {
       P.text(ctx, 'ATTACK', cx, 290, 9, P.DIM); P.text(ctx, eng.sent, cx, 304, 13, '#FF5A5F');
       P.text(ctx, 'LINES', cx + 56, 290, 9, P.DIM); P.text(ctx, eng.lines, cx + 56, 304, 13, P.INK);
@@ -761,7 +946,7 @@
         ? `<div class="ov-title"><span class="t-${match.winTeam}">${TEAM_NAME[match.winTeam] || ''} 팀</span> 승리!</div><span class="ov-best">${won ? 'VICTORY' : 'DEFEAT'}</span>`
         : `<div class="ov-title">${myPlace === 1 ? '우승!' : myPlace + '위'}</div>${myPlace === 1 ? '<span class="ov-best">WINNER</span>' : ''}`}
       <ol class="result-list">${order.map(r => `<li class="${r.id === Hub.clientId ? 'mine' : ''}"><span class="num">${team ? `<i class="dot t-${r.team}"></i>` : match.places[r.id] || '-'}</span><span class="rl-name">${bust(r.avatar || AV.random(r.id), 1)}${esc(r.nick)}</span><span class="num">${sentOf(r)}</span></li>`).join('')}</ol>
-      <p class="ov-hint">오른쪽 숫자 = 보낸 공격 줄</p>
+      <p class="ov-hint">오른쪽 숫자 = ${match.rule === 'item' ? '쓴 아이템 수' : '보낸 공격 줄'}</p>
       ${note}
       <div class="ov-btns">${isHost() ? '<button class="btn btn-sun" type="button" id="btAgain">한 판 더 ▶</button>' : ''}<button class="btn" type="button" id="btBack">${room && room.local ? '설정으로' : '대기실로'}</button></div>
       ${isHost() ? '' : '<p class="ov-hint">방장이 다음 판을 시작하면 바로 시작돼요.</p>'}
@@ -778,6 +963,8 @@
     if (!match || !match.running) return;
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
+    const dg = /^(Digit|Numpad)([1-6])$/.exec(e.code);   // v96 아이템전: 숫자 = 그 번호 사람에게 맨 앞 아이템
+    if (dg && match.rule === 'item') { e.preventDefault(); if (e.type === 'keydown' && !e.repeat) { const r = match.roster[+dg[2] - 1]; if (r) useItem(Hub.clientId, r.id); } return; }
     let a, id = Hub.clientId;
     if (match.play === 'offline' && match.local[P2]) {
       if (KEY_1P[e.code]) a = KEY_1P[e.code];

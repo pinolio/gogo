@@ -1465,3 +1465,45 @@ a.nm-t:hover { text-decoration: underline; }
 /* v94 아바타 미리보기 그림자: 신발 밑에 납작한 타원 (예전: 다리 뒤 세로로 긴 원) */
 .shop-layout .pv-stage { background: radial-gradient(52px 10px at 50% calc(100% - 17px), rgba(29,35,64,.30) 0 45%, rgba(29,35,64,0) 100%), linear-gradient(180deg, #FFE9A8 0 74%, #E7B97A 74% 100%); }
 .shop-layout .pv-stage.furn-pv { background: linear-gradient(180deg, #FFE9A8 0 74%, #E7B97A 74% 100%); }
+
+/* ===== v96 블록 대전 아이템전 ===== */
+.match { position: relative; }
+.pad.pad6:has(.pad-it) { grid-template-columns: repeat(7, 1fr); max-width: 520px; }
+.pad .pad-it { font-size: 11px; font-weight: 800; padding: 0; background: #FFC83D; color: #1D2340; }
+.rule-word { color: #E8A800; }
+.slot-no { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 5px; background: #1D2340; color: #FFC83D; font-size: 12px; font-weight: 800; line-height: 1; }
+.mini.pickable { cursor: pointer; }
+.mini.pickable:hover .mini-screen { outline: 3px solid #FFC83D; outline-offset: 2px; }
+.link.danger { color: #D9363E; }
+/* 내 아이템 칸 (왼쪽부터 순서대로 사용) */
+.item-bar { display: grid; grid-template-columns: repeat(10, minmax(0, 46px)); justify-content: center; gap: 5px; margin-top: 10px; }
+.main-tag .slot-no, .mini-name .slot-no { color: #FFC83D; }
+.it-chip { position: relative; display: grid; place-items: center; aspect-ratio: 1; border-radius: 7px; border: 2px solid #1D2340; background: #FFFFFF; color: #1D2340; font-size: 15px; line-height: 1; overflow: hidden; }
+.it-chip small { position: absolute; left: 0; right: 0; bottom: 2px; font-size: 9px; letter-spacing: -.04em; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.it-chip b { margin-top: -9px; font-size: 18px; font-weight: 900; }
+.it-chip.bad { background: #FFE1DC; color: #B42318; }
+.it-chip.good { background: #DCEEFF; color: #1D4FB8; }
+.it-chip.strong { border-color: #E8A800; box-shadow: inset 0 0 0 2px #FFD84D; }
+.it-chip.first { transform: translateY(-3px); box-shadow: 0 0 0 3px #FFC83D; }
+.it-chip.empty { background: transparent; border-style: dashed; border-color: var(--ink-2); opacity: .45; }
+/* 누가 누구에게 무엇을 썼는지 (작게) */
+.item-log { list-style: none; margin: 8px auto 0; padding: 0; max-width: 520px; font-size: 12px; color: var(--ink-2); }
+.item-log li { padding: 2px 8px; border-left: 3px solid #6FA8FF; margin-bottom: 2px; }
+.item-log li.bad { border-left-color: #FF6B5A; }
+.item-log li b { color: var(--ink); font-weight: 700; }
+.item-log li.empty { border: 0; opacity: .7; }
+.it-help { max-width: 520px; margin: 6px auto 0; text-align: center; font-size: 11px; }
+/* 날아가는 반짝이 */
+.it-spark { position: absolute; left: -11px; top: -11px; width: 22px; height: 22px; z-index: 30; pointer-events: none;
+  background: radial-gradient(circle, #FFFFFF 0 22%, #9FE0FF 40%, rgba(111,168,255,0) 70%);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); }
+.it-spark.bad { background: radial-gradient(circle, #FFFFFF 0 22%, #FFD84D 42%, rgba(255,107,90,0) 72%); }
+.it-trail { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%; z-index: 29; pointer-events: none; background: #BFE8FF; animation: itFade .45s ease-out forwards; }
+.it-trail.bad { background: #FFD84D; }
+.it-trail.big { width: 8px; height: 8px; left: -4px; top: -4px; animation: none; transition: transform .45s ease-out, opacity .45s ease-out; }
+@keyframes itFade { to { opacity: 0; } }
+.it-tag { position: absolute; z-index: 31; transform: translate(-50%, 0); padding: 2px 8px; border-radius: 999px; background: #1D2340; color: #BFE8FF; font-size: 11px; font-weight: 700; white-space: nowrap; pointer-events: none; animation: itTag 1.6s ease-out forwards; }
+.it-tag.bad { color: #FFD84D; }
+@keyframes itTag { 0% { opacity: 0; transform: translate(-50%, 6px); } 15% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -6px); } }
+@media (prefers-reduced-motion: reduce) { .it-tag { animation: none; } .it-trail { display: none; } }
+@media (max-width: 560px) { .it-chip small { display: none; } .it-chip b { margin: 0; } }
