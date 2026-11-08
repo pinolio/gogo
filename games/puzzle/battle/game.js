@@ -1,7 +1,7 @@
 /*
  * gogo?gogo! — 블록 대전 (최대 6명 실시간)
  *  공격 규칙(스피드전): 한 번에 3줄 지우면 상대 모두에게 1줄, 4줄 지우면 3줄 (빈칸 위치는 무작위)
- *  v96 아이템전: 3줄 = 약한 아이템 · 4줄 = 좋은 아이템 · ★칸 줄을 지워도 아이템, 숫자 키로 그 번호 사람에게 사용 (settings.js item)
+ *  v96 아이템전(v97: 줄 공격도 보냄): 3줄 = 약한 아이템 · 4줄 = 좋은 아이템 · ★칸 줄을 지워도 아이템, 숫자 키로 그 번호 사람에게 사용 (settings.js item)
  *  흐름: 로비(방 목록·코드 입장) → 대기실(방장이 컴퓨터 추가·시작) → 경기 → 결과
  */
 (function () {
@@ -57,12 +57,12 @@
     swap: { name: '판 바꾸기', ic: '⇄', bad: true },
     sub1: { name: '1줄 빼기', ic: '−1' },
     sub2: { name: '2줄 빼기', ic: '−2' },
-    shield: { name: '방패', ic: '盾' },
+    shield: { name: '방패', ic: '盾', own: true },   // own = 나·같은 편에게만
     weird: { name: '기괴한 모양', ic: '✶', bad: true },
     clear: { name: '모두 사라지기', ic: '✦' },
     hide: { name: '안 보이기', ic: '?', bad: true }
   };
-  const RULE = { speed: { name: '스피드전', desc: '빈 판 · 3줄=1줄, 4줄=3줄 공격' }, item: { name: '아이템전', desc: '아이템으로 공격·방어' } };
+  const RULE = { speed: { name: '스피드전', desc: '빈 판 · 3줄=1줄, 4줄=3줄 공격' }, item: { name: '아이템전', desc: '줄 공격 + 아이템으로 공격·방어' } };
   const isStrong = k => IT().strong.includes(k);
   const randItem = strong => { const l = strong ? IT().strong : IT().weak; return l[Math.random() * l.length | 0]; };
   const ALL_ITEMS = () => IT().weak.concat(IT().strong);
@@ -133,7 +133,7 @@
             <li><b>팀전 (블루 vs 레드)</b>: 공격은 상대 팀에게만 가요. 한 팀이 모두 탈락하면 끝!</li>
             <li>올라오는 줄은 빈칸 위치가 <b>무작위</b>예요. 왼쪽 빨간 막대가 받을 줄 수예요.</li>
             <li>모두 같은 순서로 블록이 나오고, 20초마다 빨라져요.</li>
-            <li><b>아이템전</b>: 10줄이 깔린 같은 판과 같은 아이템 5개로 시작해요. 3줄 = 약한 아이템, 4줄 = 좋은 아이템, 금색 ★칸이 든 줄을 지워도 아이템! 숫자 키(또는 상대 판 누르기)로 사용해요. 최대 10개.</li>
+            <li><b>아이템전</b>: 10줄이 깔린 같은 판과 같은 아이템 5개로 시작해요. 줄 공격은 스피드전과 같고, 3줄 = 약한 아이템, 4줄 = 좋은 아이템, 금색 ★칸이 든 줄을 지워도 아이템! 숫자 키(또는 상대 판 누르기)로 사용해요. 최대 10개.</li>
             <li>개인전 점수 = (참가자 수 − 순위) × 100 + 보낸 공격 줄 × 10</li>
             <li>팀전 점수 = 승리 팀 200 + 보낸 공격 줄 × 10</li>
           </ul>
@@ -498,11 +498,8 @@
       (match.popups[id] = match.popups[id] || []).push({ text: n + '줄! +' + add + (mul > 1 ? ' (×' + mul + ')' : '') + (n >= 4 && st.chain > 1 ? ' ' + st.chain + '연속' : ''), t: 0, hot: n >= 3 });
       return;
     }
-    if (match.rule === 'item') {   // v96 아이템전: 3줄 = 약한 아이템 · 4줄 = 좋은 아이템 (줄 공격 없음)
-      if (mainIds().includes(id)) (match.popups[id] = match.popups[id] || []).push({ text: n + '줄!', t: 0, hot: n >= 3 });
-      if (n >= 3) gainItem(id, randItem(n >= 4), n + '줄');
-      return;
-    }
+    // v97 아이템전: 줄 공격도 보내고(스피드전과 같음) + 3줄 = 약한 아이템 · 4줄 = 좋은 아이템
+    if (match.rule === 'item' && n >= 3) gainItem(id, randItem(n >= 4), n + '줄');
     const atk = ATTACK[n] || 0;
     if (mainIds().includes(id)) (match.popups[id] = match.popups[id] || []).push({ text: n + '줄!' + (atk ? ' 공격 +' + atk : ''), t: 0, hot: !!atk });
     if (!atk) return;
@@ -537,6 +534,7 @@
     if (!to || !match.alive.has(to)) { if (from === Hub.clientId) A.toast('살아 있는 사람에게만 쓸 수 있어요.'); return false; }
     const kind = L.items[0], def = ITEM[kind];
     if (def.bad && sameSide(from, to)) { if (from === Hub.clientId) A.toast(`'${def.name}'은 공격 아이템이라 상대에게만 쓸 수 있어요.`); return false; }
+    if (def.own && !sameSide(from, to)) { if (from === Hub.clientId) A.toast(`'${def.name}'은 나와 같은 편에게만 쓸 수 있어요.`); return false; }   // v97
     L.items.shift(); L.eng.sent++;
     const m = { t: 'item', from, to, kind, k: Math.random().toString(36).slice(2, 8) };
     if (kind === 'swap') m.rows = L.eng.rows();
@@ -752,7 +750,7 @@
               <div class="overlay" id="btOv"></div>
             </div>
             <div class="pad pad6" id="pad"><button type="button" data-act="hold" aria-label="블록 저장">HOLD</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟲</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button>${itemMode ? '<button type="button" class="pad-it" data-act="itemself" aria-label="맨 앞 아이템을 나에게">나에게</button>' : ''}</div>
-            ${itemMode ? '<ul class="item-log" id="itemLog" aria-live="polite"></ul><p class="small it-help">상대 판을 누르거나 숫자 키를 누르면 맨 앞 아이템이 날아가요. 공격 아이템(빨강)은 상대에게, 도움 아이템(파랑)은 나·같은 편에게!</p>' : ''}
+            ${itemMode ? '<ul class="item-log" id="itemLog" aria-live="polite"></ul><p class="small it-help">상대 판을 누르거나 숫자 키를 누르면 맨 앞 아이템이 날아가요. 공격 아이템(빨강)은 상대에게만, 방패는 나·같은 편에게만, 줄 빼기·모두 사라지기는 누구에게나!</p>' : ''}
           </div>
           <div class="minis side-r" style="--n:${sides[1].length}">${sides[1].map(miniHTML).join('')}</div>
         </div>
@@ -800,7 +798,7 @@
     const hint = () => match.play === 'offline'
       ? '1P: WASD · Space 한 번에 · 왼쪽 Shift 저장<br>2P: 방향키 · Enter 한 번에 · 오른쪽 Shift 저장'
       : match.play === 'rank' ? '랭킹 대전 · 1줄 1점 · 2줄 2점 · 3줄 6점 · 4줄 10점 (연속 20·30·40) · 20초마다 빨라지고 점수 ×1.2·×1.4…' : match.mode === 'team' ? `당신은 <b class="t-${match.teamOf[Hub.clientId]}">${TEAM_NAME[match.teamOf[Hub.clientId]]} 팀</b> · 공격은 상대 팀에게만 가요` : match.n + '명 개인전 · 3줄=1줄, 4줄=3줄 공격 · Ctrl 블록 저장';
-    const hint2 = () => match.rule === 'item' ? '아이템전 · 3줄 = 약한 아이템 · 4줄 = 좋은 아이템 · ★칸이 든 줄을 지워도 아이템!<br>숫자 키 1~' + match.n + ' = 그 사람에게 맨 앞 아이템 사용 (내 번호 ' + slotOf(Hub.clientId) + ')' : hint();
+    const hint2 = () => match.rule === 'item' ? '아이템전 · 3줄=1줄, 4줄=3줄 공격 + 3줄 = 약한 아이템 · 4줄 = 좋은 아이템 · ★칸이 든 줄을 지워도 아이템!<br>숫자 키 1~' + match.n + ' = 그 사람에게 맨 앞 아이템 사용 (내 번호 ' + slotOf(Hub.clientId) + ')' : hint();
     const step = () => {
       if (!match || !ov.isConnected) return;
       if (n > 0) { ov.hidden = false; ov.innerHTML = `<div class="ov-box"><div class="count num">${n}</div><p class="ov-hint">${hint2()}</p></div>`; n--; match.cdTimer = setTimeout(step, 1000); }
