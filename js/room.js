@@ -150,7 +150,8 @@
     const bob = moving ? 0 : (reduce ? 0 : Math.round(Math.sin(now / 500)));
     c.translate(x, y);
     if (e.face < 0) c.scale(-1, 1);
-    AV.draw(c, av, -18, -56 + bob, 2, moving && !reduce ? { walk: e.walkT * Math.PI * 3.5 } : { frame });   // v105 부드러운 걷기 (순찰병처럼)
+    const view = e.view || 'f';   // v106 방향 (멈춰도 마지막 방향 유지)
+    AV.draw(c, av, -18, -56 + bob, 2, moving && !reduce ? { walk: e.walkT * Math.PI * 3.5, view } : { frame, view });   // v105 부드러운 걷기 (순찰병처럼)
     c.restore();
   }
   // 의자에 앉은 모습 · 침대에 누워 이불 덮은 모습 (그 가구를 그린 바로 다음에 그림)
@@ -244,6 +245,7 @@
     if (!e.path.length) return;
     const [ti, tj] = e.path[0], di = ti - e.i, dj = tj - e.j, dist = Math.hypot(di, dj), sp = 2.6 * dt;
     const sx = (di - dj); if (Math.abs(sx) > 0.01) e.face = sx > 0 ? 1 : -1;
+    const sy = (di + dj); if (Math.abs(sy) > 0.01) e.view = sy > 0 ? 'f' : 'b';   // v106 화면 아래로 걸으면 앞모습, 위로 걸으면 뒷모습
     if (dist <= sp) { e.i = ti; e.j = tj; e.path.shift(); if (!e.path.length && e.after) { const f = e.after; e.after = null; f(); } }
     else { e.i += di / dist * sp; e.j += dj / dist * sp; }
     e.walkT += dt;
@@ -425,7 +427,9 @@
     music.play().then(() => { musicOn = true; syncMusicBtn(); }).catch(() => { musicOn = false; syncMusicBtn(); });
   }
   function syncMusicBtn() { const b = root && $('[data-rm="mplay"]', root); if (b) b.textContent = musicOn ? '■ 멈추기' : '▶ 듣기'; }
+  const TURN = [['f', '앞'], ['s', '오른쪽'], ['b', '뒤'], ['s', '왼쪽', true]]; let turnI = 0;
   function sideHTML() {
+    turnI = 0;
     const own = mine(), rm = room || {}, L = Hub.levelInfo(owner.earned || 0), FL = window.GoFilter, bio = rm.bio || '';
     const cur = rm.bgm && F.byId[rm.bgm];
     const mine2 = own ? F.ITEMS.filter(it => it.slot === 'music' && Hub.owns(it.id)) : [];
@@ -436,7 +440,7 @@
       ? (mine2.length ? `<select id="rmBgm" aria-label="방 음악 고르기"><option value="">음악 없음</option>${mine2.map(it => `<option value="${it.id}" ${rm.bgm === it.id ? 'selected' : ''}>${esc(it.game)}</option>`).join('')}</select>` : '<p class="small">아직 가진 음악이 없어요.</p>')
         + `<div class="rm-bio-row">${cur ? `<button class="btn btn-sm" type="button" data-rm="mplay">${musicOn ? '■ 멈추기' : '▶ 듣기'}</button>` : ''}<a class="btn btn-sm btn-sun" href="#shop/music">음악 사기 (50P)</a></div>`
       : (cur ? `<p class="rm-song">♪ ${esc(cur.game)}</p><button class="btn btn-sm" type="button" data-rm="mplay">${musicOn ? '■ 멈추기' : '▶ 듣기'}</button>` : '<p class="small">음악이 없는 방이에요.</p>');
-    return `<div class="rm-side-av">${A.avCanvas(own ? Hub.user.avatar : owner.avatar, 5, 'full', 'rm-side-cv', true)}</div>
+    return `<div class="rm-side-av" data-rm="turn" title="눌러서 돌려 보기">${A.avCanvas(own ? Hub.user.avatar : owner.avatar, 5, 'full', 'rm-side-cv', true)}<small class="rm-turn">눌러서 돌려 보기 · <b>${TURN[turnI][1]}</b></small></div>
       <b class="rm-side-nm">${esc(owner.nickname)}</b><span class="lv">Lv.${L.level}</span>${own ? `<div class="sub">@${esc(owner.username)} <small>(나만 보여요)</small></div>` : ''}
       <h4>자기소개</h4>${bioBox}
       <h4>🎵 방 음악</h4><div class="rm-music">${musicBox}</div>`;
@@ -511,6 +515,11 @@
     if (t.dataset.rmtab) { tab = t.dataset.rmtab; renderBar(); return; }
     if (t.dataset.rmit) { pickFromBar(t.dataset.rmit); return; }
     const a = t.dataset.rm;
+    if (a === 'turn') {   // v106 프로필 아바타 돌려 보기: 앞 → 오른쪽 → 뒤 → 왼쪽
+      turnI = (turnI + 1) % TURN.length; const cv = $('.rm-side-cv', t), [v, nm, flip] = TURN[turnI];
+      if (cv) { let av = {}; try { av = JSON.parse(cv.dataset.avatar || '{}'); } catch (e2) { /* noop */ } AV.paint(cv, av, { scale: 5, scene: true, view: v }); cv.style.transform = flip ? 'scaleX(-1)' : ''; }
+      const b = $('.rm-turn b', t); if (b) b.textContent = nm; return;
+    }
     if (a === 'edit') { if (tut >= 0) tutDone(); edit = true; draft = JSON.parse(JSON.stringify(room)); sel = null; carry = null; me.act = null; me.path = []; render(); }
     else if (a === 'cancel') { edit = false; draft = null; carry = null; sel = null; render(); }
     else if (a === 'save') {

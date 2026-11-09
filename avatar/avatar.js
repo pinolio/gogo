@@ -45,7 +45,7 @@
   }
 
   /* ---------------- 기본 몸 ---------------- */
-  function drawBody(g, skin, frame) {
+  function drawBody(g, skin, frame, noFace) {
     const s = skin, L = legs(frame);
     g.px(4, 3, 8, 8, s);                                        // 머리
     [[4, 3], [11, 3], [4, 10], [11, 10]].forEach(([x, y]) => g.dot(x, y, null));
@@ -54,6 +54,7 @@
     g.px(3, 12, 2, 7, s); g.px(11, 12, 2, 7, s);                // 팔
     g.px(L.L.x, L.L.y, 3, L.L.h, s); g.px(L.R.x, L.R.y, 3, L.R.h, s); // 다리
     g.px(L.LF.x + 1, L.LF.y, 3, 1, s); g.px(L.RF.x, L.RF.y, 3, 1, s); // 맨발
+    if (noFace) return;
     g.dot(6, 7, OUT); g.dot(9, 7, OUT);                         // 눈
     g.dot(5, 8, '#FF9AA2'); g.dot(10, 8, '#FF9AA2');            // 볼
     g.px(7, 9, 2, 1, shade(s, -0.35));                          // 입
@@ -330,6 +331,124 @@
     }
     return outline;
   }
+  /* ---------------- v106 방향 그림 (자동 생성) ----------------
+   * view: 'f' 앞(기존 grid) · 'b' 뒤 · 's' 옆(오른쪽을 봄, 왼쪽은 뒤집어서)
+   * 아이템 160종을 하나하나 다시 그리지 않고, 부위별로 따로 그린 앞모습을 규칙으로 바꿈:
+   *  뒤 = 얼굴 지움 · 머리카락 색으로 뒤통수 채움 · 얼굴 장식 안 보임 · 상의 작은 무늬(단추·그림) 지움 · 등 아이템은 몸 위에(가방은 등에 네모로)
+   *  옆 = 머리 8칸 → 7칸, 몸통 6칸 → 5칸으로 좁힘 · 가까운 팔 하나만(몸통 위) · 다리 한 쪽 · 눈 하나·코 · 뒤쪽 머리는 머리카락 색 · 등 아이템은 뒤로 */
+  function layerOf(fn) { const g = Grid(); fn(g); return g.cells; }
+  const U = (c, x, y) => (c[y + PAD] ? c[y + PAD][x + PAD] : null) || null;              // 몸 칸(테두리 빼고) 좌표로 읽기
+  const SETU = (c, x, y, v) => { if (c[y + PAD] && x + PAD >= 0 && x + PAD < GW) c[y + PAD][x + PAD] = v; };
+  const blank = () => Array.from({ length: GH }, () => Array(GW).fill(null));
+  const over = (dst, src) => { for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (src[y][x]) dst[y][x] = src[y][x]; return dst; };
+  function topColors(c) {
+    const n = {}; let t = 0; c.forEach(r => r.forEach(v => { if (v) { n[v] = (n[v] || 0) + 1; t++; } }));
+    return Object.keys(n).sort((a, b) => n[b] - n[a]).map(k => [k, n[k] / t]);
+  }
+  function outlineOf(c) {
+    const o = c.map(r => r.slice());
+    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+      if (c[y][x]) continue;
+      if ((y > 0 && c[y - 1][x]) || (y < GH - 1 && c[y + 1][x]) || (x > 0 && c[y][x - 1]) || (x < GW - 1 && c[y][x + 1])) o[y][x] = OUT;
+    }
+    return o;
+  }
+  function viewLayers(av, frame) {
+    av = normalize(av);
+    const it = slot => (av[slot] ? byId[av[slot]] : null), bk = it('back'), skin = (it('skin') || byId.s1).color;
+    const L = {
+      skin, bk,
+      bkB: layerOf(g => bk && bk.drawBack && bk.drawBack(g, frame)),
+      bkF: layerOf(g => bk && bk.drawFront && bk.drawFront(g, frame)),
+      body: layerOf(g => drawBody(g, skin, frame, true)),
+      cloth: layerOf(g => ['bottom', 'shoes', 'top'].forEach(s => { const x = it(s); if (x && x.draw) x.draw(g, frame); })),
+      top: layerOf(g => { const x = it('top'); if (x && x.draw) x.draw(g, frame); }),
+      hair: layerOf(g => { const x = it('hair'); if (x && x.draw) x.draw(g, frame); }),
+      face: layerOf(g => { const x = it('face'); if (x && x.draw) x.draw(g, frame); }),
+      hat: layerOf(g => { const x = it('hat'); if (x && x.draw) x.draw(g, frame); })
+    };
+    const hc = topColors(L.hair); L.hairCol = hc.length ? hc[0][0] : null;
+    return L;
+  }
+  // 상의 작은 무늬 지우기: 상의 칸 중 적게 쓰인 색(10% 미만)을 가장 많이 쓴 색으로
+  function plainTop(L) {
+    const tc = topColors(L.top); if (!tc.length) return L.cloth;
+    const keep = new Set(tc.filter(([, f]) => f >= 0.1).map(([k]) => k)), main = tc[0][0], out = L.cloth.map(r => r.slice());
+    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) { const v = L.top[y][x]; if (v && !keep.has(v)) out[y][x] = main; }
+    return out;
+  }
+  function backGrid(av, frame) {
+    const L = viewLayers(av, frame), c = blank();
+    over(c, L.body); over(c, plainTop(L));
+    if (L.hairCol) {   // 뒤통수: 머리 칸(3~9줄)을 머리카락 색으로
+      for (let y = 2; y <= 9; y++) for (let x = 4; x <= 11; x++) if (U(L.body, x, y) || U(L.hair, x, y)) SETU(c, x, y, L.hairCol);
+      over(c, L.hair.map((r, y) => r.map(v => (y - PAD >= 10 ? v : null))));   // 긴 머리(어깨 아래)는 그대로
+    }
+    // 모자: 앞에서 얼굴이 보이던 구멍을 모자 색으로 메우고(후드·투구), 작은 무늬는 지움
+    const hm = topColors(L.hat), hat = L.hat.map(r => r.slice());
+    if (hm.length) {
+      const keep = new Set(hm.filter(([k, f]) => f >= 0.1 && k !== OUT).map(([k]) => k)), main = hm.find(([k]) => k !== OUT)?.[0] || hm[0][0];   // 남색 선(눈·입 그림)도 무늬로 봄
+      for (let y = 0; y < GH; y++) {
+        let l = -1, r = -1; for (let x = 0; x < GW; x++) if (hat[y][x]) { if (l < 0) l = x; r = x; }
+        for (let x = 0; x < GW; x++) { if (hat[y][x] && !keep.has(hat[y][x])) hat[y][x] = main; if (!hat[y][x] && x > l && x < r && y - PAD <= 11 && L.hat.slice(0, y).some(rr => rr[x])) hat[y][x] = main; }   // 위가 막힌 구멍만 (왕관 뾰족 사이는 그대로)
+      }
+    }
+    over(c, hat);
+    if (L.bk && L.bk.drawFront) {   // 가방: 등 가운데 네모
+      const col = (topColors(L.bkB)[0] || ['#8A4B1F'])[0];
+      for (let y = 12; y <= 17; y++) for (let x = 5; x <= 10; x++) SETU(c, x, y, y === 12 ? shade(col, -0.25) : col);
+      SETU(c, 7, 14, shade(col, 0.3)); SETU(c, 8, 14, shade(col, 0.3));
+    } else over(c, L.bkB);          // 망토·날개는 몸 위에
+    return outlineOf(c);
+  }
+  // 옆: 줄마다 다른 비율로 가로를 줄여 옮김 (머리 cx 7.5 → 8, 몸통 cx 7.5 → 8)
+  const headX = tx => Math.round(7.5 + (tx - 8) * 8 / 7), bodyX = tx => Math.round(7.5 + (tx - 8) * 6 / 5);
+  function sideMap(src, part) {   // part: 'all' | 'noArm' | 'arm'
+    const c = blank();
+    for (let y = -PAD; y < H + PAD; y++) for (let tx = -PAD; tx < W + PAD; tx++) {
+      let v = null;
+      if (part !== 'arm') {
+        if (y <= 10) v = U(src, headX(tx), y);
+        else if (y <= 18) { if (tx >= 6 && tx <= 10) v = U(src, bodyX(tx), y); }
+        else if (tx >= 6 && tx <= 10) v = U(src, tx + 2, y) || (y >= 24 && tx === 10 ? U(src, 11, y) || U(src, 10, y) : null);   // 오른다리 하나 · 신발 앞코
+      }
+      if (part !== 'noArm' && y >= 12 && y <= 20 && (tx === 8 || tx === 9)) { const a = U(src, tx + 3, y); if (a) v = a; }   // 가까운 팔
+      if (v) SETU(c, tx, y, v);
+    }
+    return c;
+  }
+  function sideGrid(av, frame, part) {
+    part = part || 'all';
+    const L = viewLayers(av, frame), c = blank();
+    const main = over(over(over(blank(), L.body), L.cloth), L.bkF);
+    if (part !== 'arm') {
+      // 등 아이템: 몸통처럼 줄이고 뒤(왼쪽)로 2칸
+      // (왼쪽 절반만 써서 등 뒤로 좁게: x 가 몸 가운데에서 멀수록 더 뒤로)
+      for (let y = -PAD; y < H + PAD; y++) for (let x = -PAD; x < 8; x++) { const v = U(L.bkB, x, y); if (v) SETU(c, Math.max(-PAD, Math.round(5.5 - (7.5 - x) * 0.6)), y, v); }
+      // 긴 머리(어깨 아래)는 등 뒤로
+      for (let y = 11; y < H; y++) for (let x = 0; x < W; x++) { const v = U(L.hair, x, y); if (v) SETU(c, Math.min(6, 3 + Math.round(x / 4)), y, v); }
+    }
+    over(c, sideMap(main, part));
+    if (part !== 'arm') {
+      // 얼굴: 눈 하나 · 볼 · 입 · 코
+      const sk = L.skin; SETU(c, 12, 7, sk); SETU(c, 12, 8, sk);
+      SETU(c, 10, 7, OUT); SETU(c, 9, 8, '#FF9AA2'); SETU(c, 11, 9, shade(sk, -0.35));
+      if (L.hairCol) {
+        const hs = sideMap(L.hair, 'noArm'); over(c, hs.map((r, y) => r.map(v => (y - PAD <= 10 ? v : null))));
+        let bottom = 6; for (let y = 3; y <= 10; y++) if (U(L.hair, 4, y) || U(L.hair, 3, y)) bottom = Math.max(bottom, y);
+        for (let y = 2; y <= Math.min(9, bottom + 1); y++) for (let x = 5; x <= 8; x++) if (U(c, x, y)) SETU(c, x, y, L.hairCol);   // 뒤쪽 머리
+        for (let x = 5; x <= 11; x++) if (U(c, x, 3)) SETU(c, x, 3, L.hairCol);
+      }
+      const fc = sideMap(L.face, 'noArm'); for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (fc[y][x] && x - PAD >= 9) c[y][x] = fc[y][x];   // 안경·가면은 앞쪽만
+      over(c, sideMap(L.hat, 'noArm'));
+    }
+    return outlineOf(c);
+  }
+  function gridView(av, frame, view, part) {
+    if (view === 'b') return backGrid(av, frame);
+    if (view === 's') return sideGrid(av, frame, part);
+    return grid(av, frame);
+  }
   /* ---------------- v39: 2배 정교한 그림 ----------------
    * 칸 그림(18×29)을 2배(36×58)로 다시 그림:
    *  ① Scale2x(EPX) — 계단 모양 대각선을 부드럽게 (머리·옷 둥근 곳이 매끈해짐)
@@ -410,10 +529,11 @@
     }
     return raw.map((r, y) => r.map((c, x) => c || ((x > 0 && raw[y][x - 1]) || (x + 1 < W2 && raw[y][x + 1]) || (y > 0 && raw[y - 1][x]) || (y + 1 < H2 && raw[y + 1][x]) ? OUT : null)));
   }
-  function hires(av, frame, pose) {
-    const key = JSON.stringify(normalize(av)) + '|' + (frame || 0) + '|' + (pose || '');
+  function hires(av, frame, pose, view, part) {
+    view = view === 'b' || view === 's' ? view : 'f';
+    const key = JSON.stringify(normalize(av)) + '|' + (frame || 0) + '|' + (pose || '') + '|' + view + (part || '');
     if (hiCache.has(key)) return hiCache.get(key);
-    const cells = refine(poseGrid(grid(av, frame), pose, frame), true), cv = document.createElement('canvas');
+    const cells = view === 'f' ? refine(poseGrid(grid(av, frame), pose, frame), true) : refine(gridView(av, frame, view, part), false), cv = document.createElement('canvas');
     cv.width = GW * 2; cv.height = GH * 2;
     const g = cv.getContext('2d');
     for (let y = 0; y < GH * 2; y++) for (let x = 0; x < GW * 2; x++) { const col = cells[y][x]; if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } }
@@ -468,6 +588,26 @@
     arm(0, 6, aL); arm(12, GW, aR);
     ctx.imageSmoothingEnabled = sm;
   }
+  // v106 옆모습 걷기: 다리 하나 그림을 두 번(뒷다리·앞다리) 엉덩이 기준으로 반대로 흔들고, 가까운 팔은 따로 그려 어깨 기준으로 흔듦
+  function rigSide(ctx, body, arm, dx, dy, dw, dh, p, mv, opt) {
+    opt = opt || {};
+    const cs = body.height / GH, kx = dw / body.width, ky = dh / body.height, A = opt.amp == null ? 1 : opt.amp;
+    const s = mv ? Math.sin(p) : 0, bob = mv ? -Math.abs(s) * 0.5 * A : 0, HIP = 20, SHO = 13;
+    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    const pc = (im, y0, y1, oy, sh, ay) => {
+      const sy = y0 * cs, shh = (y1 - y0) * cs;
+      ctx.save(); ctx.translate(dx, dy);
+      if (sh) { const ty = ay * cs * ky; ctx.translate(0, ty); ctx.transform(1, 0, sh, 1, 0, 0); ctx.translate(0, -ty); }
+      ctx.drawImage(im, 0, sy, im.width, shh, 0, sy * ky + oy * cs * ky, im.width * kx, shh * ky); ctx.restore();
+    };
+    const lg = s * 0.32 * A;
+    ctx.save(); try { ctx.filter = 'brightness(0.78)'; } catch (e) { /* noop */ }
+    pc(body, HIP, GH, bob, lg, HIP); ctx.restore();                 // 뒷다리 (조금 어둡게)
+    pc(body, 0, HIP, bob, 0, 0);                                     // 머리·몸통
+    pc(body, HIP, GH, bob, -lg, HIP);                                // 앞다리
+    pc(arm, SHO - 1, GH, bob, mv ? s * 0.3 * A : 0, SHO);            // 가까운 팔
+    ctx.imageSmoothingEnabled = sm;
+  }
   // AV.draw 와 같은 자리에 부드럽게 걷는 모습 (p = 걸음 위상)
   function drawWalk(ctx, av, x, y, scale, p, mv, opt) {
     const im = hires(av, 0, null);
@@ -482,8 +622,11 @@
       if (col) { ctx.fillStyle = col; ctx.fillRect(x + i * half, y + j * half, Math.ceil(half), Math.ceil(half)); }
     }
     const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-    if (opt.walk != null && (opt.crop || 'full') === 'full') rig(ctx, hires(av, 0, null), x, y, GW * scale, GH * scale, opt.walk, true, opt);   // v105 부드러운 걷기 (순찰병처럼)
-    else ctx.drawImage(hires(av, opt.frame, opt.pose), cx * 2, cy * 2, cw * 2, ch * 2, x, y, cw * scale, ch * scale);
+    const view = opt.view === 'b' || opt.view === 's' ? opt.view : 'f';   // v106 방향: 'f' 앞 · 'b' 뒤 · 's' 옆(오른쪽)
+    if (opt.walk != null && (opt.crop || 'full') === 'full') {   // v105 부드러운 걷기 (순찰병처럼)
+      if (view === 's') rigSide(ctx, hires(av, 0, null, 's', 'noArm'), hires(av, 0, null, 's', 'arm'), x, y, GW * scale, GH * scale, opt.walk, true, opt);
+      else rig(ctx, hires(av, 0, null, view), x, y, GW * scale, GH * scale, opt.walk, true, opt);
+    } else ctx.drawImage(hires(av, opt.frame, view === 'f' ? opt.pose : null, view), cx * 2, cy * 2, cw * 2, ch * 2, x, y, cw * scale, ch * scale);
     ctx.imageSmoothingEnabled = sm;
   }
   // 캔버스 크기를 맞춰서 그림
@@ -521,7 +664,7 @@
   window.GoAvatar = {
     SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
-    normalize, grid, scene, draw, paint, paintAll, random, legs, refine, hires, OUT, rig, drawWalk,
+    normalize, grid, gridView, scene, draw, paint, paintAll, random, legs, refine, hires, OUT, rig, rigSide, drawWalk,
     walkP: t => t * Math.PI * 2,   // 걸음 수(바퀴) → 위상
     freeIds: () => I.filter(it => it.price === 0).map(it => it.id),
     attr: av => JSON.stringify(normalize(av)).replace(/"/g, '&quot;')   // HTML 속성용
