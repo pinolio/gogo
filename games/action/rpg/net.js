@@ -15,10 +15,10 @@
 (function () {
   'use strict';
   const Hub = window.GameHub;
-  const CFG = window.GoSettings.get('rpg'), OPT = Object.assign({ servers: 10, cap: 30, pingSec: 15 }, CFG.online || {});
+  const CFG = window.GoSettings.get('rpg'), OPT = Object.assign({ servers: 1, cap: 60, chCap: 5, pingSec: 15, names: ['조선-한양'] }, CFG.online || {});
 
   function create(h) {   // h: { me() → {nick, lv, av, eq, hide}, onPeers(), onFx(msg), onKick(reason) }
-    const net = { server: 0, room: '', ch: null, peers: new Map(), sendT: 0, lastKey: '', moving: false, pingT: 0, retrackT: 0, joined: false };
+    const net = { name: n => (OPT.names && OPT.names[n - 1]) || n + '서버', server: 0, room: '', ch: null, peers: new Map(), sendT: 0, lastKey: '', moving: false, pingT: 0, retrackT: 0, joined: false };
     const live = () => Hub.mode === 'online' && Hub._sb && Hub.user;
     net.enabled = () => !!Hub.user;
     net.opt = OPT;
@@ -50,13 +50,23 @@
     };
     net.leaveRoom = () => { if (net.ch) { try { net.ch.leave(); } catch (e) { /* noop */ } } net.ch = null; net.room = ''; net.peers.forEach((p, k) => h.onLeave && h.onLeave(k)); net.peers.clear(); h.onPeers && h.onPeers(); };
     // 지도(또는 건물 안)를 바꿀 때마다: 그 지도 채널로 옮김
+    // v103 지도 하나를 '채널'로 나눔: 채널마다 OPT.chCap(5)명까지만 서로 보임. 빈자리가 있는 가장 앞 채널을 서버가 골라 줌 (rpg_room)
+    net.chNo = 0; net.seq = 0;
+    async function pickCh(room) {
+      if (!live()) return 1;
+      try { const { data, error } = await Hub._sb.rpc('rpg_room', { p_map: room }); if (error) return 1; return Math.max(1, +data || 1); } catch (e) { return 1; }
+    }
     net.setRoom = (room, force) => {
       if (!net.joined) return;
       if (room === net.room && !force) return;
-      net.leaveRoom(); net.room = room;
-      net.ch = Hub.channel('rpg-' + net.server + '-' + room, { onMsg, onPeers, onError() { /* 연결이 끊기면 다음 지도 이동 때 다시 */ } });
-      net.ch.track(stateNow());
-      net.lastKey = ''; net.sendT = 9;
+      net.leaveRoom(); net.room = room; net.chNo = 0; const seq = ++net.seq;
+      pickCh(room).then(no => {
+        if (seq !== net.seq || !net.joined) return;   // 그사이 다른 지도로 옮겼으면 버림
+        net.chNo = no;
+        net.ch = Hub.channel('rpg-' + net.server + '-' + room + '-' + no, { onMsg, onPeers, onError() { /* 연결이 끊기면 다음 지도 이동 때 다시 */ } });
+        net.ch.track(stateNow());
+        net.lastKey = ''; net.sendT = 9; h.onPeers && h.onPeers();
+      });
     };
     function stateNow() { const m = h.me(); return { cid: Hub.clientId, uid: Hub.user ? Hub.user.id : '', nick: m.nick, lv: m.lv, av: m.av, eq: m.eq, hide: !!m.hide, x: Math.round(m.x), y: Math.round(m.y) }; }
     net.retrack = () => { net.retrackT = 1.5; };   // 레벨·장비가 바뀌면 1.5초 뒤 한 번만 알림
@@ -94,7 +104,7 @@
       if (net.retrackT > 0 && (net.retrackT -= dt) <= 0 && net.ch) net.ch.track(stateNow());
       const now = performance.now();
       net.peers.forEach(p => {
-        const age = Math.min(1, (now - p.at) / 1000), px = p.tx + p.vx * age, py = p.ty + p.vy * age, k = Math.min(1, dt * 10);
+        const age = Math.min(2, (now - p.at) / 1000), px = p.tx + p.vx * age, py = p.ty + p.vy * age, k = Math.min(1, dt * 10);
         const ox = p.x, oy = p.y; p.x += (px - p.x) * k; p.y += (py - p.y) * k;
         const sp = Math.hypot(p.x - ox, p.y - oy) / Math.max(dt, 0.001); p.moving = sp > 20; if (p.moving) p.walk += dt;
         if (Math.abs(p.x - ox) > 0.5) p.face = p.x < ox ? -1 : 1;
@@ -102,10 +112,10 @@
       if (!net.ch || !net.peers.size) return;                          // 같은 지도에 아무도 없으면 안 보냄
       net.sendT += dt;
       const moving = Math.hypot(me.vx, me.vy) > 1;
-      const key = moving ? [Math.round(me.vx / 20), Math.round(me.vy / 20)].join(',') : 'stop';
-      const every = Math.min(1.2, 0.3 + 0.06 * net.peers.size);
+      const key = moving ? [Math.round(me.vx / 40), Math.round(me.vy / 40)].join(',') : 'stop';   // v103 방향이 크게 바뀔 때만
+      const every = 1.5;   // v103 움직이는 동안 1.5초마다 (예전 0.3~1.2초) — 무료 요금제 메시지 아끼기 (받는 쪽은 속도로 이어 그림)
       const changed = key !== net.lastKey;
-      if ((moving && (net.sendT >= every || (changed && net.sendT >= 0.15))) || (!moving && changed) || net.forceOnce) {
+      if ((moving && (net.sendT >= every || (changed && net.sendT >= 0.25))) || (!moving && changed && net.sendT >= 0.1) || net.forceOnce) {
         net.sendT = 0; net.lastKey = key; net.forceOnce = false;
         net.ch.send({ t: 'p', cid: Hub.clientId, x: Math.round(me.x), y: Math.round(me.y), vx: moving ? Math.round(me.vx) : 0, vy: moving ? Math.round(me.vy) : 0, f: me.face });
       }

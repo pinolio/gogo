@@ -26,7 +26,7 @@ GoSettings.register({
   autosaveSec: 20,                     // 이 기기에 자동 저장 간격(초)
   serverSaveSec: 60,                   // 서버(로그인) 저장 간격(초). 레벨 업 · 상점 · 지도 이동 때도 저장
   deathExpLoss: 0.05,
-  online: { servers: 10, cap: 30, pingSec: 15 },
+  online: { servers: 1, cap: 60, chCap: 5, pingSec: 15, names: ['조선-한양'] },   // v103 서버 1개로 통합 (선생님) · 이름 · 최대 60명 (supabase/rpg_server_v103.sql 의 cap 과 같게) · v103 한 지도 채널마다 5명 (rpg_channel_v103.sql 의 cap 과 같게)
   respawnSec: 3,                       // v43 몬스터가 쓰러진 뒤 다시 나오는 시간(초) (전에는 9초)
   bossRespawnSec: 30,                  // 보스가 다시 나오는 시간(초) (전에는 60초)
   statPerLevel: 2,                     // v44 레벨이 오를 때마다 받는 스탯 포인트 (힘·민첩·지혜·체력·저항, 스탯마다 최대 50)   // v42 온라인 서버 10개 × 최대 30명 (cap 을 바꾸면 supabase/rpg_online_v42.sql 의 cap 도 같이)                  // 쓰러지면 다음 레벨 경험치의 5% 잃음 (레벨은 안 내려감)

@@ -594,6 +594,7 @@
         else if (sk.kind === 'rain') { for (let i = 0; i < (sk.count || 5); i++) Fx.fall(x + dx * 160 + rand(-90, 90), y + dy * 160 + rand(-60, 60), sk.radius || 60, els, i * 0.1); }
         else if (sk.kind === 'pool') Fx.nova(x + dx * 120, y + dy * 120, (sk.radius || 90) * 0.7, els);
         else if (sk.kind === 'heal') Fx.heal(p.x, p.y - 28, sk.pow > 0.4);
+        else if (sk.kind === 'dash') Fx.dash(p.x, p.y - 22, dx, dy, sk.len || 220);
         else if (sk.kind === 'shield' && !Fx.shieldCast(p.x, p.y - 28, sk.id)) Fx.burst(p.x, p.y - 28, 16, Fx.pal(els[0]), { min: 60, max: 140, shape: 'star', lmin: 0.4, lmax: 0.7 });
         Fx.use(null);
       }
@@ -861,7 +862,7 @@
           const m = nearest(360), p = m ? { x: m.x, y: m.y - 8 } : { x: ox + G.fx * 120, y: G.py + G.fy * 120 };
           G.pools.push({ x: p.x, y: p.y, r: sk.radius || 90, t: 0, dur: sk.dur || 4, tick: 0, dmg: base * 0.35, els, color: col, color2: col2 });
         } else if (sk.kind === 'dash') {
-          const [dx, dy] = aimDir(sk.len || 220); G.dash = { dx, dy, left: sk.len || 220, hit: new Set(), dmg: base, els, color: col }; G.inv = 0.45;
+          const [dx, dy] = aimDir(sk.len || 220); G.dash = { dx, dy, left: sk.len || 220, hit: new Set(), dmg: base, els, color: col }; G.inv = 0.45; Fx.dash(G.px, G.py - 22, dx, dy, sk.len || 220);
         } else if (sk.kind === 'heal') {
           const v = Math.round(ST.hp * sk.pow); S.hp = Math.min(ST.hp, S.hp + v); float(G.px, G.py - 70, '+' + v, '#3DDC84', true);
           Fx.heal(G.px, G.py - 28, sk.pow > 0.4);
@@ -1446,7 +1447,7 @@
         c.font = '11px "Jua", sans-serif'; c.fillStyle = M.kind !== 'field' ? '#9AE6FF' : M.rec > S.lv + 6 ? '#FF8A8E' : M.rec > S.lv + 2 ? '#FFD23F' : '#9AF0B0'; c.fillText(rec + (M.kind !== 'village' && M.rec > S.lv + 6 ? ' · 위험!' : ''), W / 2, 37);
         // 서버 표시 (위 가운데 이름 아래)
         if (net && net.joined) {
-          const st = `${net.server}서버 · 여기 ${net.peers.size + 1}명`; c.font = '12px "Jua", "Malgun Gothic", sans-serif'; const sw = c.measureText(st).width + 18;
+          const st = `${net.name(net.server)}${net.chNo ? ` · ${net.chNo}채널` : ''} · 여기 ${net.peers.size + 1}명`; c.font = '12px "Jua", "Malgun Gothic", sans-serif'; const sw = c.measureText(st).width + 18;
           c.fillStyle = 'rgba(10,14,36,.78)'; rr(c, W / 2 - sw / 2, 50, sw, 20, 8); c.fill(); c.fillStyle = '#9AE6FF'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(st, W / 2, 61);
         }
         // 오른쪽 위: 작은 지도
@@ -1759,11 +1760,11 @@
           else if (L.error) h += `<div class="rg-fuse">${L.error === 'sql' ? '온라인 서버 준비가 아직 안 됐어요. (관리자: supabase/rpg_online_v42.sql 실행 필요)' : '서버 인원을 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.'}</div><button type="button" class="btn btn-primary" data-solo>혼자 하기</button>`;
           else {
             const rows = L.rows, low = rows.reduce((a, r) => (r.players != null && r.players < cap && (a == null || r.players < a.players) ? r : a), null);
-            h += `<div class="rg-srvs">${rows.map(r => { const n = r.players, full = n != null && n >= cap, pct = n == null ? 0 : Math.round(n / cap * 100), cur = net.joined && net.server === r.server;
+            h += `<div class="rg-srvs"${rows.length === 1 ? ' style="grid-template-columns:minmax(0,280px)"' : ''}>${rows.map(r => { const n = r.players, full = n != null && n >= cap, pct = n == null ? 0 : Math.round(n / cap * 100), cur = net.joined && net.server === r.server;
               const lab = n == null ? '체험 모드' : full ? '가득' : n >= cap * 2 / 3 ? '혼잡' : n >= cap / 3 ? '보통' : '여유', col = full ? '#FF5A5F' : n >= cap * 2 / 3 ? '#FF9A3D' : n >= cap / 3 ? '#FFD23F' : '#3DDC84';
-              return `<button type="button" class="rg-srv${cur ? ' cur' : ''}" data-srv="${r.server}" ${full && !cur ? 'disabled' : ''}><b>${r.server}서버</b>${low && low.server === r.server && !cur ? '<em>추천</em>' : ''}${cur ? '<em class="me">지금</em>' : ''}<span class="bar"><i style="width:${pct}%;background:${col}"></i></span><small>${n == null ? lab : `${n} / ${cap}명 · <span style="color:${col}">${lab}</span>`}</small></button>`; }).join('')}</div>`;
-            h += `<div class="rg-srvact"><button type="button" class="rg-mini" data-srv="auto">가장 한산한 서버로 들어가기</button><button type="button" class="rg-mini ghost" data-solo>${net.joined ? '서버에서 나와 혼자 하기' : '혼자 하기'}</button></div>`;
-            h += `<p class="sub">한 서버에 ${cap}명까지 · 서버 ${rows.length}개. 몬스터와 떨어진 물건은 각자 따로예요. ${L.demo ? '(체험 모드: 같은 브라우저의 다른 탭끼리만 연결돼요)' : ''}</p>`;
+              return `<button type="button" class="rg-srv${cur ? ' cur' : ''}" data-srv="${r.server}" ${full && !cur ? 'disabled' : ''}><b>${net.name(r.server)}</b>${low && low.server === r.server && !cur ? '<em>추천</em>' : ''}${cur ? '<em class="me">지금</em>' : ''}<span class="bar"><i style="width:${pct}%;background:${col}"></i></span><small>${n == null ? lab : `${n} / ${cap}명 · <span style="color:${col}">${lab}</span>`}</small></button>`; }).join('')}</div>`;
+            h += `<div class="rg-srvact"><button type="button" class="rg-mini" data-srv="auto">${rows.length === 1 ? net.name(rows[0].server) + ' 들어가기' : '가장 한산한 서버로 들어가기'}</button><button type="button" class="rg-mini ghost" data-solo>${net.joined ? '서버에서 나와 혼자 하기' : '혼자 하기'}</button></div>`;
+            h += `<p class="sub">${rows.length === 1 ? `서버 하나에 모두 모여요 · ${cap}명까지 · 같은 지도에서는 ${net.opt.chCap || 5}명씩 채널로 나뉘어 서로 보여요.` : `한 서버에 ${cap}명까지 · 서버 ${rows.length}개.`} 몬스터와 떨어진 물건은 각자 따로예요. ${L.demo ? '(체험 모드: 같은 브라우저의 다른 탭끼리만 연결돼요)' : ''}</p>`;
           }
         } else if (k === 'dead') {
           h = `<h3>쓰러졌어요…</h3><p class="sub">경험치를 ${fmtN(paneArg.loss)} 잃었어요. (레벨은 그대로)<br>마지막으로 들른 마을(${MAPBY[S.home].name})의 이장 댁 앞에서 다시 시작해요.</p><button type="button" class="btn btn-primary" data-revive>마을에서 다시 시작</button>`;
@@ -1832,10 +1833,10 @@
         let n = +v;
         if (v === 'auto') { const ok = rows.filter(r => r.players == null || r.players < cap).sort((a, b) => (a.players || 0) - (b.players || 0)); if (!ok.length) { say('모든 서버가 가득 찼어요. 잠시 뒤 다시 해 주세요', 3); return; } n = ok[0].server; }
         if (net.joined && net.server === n) { closePanel(); return; }
-        say(`${n}서버에 들어가는 중…`, 2); save(true);
+        say(`${net.name(n)}에 들어가는 중…`, 2); save(true);
         const r = await net.join(n, roomKey(), S.lv);
-        if (r.ok) { say(`${n}서버에 들어왔어요!${r.players ? ` (지금 ${r.players}명)` : ''}`, 2.6); closePanel(); }
-        else { say(r.reason === 'full' ? `${n}서버는 가득 찼어요 (${cap}명). 다른 서버를 골라 주세요` : r.reason === 'sql' ? '온라인 서버 준비가 아직 안 됐어요' : r.reason === 'banned' ? '이 계정은 지금 온라인에 들어갈 수 없어요' : '서버에 들어가지 못했어요. 잠시 뒤 다시 해 주세요', 3.5); loadServers(); }
+        if (r.ok) { say(`${net.name(n)}에 들어왔어요!${r.players ? ` (지금 ${r.players}명)` : ''}`, 2.6); closePanel(); }
+        else { say(r.reason === 'full' ? `${net.name(n)}은 가득 찼어요 (${cap}명). 잠시 뒤 다시 해 주세요` : r.reason === 'sql' ? '온라인 서버 준비가 아직 안 됐어요' : r.reason === 'banned' ? '이 계정은 지금 온라인에 들어갈 수 없어요' : '서버에 들어가지 못했어요. 잠시 뒤 다시 해 주세요', 3.5); loadServers(); }
       }
       panel.addEventListener('change', e => {
         const t = e.target;
@@ -2063,7 +2064,7 @@
           return;
         }
         box.innerHTML = SOC.chatHTML();
-        const h3 = box.querySelector('h3'); if (h3 && h3.firstChild) h3.firstChild.textContent = srv + '서버 채팅 ';
+        const h3 = box.querySelector('h3'); if (h3 && h3.firstChild) h3.firstChild.textContent = net.name(srv) + ' 채팅 ';
         offChat = SOC.mountChat('rpg-s' + srv, sui);
       }
       chatSync(); const chatT = setInterval(chatSync, 1200);

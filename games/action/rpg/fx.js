@@ -450,7 +450,7 @@
    *  느린 컴퓨터를 위해 효과·입자가 많으면(busy) 덜 그림 */
   let CUR = null;
   const use = id => { CUR = id || null; };
-  const busy = () => fxs.length > 90 || parts.length > 900;
+  const busy = () => fxs.length > 60 || parts.length > 600;
   const SFX = {
     // 1. 마법 화살: 금빛 화살 + 긴 빛줄기, 맞으면 금빛 빛살이 퍼짐
     magicarrow: {
@@ -634,14 +634,275 @@
             c.fillStyle = P[3]; c.beginPath(); c.moveTo(px + w / 5, py); c.lineTo(px + lean, py - h * up); c.lineTo(px + w / 2, py); c.fill(); }, update(dt, f) { if (!f.d && f.t > 0) { f.d = 1; if (!busy()) burst(px, py, 4, P, { min: 30, max: 90, up: -60, g: 300, shape: 'rock', add: false, lmin: 0.3, lmax: 0.5, smin: 2, smax: 4 }); } } }); }
         return true;
       }
+    },
+    // ---------- 2차 (11~20번) ----------
+    // 11. 회오리: 초록 바람 기둥이 빙글빙글 돌며 솟음
+    tornado: {
+      nova(x, y, r) {
+        const P = PAL.wind, fy = y + 20;
+        add({ dur: 1.0, draw(c, k, now) {
+          c.globalCompositeOperation = 'lighter'; const a = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85, H = r * 1.1 * Math.min(1, k * 3);
+          for (let i = 0; i < 9; i++) { const q = i / 8, yy = fy - q * H, rw = (14 + q * r * 0.55), sp = now / 60 + i * 0.9;
+            c.globalAlpha = a * (0.9 - q * 0.4); c.strokeStyle = i % 2 ? P[2] : P[1]; c.lineWidth = 4 - q * 2;
+            c.beginPath(); c.ellipse(x + Math.sin(sp * 0.3 + q * 3) * 6, yy, rw, rw * 0.28, 0, sp % TAU, sp % TAU + 4.2); c.stroke(); }
+          drawGlow(c, x, fy - H * 0.4, r * 0.7, P[3], a * 0.5);
+          c.globalAlpha = a * 0.6; c.strokeStyle = P[2]; c.lineWidth = 3; c.beginPath(); c.ellipse(x, fy, r * (0.4 + k * 0.6), r * (0.4 + k * 0.6) * 0.45, 0, 0, TAU); c.stroke();
+        }, update(dt, f) { if (!busy() && Math.random() < 0.7) { const a = Math.random() * TAU; emit({ x: x + Math.cos(a) * r * 0.5, y: fy - rand(0, r), vx: -Math.sin(a) * 200, vy: rand(-80, -20), life: 0.5, size: rand(3, 5), color: PAL.wind[Math.floor(rand(1, 4))], shape: 'leaf', add: true }); } } });
+        return true;
+      }
+    },
+    // 12. 빛의 창: 금빛 큰 창이 길게 뻗음
+    lightspear: {
+      beam(x, y, dx, dy, len) {
+        const P = PAL.light, ang = Math.atan2(dy, dx);
+        add({ dur: 0.5, draw(c, k) {
+          c.globalCompositeOperation = 'lighter'; c.translate(x, y); c.rotate(ang);
+          const a = k < 0.1 ? k / 0.1 : 1 - (k - 0.1) / 0.9, L = len * Math.min(1, k / 0.12); c.globalAlpha = a;
+          drawGlow(c, 0, 0, 40, P[3], a);
+          const g = c.createLinearGradient(0, 0, L, 0); g.addColorStop(0, 'rgba(255,210,63,.2)'); g.addColorStop(1, P[2]);
+          c.fillStyle = g; c.fillRect(0, -5, L - 30, 10); c.fillStyle = '#FFFFFF'; c.fillRect(0, -1.5, L - 30, 3);
+          c.fillStyle = P[3]; c.beginPath(); c.moveTo(L + 6, 0); c.lineTo(L - 34, -16); c.lineTo(L - 24, 0); c.lineTo(L - 34, 16); c.closePath(); c.fill();
+          c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(L, 0); c.lineTo(L - 26, -8); c.lineTo(L - 20, 0); c.lineTo(L - 26, 8); c.fill();
+          for (let i = 0; i < 4; i++) { c.globalAlpha = a * 0.5; c.fillStyle = P[1]; c.fillRect(L * (0.2 + i * 0.18), -12 + (i % 2) * 20, 24, 2); }
+          drawGlow(c, L - 10, 0, 34, P[2], a);
+        } });
+        burst(x + dx * len, y + dy * len, busy() ? 4 : 12, P, { min: 60, max: 180, lmin: 0.25, lmax: 0.5, shape: 'star', smin: 2, smax: 4 });
+        return true;
+      }
+    },
+    // 13. 저주의 안개: 보라 안개가 퍼지고 그림자 손이 솟음
+    cursefog: {
+      nova(x, y, r) {
+        const P = PAL.dark, fy = y + 20, blobs = Array.from({ length: 9 }, () => [rand(-1, 1) * r * 0.8, rand(-1, 1) * r * 0.35, rand(0.4, 0.7)]);
+        add({ dur: 1.3, under: true, draw(c, k) { const a = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8, e = Math.min(1, k * 2);
+          blobs.forEach(([bx, by, s]) => drawGlow(c, x + bx * e, fy + by * e - 10, r * s, '#5A2AA0', a * 0.8)); } });
+        for (let i = 0; i < 5; i++) { const a0 = i * TAU / 5 + rand(-0.3, 0.3), px = x + Math.cos(a0) * r * 0.55, py = fy + Math.sin(a0) * r * 0.25, h = rand(28, 44), fl = Math.random() < 0.5 ? -1 : 1;
+          add({ t: -0.15 - i * 0.06, dur: 0.9, draw(c, k) { const up = Math.min(1, k / 0.3), a = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1; c.globalAlpha = a; c.translate(px, py); c.scale(fl, 1);
+            c.fillStyle = '#1A0A30'; c.beginPath(); c.moveTo(-5, 0); c.quadraticCurveTo(-8, -h * up * 0.6, -2, -h * up); c.lineTo(6, -h * up - 6); c.lineTo(4, -h * up + 2); c.lineTo(9, -h * up - 2); c.lineTo(6, -h * up + 6); c.quadraticCurveTo(4, -h * up * 0.5, 5, 0); c.fill();
+            c.strokeStyle = P[2]; c.lineWidth = 1.5; c.stroke(); } }); }
+        burst(x, fy, busy() ? 6 : 16, P, { min: 30, max: 120, flat: 0.4, up: -30, lmin: 0.5, lmax: 0.9, shape: 'glow', smin: 4, smax: 8 });
+        return true;
+      }
+    },
+    // 14. 화염 비: 꼬리 긴 운석이 비스듬히 떨어져 폭발
+    firerain: { fall(x, y, r, els, delay) { meteor(x, y, r, delay, PAL.fire, 'fire'); return true; } },
+    // 15. 해일: 거대한 파도가 밀려감
+    tidal: {
+      beam(x, y, dx, dy, len, w) {
+        const P = PAL.water, ang = Math.atan2(dy, dx), H = w * 1.1;
+        add({ dur: 0.9, draw(c, k, now) {
+          c.translate(x, y + 18); c.rotate(ang); const a = k > 0.75 ? 1 - (k - 0.75) / 0.25 : 1, front = len * Math.min(1, k / 0.55);
+          c.globalAlpha = a * 0.85; const g = c.createLinearGradient(0, -H, 0, H * 0.3); g.addColorStop(0, P[1]); g.addColorStop(0.4, P[2]); g.addColorStop(1, P[3]);
+          c.fillStyle = g; c.beginPath(); c.moveTo(0, H * 0.3);
+          for (let i = 0; i <= 20; i++) { const t = i / 20 * front, wv = Math.sin(t / 22 - now / 90) * 6; c.lineTo(t, -H * 0.5 - wv - (t / front) * H * 0.4); }
+          c.quadraticCurveTo(front + 30, -H * 1.1, front + 18, -H * 0.4); c.quadraticCurveTo(front + 8, -H * 0.1, front, H * 0.3); c.closePath(); c.fill();
+          c.globalCompositeOperation = 'lighter'; c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.beginPath();
+          for (let i = 0; i <= 20; i++) { const t = i / 20 * front, wv = Math.sin(t / 22 - now / 90) * 6; c.lineTo(t, -H * 0.5 - wv - (t / front) * H * 0.4); } c.stroke();
+          c.fillStyle = '#FFFFFF'; for (let i = 0; i < 6; i++) c.fillRect(front - 10 + Math.sin(now / 50 + i) * 10, -H * 0.9 + i * 8, 5, 3);
+        }, update(dt, f) { if (!busy() && f.t < 0.6) { const t = len * Math.min(1, f.t / 0.55); emit({ x: x + dx * t + rand(-10, 10), y: y + dy * t + rand(-20, 10), vx: dx * 120 + rand(-40, 40), vy: rand(-160, -60), g: 500, life: 0.5, size: rand(3, 6), color: PAL.water[Math.floor(rand(0, 3))], shape: 'drop' }); } } });
+        return true;
+      }
+    },
+    // 16. 연쇄 번개: 보라 번개 구슬, 맞으면 사방으로 번개가 튐
+    chainbolt: {
+      shot(c) { const P = PAL.thunder; drawGlow(c, 0, 0, 30, P[4], 0.9); c.fillStyle = P[3]; c.beginPath(); c.arc(0, 0, 8, 0, TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(0, 0, 4, 0, TAU); c.fill();
+        for (let i = 0; i < 3; i++) strokeBolt(c, boltPath(0, 0, rand(-40, -10), rand(-22, 22), 5, 3), P, 1); strokeBolt(c, boltPath(-50, 0, 0, 0, 6, 5), P, 1.2); },
+      trail(s) { if (busy() || Math.random() < 0.5) return; emit({ x: s.x, y: s.y, vx: rand(-140, 140), vy: rand(-140, 140), life: 0.15, size: 3, color: PAL.thunder[Math.floor(rand(0, 4))], shape: 'spark', add: true }); },
+      hit(x, y) { const P = PAL.thunder, ends = Array.from({ length: 3 }, () => [x + rand(-110, 110), y + rand(-60, 60)]);
+        add({ dur: 0.35, draw(c, k) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - k; drawGlow(c, x, y, 46, P[3], 1 - k); ends.forEach(([ex, ey]) => { strokeBolt(c, boltPath(x, y, ex, ey, 12), P, 1.4); drawGlow(c, ex, ey, 22, P[3], 1 - k); }); } }); }
+    },
+    // 17. 질풍 돌진: 초록 바람을 두르고 돌진, 지나간 길에 바람 줄기
+    gale: {
+      dash(x, y, dx, dy, len) {
+        const P = PAL.wind, ang = Math.atan2(dy, dx);
+        add({ dur: 0.55, draw(c, k) { c.globalCompositeOperation = 'lighter'; c.translate(x, y); c.rotate(ang); const a = 1 - k, L = len * Math.min(1, k / 0.25);
+          for (let i = 0; i < 6; i++) { const yy = (i - 2.5) * 7, l0 = L * (0.3 + (i % 3) * 0.2); c.globalAlpha = a * 0.8; c.strokeStyle = i % 2 ? P[1] : P[2]; c.lineWidth = 3 - Math.abs(i - 2.5) * 0.5; c.beginPath(); c.moveTo(L - l0, yy * 1.6); c.quadraticCurveTo(L - l0 * 0.4, yy * 0.6, L + 10, 0); c.stroke(); }
+          drawGlow(c, L, 0, 40, P[3], a); c.globalAlpha = a; c.fillStyle = P[1]; c.beginPath(); c.moveTo(L + 22, 0); c.lineTo(L - 4, -14); c.lineTo(L + 4, 0); c.lineTo(L - 4, 14); c.fill(); } });
+        burst(x, y, busy() ? 4 : 12, P, { min: 60, max: 180, lmin: 0.3, lmax: 0.5, shape: 'leaf', smin: 3, smax: 5 });
+        return true;
+      }
+    },
+    // 18. 성스러운 빛: 하늘에서 금빛 기둥이 내려와 감쌈
+    holylight: {
+      heal(x, y) {
+        const P = PAL.light, fy = y + 28;
+        add({ dur: 1.1, draw(c, k) { c.globalCompositeOperation = 'lighter'; const a = k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88, wv = 30 * (k < 0.12 ? 0.4 + k * 5 : 1);
+          const g = c.createLinearGradient(x - wv, 0, x + wv, 0); g.addColorStop(0, 'rgba(255,210,63,0)'); g.addColorStop(0.5, 'rgba(255,250,200,.9)'); g.addColorStop(1, 'rgba(255,210,63,0)');
+          c.globalAlpha = a; c.fillStyle = g; c.fillRect(x - wv, fy - 260, wv * 2, 260); c.fillStyle = '#FFFFFF'; c.fillRect(x - 4, fy - 260, 8, 260);
+          c.strokeStyle = P[2]; c.lineWidth = 3; c.beginPath(); c.ellipse(x, fy, 34 + k * 20, (34 + k * 20) * 0.35, 0, 0, TAU); c.stroke(); drawGlow(c, x, fy - 30, 60, P[3], a * 0.6); } });
+        for (let i = 0; i < (busy() ? 8 : 24); i++) emit({ x: x + rand(-30, 30), y: fy - rand(0, 120), vx: rand(-20, 20), vy: rand(-80, 40), life: rand(0.6, 1.1), size: rand(2, 5), color: P[Math.floor(rand(0, 4))], shape: 'star', add: true });
+        return true;
+      }
+    },
+    // 19. 낙뢰: 하늘에서 굵은 번개가 내리꽂힘
+    thunderfall: {
+      fall(x, y, r, els, delay) {
+        const P = PAL.thunder, lead = 0.32;
+        add({ t: -delay, dur: lead + 0.45, under: true, draw(c, k) { const tt = k * (lead + 0.45); if (tt > lead) return; c.globalAlpha = 0.3 + tt / lead * 0.5; c.strokeStyle = P[3]; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y, r, r * 0.5, 0, 0, TAU); c.stroke(); } });
+        add({ t: -delay, dur: lead + 0.5, draw(c, k) { const tt = k * (lead + 0.5); c.globalCompositeOperation = 'lighter';
+          if (tt < lead) { if (tt > lead * 0.5 && Math.random() < 0.5) { c.globalAlpha = 0.5; strokeBolt(c, boltPath(x + rand(-30, 30), y - 420, x + rand(-20, 20), y - 200, 14), P, 1); } return; }
+          const q = (tt - lead) / 0.5; c.globalAlpha = 1 - q; strokeBolt(c, boltPath(x + rand(-16, 16), y - 440, x, y, 20, 12), P, 3.4 * (1 - q) + 1);
+          drawGlow(c, x, y, r * 0.9, P[3], (1 - q) * 0.6); for (let i = 0; i < 5; i++) { const a = i * TAU / 5 + q * 3; strokeBolt(c, boltPath(x, y, x + Math.cos(a) * r, y + Math.sin(a) * r * 0.5, 8, 3), P, 1); } },
+          update(dt, f) { if (!f.boom && f.t >= lead) { f.boom = 1; burst(x, y, busy() ? 6 : 16, P, { min: 120, max: 300, lmin: 0.15, lmax: 0.3, shape: 'spark', smin: 2, smax: 4 }); } } });
+        return true;
+      }
+    },
+    // 20. 지진: 땅이 사방으로 쩍 갈라지고 바위가 솟음
+    quake: {
+      nova(x, y, r) {
+        const P = PAL.earth, fy = y + 20, cracks = Array.from({ length: 7 }, (_, i) => { const a = i * TAU / 7 + rand(-0.3, 0.3); const pts = [[x, fy]]; for (let j = 1; j <= 5; j++) { const d = r * j / 5; pts.push([x + Math.cos(a) * d + rand(-8, 8), fy + Math.sin(a) * d * 0.5 + rand(-4, 4)]); } return pts; });
+        add({ dur: 1.2, under: true, draw(c, k) { c.globalAlpha = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1; c.fillStyle = 'rgba(62,40,20,.35)'; c.beginPath(); c.ellipse(x, fy, r * Math.min(1, k * 3), r * 0.5 * Math.min(1, k * 3), 0, 0, TAU); c.fill();
+          c.lineJoin = 'round'; cracks.forEach(pts => { const m = Math.max(2, Math.ceil(Math.min(1, k * 4) * pts.length)); c.strokeStyle = '#1E140A'; c.lineWidth = 5; c.beginPath(); pts.slice(0, m).forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py))); c.stroke(); c.strokeStyle = P[2]; c.lineWidth = 1.5; c.stroke(); }); } });
+        spikes(x, y, r, P);
+        burst(x, fy, busy() ? 8 : 26, P, { min: r * 0.8, max: r * 2.4, flat: 0.5, up: -120, g: 500, lmin: 0.4, lmax: 0.8, shape: 'rock', add: false, smin: 3, smax: 7 });
+        return true;
+      }
+    },
+    // ---------- 3차 (21~30번) ----------
+    // 21. 그림자 창: 검붉은 가시 창이 꿰뚫음
+    shadowspear: {
+      beam(x, y, dx, dy, len) {
+        const ang = Math.atan2(dy, dx), tend = Array.from({ length: 7 }, () => [rand(0.15, 0.95), rand(-1, 1), rand(10, 24)]);
+        add({ dur: 0.6, draw(c, k) { c.translate(x, y); c.rotate(ang); const a = k < 0.1 ? k / 0.1 : 1 - (k - 0.1) / 0.9, L = len * Math.min(1, k / 0.12); c.globalAlpha = a;
+          c.fillStyle = '#14060E'; c.beginPath(); c.moveTo(0, -9); c.lineTo(L, 0); c.lineTo(0, 9); c.closePath(); c.fill();
+          c.fillStyle = '#8A1A2A'; c.beginPath(); c.moveTo(0, -5); c.lineTo(L - 6, 0); c.lineTo(0, 5); c.closePath(); c.fill();
+          c.strokeStyle = '#14060E'; c.lineWidth = 3; tend.forEach(([t, s, l]) => { if (t * len > L) return; c.beginPath(); c.moveTo(t * L, 0); c.quadraticCurveTo(t * L - l * 0.4, s * l, t * L - l, s * l * 1.4); c.stroke(); });
+          c.globalCompositeOperation = 'lighter'; drawGlow(c, L, 0, 30, '#D2343A', a * 0.7); c.fillStyle = '#FF6A6E'; c.fillRect(0, -1, L - 10, 2); } });
+        burst(x + dx * len, y + dy * len, busy() ? 4 : 12, PAL.blood, { min: 60, max: 180, lmin: 0.3, lmax: 0.5, shape: 'glow', smin: 3, smax: 5 });
+        return true;
+      }
+    },
+    // 22. 폭풍 칼날: 하얀 초승달 칼날 여러 개
+    stormblade: {
+      shot(c) { const P = PAL.wind; for (let i = 0; i < 2; i++) { c.globalAlpha = 0.3; c.strokeStyle = P[1]; c.lineWidth = 2; c.beginPath(); c.moveTo(-10 - i * 8, -8 + i * 16); c.lineTo(-34 - i * 8, -8 + i * 16); c.stroke(); }
+        c.globalAlpha = 1; c.fillStyle = 'rgba(232,255,246,.9)'; c.beginPath(); c.arc(-10, 0, 20, -1.1, 1.1); c.arc(-17, 0, 16, 1.0, -1.0, true); c.closePath(); c.fill(); c.strokeStyle = P[2]; c.lineWidth = 1.5; c.stroke(); },
+      trail(s) { if (busy() || Math.random() < 0.6) return; emit({ x: s.x, y: s.y, vx: -s.vx * 0.2, vy: -s.vy * 0.2, life: 0.25, size: 3, color: '#FFFFFF', shape: 'leaf', add: true }); },
+      hit(x, y) { SFX.windblade.hit(x, y); }
+    },
+    // 23. 빛의 결계: 발밑에 금빛 육망성 결계
+    barrier: {
+      shieldCast(x, y) { const P = PAL.light; add({ dur: 0.8, under: true, draw(c, k, now) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8; hexa(c, x, y + 28, 50 * (0.5 + Math.min(1, k * 3) * 0.5), now, P); } });
+        burst(x, y, busy() ? 6 : 18, P, { min: 60, max: 160, up: -60, lmin: 0.4, lmax: 0.8, shape: 'star', smin: 2, smax: 4 }); return true; },
+      shield(c, x, y, now, left) { const a = left < 1 ? (Math.floor(now / 100) % 2 ? 0.3 : 0.85) : 0.85; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * 0.8; hexa(c, x, y + 28, 40, now, PAL.light);
+        c.globalAlpha = a * 0.25; c.strokeStyle = PAL.light[2]; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y, 30, 40, 0, 0, TAU); c.stroke(); c.restore(); return true; }
+    },
+    // 24. 대폭포: 하늘에서 물기둥이 쏟아져 물보라
+    waterfall: {
+      fall(x, y, r, els, delay) {
+        const P = PAL.water, lead = 0.32;
+        add({ t: -delay, dur: lead + 0.55, draw(c, k, now) { const tt = k * (lead + 0.55); const top = y - 420; c.globalCompositeOperation = 'lighter';
+          if (tt < lead) { const q = tt / lead; c.globalAlpha = 0.9; c.fillStyle = P[2]; c.fillRect(x - 14, top, 28, (y - top) * q); c.fillStyle = P[1]; c.fillRect(x - 5, top, 10, (y - top) * q); return; }
+          const q = (tt - lead) / 0.55; c.globalAlpha = 1 - q; const w = 26 * (1 - q * 0.5); c.fillStyle = P[2]; c.fillRect(x - w, top, w * 2, y - top); c.fillStyle = P[1]; for (let i = 0; i < 4; i++) c.fillRect(x - w + 4 + i * w / 2, top + ((now / 3 + i * 40) % (y - top)), 3, 30);
+          c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.beginPath(); c.ellipse(x, y, r * (0.5 + q), r * (0.5 + q) * 0.4, 0, 0, TAU); c.stroke(); },
+          update(dt, f) { if (!f.boom && f.t >= lead) { f.boom = 1; burst(x, y, busy() ? 8 : 20, P, { min: 100, max: 240, up: -200, g: 600, shape: 'drop', add: false, lmin: 0.4, lmax: 0.7, smin: 3, smax: 7 }); } } });
+        return true;
+      }
+    },
+    // 25. 태양 폭발: 커다란 해가 터지고 바닥이 용암처럼 갈라짐
+    sunburst: {
+      nova(x, y, r) {
+        const P = PAL.fire, fy = y + 20, cr = Array.from({ length: 10 }, () => [rand(0, TAU), rand(0.3, 0.95)]);
+        add({ dur: 1.4, under: true, draw(c, k) { const a = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85; c.globalAlpha = a * 0.75; c.fillStyle = '#5A1408'; c.beginPath(); c.ellipse(x, fy, r, r * 0.5, 0, 0, TAU); c.fill();
+          c.globalCompositeOperation = 'lighter'; c.strokeStyle = P[2]; c.lineWidth = 3; cr.forEach(([a0, d]) => { c.beginPath(); c.moveTo(x, fy); c.lineTo(x + Math.cos(a0) * r * d * 0.5, fy + Math.sin(a0) * r * d * 0.25 + 4); c.lineTo(x + Math.cos(a0 + 0.2) * r * d, fy + Math.sin(a0 + 0.2) * r * d * 0.5); c.stroke(); }); } });
+        add({ dur: 0.9, draw(c, k, now) { c.globalCompositeOperation = 'lighter'; const e = 1 - Math.pow(1 - Math.min(1, k * 1.5), 3), rr = r * 0.42 * e, a = k < 0.5 ? 1 : 1 - (k - 0.5) / 0.5;
+          drawGlow(c, x, y - 10, rr * 1.4, P[3], a * 0.6); c.globalAlpha = a; c.fillStyle = P[2]; c.beginPath(); c.arc(x, y - 10, rr, 0, TAU); c.fill(); c.fillStyle = P[1]; c.beginPath(); c.arc(x, y - 10, rr * 0.7, 0, TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(x, y - 10, rr * 0.35, 0, TAU); c.fill();
+          c.strokeStyle = P[2]; c.lineWidth = 4; for (let i = 0; i < 12; i++) { const t = i * TAU / 12 + now / 300; c.beginPath(); c.moveTo(x + Math.cos(t) * rr * 1.05, y - 10 + Math.sin(t) * rr * 1.05); c.lineTo(x + Math.cos(t) * rr * 1.35, y - 10 + Math.sin(t) * rr * 1.35); c.stroke(); } } });
+        burst(x, y, busy() ? 10 : 32, P, { min: r, max: r * 2.4, up: -60, g: -40, lmin: 0.4, lmax: 0.9, shape: 'glow', smin: 4, smax: 8 });
+        return true;
+      }
+    },
+    // 26. 천둥의 창: 보라·흰 번개 창이 길게 꿰뚫음
+    thorspear: {
+      beam(x, y, dx, dy, len) {
+        const P = PAL.thunder, ang = Math.atan2(dy, dx);
+        add({ dur: 0.55, draw(c, k) { c.globalCompositeOperation = 'lighter'; c.translate(x, y); c.rotate(ang); const a = k < 0.08 ? k / 0.08 : 1 - (k - 0.08) / 0.92, L = len * Math.min(1, k / 0.1); c.globalAlpha = a;
+          drawGlow(c, 0, 0, 44, P[4], a); c.fillStyle = P[3]; c.fillRect(0, -6, L - 20, 12); c.fillStyle = '#FFFFFF'; c.fillRect(0, -2, L - 20, 4);
+          c.fillStyle = P[1]; c.beginPath(); c.moveTo(L + 8, 0); c.lineTo(L - 26, -14); c.lineTo(L - 18, 0); c.lineTo(L - 26, 14); c.closePath(); c.fill();
+          for (let i = 0; i < 3; i++) strokeBolt(c, boltPath(0, rand(-14, 14), L, rand(-14, 14), 14), P, 1.1); drawGlow(c, L, 0, 36, P[3], a); } });
+        burst(x + dx * len, y + dy * len, busy() ? 5 : 14, P, { min: 120, max: 300, lmin: 0.15, lmax: 0.3, shape: 'spark', smin: 2, smax: 4 });
+        return true;
+      }
+    },
+    // 27. 심연의 비: 검은 구슬이 떨어지고 바닥에 보라 소용돌이
+    abyss: {
+      fall(x, y, r, els, delay) {
+        const P = PAL.dark, lead = 0.32;
+        add({ t: -delay, dur: lead + 0.7, under: true, draw(c, k, now) { const tt = k * (lead + 0.7); if (tt < lead) return; const q = (tt - lead) / 0.7; c.globalAlpha = 1 - q; c.translate(x, y); c.scale(1, 0.45); c.rotate(-now / 120);
+          c.fillStyle = '#12082A'; c.beginPath(); c.arc(0, 0, r * 0.5, 0, TAU); c.fill(); c.globalCompositeOperation = 'lighter'; c.lineWidth = 5; for (let i = 0; i < 4; i++) { c.strokeStyle = P[1 + (i % 3)]; c.beginPath(); c.arc(0, 0, r * (0.55 + i * 0.13), i * 1.6, i * 1.6 + 2.4); c.stroke(); } } });
+        add({ t: -delay, dur: lead + 0.4, draw(c, k) { const tt = k * (lead + 0.4); c.globalCompositeOperation = 'lighter';
+          if (tt < lead) { const q = tt / lead, sy = y - 400 * (1 - q); c.globalAlpha = 0.5; c.fillStyle = 'rgba(74,42,138,.5)'; c.fillRect(x - 10, sy - 120, 20, 120); drawGlow(c, x, sy, 30, P[2], 0.9); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.fillStyle = '#12082A'; c.beginPath(); c.arc(x, sy, 10, 0, TAU); c.fill(); c.strokeStyle = P[1]; c.lineWidth = 2; c.stroke(); return; }
+          const q = (tt - lead) / 0.4; c.globalAlpha = 1 - q; drawGlow(c, x, y, r * 0.9, P[2], (1 - q) * 0.6); } });
+        return true;
+      }
+    },
+    // 28. 대지의 분노: 땅에서 큰 바위 가시 무더기가 솟음
+    earthrage: {
+      fall(x, y, r, els, delay) {
+        const P = PAL.earth, lead = 0.32;
+        add({ t: -delay, dur: lead, under: true, draw(c, k) { c.globalAlpha = 0.3 + k * 0.4; c.strokeStyle = P[2]; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y, r, r * 0.5, 0, 0, TAU); c.stroke(); } });
+        for (let i = 0; i < 5; i++) rockSpike(x + rand(-r * 0.5, r * 0.5), y + rand(-r * 0.2, r * 0.25), rand(30, 54), rand(16, 24), rand(-8, 8), delay + lead + i * 0.02, P);
+        add({ t: -delay - lead, dur: 0.1, update(dt, f) { if (!f.d && f.t > 0) { f.d = 1; burst(x, y, busy() ? 5 : 14, P, { min: 60, max: 200, up: -180, g: 600, shape: 'rock', add: false, lmin: 0.4, lmax: 0.8, smin: 3, smax: 7 }); } }, draw() {} });
+        return true;
+      }
+    },
+    // 29. 심판의 빛: 하늘에서 금빛 기둥이 내리꽂히고 빛이 튐
+    judgement: {
+      fall(x, y, r, els, delay) {
+        const P = PAL.light, lead = 0.32;
+        add({ t: -delay, dur: lead + 0.6, draw(c, k) { const tt = k * (lead + 0.6); c.globalCompositeOperation = 'lighter';
+          if (tt < lead) { const q = tt / lead; c.globalAlpha = q * 0.5; c.fillStyle = P[2]; c.fillRect(x - 4, y - 420, 8, 420); c.globalAlpha = 0.5; c.strokeStyle = P[3]; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y, r, r * 0.5, 0, 0, TAU); c.stroke(); return; }
+          const q = (tt - lead) / 0.6, w = r * 0.45 * (1 - q * 0.6); c.globalAlpha = 1 - q; const g = c.createLinearGradient(x - w, 0, x + w, 0); g.addColorStop(0, 'rgba(255,210,63,0)'); g.addColorStop(0.5, 'rgba(255,252,232,1)'); g.addColorStop(1, 'rgba(255,210,63,0)');
+          c.fillStyle = g; c.fillRect(x - w, y - 440, w * 2, 440); drawGlow(c, x, y, r * 0.9, P[3], (1 - q) * 0.55); c.strokeStyle = P[2]; c.lineWidth = 4; c.beginPath(); c.ellipse(x, y, r * (0.5 + q), r * (0.5 + q) * 0.45, 0, 0, TAU); c.stroke(); },
+          update(dt, f) { if (!f.boom && f.t >= lead) { f.boom = 1; burst(x, y, busy() ? 6 : 18, P, { min: 80, max: 240, up: -120, lmin: 0.3, lmax: 0.6, shape: 'star', smin: 2, smax: 5 }); } } });
+        return true;
+      }
+    },
+    // 30. 원소 해방: 여섯 원소 구슬이 빙 돌며 터짐 (무지개 폭발)
+    elemental: {
+      nova(x, y, r) {
+        const E6 = ['fire', 'water', 'wind', 'earth', 'thunder', 'dark'];
+        add({ dur: 1.1, draw(c, k, now) { c.globalCompositeOperation = 'lighter'; const a = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4, d = r * 0.7 * Math.min(1, k * 1.6);
+          E6.forEach((el, i) => { const P = PAL[el], t = i * TAU / 6 + now / 260, px = x + Math.cos(t) * d, py = y + Math.sin(t) * d * 0.55; drawGlow(c, px, py, 34, P[2], a); c.globalAlpha = a; c.fillStyle = P[1]; c.beginPath(); c.arc(px, py, 9, 0, TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(px - 2, py - 2, 3, 0, TAU); c.fill(); });
+          drawGlow(c, x, y, r * 0.35 * (1 + k), '#FFFFFF', a * 0.35); c.globalAlpha = a; c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.beginPath(); c.ellipse(x, y, d * 1.2, d * 0.66, 0, 0, TAU); c.stroke(); },
+          update(dt, f) { if (!f.boom && f.t > 0.55) { f.boom = 1; E6.forEach((el, i) => { const t = i * TAU / 6; burst(x + Math.cos(t) * r * 0.7, y + Math.sin(t) * r * 0.38, busy() ? 4 : 10, PAL[el], { min: 60, max: 200, lmin: 0.3, lmax: 0.7, shape: 'glow', smin: 3, smax: 6 }); }); } } });
+        return true;
+      }
     }
   };
+  // 공통: 비스듬히 떨어지는 운석(화염 비)
+  function meteor(x, y, r, delay, P, el) {
+    const lead = 0.32, sx0 = x - 160, sy0 = y - 420;
+    add({ t: -delay, dur: lead, under: true, draw(c, k) { c.globalAlpha = 0.3 + k * 0.4; c.strokeStyle = P[3]; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y, r * (1 - k * 0.3), r * 0.5 * (1 - k * 0.3), 0, 0, TAU); c.stroke(); } });
+    add({ t: -delay, dur: lead + 0.5, draw(c, k) { const tt = k * (lead + 0.5); c.globalCompositeOperation = 'lighter';
+      if (tt < lead) { const q = tt / lead, mx = sx0 + (x - sx0) * q, my = sy0 + (y - sy0) * q, ang = Math.atan2(y - sy0, x - sx0);
+        c.save(); c.translate(mx, my); c.rotate(ang); const g = c.createLinearGradient(-110, 0, 0, 0); g.addColorStop(0, 'rgba(232,64,42,0)'); g.addColorStop(1, P[1]); c.fillStyle = g; c.beginPath(); c.moveTo(-110, 0); c.lineTo(0, -12); c.lineTo(0, 12); c.fill(); c.restore();
+        drawGlow(c, mx, my, 40, P[2], 1); c.fillStyle = P[3]; c.beginPath(); c.arc(mx, my, 11, 0, TAU); c.fill(); c.fillStyle = P[1]; c.beginPath(); c.arc(mx + 2, my - 2, 6, 0, TAU); c.fill(); return; }
+      const q = (tt - lead) / 0.5; c.globalAlpha = 1 - q; drawGlow(c, x, y, r * 1.1 * (0.6 + q), P[2], (1 - q) * 0.55);
+      for (let i = 0; i < 10; i++) { const a = i * TAU / 10, h = (22 + (i % 3) * 8) * (1 - q * 0.5), px = x + Math.cos(a) * r * 0.5 * (0.5 + q), py = y + Math.sin(a) * r * 0.25 * (0.5 + q); c.fillStyle = P[1 + (i % 3)]; c.beginPath(); c.moveTo(px - 6, py); c.quadraticCurveTo(px, py - h * 0.6, px, py - h); c.quadraticCurveTo(px, py - h * 0.6, px + 6, py); c.fill(); } },
+      update(dt, f) { if (!f.boom && f.t >= lead) { f.boom = 1; burst(x, y, busy() ? 6 : 18, P, { min: 60, max: r * 3.4, up: -80, g: -40, lmin: 0.3, lmax: 0.7, shape: 'glow', smin: 3, smax: 7 }); } } });
+  }
+  // 공통: 땅에서 솟는 바위 가시 하나
+  function rockSpike(px, py, h, w, lean, delay, P) {
+    add({ t: -delay, dur: 0.8, draw(c, k) { const up = k < 0.2 ? k / 0.2 : 1; c.globalAlpha = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
+      c.fillStyle = '#1D2340'; c.beginPath(); c.moveTo(px - w / 2 - 2, py); c.lineTo(px + lean, py - h * up - 3); c.lineTo(px + w / 2 + 2, py); c.fill();
+      c.fillStyle = P[2]; c.beginPath(); c.moveTo(px - w / 2, py); c.lineTo(px + lean, py - h * up); c.lineTo(px + w / 2, py); c.fill();
+      c.fillStyle = P[1]; c.beginPath(); c.moveTo(px - w / 2, py); c.lineTo(px + lean, py - h * up); c.lineTo(px - w / 6, py); c.fill();
+      c.fillStyle = P[3]; c.beginPath(); c.moveTo(px + w / 5, py); c.lineTo(px + lean, py - h * up); c.lineTo(px + w / 2, py); c.fill(); } });
+  }
+  // 공통: 금빛 육망성 (빛의 결계)
+  function hexa(c, x, y, r, now, P) {
+    c.save(); c.translate(x, y); c.scale(1, 0.5); c.rotate(now / 900);
+    c.strokeStyle = P[3]; c.lineWidth = 4; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke(); c.lineWidth = 2; c.beginPath(); c.arc(0, 0, r * 0.82, 0, TAU); c.stroke();
+    [0, Math.PI].forEach(o => { c.beginPath(); for (let i = 0; i <= 3; i++) { const a = o + i * TAU / 3 - Math.PI / 2; i ? c.lineTo(Math.cos(a) * r * 0.82, Math.sin(a) * r * 0.82) : c.moveTo(Math.cos(a) * r * 0.82, Math.sin(a) * r * 0.82); } c.strokeStyle = P[2]; c.lineWidth = 3; c.stroke(); });
+    c.restore();
+  }
   const shotHit = s => { const S = s && s.sid && SFX[s.sid]; if (S && S.hit) S.hit(s.x, s.y, s); };
+  const dash = (x, y, dx, dy, len) => { const S = CUR && SFX[CUR]; if (S && S.dash) S.dash(x, y, dx, dy, len); };
   const shieldCast = (x, y, id) => { const S = SFX[id]; return !!(S && S.shieldCast && S.shieldCast(x, y)); };
 
   function reset() { parts.length = 0; fxs.length = 0; amb.length = 0; }
 
   const Fx = { PAL, pal, glow, drawGlow, emit, burst, updateParts, drawParts, updateFx, drawFx, castCircle, drawShot, trail, hit, death, coins, levelUp, dust, heal, nova, beam, fall, drawPool, drawShield, slash, afterimage, slamWarn, strokeBolt, boltPath,
-    ambient, drawAmbient, icon, iconURL, reset, use, shotHit, shieldCast, SFX, onBoom: null, count: () => parts.length + fxs.length };
+    ambient, drawAmbient, icon, iconURL, reset, use, shotHit, shieldCast, dash, SFX, onBoom: null, count: () => parts.length + fxs.length };
   window.GoRPGFx = Fx;
 })();
