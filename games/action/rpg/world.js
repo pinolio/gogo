@@ -488,13 +488,13 @@
    *  img/ 폴더의 그림을 불러 두었다가 있으면 쓰고, 없으면(또는 늦으면) 코드로 그린 그림을 씀
    *  bld_potion·bld_school·bld_chief·bld_castle / boss_r0~8 / mon_r0~8 (9칸 × 64px) / obj_r0~8_1·2 / key.jpg */
   const RIMG = {}, IMG_DIR = 'games/action/rpg/img/';
-  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw', 'ic_st', 'ic_hm', 'ic_ar', 'ic_rg', 'ic_bt'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
+  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw', 'ic_st', 'ic_hm', 'ic_ar', 'ic_rg', 'ic_bt', 'ic_pot'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
   let imgPromise = null;
   function loadImages(timeoutMs) {
     if (!imgPromise) imgPromise = Promise.all(IMG_LIST.concat(['key']).map(n => new Promise(res => {
       const im = new Image(); im.decoding = 'async';
       im.onload = () => { RIMG[n] = im; res(); }; im.onerror = () => res();
-      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : n === 'ic_bt' ? '?v=101' : /^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
+      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : n === 'ic_bt' ? '?v=101' : n === 'ic_pot' ? '?v=102' : /^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
     })));
     [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(i => ['_ground', '_path', '_water'].forEach(k => img79('r' + i + k)));   // v80 재질은 미리 (기다리지는 않음)
     return Promise.race([imgPromise, new Promise(r => setTimeout(r, timeoutMs || 6000))]);
@@ -798,6 +798,8 @@
     const S = 36, [c, x] = mk(S, S); x.imageSmoothingEnabled = false;
     const swI = it.slot === 'weapon' ? WP_IC[it.look] && imgOk(WP_IC[it.look]) : SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot]);   // v100 투구·갑옷·반지도   // v99 검 · v100 지팡이 19종 = 새 그림 (img/ic_sw.png · 80px 칸 19개: 1~10단계, 정예 1~9단계)
     if (swI) { const n = it.legend ? 9 : it.rare ? 10 + it.tier : it.tier, [c2, x2] = mk(80, 80); x2.drawImage(swI, n * 80, 0, 80, 80, 0, 0, 80, 80); return (icC[id] = c2.toDataURL()); }
+    const poI = it.stack && imgOk('ic_pot'), pn = !poI ? -1 : it.kind === 'hp' ? it.tier : it.kind === 'mp' ? 9 + it.tier : it.kind === 'scroll' ? 18 : -1;   // v102 물약 18종·귀환 주문서 = 새 그림 (img/ic_pot.png · 80px 칸: 체력 1~9, 마나 1~9, 주문서)
+    if (pn >= 0 && pn < 19) { const [c2, x2] = mk(80, 80); x2.drawImage(poI, pn * 80, 0, 80, 80, 0, 0, 80, 80); return (icC[id] = c2.toDataURL()); }
     const leg = it.legend && imgOk(it.slot === 'weapon' ? 'ic_leg_sw' : it.slot === 'armor' ? 'ic_leg_ar' : '');   // v60 전설 무기·갑옷 = Meshy 그림
     if (leg && !(it.slot === 'weapon' && it.look === 'staff')) { const k = Math.min((S - 2) / leg.naturalWidth, (S - 2) / leg.naturalHeight), ww = leg.naturalWidth * k, hh = leg.naturalHeight * k; x.imageSmoothingEnabled = true; x.drawImage(leg, (S - ww) / 2, (S - hh) / 2, ww, hh); return (icC[id] = c.toDataURL()); }
     if (it.stack) {
@@ -826,7 +828,7 @@
   function itemIcon(id) {
     const it = D.ITEMS[id]; if (!it) return '';
     const t = it.slot ? D.TIER[it.tier] : { color: '#5A64A0', gem: '#FFFFFF' };
-    return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}${(it.slot === 'weapon' && WP_IC[it.look] && imgOk(WP_IC[it.look])) || (SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot])) ? ';image-rendering:auto' : ''}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
+    return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}${(it.slot === 'weapon' && WP_IC[it.look] && imgOk(WP_IC[it.look])) || (SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot])) || (it.stack && imgOk('ic_pot')) ? ';image-rendering:auto' : ''}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
   }
 
   window.__GoRPGParts = { loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };

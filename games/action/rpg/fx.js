@@ -129,6 +129,7 @@
     c.save(); c.globalCompositeOperation = 'lighter';
     drawGlow(c, s.x, s.y, r * 3.2, P[3], 0.55);
     c.translate(s.x, s.y); c.rotate(ang);
+    const SS = s.sid && SFX[s.sid]; if (SS && SS.shot) { SS.shot(c, s, now); c.restore(); return; }   // v102 마법마다 다른 탄
     if (!s.mine) { c.fillStyle = P[2]; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); c.fillStyle = P[0]; c.beginPath(); c.arc(0, 0, r * 0.45, 0, TAU); c.fill(); }
     else if (el === 'fire') {   // 불덩이: 뒤로 늘어진 불꽃
       for (let i = 4; i >= 0; i--) { c.fillStyle = P[Math.min(4, i)]; c.beginPath(); c.ellipse(-i * r * 0.55, 0, r * (1.3 - i * 0.18), r * (1 - i * 0.15), 0, 0, TAU); c.fill(); }
@@ -151,6 +152,7 @@
   // 날아가는 동안 꼬리 입자
   function trail(s, dt) {
     if (Math.random() > dt * 60) return;
+    const ST = s.sid && SFX[s.sid]; if (ST && ST.trail) { ST.trail(s, dt); return; }
     const el = (s.els && s.els[0]) || 'light', P = s.mine ? pal(el) : pal('dark');
     const shape = el === 'fire' ? 'glow' : el === 'earth' ? 'rock' : el === 'water' ? 'sq' : el === 'thunder' ? 'spark' : el === 'wind' ? 'leaf' : 'star';
     emit({ x: s.x + rand(-3, 3), y: s.y + rand(-3, 3), vx: -s.vx * 0.15 + rand(-30, 30), vy: -s.vy * 0.15 + rand(-30, 30) + (el === 'fire' ? -40 : 0), life: rand(0.25, 0.5), size: rand(2, el === 'fire' ? 6 : 4), color: P[Math.floor(rand(0, 4))], shape, add: el !== 'earth', g: el === 'earth' || el === 'water' ? 300 : 0, spin: rand(-10, 10) });
@@ -185,6 +187,7 @@
   }
   function dust(x, y, color) { if (Math.random() < 0.5) emit({ x: x + rand(-8, 8), y: y - 2, vx: rand(-20, 20), vy: rand(-30, -10), g: 0, life: 0.4, size: rand(3, 5), color: color || 'rgba(255,255,255,.5)', shape: 'sq', add: false, grow: 1 }); }
   function heal(x, y, big) {
+    if (CUR && SFX[CUR] && SFX[CUR].heal && SFX[CUR].heal(x, y, big)) return;
     const P = ['#FFFFFF', '#C8FFD8', '#3DDC84', '#1E9E5A'];
     for (let i = 0; i < (big ? 36 : 22); i++) emit({ x: x + rand(-26, 26), y: y + rand(-30, 20), vx: rand(-10, 10), vy: rand(-140, -40), g: -20, life: rand(0.7, 1.2), size: rand(3, 6), color: P[Math.floor(rand(0, 3))], shape: i % 4 ? 'glow' : 'star', add: true });
     add({ dur: 0.9, under: true, draw(c, k) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - k; c.strokeStyle = '#3DDC84'; c.lineWidth = 3; c.beginPath(); c.ellipse(x, y + 26, 40 * (0.6 + k), 18 * (0.6 + k), 0, 0, TAU); c.stroke(); drawGlow(c, x, y, 80, '#3DDC84', (1 - k) * 0.6); } });
@@ -193,6 +196,7 @@
 
   /* ---------- 큰 마법 ---------- */
   function nova(x, y, r, els) {
+    if (CUR && SFX[CUR] && SFX[CUR].nova && SFX[CUR].nova(x, y, r, els)) return;
     const el = els[0], P = pal(el), P2 = pal(els[els.length - 1]);
     add({ dur: 0.7, under: true, draw(c, k) {   // 바닥 그을음·충격파
       c.globalAlpha = (1 - k) * 0.5; c.fillStyle = P[4]; c.beginPath(); c.ellipse(x, y + 20, r * 0.9, r * 0.45, 0, 0, TAU); c.fill();
@@ -220,6 +224,7 @@
     }
   }
   function beam(x, y, dx, dy, len, w, els) {
+    if (CUR && SFX[CUR] && SFX[CUR].beam && SFX[CUR].beam(x, y, dx, dy, len, w, els)) return;
     const el = els[0], P = pal(el), P2 = pal(els[els.length - 1]), ang = Math.atan2(dy, dx);
     if (el === 'earth' && els.length === 1) {   // 대지 가르기: 줄지어 솟는 바위
       const n = Math.round(len / 26);
@@ -242,6 +247,7 @@
   }
   // 하늘에서 떨어지는 것 (화염 비=운석, 낙뢰=번개, 대지의 분노=바위, 대폭포=물기둥, 심판의 빛=빛기둥)
   function fall(x, y, r, els, delay) {
+    if (CUR && SFX[CUR] && SFX[CUR].fall && SFX[CUR].fall(x, y, r, els, delay)) return;
     const el = els[0], P = pal(el), P2 = pal(els[els.length - 1]), lead = 0.32;
     add({ t: -delay, dur: lead + 0.45, under: true, draw(c, k) {   // 떨어질 곳 표시
       const tt = k * (lead + 0.45); if (tt > lead) return; c.globalAlpha = 0.25 + tt / lead * 0.4; c.strokeStyle = P[2]; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y, r * (1 - tt / lead * 0.3), r * 0.5 * (1 - tt / lead * 0.3), 0, 0, TAU); c.stroke();
@@ -275,7 +281,8 @@
     c.restore();
     if (Math.random() < 0.5) { const a = Math.random() * TAU, d = Math.random() * p.r; emit({ x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.55, vx: 0, vy: rand(-60, -20), life: 0.6, size: rand(3, 6), color: P[Math.floor(rand(0, 3))], shape: el === 'fire' ? 'glow' : 'ring', add: true, grow: 0.5 }); }
   }
-  function drawShield(c, x, y, now, el, left) {
+  function drawShield(c, x, y, now, el, left, sid) {
+    if (sid && SFX[sid] && SFX[sid].shield && SFX[sid].shield(c, x, y, now, left)) return;
     const P = pal(el), a = left < 1 ? (Math.floor(now / 100) % 2 ? 0.3 : 0.8) : 0.8;
     c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * 0.35;
     const g = c.createRadialGradient(x, y, 10, x, y, 40); g.addColorStop(0, P[3] + '00'); g.addColorStop(0.8, P[2] + '66'); g.addColorStop(1, P[1]);
@@ -437,9 +444,204 @@
   }
   const iconURL = (sk, size) => { const c = icon(sk, size || 40); return c._url || (c._url = c.toDataURL()); };
 
+  /* ================= v102 기본 마법마다 다른 효과 (선생님 사진처럼) =================
+   *  game.js 가 마법을 쓸 때 Fx.use(마법 id) 를 부르고, 탄에는 s.sid 를 붙임.
+   *  SFX[id] 의 shot(탄 모양) · trail(꼬리) · hit(맞을 때) · nova/beam/heal/fall(큰 마법) · shieldCast/shield(보호막) 이 있으면 그것을 씀.
+   *  느린 컴퓨터를 위해 효과·입자가 많으면(busy) 덜 그림 */
+  let CUR = null;
+  const use = id => { CUR = id || null; };
+  const busy = () => fxs.length > 90 || parts.length > 900;
+  const SFX = {
+    // 1. 마법 화살: 금빛 화살 + 긴 빛줄기, 맞으면 금빛 빛살이 퍼짐
+    magicarrow: {
+      shot(c) {
+        const P = PAL.light, L = 52;
+        const g = c.createLinearGradient(-L, 0, 8, 0); g.addColorStop(0, 'rgba(255,210,63,0)'); g.addColorStop(0.7, 'rgba(255,224,110,.75)'); g.addColorStop(1, P[1]);
+        c.fillStyle = g; c.beginPath(); c.moveTo(-L, 0); c.lineTo(6, -4); c.lineTo(6, 4); c.closePath(); c.fill();
+        c.fillStyle = '#FFFFFF'; c.fillRect(-L * 0.55, -1, L * 0.55 + 8, 2);
+        c.fillStyle = P[3]; c.beginPath(); c.moveTo(-L * 0.5, 0); c.lineTo(-L * 0.68, -7); c.lineTo(-L * 0.56, 0); c.lineTo(-L * 0.68, 7); c.fill();
+        c.fillStyle = P[3]; c.beginPath(); c.moveTo(18, 0); c.lineTo(4, -8); c.lineTo(8, 0); c.lineTo(4, 8); c.closePath(); c.fill();
+        c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(15, 0); c.lineTo(7, -4); c.lineTo(9, 0); c.lineTo(7, 4); c.fill();
+      },
+      trail(s) { if (busy() || Math.random() < 0.4) return; emit({ x: s.x + rand(-4, 4), y: s.y + rand(-4, 4), vx: -s.vx * 0.1, vy: -s.vy * 0.1 + rand(-20, 20), life: rand(0.2, 0.4), size: rand(2, 4), color: PAL.light[Math.floor(rand(1, 4))], shape: 'star', add: true }); },
+      hit(x, y, s) {
+        const ang = Math.atan2(s.vy, s.vx);
+        add({ dur: 0.35, draw(c, k) {
+          c.globalCompositeOperation = 'lighter'; c.translate(x, y); drawGlow(c, 0, 0, 40 * (1 - k * 0.4), PAL.light[3], 1 - k);
+          c.rotate(ang); c.globalAlpha = 1 - k;
+          for (let i = -3; i <= 3; i++) { const a = i * 0.28, L = (34 + (3 - Math.abs(i)) * 10) * (0.4 + k * 0.8); c.save(); c.rotate(a); const g = c.createLinearGradient(0, 0, L, 0); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, 'rgba(255,210,63,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(0, -3); c.lineTo(L, 0); c.lineTo(0, 3); c.fill(); c.restore(); }
+        } });
+        burst(x, y, busy() ? 4 : 10, PAL.light, { min: 60, max: 200, lmin: 0.2, lmax: 0.4, shape: 'star', smin: 2, smax: 4 });
+      }
+    },
+    // 2. 파이어볼: 꼬리가 긴 불덩이(혜성), 맞으면 불꽃 폭발
+    fireball: {
+      shot(c, s, now) {
+        const P = PAL.fire, L = 58, f = Math.sin(now / 40) * 2;
+        const g = c.createLinearGradient(-L, 0, 0, 0); g.addColorStop(0, 'rgba(232,64,42,0)'); g.addColorStop(0.5, 'rgba(255,154,61,.8)'); g.addColorStop(1, P[1]);
+        c.fillStyle = g; c.beginPath(); c.moveTo(-L, f); c.quadraticCurveTo(-L * 0.4, -14, 4, -12); c.lineTo(4, 12); c.quadraticCurveTo(-L * 0.4, 14, -L, -f); c.closePath(); c.fill();
+        for (let i = 0; i < 4; i++) { const t = (now / 90 + i / 4) % 1; c.fillStyle = P[1 + (i % 3)]; c.globalAlpha = 1 - t; c.beginPath(); c.ellipse(-t * L * 0.8, Math.sin(i * 2 + now / 60) * 6 * t, 9 * (1 - t) + 2, 6 * (1 - t) + 2, 0, 0, TAU); c.fill(); }
+        c.globalAlpha = 1; drawGlow(c, 0, 0, 30, P[2], 0.9);
+        c.fillStyle = P[3]; c.beginPath(); c.arc(0, 0, 12, 0, TAU); c.fill(); c.fillStyle = P[2]; c.beginPath(); c.arc(1, 0, 9, 0, TAU); c.fill(); c.fillStyle = P[1]; c.beginPath(); c.arc(2, -1, 6, 0, TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(3, -2, 3, 0, TAU); c.fill();
+      },
+      trail(s) { if (busy()) return; for (let i = 0; i < 2; i++) emit({ x: s.x + rand(-6, 6), y: s.y + rand(-6, 6), vx: -s.vx * 0.2 + rand(-30, 30), vy: -s.vy * 0.2 + rand(-60, -10), life: rand(0.25, 0.5), size: rand(4, 8), color: PAL.fire[Math.floor(rand(1, 4))], shape: 'glow', add: true, grow: -0.6 }); },
+      hit(x, y) {
+        const P = PAL.fire;
+        add({ dur: 0.5, draw(c, k) {
+          c.globalCompositeOperation = 'lighter'; const e = 1 - Math.pow(1 - k, 3);
+          drawGlow(c, x, y, 70 * (0.5 + e * 0.6), P[2], 1 - k);
+          c.globalAlpha = 1 - k; c.strokeStyle = P[1]; c.lineWidth = 6 * (1 - k) + 1; c.beginPath(); c.ellipse(x, y, 14 + e * 46, (14 + e * 46) * 0.7, 0, 0, TAU); c.stroke();
+          for (let i = 0; i < 9; i++) { const a = i * TAU / 9 + 0.3, d = 10 + e * 40; c.fillStyle = P[1 + (i % 3)]; c.beginPath(); c.arc(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.7, 9 * (1 - k) + 1, 0, TAU); c.fill(); }
+        } });
+        burst(x, y, busy() ? 6 : 18, P, { min: 60, max: 240, up: -80, g: -60, lmin: 0.3, lmax: 0.7, shape: 'glow', smin: 3, smax: 7 });
+      }
+    },
+    // 3. 물방울 탄: 꿈틀거리는 물줄기(물뱀), 맞으면 왕관 모양 물보라
+    watershot: {
+      shot(c, s, now) {
+        const P = PAL.water, L = 60, ph = now / 70 + (s.vy > 0 ? 1.5 : 0);
+        const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push([-L * t, Math.sin(ph - t * 6) * 9 * t]); }
+        [[11, P[3], 0.9], [7, P[2], 1], [3, P[1], 1]].forEach(([w, col, a]) => { c.globalAlpha = a; c.strokeStyle = col; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); pts.forEach(([px, py], i) => { c.lineWidth = w * (1 - i / 14); i ? c.lineTo(px, py) : c.moveTo(px, py); }); c.lineWidth = w; c.stroke(); });
+        c.globalAlpha = 1; c.fillStyle = P[2]; c.beginPath(); c.ellipse(2, 0, 10, 8, 0, 0, TAU); c.fill(); c.fillStyle = P[1]; c.beginPath(); c.ellipse(4, -2, 5, 4, 0, 0, TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.fillRect(4, -4, 3, 2);
+      },
+      trail(s) { if (busy() || Math.random() < 0.3) return; emit({ x: s.x + rand(-5, 5), y: s.y + rand(-5, 5), vx: rand(-40, 40), vy: rand(-60, 0), g: 400, life: rand(0.3, 0.5), size: rand(3, 5), color: PAL.water[Math.floor(rand(1, 4))], shape: 'drop' }); },
+      hit(x, y) {
+        const P = PAL.water;
+        add({ dur: 0.45, draw(c, k) { c.globalAlpha = 1 - k; c.strokeStyle = P[1]; c.lineWidth = 3; c.beginPath(); c.ellipse(x, y + 10, 10 + k * 34, (10 + k * 34) * 0.4, 0, 0, TAU); c.stroke();
+          c.fillStyle = P[2]; for (let i = 0; i < 8; i++) { const a = Math.PI + i * Math.PI / 7, h = Math.sin(k * Math.PI) * 26; c.fillRect(x + Math.cos(a) * (8 + k * 26) - 2, y + 6 - h * Math.abs(Math.sin(a + 0.3)) - 6, 4, 8); } } });
+        burst(x, y, busy() ? 5 : 14, P, { min: 80, max: 200, up: -160, g: 600, shape: 'drop', add: false, lmin: 0.35, lmax: 0.6, smin: 3, smax: 7 });
+      }
+    },
+    // 4. 회복의 물: 발밑에서 솟는 초록빛 기둥 + 머리 위 빛 십자가
+    heal1: {
+      heal(x, y) {
+        const P = ['#FFFFFF', '#C8FFE8', '#5CF0B0', '#1EB880'], fy = y + 28;
+        add({ dur: 1.0, draw(c, k) {
+          c.globalCompositeOperation = 'lighter'; const a = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
+          const g = c.createLinearGradient(0, fy - 120, 0, fy); g.addColorStop(0, 'rgba(92,240,176,0)'); g.addColorStop(0.6, 'rgba(92,240,176,.45)'); g.addColorStop(1, 'rgba(200,255,232,.8)');
+          c.globalAlpha = a; c.fillStyle = g; c.fillRect(x - 22, fy - 120, 44, 120);
+          c.fillStyle = 'rgba(255,255,255,.6)'; c.fillRect(x - 6, fy - 110, 12, 110);
+          for (let i = 0; i < 3; i++) { const q = (k * 1.6 + i / 3) % 1; c.globalAlpha = a * (1 - q); c.strokeStyle = P[2]; c.lineWidth = 3; c.beginPath(); c.ellipse(x, fy - q * 70, 30 - q * 8, 10 - q * 3, 0, 0, TAU); c.stroke(); }
+        } });
+        add({ t: -0.15, dur: 0.9, draw(c, k) {   // 빛 십자가
+          c.globalCompositeOperation = 'lighter'; const a = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8, sc = 0.6 + Math.min(1, k * 3) * 0.4, cx = x + 30, cy = y - 46 - k * 10;
+          drawGlow(c, cx, cy, 34, P[2], a * 0.8); c.globalAlpha = a; c.fillStyle = P[1]; c.fillRect(cx - 4 * sc, cy - 20 * sc, 8 * sc, 40 * sc); c.fillRect(cx - 14 * sc, cy - 9 * sc, 28 * sc, 8 * sc);
+          c.fillStyle = '#FFFFFF'; c.fillRect(cx - 2 * sc, cy - 18 * sc, 4 * sc, 36 * sc); c.fillRect(cx - 12 * sc, cy - 7 * sc, 24 * sc, 4 * sc);
+        } });
+        for (let i = 0; i < (busy() ? 8 : 22); i++) emit({ x: x + rand(-22, 22), y: fy - rand(0, 40), vx: rand(-10, 10), vy: rand(-140, -50), g: -20, life: rand(0.6, 1.1), size: rand(2, 5), color: P[Math.floor(rand(0, 3))], shape: i % 3 ? 'glow' : 'star', add: true });
+        return true;
+      }
+    },
+    // 5. 어둠 구슬: 연기를 끄는 보라 구슬, 맞으면 빨아들이는 소용돌이
+    darkorb: {
+      shot(c, s, now) {
+        const P = PAL.dark; c.rotate(now / 160);
+        drawGlow(c, 0, 0, 34, P[2], 0.8);
+        c.globalCompositeOperation = 'source-over'; c.fillStyle = P[4]; c.beginPath(); c.arc(0, 0, 12, 0, TAU); c.fill();
+        c.globalCompositeOperation = 'lighter'; c.strokeStyle = P[1]; c.lineWidth = 3; for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(0, 0, 9 + i * 3, i * 2.1, i * 2.1 + 1.6); c.stroke(); }
+        c.fillStyle = P[0]; c.beginPath(); c.arc(-3, -3, 3, 0, TAU); c.fill();
+      },
+      trail(s) { if (busy()) return; emit({ x: s.x + rand(-6, 6), y: s.y + rand(-6, 6), vx: -s.vx * 0.12 + rand(-20, 20), vy: -s.vy * 0.12 + rand(-30, 10), life: rand(0.4, 0.7), size: rand(5, 9), color: Math.random() < 0.5 ? '#2A1650' : '#4A2A8A', shape: 'glow', grow: 0.8 }); },
+      hit(x, y) {
+        const P = PAL.dark;
+        add({ dur: 0.65, draw(c, k, now) {
+          const r = 40 * (1 - k * 0.6); c.translate(x, y); c.scale(1, 0.75);
+          c.globalAlpha = (1 - k) * 0.85; c.fillStyle = '#12082A'; c.beginPath(); c.arc(0, 0, r * 0.55, 0, TAU); c.fill();
+          c.globalCompositeOperation = 'lighter'; c.rotate(-now / 70); c.lineWidth = 4; for (let i = 0; i < 5; i++) { c.strokeStyle = P[1 + (i % 3)]; c.beginPath(); c.arc(0, 0, r * (0.6 + i * 0.12), i * 1.3, i * 1.3 + 2.2); c.stroke(); }
+        } });
+        burst(x, y, busy() ? 5 : 14, P, { min: 40, max: 150, lmin: 0.3, lmax: 0.6, shape: 'glow', smin: 3, smax: 6 });
+      }
+    },
+    // 6. 돌 방패: 땅에서 바위가 솟아 둘레를 감싸고, 켜져 있는 동안 바위가 빙빙 돎
+    stonewall: {
+      shieldCast(x, y) {
+        const P = PAL.earth, fy = y + 28;
+        for (let i = 0; i < 8; i++) { const a = i * TAU / 8, px = x + Math.cos(a) * 34, py = fy + Math.sin(a) * 14, h = rand(20, 30), w = rand(14, 20);
+          add({ t: -i * 0.03, dur: 0.7, under: Math.sin(a) < 0, draw(c, k) { const up = Math.min(1, k / 0.3), a2 = k > 0.75 ? 1 - (k - 0.75) / 0.25 : 1; c.globalAlpha = a2;
+            c.fillStyle = '#1D2340'; c.beginPath(); c.moveTo(px - w / 2 - 2, py); c.lineTo(px - w / 3, py - h * up - 2); c.lineTo(px + w / 3, py - h * up - 2); c.lineTo(px + w / 2 + 2, py); c.fill();
+            c.fillStyle = P[2]; c.beginPath(); c.moveTo(px - w / 2, py); c.lineTo(px - w / 3, py - h * up); c.lineTo(px + w / 3, py - h * up); c.lineTo(px + w / 2, py); c.fill(); c.fillStyle = P[1]; c.fillRect(px - w / 3, py - h * up, w / 3, h * up * 0.5); } }); }
+        burst(x, fy, busy() ? 6 : 16, P, { min: 60, max: 180, up: -160, g: 600, shape: 'rock', add: false, lmin: 0.4, lmax: 0.7, smin: 3, smax: 6 });
+        return true;
+      },
+      shield(c, x, y, now, left) {
+        const P = PAL.earth, a = left < 1 ? (Math.floor(now / 100) % 2 ? 0.35 : 0.9) : 0.9;
+        c.save(); c.globalAlpha = a;
+        for (let i = 0; i < 6; i++) { const t = now / 700 + i * TAU / 6, px = x + Math.cos(t) * 30, py = y + 8 + Math.sin(t) * 12 - 6, s = 7;
+          c.fillStyle = '#1D2340'; c.fillRect(px - s - 1, py - s - 1, s * 2 + 2, s * 1.6 + 2); c.fillStyle = P[2]; c.fillRect(px - s, py - s, s * 2, s * 1.6); c.fillStyle = P[1]; c.fillRect(px - s, py - s, s, s * 0.6); }
+        c.globalAlpha = a * 0.3; c.strokeStyle = P[1]; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y + 4, 32, 38, 0, 0, TAU); c.stroke(); c.restore();
+        return true;
+      }
+    },
+    // 7. 바람 칼날: 커다란 초승달 바람, 맞으면 초록 베기 자국
+    windblade: {
+      shot(c, s, now) {
+        const P = PAL.wind;
+        for (let i = 0; i < 3; i++) { c.globalAlpha = 0.25; c.strokeStyle = P[2]; c.lineWidth = 2; c.beginPath(); c.moveTo(-14 - i * 10, -14 + i * 12); c.lineTo(-40 - i * 10, -14 + i * 12); c.stroke(); }
+        c.globalAlpha = 1;
+        const g = c.createLinearGradient(-20, 0, 14, 0); g.addColorStop(0, 'rgba(62,192,154,0)'); g.addColorStop(0.6, P[3]); g.addColorStop(1, P[1]);
+        c.fillStyle = g; c.beginPath(); c.arc(-14, 0, 30, -1.15, 1.15); c.arc(-24, 0, 24, 1.05, -1.05, true); c.closePath(); c.fill();
+        c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.5; c.beginPath(); c.arc(-14, 0, 29, -1.0, 1.0); c.stroke();
+      },
+      trail(s) { if (busy() || Math.random() < 0.5) return; emit({ x: s.x + rand(-14, 14), y: s.y + rand(-14, 14), vx: -s.vx * 0.2, vy: -s.vy * 0.2, life: 0.3, size: rand(3, 5), color: PAL.wind[Math.floor(rand(1, 4))], shape: 'leaf', add: true }); },
+      hit(x, y) {
+        const P = PAL.wind;
+        add({ dur: 0.25, draw(c, k) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - k; c.translate(x, y); [[-0.7, P[2]], [0.7, P[1]]].forEach(([a, col]) => { c.save(); c.rotate(a); c.strokeStyle = col; c.lineWidth = 4 * (1 - k) + 1; c.beginPath(); c.moveTo(-26, 0); c.lineTo(26, 0); c.stroke(); c.restore(); }); } });
+        burst(x, y, busy() ? 4 : 10, P, { min: 80, max: 200, lmin: 0.2, lmax: 0.4, shape: 'leaf', smin: 3, smax: 5 });
+      }
+    },
+    // 8. 불꽃 고리: 바닥에 붉은 고리가 그려진 뒤 불길이 솟는 고리로 퍼짐
+    firering: {
+      nova(x, y, r) {
+        const P = PAL.fire, fy = y + 20;
+        add({ dur: 0.9, under: true, draw(c, k) { c.globalCompositeOperation = 'lighter'; const a = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85, rr = r * (0.35 + 0.65 * Math.min(1, k * 2.2));
+          c.globalAlpha = a; c.strokeStyle = P[3]; c.lineWidth = 8; c.beginPath(); c.ellipse(x, fy, rr, rr * 0.5, 0, 0, TAU); c.stroke(); c.strokeStyle = P[1]; c.lineWidth = 3; c.stroke(); } });
+        add({ t: -0.08, dur: 0.85, draw(c, k, now) { c.globalCompositeOperation = 'lighter'; const a = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85, rr = r * (0.35 + 0.65 * Math.min(1, k * 2.2)), n = 20;
+          for (let i = 0; i < n; i++) { const t = i * TAU / n, px = x + Math.cos(t) * rr, py = fy + Math.sin(t) * rr * 0.5, h = (16 + Math.sin(now / 50 + i * 1.7) * 6) * (Math.sin(t) > 0 ? 1.1 : 0.8);
+            c.globalAlpha = a; c.fillStyle = P[2 + (i % 2)]; c.beginPath(); c.moveTo(px - 6, py); c.quadraticCurveTo(px - 4, py - h * 0.6, px, py - h); c.quadraticCurveTo(px + 4, py - h * 0.6, px + 6, py); c.fill();
+            c.fillStyle = P[1]; c.beginPath(); c.moveTo(px - 3, py); c.quadraticCurveTo(px - 1, py - h * 0.4, px, py - h * 0.6); c.quadraticCurveTo(px + 1, py - h * 0.4, px + 3, py); c.fill(); }
+          drawGlow(c, x, fy, rr * 1.2, P[3], a * 0.4); } });
+        burst(x, fy, busy() ? 8 : 24, P, { min: r * 1.4, max: r * 2.6, flat: 0.5, up: -40, g: -40, lmin: 0.35, lmax: 0.7, shape: 'glow', smin: 3, smax: 6 });
+        return true;
+      }
+    },
+    // 9. 번개 화살: 지그재그 번개가 꼬리처럼 따라오는 화살, 맞으면 전기가 튐
+    thunderarrow: {
+      shot(c) {
+        const P = PAL.thunder;
+        drawGlow(c, 0, 0, 26, P[2], 0.9); strokeBolt(c, boltPath(-80, 0, 0, 0, 8, 7), P, 2.4);
+        c.fillStyle = P[2]; c.beginPath(); c.moveTo(14, 0); c.lineTo(0, -7); c.lineTo(3, 0); c.lineTo(0, 7); c.closePath(); c.fill();
+        c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(11, 0); c.lineTo(3, -3); c.lineTo(4, 0); c.lineTo(3, 3); c.fill();
+      },
+      trail(s) { if (busy() || Math.random() < 0.5) return; emit({ x: s.x, y: s.y, vx: rand(-120, 120), vy: rand(-120, 120), life: 0.15, size: 3, color: PAL.thunder[Math.floor(rand(0, 3))], shape: 'spark', add: true }); },
+      hit(x, y) {
+        const P = PAL.thunder;
+        add({ dur: 0.3, draw(c, k) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - k; drawGlow(c, x, y, 40, P[2], 1 - k); for (let i = 0; i < 6; i++) { const a = i * TAU / 6 + k * 2; strokeBolt(c, boltPath(x, y, x + Math.cos(a) * 34, y + Math.sin(a) * 26, 6, 3), P, 1); } } });
+        burst(x, y, busy() ? 5 : 12, P, { min: 120, max: 280, lmin: 0.12, lmax: 0.25, shape: 'spark', smin: 2, smax: 4 });
+      }
+    },
+    // 10. 대지 가르기: 땅이 갈라지며(금) 큰 바위 가시가 줄지어 솟음 + 흙먼지
+    earthsplit: {
+      beam(x, y, dx, dy, len) {
+        const P = PAL.earth, fy = y + 20, pts = [[x, fy]];
+        for (let i = 1; i <= 10; i++) { const t = i / 10 * len; pts.push([x + dx * t + rand(-6, 6), fy + dy * t + rand(-4, 4)]); }
+        add({ dur: 1.1, under: true, draw(c, k) { c.globalAlpha = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1; c.strokeStyle = '#2A1A0C'; c.lineWidth = 4; c.lineJoin = 'round'; c.beginPath(); const m = Math.min(pts.length, Math.ceil(k / 0.25 * pts.length)); pts.slice(0, m).forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py))); c.stroke(); c.strokeStyle = P[4]; c.lineWidth = 1.5; c.stroke(); } });
+        const n = Math.round(len / 22);
+        for (let i = 0; i < n; i++) { const px = x + dx * (i + 1) * 22 + rand(-8, 8), py = fy + dy * (i + 1) * 22 + rand(-5, 5), h = rand(26, 46) * (0.7 + i / n * 0.5), w = rand(14, 22), lean = rand(-6, 6);
+          add({ t: -i * 0.035, dur: 0.75, draw(c, k) { const up = k < 0.2 ? k / 0.2 : 1; c.globalAlpha = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
+            c.fillStyle = '#1D2340'; c.beginPath(); c.moveTo(px - w / 2 - 2, py); c.lineTo(px + lean, py - h * up - 3); c.lineTo(px + w / 2 + 2, py); c.fill();
+            c.fillStyle = P[2]; c.beginPath(); c.moveTo(px - w / 2, py); c.lineTo(px + lean, py - h * up); c.lineTo(px + w / 2, py); c.fill();
+            c.fillStyle = P[1]; c.beginPath(); c.moveTo(px - w / 2, py); c.lineTo(px + lean, py - h * up); c.lineTo(px - w / 6, py); c.fill();
+            c.fillStyle = P[3]; c.beginPath(); c.moveTo(px + w / 5, py); c.lineTo(px + lean, py - h * up); c.lineTo(px + w / 2, py); c.fill(); }, update(dt, f) { if (!f.d && f.t > 0) { f.d = 1; if (!busy()) burst(px, py, 4, P, { min: 30, max: 90, up: -60, g: 300, shape: 'rock', add: false, lmin: 0.3, lmax: 0.5, smin: 2, smax: 4 }); } } }); }
+        return true;
+      }
+    }
+  };
+  const shotHit = s => { const S = s && s.sid && SFX[s.sid]; if (S && S.hit) S.hit(s.x, s.y, s); };
+  const shieldCast = (x, y, id) => { const S = SFX[id]; return !!(S && S.shieldCast && S.shieldCast(x, y)); };
+
   function reset() { parts.length = 0; fxs.length = 0; amb.length = 0; }
 
   const Fx = { PAL, pal, glow, drawGlow, emit, burst, updateParts, drawParts, updateFx, drawFx, castCircle, drawShot, trail, hit, death, coins, levelUp, dust, heal, nova, beam, fall, drawPool, drawShield, slash, afterimage, slamWarn, strokeBolt, boltPath,
-    ambient, drawAmbient, icon, iconURL, reset, onBoom: null, count: () => parts.length + fxs.length };
+    ambient, drawAmbient, icon, iconURL, reset, use, shotHit, shieldCast, SFX, onBoom: null, count: () => parts.length + fxs.length };
   window.GoRPGFx = Fx;
 })();

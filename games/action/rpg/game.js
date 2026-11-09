@@ -587,14 +587,15 @@
       function peerFx(m, p) {
         const sk = skill(m.id); if (!sk) return;
         const els = sk.els, x = m.x, y = m.y, dx = m.dx || 1, dy = m.dy || 0, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light;
-        Fx.castCircle(p.x, p.y, els, !!sk.fusion);
-        if (sk.kind === 'bolt') { const n = sk.count || 1, sp = 430 * (sk.speed || 1); for (let i = 0; i < n; i++) { const a = Math.atan2(dy, dx) + (i - (n - 1) / 2) * 0.18; G.shots.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, dmg: 0, els, pierce: true, hit: new Set(), r: 9, color: col, color2: col2, mine: false, ghost: true }); } }
+        Fx.castCircle(p.x, p.y, els, !!sk.fusion); Fx.use(sk.fusion ? null : sk.id);
+        if (sk.kind === 'bolt') { const n = sk.count || 1, sp = 430 * (sk.speed || 1); for (let i = 0; i < n; i++) { const a = Math.atan2(dy, dx) + (i - (n - 1) / 2) * 0.18; G.shots.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, dmg: 0, els, pierce: true, hit: new Set(), r: 9, color: col, color2: col2, mine: false, ghost: true, sid: sk.fusion ? null : sk.id }); } }
         else if (sk.kind === 'nova') Fx.nova(x, y, sk.radius || 120, els);
         else if (sk.kind === 'beam') Fx.beam(x, y, dx, dy, sk.len || 300, sk.w || 30, els);
         else if (sk.kind === 'rain') { for (let i = 0; i < (sk.count || 5); i++) Fx.fall(x + dx * 160 + rand(-90, 90), y + dy * 160 + rand(-60, 60), sk.radius || 60, els, i * 0.1); }
         else if (sk.kind === 'pool') Fx.nova(x + dx * 120, y + dy * 120, (sk.radius || 90) * 0.7, els);
         else if (sk.kind === 'heal') Fx.heal(p.x, p.y - 28, sk.pow > 0.4);
-        else if (sk.kind === 'shield') Fx.burst(p.x, p.y - 28, 16, Fx.pal(els[0]), { min: 60, max: 140, shape: 'star', lmin: 0.4, lmax: 0.7 });
+        else if (sk.kind === 'shield' && !Fx.shieldCast(p.x, p.y - 28, sk.id)) Fx.burst(p.x, p.y - 28, 16, Fx.pal(els[0]), { min: 60, max: 140, shape: 'star', lmin: 0.4, lmax: 0.7 });
+        Fx.use(null);
       }
       function leaveRoom() {
         const r = G.room; if (!r) return;
@@ -838,9 +839,10 @@
         if (net && net.joined) { const [adx, ady] = aimDir(sk.len || 420); net.cast({ id, x: Math.round(G.px), y: Math.round(G.py - 22), dx: +adx.toFixed(2), dy: +ady.toFixed(2) }); }
         const els = sk.els, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light, base = ST.mag * sk.pow;
         const ox = G.px, oy = G.py - 22;
+        Fx.use(sk.fusion ? null : sk.id);   // v102 기본 마법마다 다른 효과
         if (sk.kind === 'bolt') {
           const [dx, dy] = aimDir(420), n = sk.count || 1, sp = 430 * (sk.speed || 1);
-          for (let i = 0; i < n; i++) { const a = Math.atan2(dy, dx) + (i - (n - 1) / 2) * 0.18; G.shots.push({ x: ox, y: oy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, dmg: base, els, pierce: !!sk.pierce, hit: new Set(), r: 9, color: col, color2: col2, mine: true }); }
+          for (let i = 0; i < n; i++) { const a = Math.atan2(dy, dx) + (i - (n - 1) / 2) * 0.18; G.shots.push({ x: ox, y: oy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, dmg: base, els, pierce: !!sk.pierce, hit: new Set(), r: 9, color: col, color2: col2, mine: true, sid: sk.fusion ? null : sk.id }); }
         } else if (sk.kind === 'nova') {
           const r = sk.radius || 120; Fx.nova(ox, oy, r, els); G.shake = Math.max(G.shake, r > 150 ? 6 : 3);
           G.mons.forEach(m => { if (!m.dead && Math.hypot(m.x - ox, m.y - m.spr.h / 2 - oy) < r + m.r) hitMon(m, base, els); });
@@ -864,8 +866,9 @@
           const v = Math.round(ST.hp * sk.pow); S.hp = Math.min(ST.hp, S.hp + v); float(G.px, G.py - 70, '+' + v, '#3DDC84', true);
           Fx.heal(G.px, G.py - 28, sk.pow > 0.4);
         } else if (sk.kind === 'shield') {
-          G.shield = { pow: sk.pow, t: sk.dur || 6, color: col, el: els[0] }; Fx.burst(G.px, G.py - 28, 20, Fx.pal(els[0]), { min: 60, max: 160, shape: 'star', lmin: 0.4, lmax: 0.7 }); say(`${sk.name}: 받는 피해 ${Math.round(sk.pow * 100)}% 감소`, 1.6);
+          G.shield = { pow: sk.pow, t: sk.dur || 6, color: col, el: els[0], sid: sk.fusion ? null : sk.id }; if (!Fx.shieldCast(G.px, G.py - 28, sk.id)) Fx.burst(G.px, G.py - 28, 20, Fx.pal(els[0]), { min: 60, max: 160, shape: 'star', lmin: 0.4, lmax: 0.7 }); say(`${sk.name}: 받는 피해 ${Math.round(sk.pow * 100)}% 감소`, 1.6);
         }
+        Fx.use(null);
       }
       function basicAttack() {
         if (G.atkCd > 0 || G.dead || (G.pst && G.pst.stun > 0)) return;
@@ -1042,7 +1045,7 @@
           if (s.mine) {
             for (const m of G.mons) {
               if (m.dead || s.hit.has(m)) continue;
-              if (Math.hypot(m.x - s.x, m.y - m.spr.h / 2 - s.y) < m.r + s.r) { s.hit.add(m); hitMon(m, s.dmg, s.els); if (!s.pierce) return false; }
+              if (Math.hypot(m.x - s.x, m.y - m.spr.h / 2 - s.y) < m.r + s.r) { s.hit.add(m); hitMon(m, s.dmg, s.els); Fx.shotHit(s); if (!s.pierce) return false; }
             }
           } else if (Math.hypot(G.px - s.x, G.py - 24 - s.y) < 16 + s.r) { hitPlayer(s.dmg, s.lvl, s.el, s); return false; }
           return true;
@@ -1249,7 +1252,7 @@
         c.globalAlpha = 1;
         // 장비 단계 빛 (정예 무기)
         const wp = S.eq.weapon && ITEMS[S.eq.weapon]; if (wp && wp.rare && !S.hide) { c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, G.px + (G.face < 0 ? -14 : 14), y + 14, 18, D.TIER[wp.tier].gem, 0.35 + 0.2 * Math.sin(now / 200)); c.restore(); }
-        if (G.shield) Fx.drawShield(c, G.px, G.py - 28, now, G.shield.el, G.shield.t);
+        if (G.shield) Fx.drawShield(c, G.px, G.py - 28, now, G.shield.el, G.shield.t, G.shield.sid);
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         const nm = (Hub.user ? Hub.user.nickname : '손님') + ' Lv.' + S.lv; c.strokeText(nm, G.px, y - 6); c.fillStyle = '#FFE45C'; c.fillText(nm, G.px, y - 6);
         if (G.pst) {   // v87 내 상태 효과 표시 (이름 위 작은 딱지) + 효과 그림
