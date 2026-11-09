@@ -488,13 +488,13 @@
    *  img/ 폴더의 그림을 불러 두었다가 있으면 쓰고, 없으면(또는 늦으면) 코드로 그린 그림을 씀
    *  bld_potion·bld_school·bld_chief·bld_castle / boss_r0~8 / mon_r0~8 (9칸 × 64px) / obj_r0~8_1·2 / key.jpg */
   const RIMG = {}, IMG_DIR = 'games/action/rpg/img/';
-  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
+  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw', 'ic_st', 'ic_hm', 'ic_ar', 'ic_rg'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
   let imgPromise = null;
   function loadImages(timeoutMs) {
     if (!imgPromise) imgPromise = Promise.all(IMG_LIST.concat(['key']).map(n => new Promise(res => {
       const im = new Image(); im.decoding = 'async';
       im.onload = () => { RIMG[n] = im; res(); }; im.onerror = () => res();
-      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
+      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : /^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
     })));
     [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(i => ['_ground', '_path', '_water'].forEach(k => img79('r' + i + k)));   // v80 재질은 미리 (기다리지는 않음)
     return Promise.race([imgPromise, new Promise(r => setTimeout(r, timeoutMs || 6000))]);
@@ -677,14 +677,14 @@
     const px = (x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const gx = x + i + 1, gy = y + j + 1; if (gx >= 0 && gy >= 0 && gx < GW && gy < GH) cells[gy][gx] = c; } };
     const it = s => eq[s] && D.ITEMS[eq[s]], T = s => D.TIER[it(s).tier];
     if (it('boots')) { const t = T('boots'), L = AV.legs(frame); px(L.L.x, L.LF.y - 2, 3, 3, t.color); px(L.R.x, L.RF.y - 2, 3, 3, t.color); px(L.L.x - 1, L.LF.y, 1, 1, t.dark); px(L.R.x + 3, L.RF.y, 1, 1, t.dark); px(L.L.x, L.LF.y - 2, 3, 1, t.dark); px(L.R.x, L.RF.y - 2, 3, 1, t.dark); }
-    if (it('armor')) { const t = T('armor'), r = it('armor').rare; px(5, 12, 6, 7, t.color); px(5, 18, 6, 1, t.dark); px(2, 12, 3, 2, t.color); px(11, 12, 3, 2, t.color); px(2, 13, 3, 1, t.dark); px(11, 13, 3, 1, t.dark); px(6, 13, 1, 4, shade(t.color, 0.35)); px(7, 14, 2, 2, r ? t.gem : t.dark); }
-    if (it('helmet')) { const t = T('helmet'), r = it('helmet').rare; px(4, 1, 8, 4, t.color); px(3, 3, 1, 4, t.color); px(12, 3, 1, 4, t.color); px(4, 4, 8, 1, t.dark); px(5, 1, 2, 1, shade(t.color, 0.4)); if (r) { px(7, 0, 2, 1, t.gem); px(7, 2, 2, 1, t.gem); } }
+    if (it('armor') && !imgOk('ic_ar')) { const t = T('armor'), r = it('armor').rare; px(5, 12, 6, 7, t.color); px(5, 18, 6, 1, t.dark); px(2, 12, 3, 2, t.color); px(11, 12, 3, 2, t.color); px(2, 13, 3, 1, t.dark); px(11, 13, 3, 1, t.dark); px(6, 13, 1, 4, shade(t.color, 0.35)); px(7, 14, 2, 2, r ? t.gem : t.dark); }
+    if (it('helmet') && !imgOk('ic_hm')) { const t = T('helmet'), r = it('helmet').rare; px(4, 1, 8, 4, t.color); px(3, 3, 1, 4, t.color); px(12, 3, 1, 4, t.color); px(4, 4, 8, 1, t.dark); px(5, 1, 2, 1, shade(t.color, 0.4)); if (r) { px(7, 0, 2, 1, t.gem); px(7, 2, 2, 1, t.gem); } }
     if (it('weapon')) {
       const t = T('weapon'), wp = it('weapon');
-      if (wp.look === 'staff') { px(14, 6, 1, 16, '#7A5230'); px(13, 2, 3, 1, t.color); px(13, 3, 3, 3, t.gem); px(12, 4, 1, 1, t.color); px(16, 4, 1, 1, t.color); px(14, 4, 1, 1, '#FFFFFF'); }
+      if (wp.look === 'staff') { if (!imgOk('ic_st')) { px(14, 6, 1, 16, '#7A5230'); px(13, 2, 3, 1, t.color); px(13, 3, 3, 3, t.gem); px(12, 4, 1, 1, t.color); px(16, 4, 1, 1, t.color); px(14, 4, 1, 1, '#FFFFFF'); } }
       else if (!imgOk('ic_sw')) { px(14, 5, 1, 12, '#EEF1FF'); px(15, 6, 1, 10, '#B9C0DE'); px(14, 4, 1, 1, '#FFFFFF'); px(12, 17, 5, 1, t.color); px(14, 18, 1, 2, t.dark); px(14, 20, 1, 1, t.gem); }
     }
-    if (it('ring')) px(12, 18, 1, 1, T('ring').gem);
+    if (it('ring') && !imgOk('ic_rg')) px(12, 18, 1, 1, T('ring').gem);
     return cells;
   }
   /* v79 팔 움직임: 걸을 때 팔을 번갈아 흔들고(frame 1·3), 마법을 쓸 때 두 팔을 들고('c'), 공격할 때 무기 팔을 내밂('a')
@@ -716,17 +716,18 @@
     // 3) 테두리 다시
     return raw.map((r, y) => r.map((c, x) => c || ((!empty(x - 1, y) && raw[y][x - 1]) || (x + 1 < W2 && raw[y][x + 1]) || (y > 0 && raw[y - 1][x]) || (y + 1 < H2 && raw[y + 1][x]) ? OUT : null)));
   }
+  const SLOT_IC = { helmet: 'ic_hm', armor: 'ic_ar', ring: 'ic_rg' }, WP_IC = { sword: 'ic_sw', staff: 'ic_st' }, WP_SZ = { sword: [17, 22], staff: [20, 23] };   // 무기 그림 · 손에 들 때 높이·아래 끝(칸)
   const swBoxC = {};
-  function swBox(im, n) {   // v99 검 그림 칸(80×80)에서 실제 그림이 있는 범위
-    if (swBoxC[n]) return swBoxC[n];
+  function swBox(im, n, nm) {   // v99 무기 그림 칸(80×80)에서 실제 그림이 있는 범위
+    const ck = nm + n; if (swBoxC[ck]) return swBoxC[ck];
     const [t, tx] = mk(80, 80); tx.drawImage(im, n * 80, 0, 80, 80, 0, 0, 80, 80);
     const d = tx.getImageData(0, 0, 80, 80).data; let x0 = 80, y0 = 80, x1 = -1, y1 = -1;
     for (let y = 0; y < 80; y++) for (let i = 0; i < 80; i++) if (d[(y * 80 + i) * 4 + 3] > 20) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-    return (swBoxC[n] = x1 < 0 ? { x: 0, y: 0, w: 80, h: 80 } : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+    return (swBoxC[ck] = x1 < 0 ? { x: 0, y: 0, w: 80, h: 80 } : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
   }
   const avCache = {};
   function avatarSprite(av, eq, hide, frame) {
-    const key = JSON.stringify([av, hide ? {} : eq, frame, !!imgOk('ic_sw')]);
+    const key = JSON.stringify([av, hide ? {} : eq, frame, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar')]);
     if (avCache[key]) return avCache[key];
     const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
     frame = leg;
@@ -742,14 +743,29 @@
     base = armPose(base, pose, OUT, !hide && eq && eq.weapon);
     // v39 사이트 아바타처럼 2배 정교한 그림(부드러운 대각선·명암·눈 반짝임)이 있으면 장비까지 함께 다듬음
     const cells = AV.refine ? AV.refine(base, true) : base, k = AV.refine ? 2 : 1;
-    // v99 손에 든 검 = 새 그림 (img/ic_sw.png). 그림이 넓어서 양옆을 PAD 만큼 넓힘 (가운데는 그대로)
-    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], swI = wp && wp.look === 'sword' && imgOk('ic_sw'), PAD = swI ? 6 * k : 0;
+    // v99 손에 든 검 · v100 지팡이 = 새 그림 (img/ic_sw.png · ic_st.png). 그림이 넓어서 양옆을 PAD 만큼 넓힘 (가운데는 그대로)
+    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 6 * k : 0;
+    const hmI = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');   // v100 투구 = 새 그림 (머리 전체를 덮음 · 머리칼이 삐져나오지 않게 머리 줄은 비움)
     const [c, x] = mk(GW * k + PAD * 2, GH * k);
-    for (let y = 0; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
+    for (let y = hmI ? 12 * k : 0; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
+    const arI = !hide && eq && eq.armor && D.ITEMS[eq.armor] && imgOk('ic_ar');   // v100 갑옷 = 새 그림 (몸통 위에 덮음)
+    if (arI) {
+      const a = D.ITEMS[eq.armor], n = a.legend ? 9 : a.rare ? 10 + a.tier : a.tier, b = swBox(arI, n, 'ic_ar');
+      let ww = Math.min(14 * k, Math.max(11 * k, Math.round(b.w * 10.5 * k / b.h))), hh = Math.round(b.h * ww / b.w); if (hh > 12.5 * k) { hh = 12.5 * k; ww = Math.round(b.w * hh / b.h); }
+      const cx = 8.875 * k + PAD, ty = 11.6 * k;
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+      x.drawImage(arI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), Math.round(ty), ww, Math.round(hh));
+    }
+    if (hmI) {
+      const h = D.ITEMS[eq.helmet], n = h.legend ? 9 : h.rare ? 10 + h.tier : h.tier, b = swBox(hmI, n, 'ic_hm');
+      const ww = 12 * k, hh = Math.max(11 * k, Math.round(b.h * ww / b.w)), cx = 8.875 * k + PAD, by = 12.6 * k;
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+      x.drawImage(hmI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), Math.round(by - hh), ww, hh);
+    }
     if (swI) {
-      const n = wp.legend ? 9 : wp.rare ? 10 + wp.tier : wp.tier, b = swBox(swI, n);
+      const n = wp.legend ? 9 : wp.rare ? 10 + wp.tier : wp.tier, b = swBox(swI, n, wIc), [hc, bc] = WP_SZ[wp.look];
       const off = pose === 1 ? [0, 1] : pose === 3 ? [0, -1] : pose === 'c' ? [0, -3] : pose === 'a' ? [1, -2] : [0, 0];   // armPose 의 무기 움직임과 같게 (칸 단위)
-      const hh = 17 * k, ww = Math.max(1, Math.round(b.w * hh / b.h)), cx = (15.5 + off[0]) * k + PAD, by = (22 + off[1]) * k;
+      const hh = hc * k, ww = Math.max(1, Math.round(b.w * hh / b.h)), cx = (15.5 + off[0]) * k + PAD, by = (bc + off[1]) * k;
       x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
       x.drawImage(swI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), by - hh, ww, hh);
     }
@@ -763,7 +779,7 @@
     if (it.base) return itemImg(it.base);   // v60 장비 하나하나(g:…) 는 기본 장비 그림을 같이 씀
     if (icC[id]) return icC[id];
     const S = 36, [c, x] = mk(S, S); x.imageSmoothingEnabled = false;
-    const swI = it.slot === 'weapon' && it.look === 'sword' && imgOk('ic_sw');   // v99 검 19종 = 새 그림 (img/ic_sw.png · 80px 칸 19개: 1~10단계, 정예 1~9단계)
+    const swI = it.slot === 'weapon' ? WP_IC[it.look] && imgOk(WP_IC[it.look]) : SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot]);   // v100 투구·갑옷·반지도   // v99 검 · v100 지팡이 19종 = 새 그림 (img/ic_sw.png · 80px 칸 19개: 1~10단계, 정예 1~9단계)
     if (swI) { const n = it.legend ? 9 : it.rare ? 10 + it.tier : it.tier, [c2, x2] = mk(80, 80); x2.drawImage(swI, n * 80, 0, 80, 80, 0, 0, 80, 80); return (icC[id] = c2.toDataURL()); }
     const leg = it.legend && imgOk(it.slot === 'weapon' ? 'ic_leg_sw' : it.slot === 'armor' ? 'ic_leg_ar' : '');   // v60 전설 무기·갑옷 = Meshy 그림
     if (leg && !(it.slot === 'weapon' && it.look === 'staff')) { const k = Math.min((S - 2) / leg.naturalWidth, (S - 2) / leg.naturalHeight), ww = leg.naturalWidth * k, hh = leg.naturalHeight * k; x.imageSmoothingEnabled = true; x.drawImage(leg, (S - ww) / 2, (S - hh) / 2, ww, hh); return (icC[id] = c.toDataURL()); }
@@ -793,7 +809,7 @@
   function itemIcon(id) {
     const it = D.ITEMS[id]; if (!it) return '';
     const t = it.slot ? D.TIER[it.tier] : { color: '#5A64A0', gem: '#FFFFFF' };
-    return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}${it.look === 'sword' && imgOk('ic_sw') ? ';image-rendering:auto' : ''}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
+    return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}${(it.slot === 'weapon' && WP_IC[it.look] && imgOk(WP_IC[it.look])) || (SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot])) ? ';image-rendering:auto' : ''}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
   }
 
   window.__GoRPGParts = { loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
