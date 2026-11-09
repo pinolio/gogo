@@ -387,9 +387,19 @@
 
   /* ================= 마법 아이콘 (창·마법 칸) ================= */
   const iconC = {};
+  // v101 기본 마법 30종 = 선생님이 주신 그림 (img/ic_skill.png · 34px 칸 30개, 배우는 레벨 순). 융합 마법은 그대로 코드 그림
+  const SK_IMG = new Image(), SK_ORDER = ['magicarrow', 'fireball', 'watershot', 'heal1', 'darkorb', 'stonewall', 'windblade', 'firering', 'thunderarrow', 'earthsplit', 'tornado', 'lightspear', 'cursefog', 'firerain', 'tidal', 'chainbolt', 'gale', 'holylight', 'thunderfall', 'quake', 'shadowspear', 'stormblade', 'barrier', 'waterfall', 'sunburst', 'thorspear', 'abyss', 'earthrage', 'judgement', 'elemental'];
+  SK_IMG.src = 'games/action/rpg/img/ic_skill.png?v=101';
+  // v101 융합 마법 21가지(원소 짝) = 선생님이 주신 그림 (img/ic_fusion.png · 48px 칸 21개, 원소 영문 이름을 알파벳 순으로 붙인 짝)
+  const FU_IMG = new Image(), FU_ORDER = ['fire+water', 'fire+wind', 'earth+fire', 'fire+thunder', 'fire+light', 'water+wind', 'earth+water', 'thunder+water', 'light+water', 'earth+wind', 'thunder+wind', 'light+wind', 'earth+thunder', 'earth+light', 'light+thunder', 'dark+fire', 'dark+water', 'dark+wind', 'dark+earth', 'dark+thunder', 'dark+light'];
+  FU_IMG.src = 'games/action/rpg/img/ic_fusion.png?v=101';
   function icon(sk, size) {
-    size = size || 40; const key = sk.id + size;
+    size = size || 40;
+    const fi = sk.fusion && sk.els && sk.els.length === 2 && FU_IMG.complete && FU_IMG.naturalWidth ? FU_ORDER.indexOf(sk.els.slice().sort().join('+')) : -1;
+    const si = !sk.fusion && SK_IMG.complete && SK_IMG.naturalWidth ? SK_ORDER.indexOf(sk.id) : -1, key = sk.id + size + (si >= 0 || fi >= 0 ? 'i' : '');
     if (iconC[key]) return iconC[key];
+    if (fi >= 0) { const [c, x] = mk(size, size); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(FU_IMG, fi * 48, 0, 48, 48, 0, 0, size, size); return (iconC[key] = c); }
+    if (si >= 0) { const [c, x] = mk(size, size); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(SK_IMG, si * 34, 0, 34, 34, 0, 0, size, size); return (iconC[key] = c); }
     const [c, x] = mk(size, size), s = size / 40, P = pal(sk.els[0]), P2 = pal(sk.els[sk.els.length - 1]);
     x.scale(s, s);
     const g = x.createLinearGradient(0, 0, 40, 40); g.addColorStop(0, P[3]); g.addColorStop(1, P2[4]);

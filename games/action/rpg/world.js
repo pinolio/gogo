@@ -488,13 +488,13 @@
    *  img/ 폴더의 그림을 불러 두었다가 있으면 쓰고, 없으면(또는 늦으면) 코드로 그린 그림을 씀
    *  bld_potion·bld_school·bld_chief·bld_castle / boss_r0~8 / mon_r0~8 (9칸 × 64px) / obj_r0~8_1·2 / key.jpg */
   const RIMG = {}, IMG_DIR = 'games/action/rpg/img/';
-  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw', 'ic_st', 'ic_hm', 'ic_ar', 'ic_rg'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
+  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw', 'ic_st', 'ic_hm', 'ic_ar', 'ic_rg', 'ic_bt'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
   let imgPromise = null;
   function loadImages(timeoutMs) {
     if (!imgPromise) imgPromise = Promise.all(IMG_LIST.concat(['key']).map(n => new Promise(res => {
       const im = new Image(); im.decoding = 'async';
       im.onload = () => { RIMG[n] = im; res(); }; im.onerror = () => res();
-      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : /^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
+      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : n === 'ic_bt' ? '?v=101' : /^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
     })));
     [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(i => ['_ground', '_path', '_water'].forEach(k => img79('r' + i + k)));   // v80 재질은 미리 (기다리지는 않음)
     return Promise.race([imgPromise, new Promise(r => setTimeout(r, timeoutMs || 6000))]);
@@ -676,7 +676,7 @@
     const cells = Array.from({ length: GH }, () => Array(GW).fill(null));
     const px = (x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const gx = x + i + 1, gy = y + j + 1; if (gx >= 0 && gy >= 0 && gx < GW && gy < GH) cells[gy][gx] = c; } };
     const it = s => eq[s] && D.ITEMS[eq[s]], T = s => D.TIER[it(s).tier];
-    if (it('boots')) { const t = T('boots'), L = AV.legs(frame); px(L.L.x, L.LF.y - 2, 3, 3, t.color); px(L.R.x, L.RF.y - 2, 3, 3, t.color); px(L.L.x - 1, L.LF.y, 1, 1, t.dark); px(L.R.x + 3, L.RF.y, 1, 1, t.dark); px(L.L.x, L.LF.y - 2, 3, 1, t.dark); px(L.R.x, L.RF.y - 2, 3, 1, t.dark); }
+    if (it('boots') && !imgOk('ic_bt')) { const t = T('boots'), L = AV.legs(frame); px(L.L.x, L.LF.y - 2, 3, 3, t.color); px(L.R.x, L.RF.y - 2, 3, 3, t.color); px(L.L.x - 1, L.LF.y, 1, 1, t.dark); px(L.R.x + 3, L.RF.y, 1, 1, t.dark); px(L.L.x, L.LF.y - 2, 3, 1, t.dark); px(L.R.x, L.RF.y - 2, 3, 1, t.dark); }
     if (it('armor') && !imgOk('ic_ar')) { const t = T('armor'), r = it('armor').rare; px(5, 12, 6, 7, t.color); px(5, 18, 6, 1, t.dark); px(2, 12, 3, 2, t.color); px(11, 12, 3, 2, t.color); px(2, 13, 3, 1, t.dark); px(11, 13, 3, 1, t.dark); px(6, 13, 1, 4, shade(t.color, 0.35)); px(7, 14, 2, 2, r ? t.gem : t.dark); }
     if (it('helmet') && !imgOk('ic_hm')) { const t = T('helmet'), r = it('helmet').rare; px(4, 1, 8, 4, t.color); px(3, 3, 1, 4, t.color); px(12, 3, 1, 4, t.color); px(4, 4, 8, 1, t.dark); px(5, 1, 2, 1, shade(t.color, 0.4)); if (r) { px(7, 0, 2, 1, t.gem); px(7, 2, 2, 1, t.gem); } }
     if (it('weapon')) {
@@ -716,7 +716,9 @@
     // 3) 테두리 다시
     return raw.map((r, y) => r.map((c, x) => c || ((!empty(x - 1, y) && raw[y][x - 1]) || (x + 1 < W2 && raw[y][x + 1]) || (y > 0 && raw[y - 1][x]) || (y + 1 < H2 && raw[y + 1][x]) ? OUT : null)));
   }
-  const SLOT_IC = { helmet: 'ic_hm', armor: 'ic_ar', ring: 'ic_rg' }, WP_IC = { sword: 'ic_sw', staff: 'ic_st' }, WP_SZ = { sword: [17, 22], staff: [20, 23] };   // 무기 그림 · 손에 들 때 높이·아래 끝(칸)
+  const SLOT_IC = { helmet: 'ic_hm', armor: 'ic_ar', ring: 'ic_rg', boots: 'ic_bt' }, WP_IC = { sword: 'ic_sw', staff: 'ic_st' }, WP_SZ = { sword: [16, 0.86], staff: [18, 0.8] },   // 무기 높이(칸) · 손잡이 자리(위에서부터 비율)
+    WP_ANG = { sword: { 0: 32, c: 40, a: 75 }, staff: { 0: 18, c: 32, a: 45 } },   // 자세별 기울기(도)
+    HAND = { 0: [0, 0], 1: [0, 1], 3: [0, -1], c: [0, -6.5], a: [1, -2] };   // 자세별 무기 쥔 손 위치 (서 있을 때 기준, 칸)   // 무기 그림 · 손에 들 때 높이·아래 끝(칸)
   const swBoxC = {};
   function swBox(im, n, nm) {   // v99 무기 그림 칸(80×80)에서 실제 그림이 있는 범위
     const ck = nm + n; if (swBoxC[ck]) return swBoxC[ck];
@@ -727,7 +729,7 @@
   }
   const avCache = {};
   function avatarSprite(av, eq, hide, frame) {
-    const key = JSON.stringify([av, hide ? {} : eq, frame, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar')]);
+    const key = JSON.stringify([av, hide ? {} : eq, frame, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
     frame = leg;
@@ -744,10 +746,21 @@
     // v39 사이트 아바타처럼 2배 정교한 그림(부드러운 대각선·명암·눈 반짝임)이 있으면 장비까지 함께 다듬음
     const cells = AV.refine ? AV.refine(base, true) : base, k = AV.refine ? 2 : 1;
     // v99 손에 든 검 · v100 지팡이 = 새 그림 (img/ic_sw.png · ic_st.png). 그림이 넓어서 양옆을 PAD 만큼 넓힘 (가운데는 그대로)
-    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 6 * k : 0;
+    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 9 * k : 0;
     const hmI = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');   // v100 투구 = 새 그림 (머리 전체를 덮음 · 머리칼이 삐져나오지 않게 머리 줄은 비움)
     const [c, x] = mk(GW * k + PAD * 2, GH * k);
     for (let y = hmI ? 12 * k : 0; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
+    const btI = !hide && eq && eq.boots && D.ITEMS[eq.boots] && imgOk('ic_bt');   // v101 신발 = 새 그림 (두 발에 하나씩 · 오른발은 뒤집어 앞코가 바깥쪽)
+    if (btI) {
+      const o = D.ITEMS[eq.boots], n = o.legend ? 9 : o.rare ? 10 + o.tier : o.tier, b = swBox(btI, n, 'ic_bt'), L = AV.legs(frame);
+      let hh = 4.6 * k, ww = b.w * hh / b.h; if (ww > 5.4 * k) { ww = 5.4 * k; hh = b.h * ww / b.w; }
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+      [[L.LF, 2.7, false], [L.RF, 3.3, true]].forEach(([F, dx, flip]) => {
+        const cx = (F.x + dx) * k + PAD, by = (F.y + 3) * k, X = Math.round(cx - ww / 2), Y = Math.round(by - hh), W2 = Math.round(ww), H2 = Math.round(hh);
+        if (flip) { x.save(); x.translate(X + W2, Y); x.scale(-1, 1); x.drawImage(btI, n * 80 + b.x, b.y, b.w, b.h, 0, 0, W2, H2); x.restore(); }
+        else x.drawImage(btI, n * 80 + b.x, b.y, b.w, b.h, X, Y, W2, H2);
+      });
+    }
     const arI = !hide && eq && eq.armor && D.ITEMS[eq.armor] && imgOk('ic_ar');   // v100 갑옷 = 새 그림 (몸통 위에 덮음)
     if (arI) {
       const a = D.ITEMS[eq.armor], n = a.legend ? 9 : a.rare ? 10 + a.tier : a.tier, b = swBox(arI, n, 'ic_ar');
@@ -762,12 +775,16 @@
       x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
       x.drawImage(hmI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), Math.round(by - hh), ww, hh);
     }
-    if (swI) {
-      const n = wp.legend ? 9 : wp.rare ? 10 + wp.tier : wp.tier, b = swBox(swI, n, wIc), [hc, bc] = WP_SZ[wp.look];
-      const off = pose === 1 ? [0, 1] : pose === 3 ? [0, -1] : pose === 'c' ? [0, -3] : pose === 'a' ? [1, -2] : [0, 0];   // armPose 의 무기 움직임과 같게 (칸 단위)
-      const hh = hc * k, ww = Math.max(1, Math.round(b.w * hh / b.h)), cx = (15.5 + off[0]) * k + PAD, by = (bc + off[1]) * k;
+    if (swI) {   // v101 손잡이를 손에 맞춰 쥐게 하고, 손은 무기 위에 다시 그려 '잡은' 모양으로
+      const n = wp.legend ? 9 : wp.rare ? 10 + wp.tier : wp.tier, b = swBox(swI, n, wIc), [hc, gf] = WP_SZ[wp.look];
+      const o = HAND[pose] || HAND[0], hx = (12.75 + o[0]) * k + PAD, hy = (18.5 + o[1]) * k;   // 무기 쥔 손의 가운데 (칸 → 그림 점)
+      const hb = [Math.round(hx - 4 * k / 2), Math.round(hy - 4 * k / 2), 4 * k, 4 * k], [hc2, hx2] = mk(hb[2], hb[3]);
+      hx2.drawImage(c, hb[0], hb[1], hb[2], hb[3], 0, 0, hb[2], hb[3]);   // 손 부분 따로 떠 두기
+      let hh = hc * k, ww = Math.max(1, Math.round(b.w * hh / b.h)); if (ww > 13 * k) { hh = Math.round(hh * 13 * k / ww); ww = 13 * k; }   // 날개처럼 넓은 무기는 줄여서 얼굴을 덜 가리게
       x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
-      x.drawImage(swI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), by - hh, ww, hh);
+      const ang = (WP_ANG[wp.look][pose] != null ? WP_ANG[wp.look][pose] : WP_ANG[wp.look][0]) * Math.PI / 180;   // 바깥쪽으로 비스듬히 (머리·얼굴을 가리지 않게)
+      x.save(); x.translate(hx, hy); x.rotate(ang); x.drawImage(swI, n * 80 + b.x, b.y, b.w, b.h, -ww / 2, -hh * gf, ww, hh); x.restore();
+      x.imageSmoothingEnabled = false; x.drawImage(hc2, hb[0], hb[1]);   // 손을 손잡이 위에
     }
     const keys = Object.keys(avCache); if (keys.length > 80) delete avCache[keys[0]];
     return (avCache[key] = c);
