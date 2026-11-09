@@ -431,6 +431,48 @@
     return epx(cells);
   }
   // opt.scene = true 이면 배경까지 그림 (옷장·상점·홈·내 전적의 내 아바타)
+  /* v105 부드러운 걷기 (RPG 순찰병과 같은 방식): 서 있는 그림 한 장을 다리·팔·몸 조각으로 나눠
+   *  p(위상, 라디안)에 따라 다리는 엉덩이 기준으로 기울이며 번갈아 들고, 팔은 다리와 반대로 오르내리고, 몸은 살짝 들썩임.
+   *  img = 서 있는 그림(frame 0). 세로는 GH 칸, 가로는 GW 칸 + 양옆 여백(무기 그림 등)이 있어도 됨. (dx,dy,dw,dh) = 그릴 자리
+   *  opt.arms: true(기본) 두 팔 · 'left' 왼팔만(오른손에 무기) · false 팔 안 흔듦 · opt.amp 크기(기본 1) */
+  function rig(ctx, img, dx, dy, dw, dh, p, mv, opt) {
+    opt = opt || {};
+    if (!mv) { ctx.drawImage(img, dx, dy, dw, dh); return; }
+    const cs = img.height / GH, gx = opt.padL != null ? opt.padL : (img.width / cs - GW) / 2, gxR = img.width / cs - GW - gx, kx = dw / img.width, ky = dh / img.height, A = opt.amp == null ? 1 : opt.amp;
+    const s = Math.sin(p), c2 = Math.cos(p), arms = opt.arms == null ? true : opt.arms;
+    const bob = -Math.abs(s) * 0.5 * A, HIP = 20;
+    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    // 칸 좌표(몸 기준, 가로 0~GW) 사각형을 (ox, oy 칸) 옮기고, ay 칸 줄을 축으로 sh 만큼 기울여 그림
+    const pc = (x0, y0, x1, y1, ox, oy, sh, ay) => {
+      const sx = (x0 + gx) * cs, sy = y0 * cs, sw = (x1 - x0) * cs, shh = (y1 - y0) * cs;
+      if (sw <= 0 || shh <= 0) return;
+      ctx.save(); ctx.translate(dx, dy);
+      if (sh) { const ty = ay * cs * ky; ctx.translate(0, ty); ctx.transform(1, 0, sh, 1, 0, 0); ctx.translate(0, -ty); }
+      ctx.drawImage(img, sx, sy, sw, shh, sx * kx + ox * cs * kx, sy * ky + oy * cs * ky, sw * kx, shh * ky); ctx.restore();
+    };
+    const lL = Math.max(0, s) * 1.5 * A, lR = Math.max(0, -s) * 1.5 * A, sh = -s * 0.11 * A, sw = c2 * 0.18 * A;
+    // 다리 (몸통보다 먼저 → 든 다리 위쪽은 몸통에 가려짐)
+    pc(6, HIP, 9, HIP + 1, 0, bob - lL, sh, HIP); pc(0, HIP + 1, 9, GH, 0, bob - lL, sh, HIP);   // 몸 전체가 들썩(bob) + 든 다리
+    pc(9, HIP, 12, HIP + 1, 0, bob - lR, sh, HIP); pc(9, HIP + 1, GW, GH, 0, bob - lR, sh, HIP);
+    // 머리 · 몸통 · 양옆 여백(무기)
+    pc(-gx, 0, GW + gxR, 13, sw, bob); pc(6, 13, 12, HIP, sw * 0.6, bob);
+    if (gx > 0) pc(-gx, 13, 0, GH, sw, bob);
+    if (gxR > 0) pc(GW, 13, GW + gxR, GH, sw, bob);
+    // 팔: 왼다리가 나가면 오른팔이 올라감
+    const aL = arms ? s * 1.1 * A : 0, aR = arms === true ? -s * 1.1 * A : 0;
+    // 팔이 내려가면 어깨 줄(13번째 줄)을 늘려 빈틈을 메움
+    const arm = (x0, x1, a) => {
+      if (a > 0) { const sx = (x0 + gx) * cs; ctx.drawImage(img, sx, 13 * cs, (x1 - x0) * cs, cs, dx + sx * kx + sw * 0.6 * cs * kx, dy + (13 + bob) * cs * ky, (x1 - x0) * cs * kx, (a + 1) * cs * ky); }
+      pc(x0, 13, x1, HIP + 1, sw * 0.6, bob + a);
+    };
+    arm(0, 6, aL); arm(12, GW, aR);
+    ctx.imageSmoothingEnabled = sm;
+  }
+  // AV.draw 와 같은 자리에 부드럽게 걷는 모습 (p = 걸음 위상)
+  function drawWalk(ctx, av, x, y, scale, p, mv, opt) {
+    const im = hires(av, 0, null);
+    rig(ctx, im, x, y, GW * scale, GH * scale, p, mv, opt);
+  }
   function draw(ctx, av, x, y, scale, opt) {
     opt = opt || {};
     const [cx, cy, cw, ch] = CROP[opt.crop || 'full'], half = scale / 2;
@@ -440,7 +482,8 @@
       if (col) { ctx.fillStyle = col; ctx.fillRect(x + i * half, y + j * half, Math.ceil(half), Math.ceil(half)); }
     }
     const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(hires(av, opt.frame, opt.pose), cx * 2, cy * 2, cw * 2, ch * 2, x, y, cw * scale, ch * scale);
+    if (opt.walk != null && (opt.crop || 'full') === 'full') rig(ctx, hires(av, 0, null), x, y, GW * scale, GH * scale, opt.walk, true, opt);   // v105 부드러운 걷기 (순찰병처럼)
+    else ctx.drawImage(hires(av, opt.frame, opt.pose), cx * 2, cy * 2, cw * 2, ch * 2, x, y, cw * scale, ch * scale);
     ctx.imageSmoothingEnabled = sm;
   }
   // 캔버스 크기를 맞춰서 그림
@@ -478,7 +521,8 @@
   window.GoAvatar = {
     SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
-    normalize, grid, scene, draw, paint, paintAll, random, legs, refine, hires, OUT,
+    normalize, grid, scene, draw, paint, paintAll, random, legs, refine, hires, OUT, rig, drawWalk,
+    walkP: t => t * Math.PI * 2,   // 걸음 수(바퀴) → 위상
     freeIds: () => I.filter(it => it.price === 0).map(it => it.id),
     attr: av => JSON.stringify(normalize(av)).replace(/"/g, '&quot;')   // HTML 속성용
   };

@@ -1249,14 +1249,14 @@
         }
       }
       function drawMe(c, now) {
-        const fr = now < (G.poseUntil || 0) ? G.poseK : G.moving ? [1, 0, 3, 0][Math.floor(G.walk * 8) % 4] : 0;   // v79 마법·공격 동작
+        const posing = now < (G.poseUntil || 0), walkMv = G.moving && !posing, fr = posing ? G.poseK : 0;   // v79 마법·공격 동작 · v105 걷기는 한 장을 조각내 부드럽게(drawFig)
         const img = avatarSprite(Hub.user ? Hub.user.avatar : AV.normalize({}), S.eq, S.hide, fr);
         const s = img.width > AV.size.w ? 1 : 2, w = img.width * s, h = img.height * s, bob = G.moving ? 0 : Math.round(Math.sin(now / 400)), x = Math.round(G.px - w / 2), y = Math.round(G.py - h + 2 + bob);
         G.meImg = { img, x, y, w, h };
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(G.px, G.py, 16, 5, 0, 0, Math.PI * 2); c.fill();
         if (G.dash) Fx.afterimage(img, x, y, w, h, G.face < 0, Fx.pal(G.dash.els[0])[2]);
         if (G.inv > 0 && !G.dash && Math.floor(now / 60) % 2) c.globalAlpha = 0.45;
-        if (G.face < 0) { c.save(); c.translate(x + w, y); c.scale(-1, 1); c.drawImage(img, 0, 0, w, h); c.restore(); } else c.drawImage(img, x, y, w, h);
+        drawFig(c, img, x, y, w, h, G.face, G.walk * Math.PI * 4, walkMv, S.eq.weapon && !S.hide ? 'left' : true);
         c.globalAlpha = 1;
         // 장비 단계 빛 (정예 무기)
         const wp = S.eq.weapon && ITEMS[S.eq.weapon]; if (wp && wp.rare && !S.hide) { c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, G.px + (G.face < 0 ? -14 : 14), y + 14, 18, D.TIER[wp.tier].gem, 0.35 + 0.2 * Math.sin(now / 200)); c.restore(); }
@@ -1336,13 +1336,19 @@
           if (m.el && ELEM[m.el]) { const tw = c.measureText(t).width, ex = m.x - tw / 2 - 11, ey = y - 17; c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(ex - 2, ey, 9, 0, Math.PI * 2); c.fill(); c.fillStyle = ELEM[m.el].color; c.beginPath(); c.arc(ex - 2, ey, 7.5, 0, Math.PI * 2); c.fill(); c.font = '11px "Jua", "Malgun Gothic", sans-serif'; c.fillStyle = '#1D2340'; c.fillText(ELEM[m.el].name[0], ex - 2, ey + 4); }   // v87 속성 표시
         }
       }
+      // v105 사람 그리기: 걸을 때는 AV.rig 로 다리·팔·몸을 이어서 움직임 (순찰병처럼 부드럽게), 왼쪽을 보면 뒤집음
+      function drawFig(c, img, x, y, w, h, face, ph, mv, arms) {
+        c.save(); if (face < 0) { c.translate(x + w, y); c.scale(-1, 1); } else c.translate(x, y);
+        if (AV.rig) AV.rig(c, img, 0, 0, w, h, ph, mv, { arms }); else c.drawImage(img, 0, 0, w, h);
+        c.restore();
+      }
       function drawNpc(c, n, now) {
         if (n.def.img) return drawArmy(c, n, now);
-        const fr = n.moving ? [1, 0, 3, 0][Math.floor((n.walk || 0) * 7) % 4] : 0, img = npcSprite(n.def.av, fr);
+        const img = npcSprite(n.def.av, 0);
         const k = (img.width > AV.size.w ? 1 : 2) * (n.scale || 1), w = img.width * k, h = img.height * k, bob = n.moving ? 0 : Math.round(Math.sin(now / 420 + n.ph));
         const x = Math.round(n.x - w / 2), y = Math.round(n.y - h + 2 + bob);
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(n.x, n.y, 16 * (n.scale || 1), 5, 0, 0, Math.PI * 2); c.fill();
-        if (n.face < 0) { c.save(); c.translate(x + w, y); c.scale(-1, 1); c.drawImage(img, 0, 0, w, h); c.restore(); } else c.drawImage(img, x, y, w, h);
+        drawFig(c, img, x, y, w, h, n.face, (n.walk || 0) * Math.PI * 3.5, n.moving, true);
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         c.strokeText(n.def.name, n.x, y - 6); c.fillStyle = n.def.color || '#9AE6FF'; c.fillText(n.def.name, n.x, y - 6);
         let top = y - 22;
@@ -1361,10 +1367,10 @@
       // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
       function drawPeer(c, p, now) {
         if (!p.av) return;
-        const fr = now < (p.poseUntil || 0) ? 'c' : p.moving ? [1, 0, 3, 0][Math.floor(p.walk * 8) % 4] : 0, img = avatarSprite(AV.normalize(p.av), p.eq || {}, p.hide, fr);
+        const posing = now < (p.poseUntil || 0), img = avatarSprite(AV.normalize(p.av), p.eq || {}, p.hide, posing ? 'c' : 0);
         const k = img.width > AV.size.w ? 1 : 2, w = img.width * k, h = img.height * k, x = Math.round(p.x - w / 2), y = Math.round(p.y - h + 2);
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(p.x, p.y, 16, 5, 0, 0, Math.PI * 2); c.fill();
-        if (p.face < 0) { c.save(); c.translate(x + w, y); c.scale(-1, 1); c.drawImage(img, 0, 0, w, h); c.restore(); } else c.drawImage(img, x, y, w, h);
+        drawFig(c, img, x, y, w, h, p.face, (p.walk || 0) * Math.PI * 4, p.moving && !posing, p.eq && p.eq.weapon && !p.hide ? 'left' : true);
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         const nm = p.nick + ' Lv.' + p.lv; c.strokeText(nm, p.x, y - 6); c.fillStyle = '#9AE6FF'; c.fillText(nm, p.x, y - 6);
       }

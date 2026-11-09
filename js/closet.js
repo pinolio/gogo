@@ -94,12 +94,12 @@
     </div>`;
   }
 
-  function paintTry(frame) { const c = $('#clTry'); if (c) AV.paint(c, look, { scale: 6, frame, scene: true }); }
+  function paintTry(frame) { const c = $('#clTry'); if (c) AV.paint(c, look, Object.assign({ scale: 6, scene: true }, frame && frame.walk != null ? frame : { frame })); }
   function startWalk() {
     clearInterval(walkTimer);
     if (!walking || reduce) { paintTry(0); return; }
-    const seq = [1, 0, 3, 0]; let i = 0;
-    walkTimer = setInterval(() => { if (!$('#clTry')) { clearInterval(walkTimer); return; } paintTry(seq[i++ % 4]); }, 220);
+    const t0 = performance.now();   // v105 부드러운 걷기: 1초에 약 30번 그림 (한 걸음 0.44초)
+    walkTimer = setInterval(() => { if (!$('#clTry')) { clearInterval(walkTimer); return; } paintTry({ walk: (performance.now() - t0) / 880 * Math.PI * 2 }); }, 33);
   }
 
   async function wear() {

@@ -339,7 +339,7 @@
       return null;
     }
     // 아바타 하나 그리기: 손이 (x, y) 에 오도록
-    function person(ctx, av, x, y, face, frame, dip) {
+    function person(ctx, av, x, y, face, frame, dip, walk) {
       const AV = window.GoAvatar; if (!AV || !av) return;
       const ox = x - HX, oy = y - HY - dip;
       ctx.save();
@@ -347,7 +347,7 @@
       ctx.beginPath(); ctx.ellipse(x - face * AW * 0.36, y - HY + AH - 2, AW * 0.36, AW * 0.12, 0, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
       if (face < 0) { ctx.translate(x * 2, 0); ctx.scale(-1, 1); }
-      AV.draw(ctx, av, ox, oy, S, { frame });
+      AV.draw(ctx, av, ox, oy, S, walk != null ? { walk } : { frame });   // v105 걷기 = 부드럽게
       ctx.restore();
     }
     return {
@@ -362,10 +362,10 @@
         Object.keys(homes).forEach(w => { if (cur && cur.who === w) return; const h = homes[w]; person(ctx, avs[w], h[0], h[1], h[0] < mx ? 1 : -1, 0, 0); });
         if (!cur) return;
         const st = state(now); if (!st) return;
-        const frame = st.walk ? [1, 0, 3, 0][Math.floor(now / 170) % 4] : 0;
-        const bob = st.walk && frame ? 1 : 0;
+        const frame = 0, walkP = st.walk ? now / 680 * Math.PI * 2 : null;
+        const bob = 0;
         const dip = st.drop != null ? Math.sin(Math.min(1, st.drop / 0.45) * Math.PI) * 3 : st.lift != null ? Math.sin(Math.min(1, st.lift / 0.5) * Math.PI) * 3 : 0;
-        person(ctx, avs[cur.who], st.x, st.y, st.face, frame, bob + dip);
+        person(ctx, avs[cur.who], st.x, st.y, st.face, frame, bob + dip, walkP);
         if (st.hold && cur.piece) cur.piece(ctx, st.x, st.y - bob - dip - (cur.pot ? 0 : 4));
       }
     };

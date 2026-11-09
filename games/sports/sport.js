@@ -119,7 +119,15 @@
     return c;
   }
   // (x: 발 가운데, y: 발바닥) 기준으로 그림. face: 1 오른쪽, -1 왼쪽
-  function drawFighter(ctx, av, pose, x, y, scale, face, alpha) {
+  // v105 walk = 걸음 위상(라디안)을 주면 서 있는 그림을 조각내어 부드럽게 걷기 (AV.rig, RPG 순찰병과 같은 방식) · arms 'left' = 오른손에 라켓
+  function drawFighter(ctx, av, pose, x, y, scale, face, alpha, walk, arms) {
+    if (walk != null && AV.rig && (pose === 'idle' || pose === 'walk1' || pose === 'walk2')) {
+      const spr = fighter(av, 'idle'), w = SW * scale, h = SH * scale, bodyCx = (AV.size.w / 2) * scale;
+      ctx.save(); if (alpha != null) ctx.globalAlpha = alpha;
+      ctx.translate(Math.round(x), Math.round(y - h)); if (face < 0) ctx.scale(-1, 1);
+      AV.rig(ctx, spr, Math.round(-bodyCx), 0, w, h, walk, true, { padL: 0, arms: arms == null ? true : arms });
+      ctx.restore(); return;
+    }
     const spr = fighter(av, pose), w = SW * scale, h = SH * scale, bodyCx = (AV.size.w / 2) * scale;
     ctx.save(); ctx.imageSmoothingEnabled = false;
     if (alpha != null) ctx.globalAlpha = alpha;

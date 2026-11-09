@@ -570,7 +570,7 @@
         const g = proj(p.x, p.y, 0), sc = Math.max(1, 2.1 * g.s / S.SPRITE.h) * (big ? 1.5 : 1);
         S.shadow(ctx, g.x, g.y + 2, 0.9 * g.s);
         const pose = p.toss ? 'spike' : p.swing > 0 ? 'punch' : p.walk > 0 ? (Math.floor(p.walk) % 2 ? 'walk1' : 'walk2') : 'idle';
-        S.drawFighter(ctx, p.av, pose, g.x, g.y, sc, p.face);
+        S.drawFighter(ctx, p.av, pose, g.x, g.y, sc, p.face, null, p.walk > 0 && pose.startsWith('walk') ? p.walk * Math.PI : null, 'left');
         drawRacket(ctx, pose, g.x, g.y, sc, p.face);
         if (cold) { ctx.fillStyle = 'rgba(159,232,255,.38)'; ctx.fillRect(g.x - 0.5 * g.s, g.y - S.SPRITE.h * sc, g.s, S.SPRITE.h * sc); }
         const top = g.y - S.SPRITE.h * sc - 10;

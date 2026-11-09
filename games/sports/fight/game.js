@@ -322,7 +322,7 @@
         P.forEach(f => {
           S.shadow(ctx, f.x, FLOOR + 4, 84);
           if (f.attacking && f.type === 3) { ctx.save(); ctx.globalAlpha = 0.35 + 0.25 * Math.sin(frames / 2); ctx.fillStyle = '#FF9A3D'; const hb = hitbox(f, 1); ctx.fillRect(hb.x - 4, hb.y - 4, hb.w + 8, hb.h + 8); ctx.restore(); }
-          S.drawFighter(ctx, f.av, poseOf(f), f.x, f.y, SCALE, f.faceLeft ? -1 : 1, f.hp <= 0 ? 0.5 : 1);
+          S.drawFighter(ctx, f.av, poseOf(f), f.x, f.y, SCALE, f.faceLeft ? -1 : 1, f.hp <= 0 ? 0.5 : 1, f.walk ? f.walk * Math.PI : null);
           S.text(ctx, tagOf(f), f.x, f.y - BH - 22, 14, f.color);
         });
         fx.forEach(p => {

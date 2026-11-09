@@ -294,7 +294,7 @@
           const k = size(p), sc = SCALE * k;
           S.shadow(ctx, p.x, GROUND + 4, 60 * k);
           const pose = p.spike > 0 ? 'spike' : p.air ? 'jump' : (t < p.snareUntil ? 'guard' : (Math.floor(p.walk) % 2 ? 'walk1' : (p.walk ? 'walk2' : 'idle')));
-          S.drawFighter(ctx, p.av, pose, p.x, p.y, sc, p.face);
+          S.drawFighter(ctx, p.av, pose, p.x, p.y, sc, p.face, null, p.walk && pose.startsWith('walk') ? p.walk * Math.PI : null);
           const sk = SKILLS[p.skill - 1], ready = sk ? Math.min(1, (t - p.lastSkill) / sk.cd) : 0, top = p.y - PH * k - 34;
           S.text(ctx, (p.mine && n > 2 ? '▼ ' : '') + p.name, p.x, top - 10, 14, p.side === 0 ? '#FFE48A' : '#BFE3FF');
           S.bar(ctx, p.x - 30, top + 2, 60, 6, ready, ready >= 1 ? (sk ? sk.color : '#fff') : '#8890B8');

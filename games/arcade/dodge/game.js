@@ -39,7 +39,7 @@
     if (blink) return;
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x, y + 16, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = RING[slot] || RING[0]; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(x, y + 16, 10, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
-    AV.draw(ctx, av, Math.round(x - 9), Math.round(y - 15), 1, { frame });
+    AV.draw(ctx, av, Math.round(x - 9), Math.round(y - 15), 1, frame && frame.walk != null ? frame : { frame });
     if (name) { ctx.font = '700 11px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#05070F'; ctx.strokeText(name, x, y - 20); ctx.fillStyle = RING[slot] ? '#FFFFFF' : '#FFFFFF'; ctx.fillText(name, x, y - 20); }
   }
 
@@ -233,7 +233,7 @@
         B.forEach(b => { const im = bulletImg(b.k); ctx.drawImage(im, Math.round(b.x - 6), Math.round(b.y - 6)); });
         P.forEach(p => {
           if (!p.alive) return;
-          const fr = p.moving > 0 ? [1, 0, 3, 0][Math.floor(p.walk * 8) % 4] : 0;
+          const fr = p.moving > 0 ? { walk: p.walk * Math.PI * 4 } : 0;   // v105 부드러운 걷기
           drawAvatar(ctx, p.av, p.x, p.y, two() ? p.slot : 0, fr, phase === 'ready' && Math.floor(bgT * 6) % 2 === 1, two() ? p.name : '');
         });
         FX.forEach(f => { ctx.globalAlpha = Math.max(0, Math.min(1, f.life * 1.6)); ctx.fillStyle = f.c; ctx.fillRect(f.x - 2, f.y - 2, 4, 4); }); ctx.globalAlpha = 1;

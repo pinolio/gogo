@@ -147,10 +147,10 @@
     nameTag(c, e, x, y - 62);
     c.save();
     c.fillStyle = 'rgba(29,35,64,.2)'; c.beginPath(); c.ellipse(x + 2, y + 1, 12, 5, 0, 0, Math.PI * 2); c.fill();   // v94 가구 그림자와 같은 색 · 같은 방향
-    const bob = moving ? (frame === 0 ? -1 : 0) : (reduce ? 0 : Math.round(Math.sin(now / 500)));
+    const bob = moving ? 0 : (reduce ? 0 : Math.round(Math.sin(now / 500)));
     c.translate(x, y);
     if (e.face < 0) c.scale(-1, 1);
-    AV.draw(c, av, -18, -56 + bob, 2, { frame, pose: moving ? 'walk' : null });
+    AV.draw(c, av, -18, -56 + bob, 2, moving && !reduce ? { walk: e.walkT * Math.PI * 3.5 } : { frame });   // v105 부드러운 걷기 (순찰병처럼)
     c.restore();
   }
   // 의자에 앉은 모습 · 침대에 누워 이불 덮은 모습 (그 가구를 그린 바로 다음에 그림)
