@@ -56,17 +56,43 @@
       if (!live()) return 1;
       try { const { data, error } = await Hub._sb.rpc('rpg_room', { p_map: room }); if (error) return 1; return Math.max(1, +data || 1); } catch (e) { return 1; }
     }
+    function connect(room, no, seq) {
+      if (seq !== net.seq || !net.joined) return;   // 그사이 다른 지도로 옮겼으면 버림
+      if (net.ch) { try { net.ch.leave(); } catch (e) { /* noop */ } net.ch = null; net.peers.forEach((p, k) => h.onLeave && h.onLeave(k)); net.peers.clear(); }
+      net.chNo = no;
+      net.ch = Hub.channel('rpg-' + net.server + '-' + room + '-' + no, { onMsg, onPeers, onError() { /* 연결이 끊기면 다음 지도 이동 때 다시 */ } });
+      net.ch.track(stateNow());
+      net.lastKey = ''; net.sendT = 9; h.onPeers && h.onPeers();
+    }
     net.setRoom = (room, force) => {
       if (!net.joined) return;
       if (room === net.room && !force) return;
       net.leaveRoom(); net.room = room; net.chNo = 0; const seq = ++net.seq;
-      pickCh(room).then(no => {
-        if (seq !== net.seq || !net.joined) return;   // 그사이 다른 지도로 옮겼으면 버림
-        net.chNo = no;
-        net.ch = Hub.channel('rpg-' + net.server + '-' + room + '-' + no, { onMsg, onPeers, onError() { /* 연결이 끊기면 다음 지도 이동 때 다시 */ } });
-        net.ch.track(stateNow());
-        net.lastKey = ''; net.sendT = 9; h.onPeers && h.onPeers();
-      });
+      pickCh(room).then(no => connect(room, no, seq));
+    };
+    // v104 채널 이동 창: 이 지도의 채널 목록(사람 있는 채널 + 빈 채널 하나) · 고른 채널로 옮기기
+    net.channels = async () => {
+      const cap = OPT.chCap || 5;
+      if (!net.joined) return { rows: [] };
+      if (!live()) { const me = net.chNo || 1, rows = [{ ch: me, players: net.peers.size + 1 }]; rows.push({ ch: me + 1, players: 0 }); return { demo: true, cap, rows }; }
+      const { data, error } = await Hub._sb.rpc('rpg_channels', { p_map: net.room });
+      if (error) return { error: /rpg_channels|schema cache|does not exist/i.test(error.message) ? 'sql' : error.message, cap, rows: [] };
+      const rows = (data || []).map(r => ({ ch: +r.ch, players: +r.players })).filter(r => r.players > 0);
+      if (net.chNo && !rows.some(r => r.ch === net.chNo)) rows.push({ ch: net.chNo, players: 1 });
+      rows.sort((a, b) => a.ch - b.ch);
+      let empty = 1; while (rows.some(r => r.ch === empty)) empty++;
+      rows.push({ ch: empty, players: 0 }); rows.sort((a, b) => a.ch - b.ch);   // 새 채널 하나는 늘 고를 수 있게
+      return { cap, rows };
+    };
+    net.moveCh = async no => {
+      if (!net.joined || !net.room || no === net.chNo) return { ok: false, reason: 'same' };
+      if (live()) {
+        const { data, error } = await Hub._sb.rpc('rpg_room_to', { p_map: net.room, p_ch: no });
+        if (error) return { ok: false, reason: /rpg_room_to|schema cache|does not exist/i.test(error.message) ? 'sql' : 'error' };
+        if (!data || !data.ok) return data || { ok: false, reason: 'error' };
+      }
+      connect(net.room, no, net.seq);
+      return { ok: true, ch: no };
     };
     function stateNow() { const m = h.me(); return { cid: Hub.clientId, uid: Hub.user ? Hub.user.id : '', nick: m.nick, lv: m.lv, av: m.av, eq: m.eq, hide: !!m.hide, x: Math.round(m.x), y: Math.round(m.y) }; }
     net.retrack = () => { net.retrackT = 1.5; };   // 레벨·장비가 바뀌면 1.5초 뒤 한 번만 알림

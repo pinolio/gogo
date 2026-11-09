@@ -206,6 +206,12 @@
   .rg-msg[hidden] { display: none; }
   .rg-side { width: min(100%, 560px); display: grid; grid-template-columns: 1fr; gap: 12px; }
   /* v43 크게 보기 */
+  /* v104 채널 이동 버튼 (게임 화면 왼쪽) · 창 */
+  .rg-chbtn { position: absolute; left: 1.2%; top: 18.5%; z-index: 2; display: grid; gap: 2px; justify-items: center; min-width: 58px; padding: 7px 8px; border-radius: 12px; background: rgba(10,14,36,.82); border: 2px solid #9AE6FF; color: #FFFFFF; font-family: var(--f-display); font-size: 15px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+  .rg-chbtn small { font-family: inherit; font-size: 11px; color: #9AE6FF; }
+  .rg-chbtn:hover { filter: brightness(1.15); }
+  .rg-chs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .rg-chs .rg-srv.cur[disabled] { opacity: 1; border-color: #9AE6FF; box-shadow: 0 0 0 2px rgba(154,230,255,.35), 0 3px 0 rgba(0,0,0,.3); }
   .rg-full { position: absolute; top: 2%; right: 18.4%; width: 36px; height: 36px; z-index: 2; border-radius: 9px; background: rgba(10,14,36,.78); border: 2px solid #0A0E24; color: #FFFFFF; display: none; place-items: center; cursor: pointer; padding: 0; }
   @media (pointer: coarse) { .rg-full { display: grid; } }
   .rg-page .cabinet:fullscreen { max-width: none; width: 100vw; height: 100vh; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: #05081A; display: flex; align-items: center; justify-content: center; }
@@ -397,6 +403,7 @@
             <div class="cabinet cab-blue" style="--cw:960px;--ar:1.7778"><div class="screen" id="rgScreen" tabindex="0">
               <canvas id="rgCanvas" aria-label="${CFG.name} 게임 화면"></canvas>
               <div class="rg-msg" id="rgMsg" hidden></div>
+              <button type="button" class="rg-chbtn" id="rgChBtn" hidden aria-label="채널 이동"><span>1채널</span><small>채널 이동</small></button>
               <button type="button" class="rg-full" id="rgFull" aria-label="화면 크게 보기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
               <div class="rg-panel" id="rgPanel" hidden></div>
             </div></div>
@@ -1445,6 +1452,8 @@
         panelBox(c, W / 2 - tw / 2, 8, tw, 38, 10);
         c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF'; c.fillText(t, W / 2, 21);
         c.font = '11px "Jua", sans-serif'; c.fillStyle = M.kind !== 'field' ? '#9AE6FF' : M.rec > S.lv + 6 ? '#FF8A8E' : M.rec > S.lv + 2 ? '#FFD23F' : '#9AF0B0'; c.fillText(rec + (M.kind !== 'village' && M.rec > S.lv + 6 ? ' · 위험!' : ''), W / 2, 37);
+        // v104 채널 이동 버튼 (온라인일 때만)
+        { const want = !!(net && net.joined && net.chNo), b = $('#rgChBtn'); if (b && b.hidden === want) b.hidden = !want; if (want && b._no !== net.chNo) { b._no = net.chNo; b.firstChild.textContent = net.chNo + '채널'; } }
         // 서버 표시 (위 가운데 이름 아래)
         if (net && net.joined) {
           const st = `${net.name(net.server)}${net.chNo ? ` · ${net.chNo}채널` : ''} · 여기 ${net.peers.size + 1}명`; c.font = '12px "Jua", "Malgun Gothic", sans-serif'; const sw = c.measureText(st).width + 18;
@@ -1576,6 +1585,7 @@
         pane = kind; paneArg = arg || null; G.keys = {}; G.btnDown = {}; G.joy = null;
         tab.trash = false; tab.trashAsk = null; tab.sellAsk = null; tab.sellAll = false;   // v68 창을 새로 열면 버리기·팔기 확인은 꺼짐
         G.paused = !(net && net.joined && kind !== 'help');   // 온라인이면 창을 열어도 세상은 계속 (다른 사람이 계속 움직임)
+        if (kind === 'chan') { chList = null; loadChans(); clearInterval(srvTimer); srvTimer = setInterval(() => { if (pane === 'chan') loadChans(); else clearInterval(srvTimer); }, 4000); }
         if (kind === 'servers') { srvList = null; loadServers(); clearInterval(srvTimer); srvTimer = setInterval(() => { if (pane === 'servers') loadServers(); else clearInterval(srvTimer); }, 5000); }
         renderPanel(); panel.hidden = false;
       }
@@ -1752,6 +1762,18 @@
           ];
           h += `<div class="rg-detailgrid">${rows.map(([n, v, d2, parts, c2]) => `<div><span style="color:${c2}">${n}</span><b>${v}</b>${d2 ? `<small>${d2}</small>` : ''}${parts ? `<small class="pt">${parts}</small>` : ''}</div>`).join('')}</div>`;
           h += `<p class="sub" style="margin:10px 0 0">속성 방어 — 몬스터마다 속성이 있어요(이름 앞 동그라미). 원거리 탄·보스 공격은 그 속성 피해 + 상태 효과(화상·느려짐·기절·저주 …), 속성 방어가 높을수록 피해도 효과도 줄어요 (저항 +${fm(PT.sta.edef || 0)}% 포함, 최대 ${D.STAT.defCap}%)</p><div class="rg-defgrid">${Object.keys(ELEM).map(e => `<div><span style="color:${ELEM[e].color}">${ELEM[e].name}</span><b>${fm(ST.edefs[e])}%</b></div>`).join('')}</div>`;
+        } else if (k === 'chan') {   // v104 채널 이동
+          const L = chList, M = MAPBY[S.map];
+          h = head('채널 이동', `${M ? M.name : '이 지도'} · 한 채널에 ${net.opt.chCap || 5}명까지. 같은 채널에 있는 사람끼리만 서로 보여요.`);
+          if (!net.joined) h += '<div class="rg-fuse">서버에 들어가야 채널을 고를 수 있어요.</div><button type="button" class="btn btn-primary" data-rg2="servers">서버 고르기</button>';
+          else if (!L) h += '<p class="sub">채널 인원을 불러오는 중…</p>';
+          else if (L.error) h += `<div class="rg-fuse">${L.error === 'sql' ? '채널 이동 준비가 아직 안 됐어요. (관리자: supabase/rpg_chan_v104.sql 실행 필요)' : '채널 인원을 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.'}</div>`;
+          else {
+            const cap = L.cap || 5;
+            h += `<div class="rg-chs">${L.rows.map(r => { const n = r.players, cur = r.ch === net.chNo, full = n >= cap && !cur, pct = Math.round(n / cap * 100), col = n >= cap ? '#FF5A5F' : n >= cap - 1 ? '#FF9A3D' : n ? '#FFD23F' : '#3DDC84';
+              return `<button type="button" class="rg-srv${cur ? ' cur' : ''}" data-ch="${r.ch}" ${full || cur ? 'disabled' : ''}><b>${r.ch}채널</b>${cur ? '<em class="me">지금</em>' : n === 0 ? '<em>빈 채널</em>' : ''}<span class="bar"><i style="width:${pct}%;background:${col}"></i></span><small>${n} / ${cap}명${full ? ' · 가득' : ''}</small></button>`; }).join('')}</div>`;
+            h += `<p class="sub">지금 ${L.rows.filter(r => r.players > 0).length}개 채널에 사람이 있어요. 자리가 있는 채널을 누르면 바로 옮겨요. ${L.demo ? '(체험 모드)' : ''}</p>`;
+          }
         } else if (k === 'servers') {   // v42 서버 고르기
           const cap = net.opt.cap, L = srvList;
           h = head('서버 고르기', '같은 서버의 같은 지도에 있는 사람이 보여요. 아이템·마법·레벨은 <b>계정에 저장</b>돼서 어느 서버에서나 그대로 이어져요.');
@@ -1822,6 +1844,13 @@
         restat(); if (worn && net) net.retrack(); save(true); markDirty(true);
       }
       let srvList = null, srvTimer = 0;
+      let chList = null;
+      async function loadChans() { if (!net) return; const L = await net.channels(); chList = L; if (pane === 'chan') renderPanel(); }
+      async function moveChan(no) {
+        const r = await net.moveCh(no);
+        if (r.ok) { say(`${no}채널로 옮겼어요`, 2.2); closePanel(); }
+        else { say(r.reason === 'full' ? `${no}채널은 가득 찼어요 (${net.opt.chCap || 5}명)` : r.reason === 'sql' ? '채널 이동 준비가 아직 안 됐어요' : '채널을 옮기지 못했어요. 잠시 뒤 다시 해 주세요', 3); loadChans(); }
+      }
       async function loadServers() {
         if (!Hub.user) return;
         const L = await net.list(); srvList = L; if (pane === 'servers') renderPanel();
@@ -1920,12 +1949,15 @@
         else if ('fgok' in d) { tab.fgRes = null; }
         else if (d.fgdo) { tab.fgAsk = null; enhance(d.fgdo); }
         else if (d.srv) { joinServer(d.srv); return; }
+        else if (d.ch) { moveChan(+d.ch); return; }
+        else if (d.rg2) { openPanel(d.rg2); return; }
         else if ('solo' in d) { if (net.joined) { net.leave(); say('혼자 하기로 바꿨어요', 2); } closePanel(); return; }
         else if ('savenow' in d) { save(true).then(ok => say(ok || !Store.online() ? '저장했어요' : '이 기기에 저장했어요 (서버 저장은 준비 중)')); return; }
         else if ('revive' in d) { G.dead = false; pane = null; panel.hidden = true; G.paused = false; restat(); S.hp = ST.hp; S.mp = ST.mp; enter(S.home, 'door'); return; }
         renderPanel();
       });
       syncBgm();
+      $('#rgChBtn').addEventListener('click', e => { e.currentTarget.blur(); if (!S || G.dead) return; if (pane === 'chan') closePanel(); else openPanel('chan'); });   // v104
       el.querySelector('.rg-bar').addEventListener('click', e => {
         const b = e.target.closest('[data-rg]'); if (!b || !S) return; b.blur();
         const k = b.dataset.rg;
