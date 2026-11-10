@@ -86,6 +86,7 @@
       for (let y = R.castle ? mid + 2 : fy0 + 3; y <= st.y + st.h; y++) set(st.path, y, 1);
       for (let x = Math.min(st.path, st.x); x <= Math.max(st.path, st.x + st.w - 1); x++) set(x, st.y + st.h, 1);
       map.station = st;
+      villageRoads(map, rnd);   // v109 직각 길 → 부드럽게 굽은 흙길·마당·디딤돌 (칸도 새 길 모양에 맞춤)
       armyCamp(map, rnd);   // v80 임진왜란 진영 꾸미기 (천막·대포·깃발 + 조선 병사 · 다친 병사)
     } else {
       // 굽은 길 (왼쪽 → 오른쪽)
@@ -169,6 +170,64 @@
     A.forEach(a => { if (!a.range) return; const ty = Math.floor(a.y), r = Math.ceil(a.range / TS) + 1; for (let x = Math.floor(a.x) - r; x <= Math.floor(a.x) + r; x++) if ([2, 3].includes(at(x, ty))) set(x, ty, 0); });   // 순찰 길의 나무·바위 치움
     map.army = A.filter(a => { const tx = Math.floor(a.x), ty = Math.floor(a.y); return !SOLID[at(tx, ty)]; });
   }
+  /* v109 마을 길: 직각 칸 길 대신 굽은 흙길(곡선) · 문 앞 마당 · 분수 둥근 마당
+   *  map.roads = [{ pts: [[x, y] …] (칸 좌표, 곡선이 지나는 점), w: 폭(칸), main }] · map.plazas = [{ x, y, r }]
+   *  칸 값도 새 길 모양에 맞춰 다시 정함 (가운데가 길 안이면 1, 예전 길이었는데 벗어나면 0) */
+  function villageRoads(map, rnd) {
+    const { w, h, at, set, mid } = map, last = !!map.R.castle, cy = mid + 1;   // 큰길 가운데 줄(칸 경계 기준)
+    const mainY = x => cy + 0.5 * Math.sin((x + 3) * 0.26) + 0.18 * Math.sin(x * 0.71 + 1.3);
+    const roads = [], plazas = [];
+    const main = []; for (let x = -1; x <= w + 1; x += 0.5) main.push([x, mainY(x)]);
+    roads.push({ pts: main, w: 2.35, main: true });
+    const join = x => [x, mainY(x) + 0.6];
+    map.doors.forEach(b => {
+      const dx = b.door.x + 0.5, dy = b.door.y + 1;
+      if (dy < cy) {   // 큰길 위 건물: 문 앞에서 살짝 휘어 큰길로
+        const ex = dx + (dx < w / 2 ? 1.2 : -1.2);
+        roads.push({ pts: [[dx, dy + 0.1], [dx + (ex - dx) * 0.25, dy + 0.9], [ex, mainY(ex) - 0.3]], w: 1.45 });
+        plazas.push({ x: dx, y: dy + 0.35, r: 1.15, door: true });
+      } else if (b.type === 'castle') {   // 성: 양옆으로 돌아 내려가 문 앞 넓은 마당
+        const L = b.x - 1.4, Rr = b.x + b.w + 1.4, fy = b.y + b.h + 1.1;
+        roads.push({ pts: [join(L - 0.4), [L - 0.2, cy + 3.2], [L + 0.2, b.y + b.h - 1.2], [L + 1.6, fy], [dx, fy + 0.15]], w: 1.6 });
+        roads.push({ pts: [join(Rr + 0.4), [Rr + 0.2, cy + 3.2], [Rr - 0.2, b.y + b.h - 1.2], [Rr - 1.6, fy], [dx, fy + 0.15]], w: 1.6 });
+        plazas.push({ x: dx, y: fy - 0.2, r: 1.9, door: true });
+      } else {   // 큰길 아래 집(이장 댁): 오른쪽으로 돌아 문 앞으로
+        const R2 = b.x + b.w + 1.3, fy = b.y + b.h + 0.9;
+        roads.push({ pts: [join(R2 + 0.8), [R2 + 0.3, cy + 2.6], [R2 + 0.1, b.y + b.h - 1.5], [R2 - 0.9, fy], [dx, fy + 0.1]], w: 1.5 });
+        plazas.push({ x: dx, y: fy - 0.25, r: 1.25, door: true });
+      }
+    });
+    if (!last) {   // 분수 둥근 마당 + 큰길에서 내려오는 길
+      roads.push({ pts: [join(17.8), [18, 12.2], [18, 13.2]], w: 1.6 });
+      plazas.push({ x: 18, y: 15, r: 2.75 });
+    }
+    const f = map.forge, st = map.station;
+    if (f) {   // 대장간 앞 마당
+      const sx = f.x - 1.3, fy = f.y + f.h + 1;
+      roads.push({ pts: [join(sx), [sx + 0.1, cy + 2.6], [sx + 0.5, fy - 0.6], [f.x + 1.5, fy + 0.15]], w: 1.4 });
+      plazas.push({ x: f.x + 1.5, y: fy - 0.3, r: 1.35 });
+    }
+    if (st) {   // 역참 앞 마당
+      const fy = st.y + st.h + 0.9, cx = st.x + st.w / 2;
+      if (last) roads.push({ pts: [join(st.path + 0.5), [st.path + 0.4, cy + 4], [st.path + 0.2, st.y - 0.5], [cx + 1.2, fy - 0.2], [cx, fy]], w: 1.4 });
+      else roads.push({ pts: [[f.x - 0.8, f.y + f.h + 1.4], [st.x - 1.3, st.y - 0.3], [st.x - 0.4, fy - 0.1], [cx, fy + 0.05]], w: 1.4 });
+      plazas.push({ x: cx, y: fy - 0.2, r: 1.4 });
+    }
+    // 곡선(캣멀롬) 위 점들을 촘촘히
+    const dense = pts => { const out = [], P = i => pts[Math.max(0, Math.min(pts.length - 1, i))];
+      for (let i = 0; i < pts.length - 1; i++) { const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+        for (let t = 0; t < 1; t += 0.1) { const t2 = t * t, t3 = t2 * t, f2 = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3); out.push([f2(p0[0], p1[0], p2[0], p3[0]), f2(p0[1], p1[1], p2[1], p3[1])]); } }
+      out.push(pts[pts.length - 1]); return out; };
+    roads.forEach(r => { r.d = dense(r.pts); });
+    map.roads = roads; map.plazas = plazas;
+    // 칸 다시 정하기
+    const inRoad = (X, Y) => roads.some(r => r.d.some(([x, y]) => (x - X) ** 2 + (y - Y) ** 2 <= (r.w / 2) ** 2)) || plazas.some(q => (q.x - X) ** 2 + (q.y - Y) ** 2 <= q.r * q.r);
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const v = at(x, y), on = inRoad(x + 0.5, y + 0.5);
+      if (on && [0, 1, 2, 3, 5].includes(v)) set(x, y, 1);
+      else if (!on && v === 1) set(x, y, 0);
+    }
+  }
   function nearDoor(map, x, y) { return map.doors.some(b => Math.abs(b.door.x - x) <= 2 && y >= b.door.y && y <= b.door.y + 3); }
   const solidAt = (map, px, py) => !!SOLID[map.at(Math.floor(px / TS), Math.floor(py / TS))];
 
@@ -181,6 +240,51 @@
     const r = seeded(seed), G = {}; const v = (x, y) => { const k = x + ',' + y; if (G[k] == null) G[k] = r(); return G[k]; };
     return (x, y, s) => { const X = x / s, Y = y / s, x0 = Math.floor(X), y0 = Math.floor(Y), fx = X - x0, fy = Y - y0, sm = t => t * t * (3 - 2 * t);
       const a = v(x0, y0), b = v(x0 + 1, y0), c = v(x0, y0 + 1), d = v(x0 + 1, y0 + 1); return (a + (b - a) * sm(fx)) * (1 - sm(fy)) + (c + (d - c) * sm(fx)) * sm(fy); };
+  }
+  /* v109 마을 흙길 그리기: 길을 따라 둥근 도장을 촘촘히 찍어(폭이 조금씩 달라짐) 가장자리가 자연스러운 모양을 만들고
+   *  그림자 → 흙 재질 → 수레바퀴 자국(큰길) → 가장자리 돌멩이 → 문 앞 디딤돌 · 진영 앞 박석 */
+  function drawRoads(x, map, pat, rnd, nz) {
+    const { w, h, R } = map, W = w * TS, H = h * TS, P0 = R.path;
+    const [mc, mx] = mk(W, H); mx.fillStyle = '#000';
+    const dot = (X, Y, r) => { mx.beginPath(); mx.arc(X, Y, r, 0, Math.PI * 2); mx.fill(); };
+    const walk = (d, fn) => { for (let i = 0; i < d.length - 1; i++) { const [x0, y0] = d[i], [x1, y1] = d[i + 1], L = Math.hypot(x1 - x0, y1 - y0) * TS, n = Math.max(1, Math.ceil(L / 3)); for (let k = 0; k < n; k++) { const t = k / n; fn(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, x1 - x0, y1 - y0); } } };
+    map.roads.forEach(r => walk(r.d, (X, Y) => dot(X * TS, Y * TS, r.w / 2 * TS * (0.9 + 0.2 * nz(X * 3, Y * 3, 2)))));
+    map.plazas.forEach(q => { mx.beginPath(); for (let a = 0; a <= 40; a++) { const t = a / 40 * Math.PI * 2, rr = q.r * TS * (0.92 + 0.14 * nz(q.x * 9 + Math.cos(t) * 4, q.y * 9 + Math.sin(t) * 4, 2)); mx[a ? 'lineTo' : 'moveTo'](q.x * TS + Math.cos(t) * rr, q.y * TS + Math.sin(t) * rr); } mx.closePath(); mx.fill(); });
+    // 그림자 (길 둘레가 살짝 꺼진 느낌)
+    const [sc, sx] = mk(W, H); sx.drawImage(mc, 0, 0); sx.globalCompositeOperation = 'source-in'; sx.fillStyle = 'rgba(52,34,16,.42)'; sx.fillRect(0, 0, W, H);
+    x.save(); x.filter = 'blur(3px)'; x.drawImage(sc, 0, 2); x.restore();
+    // 흙 재질
+    const [lc, lx] = mk(W, H);
+    if (pat) { lx.fillStyle = pat[1]; lx.fillRect(0, 0, W, H); }
+    else for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { const n = nz(tx * 4 + i + 99, ty * 4 + j, 5); lx.fillStyle = n < 0.4 ? shade(P0, -0.14) : n < 0.8 ? P0 : shade(P0, 0.12); lx.fillRect(tx * TS + i * 8, ty * TS + j * 8, 8, 8); }
+    for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) { const n = nz(tx * 2 + 40, ty * 2, 4); lx.fillStyle = n < 0.5 ? `rgba(70,45,20,${((0.5 - n) * 0.3).toFixed(3)})` : `rgba(255,240,210,${((n - 0.5) * 0.18).toFixed(3)})`; lx.fillRect(tx * TS, ty * TS, TS, TS); }   // 얼룩
+    lx.globalCompositeOperation = 'destination-in'; lx.drawImage(mc, 0, 0);
+    x.drawImage(lc, 0, 0);
+    // 가장자리 안쪽 어두운 테 (흙이 눌린 자국)
+    const [ec, ex] = mk(W, H); ex.fillStyle = 'rgba(60,38,18,.28)'; ex.fillRect(0, 0, W, H); ex.globalCompositeOperation = 'destination-out'; ex.filter = 'blur(2px)'; ex.drawImage(mc, 0, 0); ex.filter = 'none'; ex.globalCompositeOperation = 'destination-in'; ex.drawImage(mc, 0, 0);
+    x.drawImage(ec, 0, 0);
+    // 큰길 수레바퀴 자국 두 줄
+    map.roads.filter(r => r.main).forEach(r => walk(r.d, (X, Y, dx, dy) => {
+      const L = Math.hypot(dx, dy) || 1, nx2 = -dy / L, ny2 = dx / L;
+      [-0.42, 0.42].forEach(o => { if (rnd() < 0.82) { const px2 = (X + nx2 * o) * TS, py2 = (Y + ny2 * o) * TS; x.fillStyle = 'rgba(55,35,15,.22)'; x.fillRect(px2 - 2, py2 - 1, 4, 3); x.fillStyle = 'rgba(255,235,200,.12)'; x.fillRect(px2 - 2, py2 + 2, 4, 1); } });
+    }));
+    // 가장자리 돌멩이
+    const stone = (X, Y, s, col) => { x.fillStyle = 'rgba(30,20,10,.35)'; x.fillRect(X - s / 2 + 1, Y - s / 3 + 2, s, s * 0.66); x.fillStyle = col; x.fillRect(X - s / 2, Y - s / 3, s, s * 0.66); x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(X - s / 2, Y - s / 3, s * 0.6, 1); };
+    map.roads.forEach(r => walk(r.d, (X, Y, dx, dy) => {
+      if (rnd() > 0.035) return; const L = Math.hypot(dx, dy) || 1, sd = rnd() < 0.5 ? -1 : 1, o = r.w / 2 * (0.85 + rnd() * 0.25);
+      stone((X - dy / L * o * sd) * TS, (Y + dx / L * o * sd) * TS, 3 + Math.floor(rnd() * 4), rnd() < 0.5 ? '#9A9488' : '#B5AC9A');
+    }));
+    // 문 앞 디딤돌 (넓적한 돌 3장) · 진영 앞은 박석(돌판) 마당
+    map.plazas.filter(q => q.door).forEach(q => {
+      if (q.r > 1.6) {   // 박석
+        for (let j = -2; j <= 2; j++) for (let i = -3; i <= 3; i++) { const X = (q.x + i * 0.62 + (j % 2) * 0.31) * TS, Y = (q.y + j * 0.42) * TS; if (Math.hypot((X / TS - q.x) / 1.15, (Y / TS - q.y) / 0.75) > q.r * 0.82) continue; const c = ['#A39D90', '#B3AC9C', '#958F83'][Math.floor(rnd() * 3)]; x.fillStyle = 'rgba(40,30,20,.35)'; x.fillRect(X - 9, Y - 5, 18, 11); x.fillStyle = c; x.fillRect(X - 9, Y - 6, 18, 10); x.fillStyle = 'rgba(255,255,255,.25)'; x.fillRect(X - 9, Y - 6, 18, 2); }
+      } else for (let k = 0; k < 3; k++) {   // 디딤돌
+        const X = (q.x + (k - 1) * 0.12) * TS, Y = (q.y - 0.55 + k * 0.62) * TS, rx = 10 - k, ry = 6;
+        x.fillStyle = 'rgba(40,30,20,.35)'; x.beginPath(); x.ellipse(X + 1, Y + 2, rx, ry, 0, 0, Math.PI * 2); x.fill();
+        x.fillStyle = k % 2 ? '#ADA696' : '#9C9586'; x.beginPath(); x.ellipse(X, Y, rx, ry, 0, 0, Math.PI * 2); x.fill();
+        x.fillStyle = 'rgba(255,255,255,.28)'; x.beginPath(); x.ellipse(X - 2, Y - 2, rx * 0.55, ry * 0.4, 0, 0, Math.PI * 2); x.fill();
+      }
+    });
   }
   function paintGround(map) {
     const { w, h, R, at } = map, [c, x] = mk(w * TS, h * TS), rnd = seeded('paint-' + map.id), nz = noise2('nz-' + map.id);
@@ -211,6 +315,7 @@
     const P0 = R.path, Pd = shade(P0, -0.14), Pl = shade(P0, 0.12);
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       const v = at(tx, ty); if (!isPath(v)) continue;
+      if (map.roads && v === 1) continue;   // v109 마을 길은 아래 drawRoads 에서 곡선으로
       const X = tx * TS, Y = ty * TS;
       if (ok) { px(X, Y, TS, TS, pat[1]); if (map.M.hell) px(X, Y, TS, TS, 'rgba(0,0,0,.28)'); }
       else for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { const n = nz(tx * 4 + i + 99, ty * 4 + j, 5); px(X + i * 8, Y + j * 8, 8, 8, n < 0.4 ? Pd : n < 0.8 ? P0 : Pl); }
@@ -230,6 +335,7 @@
       if (!nb[1]) { for (let i = 0; i < 32; i += 4) { const d = Math.floor(rnd() * 3) * 2; px(X + 32 - d, Y + i, d, 4, G1); } px(X + 26, Y, 2, 32, shade(P0, -0.22)); }
       for (let k = 0; k < 3; k++) if (rnd() < 0.5) { const a = 6 + Math.floor(rnd() * 20), b2 = 6 + Math.floor(rnd() * 20); px(X + a, Y + b2, 4, 3, shade(P0, -0.3)); px(X + a, Y + b2, 2, 1, Pl); }
     }
+    if (map.roads) drawRoads(x, map, ok ? pat : null, rnd, nz);
     // 3) 물: 깊이에 따라 진하게 · 물가 모래 테두리 · 위쪽 물보라
     const W0 = R.water;
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {

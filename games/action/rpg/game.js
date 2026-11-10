@@ -621,8 +621,8 @@
         if (M.boss) {
           G.mons.push(makeMon(M.mon, M.rec + 2, true));
           const minion = D.MAPS.find(m => m.kind === 'field' && m.no === M.no - 1);
-          for (let i = 0; i < 6; i++) G.mons.push(makeMon(minion.mon, M.rec - 1));
-        } else for (let i = 0; i < 12; i++) G.mons.push(makeMon(M.mon2 && i % (M.mix || 3) === (M.mix || 3) - 1 ? M.mon2 : M.mon, M.rec - 1 + (Math.random() < 0.5 ? 0 : 1)));   // v80 왜군 진지: 다른 왜군이 섞여 나옴
+          for (let i = 0; i < 9; i++) G.mons.push(makeMon(minion.mon, M.rec - 1));   // v109 몬스터 1.5배 (6 → 9)
+        } else for (let i = 0; i < 18; i++) G.mons.push(makeMon(M.mon2 && i % (M.mix || 3) === (M.mix || 3) - 1 ? M.mon2 : M.mon, M.rec - 1 + (Math.random() < 0.5 ? 0 : 1)));   // v80 왜군 진지: 다른 왜군이 섞여 나옴 · v109 몬스터 1.5배 (12 → 18)
       }
       /* v69 저승 보스 기술: 기술 목록(data.js HELL.gates 의 skills)에서 골라 씀. 체력 절반 아래 = 분노(더 자주·더 많이)
        *  slam 내려찍기 · charge 돌진 · blades 칼비 · ring 사방 탄 · fan 부채꼴 탄 · summon 망령 3마리 */
@@ -662,7 +662,7 @@
         const M = G.map.M, g = D.HELL.gates[M.gate - 1], s = M.stage, lv = 100 + (M.gate - 1) * 5 + s;
         G.hellRun = { gate: M.gate, stage: s, kills: 0, phase: s === 5 ? 'boss' : 'mob', lv };
         if (s === 5) { G.mons.push(makeMon(g.boss, lv + D.HELL.bossPlus, true)); G.title = { t: 0, text: g.boss.name, sub: g.boss.say }; return; }
-        for (let i = 0; i < 12; i++) G.mons.push(makeMon(i % 3 === 2 && g.mob2 ? g.mob2 : g.mob, lv));
+        for (let i = 0; i < 18; i++) G.mons.push(makeMon(i % 3 === 2 && g.mob2 ? g.mob2 : g.mob, lv));   // v109 몬스터 1.5배 (12 → 18)
       }
       function hellKill(m) {
         const H = G.hellRun; if (!H || H.phase === 'done') return;
