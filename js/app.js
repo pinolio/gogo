@@ -60,11 +60,26 @@
     return `<div class="xp"><div class="wallet"><span>보유 포인트</span><b class="num">${fmt(u.points)}P</b></div><div class="xp-bar" role="progressbar" aria-label="다음 레벨까지" aria-valuenow="${Math.round(L.progress * 100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.round(L.progress * 100)}%"></i></div><span>누적 ${fmt(u.earned)}P · Lv.${L.level + 1}까지 ${fmt(L.toNext)}P</span></div>`;
   }
 
+  /* v113 상점 잠시 쉬기 (선생님 11/10): true 면 메뉴 '상점' 앞에 자물쇠 · 누를 수 없음 · 주소로 들어와도 안내만 (관리자는 들어갈 수 있음)
+   *  다시 열려면 false 로 바꾸고 버전 올리기 */
+  const SHOP_CLOSED = true;
+  const shopLocked = () => SHOP_CLOSED && !Hub.isAdmin();
+  function lockShopNav() {
+    const a = document.querySelector('.nav a[data-nav="shop"]'); if (!a) return;
+    a.classList.toggle('nav-locked', SHOP_CLOSED);
+    if (SHOP_CLOSED) { a.innerHTML = '<span class="nav-lock" aria-hidden="true">🔒</span>상점'; a.setAttribute('aria-disabled', String(shopLocked())); a.title = shopLocked() ? '상점은 잠시 쉬고 있어요' : '상점은 잠시 쉬는 중 (관리자만 들어갈 수 있어요)'; }
+  }
+  document.addEventListener('click', e => {   // 잠긴 상점 메뉴·링크 누르면 안내만
+    const a = e.target.closest('a[href^="#shop"]'); if (!a || !shopLocked()) return;
+    e.preventDefault(); toast('🔒 상점은 잠시 쉬고 있어요. 곧 다시 열게요!');
+  }, true);
+
   /* ---------- 헤더 ---------- */
   function renderUserChip() {
     const u = Hub.user, el = $('#userChip');
     const na = $('#navAdmin'); if (na) na.hidden = !Hub.isAdmin();
     const nt = $('#navTest'); if (nt) nt.hidden = !Hub.isAdmin();   // v70 테스트 게임 (관리자만)
+    lockShopNav();
     if (u) {
       el.innerHTML = `<a class="who" href="#my">${avCanvas(u.avatar, 2.5, 'bust', 'chip-av')}<span class="who-n">${esc(u.nickname)}</span><span class="lv">Lv.${Hub.levelInfo(u.earned).level}</span><span class="pt num">${fmt(u.points)}P</span></a><button class="btn btn-sm chip-out" type="button" data-logout>로그아웃</button>`;
       AV.paintAll(el);
@@ -1090,6 +1105,10 @@
     if (h === 'battle') {
       current = 'battle'; setNav('home');
       cleanups.push(window.GoBattle.render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText }));
+    }
+    else if ((h === 'shop' || h.startsWith('shop/')) && shopLocked()) {   // v113 상점 잠시 쉬기
+      current = 'shopoff'; setNav('shop');
+      view().innerHTML = `<div class="page-head"><a class="back" href="#home">← 게임 목록</a><h1>🔒 상점 잠시 쉬는 중</h1><p>상점을 새로 꾸미고 있어요. 곧 다시 열게요! 가지고 있는 옷은 <a href="#closet">옷장</a>에서 갈아입을 수 있어요.</p></div>`;
     }
     else if (h === 'shop' || h === 'shop/furn' || h === 'shop/music' || h === 'shop/nick') {
       current = 'shop'; setNav('shop');

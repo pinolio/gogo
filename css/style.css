@@ -1548,3 +1548,9 @@ a.nm-t:hover { text-decoration: underline; }
 .nick-form .row { flex-wrap: wrap; }
 .nick-form .row input { flex: 1 1 140px; min-width: 0; width: 0; }
 .nick-form .row button { flex: none; }
+
+/* v113 상점 잠시 쉬기: 메뉴에 자물쇠 */
+
+.top .nav a.nav-locked[aria-disabled="true"] { cursor: not-allowed; }
+.nav-lock { margin-right: 3px; font-size: .9em; }
+.top .nav a.nav-locked { white-space: nowrap; }
