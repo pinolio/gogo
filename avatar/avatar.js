@@ -314,15 +314,15 @@
     });
     return out;
   }
-  function grid(av, frame) {
-    av = normalize(av); frame = frame || 0;
+  function grid(av, frame, opt) {   // opt.noHair: 머리카락·모자 없이 (게임에서 투구 그림을 씌울 때 얼굴이 보이게)
+    av = normalize(av); frame = frame || 0; const noHair = opt && opt.noHair;
     const g = Grid(), it = slot => (av[slot] ? byId[av[slot]] : null);
     const back = it('back');
     if (back && back.drawBack) back.drawBack(g, frame);
     drawBody(g, (it('skin') || byId.s1).color, frame);
     ['bottom', 'shoes', 'top'].forEach(s => { const x = it(s); if (x && x.draw) x.draw(g, frame); });
     if (back && back.drawFront) back.drawFront(g, frame);
-    ['hair', 'face', 'hat'].forEach(s => { const x = it(s); if (x && x.draw) x.draw(g, frame); });
+    ['hair', 'face', 'hat'].forEach(s => { if (noHair && s !== 'face') return; const x = it(s); if (x && x.draw) x.draw(g, frame); });
     // 테두리 (빈칸 중 그림과 맞닿은 칸)
     const c = g.cells, outline = c.map(r => r.slice());
     for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
@@ -353,7 +353,7 @@
     }
     return o;
   }
-  function viewLayers(av, frame) {
+  function viewLayers(av, frame, noHair) {
     av = normalize(av);
     const it = slot => (av[slot] ? byId[av[slot]] : null), bk = it('back'), skin = (it('skin') || byId.s1).color;
     const L = {
@@ -363,9 +363,9 @@
       body: layerOf(g => drawBody(g, skin, frame, true)),
       cloth: layerOf(g => ['bottom', 'shoes', 'top'].forEach(s => { const x = it(s); if (x && x.draw) x.draw(g, frame); })),
       top: layerOf(g => { const x = it('top'); if (x && x.draw) x.draw(g, frame); }),
-      hair: layerOf(g => { const x = it('hair'); if (x && x.draw) x.draw(g, frame); }),
+      hair: layerOf(g => { const x = !noHair && it('hair'); if (x && x.draw) x.draw(g, frame); }),
       face: layerOf(g => { const x = it('face'); if (x && x.draw) x.draw(g, frame); }),
-      hat: layerOf(g => { const x = it('hat'); if (x && x.draw) x.draw(g, frame); })
+      hat: layerOf(g => { const x = !noHair && it('hat'); if (x && x.draw) x.draw(g, frame); })
     };
     const hc = topColors(L.hair); L.hairCol = hc.length ? hc[0][0] : null;
     return L;
@@ -377,8 +377,8 @@
     for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) { const v = L.top[y][x]; if (v && !keep.has(v)) out[y][x] = main; }
     return out;
   }
-  function backGrid(av, frame) {
-    const L = viewLayers(av, frame), c = blank();
+  function backGrid(av, frame, noHair) {
+    const L = viewLayers(av, frame, noHair), c = blank();
     over(c, L.body); over(c, plainTop(L));
     if (L.hairCol) {   // 뒤통수: 머리 칸(3~9줄)을 머리카락 색으로
       for (let y = 2; y <= 9; y++) for (let x = 4; x <= 11; x++) if (U(L.body, x, y) || U(L.hair, x, y)) SETU(c, x, y, L.hairCol);
@@ -417,9 +417,9 @@
     }
     return c;
   }
-  function sideGrid(av, frame, part) {
+  function sideGrid(av, frame, part, noHair) {
     part = part || 'all';
-    const L = viewLayers(av, frame), c = blank();
+    const L = viewLayers(av, frame, noHair), c = blank();
     const main = over(over(over(blank(), L.body), L.cloth), L.bkF);
     if (part !== 'arm') {
       // 등 아이템: 몸통처럼 줄이고 뒤(왼쪽)로 2칸
@@ -445,10 +445,11 @@
     }
     return outlineOf(c);
   }
-  function gridView(av, frame, view, part) {
-    if (view === 'b') return backGrid(av, frame);
-    if (view === 's') return sideGrid(av, frame, part);
-    return grid(av, frame);
+  function gridView(av, frame, view, part, opt) {
+    const nh = !!(opt && opt.noHair);
+    if (view === 'b') return backGrid(av, frame, nh);
+    if (view === 's') return sideGrid(av, frame, part, nh);
+    return grid(av, frame, opt);
   }
   /* ---------------- v39: 2배 정교한 그림 ----------------
    * 칸 그림(18×29)을 2배(36×58)로 다시 그림:

@@ -727,6 +727,21 @@
     for (let y = 0; y < 80; y++) for (let i = 0; i < 80; i++) if (d[(y * 80 + i) * 4 + 3] > 20) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
     return (swBoxC[ck] = x1 < 0 ? { x: 0, y: 0, w: 80, h: 80 } : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
   }
+  /* v108 투구 그리기: 눈 자리(eye 상자, 그림 점 좌표)의 아주 어두운 점(검은 눈구멍)은 투명하게 → 아래 아바타 눈이 보임 */
+  function hmDraw(x, im, sx, sy, sw, sh, X, Y, W, H, eye) {
+    const [t, tx] = mk(W, H); tx.imageSmoothingEnabled = true; tx.imageSmoothingQuality = 'high';
+    tx.drawImage(im, sx, sy, sw, sh, 0, 0, W, H);
+    if (eye) {
+      const x0 = Math.max(0, Math.round(eye[0] - X)), y0 = Math.max(0, Math.round(eye[1] - Y)), x1 = Math.min(W, Math.round(eye[2] - X)), y1 = Math.min(H, Math.round(eye[3] - Y));
+      if (x1 > x0 && y1 > y0) {
+        const d = tx.getImageData(x0, y0, x1 - x0, y1 - y0), a = d.data;
+        for (let i = 0; i < a.length; i += 4) if (a[i + 3] > 0 && a[i] * 0.3 + a[i + 1] * 0.59 + a[i + 2] * 0.11 < 62) a[i + 3] = 0;
+        tx.putImageData(d, x0, y0);
+      }
+    }
+    x.drawImage(t, X, Y);
+  }
+  const HM_GROW = 1.07;   // v108 투구 아주 조금 크게
   const avCache = {};
   /* v107 방향 그림: view 'b' 뒤 · 's' 옆(오른쪽을 봄). 사람은 사이트 아바타의 자동 방향 그림(AV.gridView),
    *  장비 그림은 투구 뒷모습 = img/ic_hm_b.png(선생님 그림), 나머지는 앞 그림을 쓰거나(뒤) 좁혀서(옆) 씀.
@@ -735,7 +750,8 @@
     const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const k = 2, side = view === 's', arm = part === 'arm', noArm = part === 'noArm';
-    const cells = AV.refine(AV.gridView(av, 0, view, side ? part : undefined), false);
+    const hmOn = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');
+    const cells = AV.refine(AV.gridView(av, 0, view, side ? part : undefined, hmOn ? { noHair: true } : null), false);   // v108 투구를 쓰면 머리카락 없이
     const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 9 * k : 0;
     const hmIt = !hide && eq && eq.helmet && D.ITEMS[eq.helmet], hmNm = hmIt && (view === 'b' && imgOk('ic_hm_b') ? 'ic_hm_b' : side && imgOk('ic_hm_s') ? 'ic_hm_s' : 'ic_hm'), hmI = hmIt && imgOk(hmNm);   // v107 투구 뒷모습·옆모습 그림
     const [c, x] = mk(GW * k + PAD * 2, GH * k);
@@ -750,9 +766,8 @@
       x.imageSmoothingEnabled = false;
     };
     if (swI && view === 'b') drawWeapon();   // 뒤: 무기는 몸 뒤에
-    const top = hmI && !arm && hmNm !== 'ic_hm_s' ? 12 * k : 0;   // 옆모습 투구는 얼굴이 열려 있어 얼굴을 그대로 둠
-    const sideHm = hmI && !arm && hmNm === 'ic_hm_s';   // 옆 투구: 머리는 얼굴 부분(앞쪽 아래)만 남기고 비움 → 머리카락이 삐져나오지 않게
-    for (let y = top; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i] && !(sideHm && y < 12 * k && !(i >= 10 * k && y >= 6 * k))) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
+    const top = 0;
+    for (let y = top; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
     if (!arm) {
       // v107 신발: 뒤 = ic_bt_b(두 짝 그림 → 왼쪽 반은 왼발, 오른쪽 반은 오른발) · 옆 = ic_bt_s(앞코가 오른쪽) · 없으면 앞 그림
       const btOn = !hide && eq && eq.boots && D.ITEMS[eq.boots], btNm = btOn && (view === 'b' && imgOk('ic_bt_b') ? 'ic_bt_b' : side && imgOk('ic_bt_s') ? 'ic_bt_s' : 'ic_bt'), btI = btOn && imgOk(btNm);
@@ -778,9 +793,10 @@
       }
       if (hmI) {
         const n = nOf(hmIt), b = swBox(hmI, n, hmNm);
-        let ww = 12 * k; const hh = Math.max(11 * k, Math.round(b.h * ww / b.w)); if (side && hmNm === 'ic_hm') ww = Math.round(ww * 0.82);   // 옆 그림이 없을 때만 앞 그림을 좁힘
-        x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
-        x.drawImage(hmI, n * 80 + b.x, b.y, b.w, b.h, Math.round(CX * k + PAD - ww / 2), Math.round(12.6 * k - hh), ww, hh);
+        let ww = Math.round(12 * k * HM_GROW); const hh = Math.max(Math.round(11 * k * HM_GROW), Math.round(b.h * ww / b.w)); if (side && hmNm === 'ic_hm') ww = Math.round(ww * 0.82);   // 옆 그림이 없을 때만 앞 그림을 좁힘
+        const X = Math.round(CX * k + PAD - ww / 2), Y = Math.round(12.8 * k - hh);
+        const eye = view === 'b' ? null : side ? [9.5 * k + PAD, 6.5 * k, 13 * k + PAD, 10 * k] : [5.5 * k + PAD, 6.5 * k, 12.5 * k + PAD, 10 * k];
+        hmDraw(x, hmI, n * 80 + b.x, b.y, b.w, b.h, X, Y, ww, hh, eye);
       }
     }
     if (swI && side && !noArm) {   // 옆: 무기는 가까운 손에, 손을 손잡이 위에 다시
@@ -796,7 +812,8 @@
     if (avCache[key]) return avCache[key];
     const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
     frame = leg;
-    let base = AV.grid(av, frame), OUT = AV.OUT || '#1D2340';
+    const hmFace = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');   // v108 투구를 쓰면 머리카락·모자 없이 그려서 투구 안으로 얼굴이 보이게
+    let base = AV.grid(av, frame, hmFace ? { noHair: true } : null), OUT = AV.OUT || '#1D2340';
     if (!hide) {
       const g = gearCells(eq, frame);
       for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x]) base[y][x] = g[y][x];
@@ -812,7 +829,7 @@
     const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 9 * k : 0;
     const hmI = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');   // v100 투구 = 새 그림 (머리 전체를 덮음 · 머리칼이 삐져나오지 않게 머리 줄은 비움)
     const [c, x] = mk(GW * k + PAD * 2, GH * k);
-    for (let y = hmI ? 12 * k : 0; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
+    for (let y = 0; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }   // v108 머리 줄을 비우지 않음 (투구 안 얼굴)
     const btI = !hide && eq && eq.boots && D.ITEMS[eq.boots] && imgOk('ic_bt');   // v101 신발 = 새 그림 (두 발에 하나씩 · 오른발은 뒤집어 앞코가 바깥쪽)
     if (btI) {
       const o = D.ITEMS[eq.boots], n = o.legend ? 9 : o.rare ? 10 + o.tier : o.tier, b = swBox(btI, n, 'ic_bt'), L = AV.legs(frame);
@@ -834,9 +851,8 @@
     }
     if (hmI) {
       const h = D.ITEMS[eq.helmet], n = h.legend ? 9 : h.rare ? 10 + h.tier : h.tier, b = swBox(hmI, n, 'ic_hm');
-      const ww = 12 * k, hh = Math.max(11 * k, Math.round(b.h * ww / b.w)), cx = 8.875 * k + PAD, by = 12.6 * k;
-      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
-      x.drawImage(hmI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), Math.round(by - hh), ww, hh);
+      const ww = Math.round(12 * k * HM_GROW), hh = Math.max(Math.round(11 * k * HM_GROW), Math.round(b.h * ww / b.w)), cx = 8.875 * k + PAD, by = 12.8 * k;
+      hmDraw(x, hmI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), Math.round(by - hh), ww, hh, [5.5 * k + PAD, 6.5 * k, 12.5 * k + PAD, 10 * k]);   // v108 눈구멍 투명 · 조금 크게
     }
     if (swI) {   // v101 손잡이를 손에 맞춰 쥐게 하고, 손은 무기 위에 다시 그려 '잡은' 모양으로
       const n = wp.legend ? 9 : wp.rare ? 10 + wp.tier : wp.tier, b = swBox(swI, n, wIc), [hc, gf] = WP_SZ[wp.look];
