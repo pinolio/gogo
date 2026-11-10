@@ -89,19 +89,20 @@
       villageRoads(map, rnd);   // v109 직각 길 → 부드럽게 굽은 흙길·마당·디딤돌 (칸도 새 길 모양에 맞춤)
       armyCamp(map, rnd);   // v80 임진왜란 진영 꾸미기 (천막·대포·깃발 + 조선 병사 · 다친 병사)
     } else {
-      // 굽은 길 (왼쪽 → 오른쪽)
-      let y = mid;
-      for (let x = 0; x < w; x++) {
-        for (let k = -1; k <= 1; k++) set(x, y + k, 1);
-        if (x > 3 && x < w - 4 && rnd() < 0.35) y = clamp(y + (rnd() < 0.5 ? -1 : 1), 5, h - 6);
-        if (x >= w - 6) y += Math.sign(mid - y);
-      }
+      if (M.hell) {   // 저승: 예전 칸 길 그대로
+        let y = mid;
+        for (let x = 0; x < w; x++) {
+          for (let k = -1; k <= 1; k++) set(x, y + k, 1);
+          if (x > 3 && x < w - 4 && rnd() < 0.35) y = clamp(y + (rnd() < 0.5 ? -1 : 1), 5, h - 6);
+          if (x >= w - 6) y += Math.sign(mid - y);
+        }
+      } else fieldRoad(map, rnd);   // v110 사냥터 길도 마을처럼 부드럽게 굽은 흙길
       // 연못
       const ponds = 2 + Math.floor(rnd() * 3);
       for (let p = 0; p < ponds; p++) {
         const cx = 6 + rnd() * (w - 12), cy = 4 + rnd() * (h - 8), rx = 2 + rnd() * 3, ry = 1.5 + rnd() * 2;
         for (let yy = Math.floor(cy - ry); yy <= cy + ry; yy++) for (let xx = Math.floor(cx - rx); xx <= cx + rx; xx++) {
-          if (((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2 <= 1 && at(xx, yy) === 0) set(xx, yy, 4);
+          if (((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2 <= 1 && at(xx, yy) === 0 && !(map.roads && [-1, 0, 1].some(j => [-1, 0, 1].some(k => at(xx + j, yy + k) === 1)))) set(xx, yy, 4);   // v110 굽은 길 바로 옆엔 연못 안 만듦
         }
       }
       for (let yy = 1; yy < h - 1; yy++) for (let xx = 1; xx < w - 1; xx++) {
@@ -173,6 +174,27 @@
   /* v109 마을 길: 직각 칸 길 대신 굽은 흙길(곡선) · 문 앞 마당 · 분수 둥근 마당
    *  map.roads = [{ pts: [[x, y] …] (칸 좌표, 곡선이 지나는 점), w: 폭(칸), main }] · map.plazas = [{ x, y, r }]
    *  칸 값도 새 길 모양에 맞춰 다시 정함 (가운데가 길 안이면 1, 예전 길이었는데 벗어나면 0) */
+  // 캣멀롬 곡선 위 점들을 촘촘히 (칸 좌표)
+  function denseCurve(pts) {
+    const out = [], P = i => pts[Math.max(0, Math.min(pts.length - 1, i))];
+    for (let i = 0; i < pts.length - 1; i++) { const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+      for (let t = 0; t < 1; t += 0.1) { const t2 = t * t, t3 = t2 * t, f2 = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3); out.push([f2(p0[0], p1[0], p2[0], p3[0]), f2(p0[1], p1[1], p2[1], p3[1])]); } }
+    out.push(pts[pts.length - 1]); return out;
+  }
+  /* v110 사냥터 길: 왼쪽 출구 → 오른쪽 출구, 6칸마다 높이가 조금씩 바뀌는 굽은 길 (폭 2.9칸)
+   *  양 끝 5칸은 출구 높이(mid)에 맞춤 · 칸 값: 길 가운데가 곡선에서 폭/2 안이면 1 · 그리기는 마을과 같은 drawRoads */
+  function fieldRoad(map, rnd) {
+    const { w, h, set, mid } = map, cy = mid + 0.5, pts = [[-1, cy], [2, cy], [5, cy]];
+    let y = cy;
+    for (let x = 10; x < w - 11; x += 5 + Math.floor(rnd() * 3)) { y = clamp(y + (rnd() - 0.5) * 6, 5.5, h - 6.5); pts.push([x, y]); }
+    pts.push([w - 8, (y + cy) / 2], [w - 5, cy], [w - 2, cy], [w + 1, cy]);
+    const road = { pts, w: 2.9, main: true }; road.d = denseCurve(pts);
+    map.roads = [road]; map.plazas = [];
+    for (let ty = 1; ty < h - 1; ty++) for (let tx = 0; tx < w; tx++) {
+      const X = tx + 0.5, Y = ty + 0.5;
+      if (road.d.some(([a, b]) => (a - X) ** 2 + (b - Y) ** 2 <= (road.w / 2) ** 2)) set(tx, ty, 1);
+    }
+  }
   function villageRoads(map, rnd) {
     const { w, h, at, set, mid } = map, last = !!map.R.castle, cy = mid + 1;   // 큰길 가운데 줄(칸 경계 기준)
     const mainY = x => cy + 0.5 * Math.sin((x + 3) * 0.26) + 0.18 * Math.sin(x * 0.71 + 1.3);
@@ -214,10 +236,7 @@
       plazas.push({ x: cx, y: fy - 0.2, r: 1.4 });
     }
     // 곡선(캣멀롬) 위 점들을 촘촘히
-    const dense = pts => { const out = [], P = i => pts[Math.max(0, Math.min(pts.length - 1, i))];
-      for (let i = 0; i < pts.length - 1; i++) { const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
-        for (let t = 0; t < 1; t += 0.1) { const t2 = t * t, t3 = t2 * t, f2 = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3); out.push([f2(p0[0], p1[0], p2[0], p3[0]), f2(p0[1], p1[1], p2[1], p3[1])]); } }
-      out.push(pts[pts.length - 1]); return out; };
+    const dense = denseCurve;
     roads.forEach(r => { r.d = dense(r.pts); });
     map.roads = roads; map.plazas = plazas;
     // 칸 다시 정하기
