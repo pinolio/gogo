@@ -1525,3 +1525,26 @@ a.nm-t:hover { text-decoration: underline; }
 /* v106 내 방 프로필 아바타 돌려 보기 */
 .rm-turn { font-size: 12px; color: #1D2340; }
 .rm-turn b { color: #3B5BDB; }
+
+/* v112 블록 대전 ↑ 회전 방향 고르기 */
+.rot-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.rot-row .seg { flex: 1 1 220px; min-width: 0; }
+.rot-prev { width: 84px; height: 84px; flex: none; border-radius: 12px; border: 3px solid #FFD23F; image-rendering: pixelated; }
+
+/* v112 기본 아바타 남/여 고르기 · 성별 변환권 */
+.lbl-like { display: block; font-weight: 700; margin: 10px 0 6px; }
+.lbl-like small { font-weight: 400; color: var(--ink-2); }
+.gpick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gpick button { display: grid; justify-items: center; gap: 4px; padding: 10px 6px 8px; border: 3px solid #1D2340; border-radius: 14px; background: #FFF7D6; color: #1D2340; cursor: pointer; font: inherit; }
+.gpick button img { width: 54px; height: auto; image-rendering: auto; }
+.gpick button[aria-checked="true"] { background: #FFD23F; box-shadow: 0 0 0 3px #4C7DFF; }
+.g-shop { margin-top: 16px; }
+.g-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.g-fig { margin: 0; display: grid; justify-items: center; gap: 4px; padding: 8px 10px; border: 2px solid #1D2340; border-radius: 12px; background: #FFF7D6; color: #1D2340; font-weight: 700; }
+.g-fig.on { background: #FFD23F; }
+.g-arrow { font-size: 26px; font-weight: 800; color: #4C7DFF; }
+@media (max-width: 640px) { .nick-shop { grid-template-columns: minmax(0, 1fr); } }
+.nick-shop > * { min-width: 0; }
+.nick-form .row { flex-wrap: wrap; }
+.nick-form .row input { flex: 1 1 140px; min-width: 0; width: 0; }
+.nick-form .row button { flex: none; }

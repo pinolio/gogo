@@ -312,7 +312,29 @@
       else if (av && slot in av && av[slot] === null && OPTIONAL[slot]) out[slot] = null;
       else out[slot] = DEFAULT[slot];
     });
+    if (av && (av.g === 'm' || av.g === 'f')) out.g = av.g;   // v112 기본 몸 성별 (남 m · 여 f, 처음 한 번 고르고 그 뒤엔 상점 변환권)
     return out;
+  }
+  /* v112 새 기본 몸 그림 (선생님 그림 · avatar/body/{m|f}_{f 앞|s 옆(오른쪽)|b 뒤}.png)
+   *  기본 옷(무료 머리·기본 티·청바지·기본 운동화, 모자·얼굴 장식·등 없음, 밝은 피부 s1·s2)만 입은 사람에게 씀.
+   *  상점 옷을 입은 사람은 옷 그림이 들어올 때까지 예전 도트 그대로 */
+  const BODY_V = 113, bodyImgs = {};
+  function bodyImg(g, view, cb) {
+    const k = (g === 'f' ? 'f' : 'm') + '_' + (view === 'b' || view === 's' ? view : 'f');
+    let e = bodyImgs[k];
+    if (!e) {
+      const im = new Image(); e = bodyImgs[k] = { im, ok: false, cbs: [] };
+      im.onload = () => { e.ok = true; e.cbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } }); };
+      im.src = (window.GOGO_BASE || '') + 'avatar/body/' + k + '.png?v=' + BODY_V;
+    }
+    if (e.ok) return e.im;
+    if (cb) e.cbs.push(cb);
+    return null;
+  }
+  function useBody(av) {
+    if (!av || (av.g !== 'm' && av.g !== 'f')) return false;
+    const n = normalize(av), free = id => !id || (byId[id] && byId[id].price === 0);
+    return n.top === 't_basic' && n.bottom === 'b_jeans' && n.shoes === 'sh_basic' && !n.hat && !n.face && !n.back && free(n.hair) && (n.skin === 's1' || n.skin === 's2');
   }
   function grid(av, frame, opt) {   // opt.noHair: 머리카락·모자 없이 (게임에서 투구 그림을 씌울 때 얼굴이 보이게)
     av = normalize(av); frame = frame || 0; const noHair = opt && opt.noHair;
@@ -664,7 +686,7 @@
   }
 
   window.GoAvatar = {
-    SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId,
+    SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId, bodyImg, useBody,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
     normalize, grid, gridView, scene, draw, paint, paintAll, random, legs, refine, hires, OUT, rig, rigSide, drawWalk,
     walkP: t => t * Math.PI * 2,   // 걸음 수(바퀴) → 위상

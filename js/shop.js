@@ -41,8 +41,39 @@
   const modeTabs = () => `<div class="shop-mode" role="tablist" aria-label="상점 고르기">
     <button type="button" role="tab" data-mode="avatar" aria-selected="${mode === 'avatar'}" class="sm-tab sm-av"><span class="sm-ic" aria-hidden="true">👕</span><span class="sm-tx"><b>아바타 꾸미기</b><small>옷 · 헤어 · 배경 ${AV.ITEMS.length}종</small></span></button>
     <button type="button" role="tab" data-mode="furn" aria-selected="${mode === 'furn'}" class="sm-tab sm-room"><span class="sm-ic" aria-hidden="true">🛋️</span><span class="sm-tx"><b>내 방 가구</b><small>가구 · 벽지 · 옷장 · 음악 ${F.ITEMS.length}종</small></span></button>
-    <button type="button" role="tab" data-mode="nick" aria-selected="${mode === 'nick'}" class="sm-tab sm-nick"><span class="sm-ic" aria-hidden="true">🏷️</span><span class="sm-tx"><b>닉네임 변경권</b><small>${Hub.NICK_PRICE || 100}P로 닉네임 바꾸기</small></span></button>
+    <button type="button" role="tab" data-mode="nick" aria-selected="${mode === 'nick'}" class="sm-tab sm-nick"><span class="sm-ic" aria-hidden="true">🏷️</span><span class="sm-tx"><b>변경권</b><small>닉네임·성별 ${Hub.NICK_PRICE || 100}P</small></span></button>
   </div>`;
+  /* v112 성별 변환권 (기본 몸 남 ↔ 여, 100P) · 아직 안 고른 사람은 무료로 한 번 고르기 */
+  function genderHTML() {
+    const u = Hub.user, price = Hub.GENDER_PRICE || 100, g = u && u.avatar && u.avatar.g, to = g === 'm' ? 'f' : 'm', nm = x => (x === 'm' ? '남자' : '여자');
+    const fig = (x, on) => `<figure class="g-fig${on ? ' on' : ''}"><img src="avatar/body/${x}_f.png?v=113" alt="" width="54" height="117"><figcaption>${nm(x)}${on ? ' · 지금' : ''}</figcaption></figure>`;
+    return `<div class="panel nick-shop g-shop">
+      <div class="nick-ticket" aria-hidden="true"><span>🔁</span><b>성별 변환권</b><em class="num">${price}P</em></div>
+      <div>${!u ? '<p class="small">로그인하면 기본 아바타의 성별을 바꿀 수 있어요.</p>'
+        : !g ? `<div class="gpick" id="gFirst" role="radiogroup" aria-label="기본 아바타">
+            <button type="button" role="radio" aria-checked="false" data-g="m"><img src="avatar/body/m_f.png?v=113" alt="" width="54" height="117"><b>남자</b></button>
+            <button type="button" role="radio" aria-checked="false" data-g="f"><img src="avatar/body/f_f.png?v=113" alt="" width="53" height="115"><b>여자</b></button></div>
+            <button class="btn btn-sun" type="button" id="gFirstOk" style="margin-top:10px">처음 한 번 무료로 정하기</button>`
+        : `<div class="g-row">${fig(g, true)}<span class="g-arrow" aria-hidden="true">→</span>${fig(to, false)}</div>
+          <button class="btn btn-sun" type="button" id="gChange" ${u.points < price ? 'disabled' : ''}>${price}P로 ${nm(to)}로 바꾸기</button>
+          <p class="small ${u.points < price ? 'bad' : ''}" style="margin:8px 0 0">${u.points < price ? `포인트가 ${price - u.points}P 부족해요.` : '바꾸면 포인트는 돌려받을 수 없어요.'}</p>`}
+      <ul class="small nick-rules"><li>기본 몸(얼굴·머리·옷 모양)이 남자 ↔ 여자로 바뀌어요. 산 옷은 그대로 가지고 있어요.</li><li>지금은 skillcom RPG 에서 기본 옷을 입었을 때 새 몸으로 보여요.</li></ul></div>
+    </div>`;
+  }
+  function bindGender() {
+    const ch = $('#gChange'), first = $('#gFirstOk');
+    if (ch) ch.addEventListener('click', async () => {
+      const to = Hub.user.avatar.g === 'm' ? '여자' : '남자';
+      if (!confirm(`기본 아바타를 ${to}로 바꿀까요? ${Hub.GENDER_PRICE || 100}P가 빠져요.`)) return;
+      ch.disabled = true;
+      try { await Hub.changeGender(); A.toast(`기본 아바타를 ${to}로 바꿨어요!`); render(); } catch (e) { A.toast(e.message); ch.disabled = false; }
+    });
+    if (first) first.addEventListener('click', async () => {
+      const sel = $('#gFirst [aria-checked="true"]'); if (!sel) return A.toast('남자 또는 여자를 골라 주세요.');
+      first.disabled = true;
+      try { await Hub.chooseGender(sel.dataset.g); A.toast('기본 아바타를 정했어요!'); render(); } catch (e) { A.toast(e.message); first.disabled = false; }
+    });
+  }
   /* v98 닉네임 변경권 */
   function renderNick() {
     const u = Hub.user, price = Hub.NICK_PRICE || 100;
@@ -61,9 +92,11 @@
           <p class="small ${u.points < price ? 'bad' : ''}" style="margin:8px 0 0">${u.points < price ? `포인트가 ${price - u.points}P 부족해요. 게임을 해서 포인트를 모아 보세요.` : '바꾸면 포인트는 돌려받을 수 없어요.'}</p>
         </form>` : '<p class="small">로그인하면 닉네임을 바꿀 수 있어요.</p>'}
         <ul class="small nick-rules"><li>2~10자 · 나쁜 말은 쓸 수 없어요.</li><li>다른 사람이 쓰고 있는 닉네임은 쓸 수 없어요.</li><li>아이디(로그인할 때 쓰는 것)는 바뀌지 않아요.</li></ul>
-      </div>`;
+      </div>
+      ${genderHTML()}`;
     $$('[data-mode]', root).forEach(b => b.addEventListener('click', () => { mode = b.dataset.mode; render(); }));
     $$('[data-auth]', root).forEach(b => b.addEventListener('click', () => A.openAuth(b.dataset.auth)));
+    bindGender();
     const f = $('#nickForm'); if (!f) return;
     f.addEventListener('submit', async e => {
       e.preventDefault();

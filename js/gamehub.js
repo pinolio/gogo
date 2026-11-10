@@ -34,6 +34,7 @@
   /* v68 무단 이탈: 온라인 대결 시작 QUIT_SEC 초 안에 상대가 나가거나 기권하면 그 판은 무효 (승패·무승부·포인트 없음)
    *  + 관리자만 보는 기록 한 줄 (Hub.logQuit). 숫자를 바꾸려면 여기 QUIT_SEC 만 고치면 됨 */
   Hub.QUIT_SEC = 5;
+  Hub.GENDER_PRICE = 100;   // v112 상점 '성별 변환권' 가격 (supabase/gender_v112.sql 의 v_price 와 같게)
   Hub.NICK_PRICE = 100;   // v98 상점 '닉네임 변경권' 가격 (서버 supabase/nick_v98.sql 의 v_price 와 같게)
   let quitOff = false;
   const quitRow = r => ({ game_id: String(r.game_id || '').slice(0, 30), quitter: r.quitter || null, quitter_nick: String(r.quitter_nick || '').slice(0, 30) || null,
@@ -286,7 +287,18 @@
         persist(); setUser(pub(u));
       },
       async setAvatar(av) {
-        const u = me(); u.avatar = validateAvatar(av); persist(); setUser(pub(u));
+        const u = me(), g = u.avatar && u.avatar.g; u.avatar = validateAvatar(av); delete u.avatar.g; if (g) u.avatar.g = g; persist(); setUser(pub(u));   // v112 성별은 옷 입기로 못 바꿈
+      },
+      // v112 기본 몸 성별: 처음 한 번 무료로 고르기 · 그 뒤엔 성별 변환권(100P)
+      async chooseGender(g) {
+        const u = me(); if (g !== 'm' && g !== 'f') throw new Error('남자 또는 여자를 골라 주세요.');
+        if (u.avatar && u.avatar.g) throw new Error('이미 골랐어요. 바꾸려면 상점의 성별 변환권을 써 주세요.');
+        u.avatar = Object.assign(AV.normalize(u.avatar), { g }); persist(); setUser(pub(u));
+      },
+      async changeGender() {
+        const u = me(), g = u.avatar && u.avatar.g; if (!g) throw new Error('먼저 기본 아바타(남자·여자)를 골라 주세요.');
+        if (u.points < Hub.GENDER_PRICE) throw new Error('포인트가 ' + (Hub.GENDER_PRICE - u.points) + 'P 부족해요.');
+        u.points -= Hub.GENDER_PRICE; u.avatar = Object.assign(AV.normalize(u.avatar), { g: g === 'm' ? 'f' : 'm' }); persist(); setUser(pub(u));
       },
       /* ---- 옷장: 코디 3칸 ---- */
       /* ---- v88 내 방 · 방명록 · 방문 수 · 프로필 (체험 모드: 이 브라우저) ---- */
@@ -658,6 +670,19 @@
         serverPrices = {}; (data || []).forEach(r => { serverPrices[r.id] = r.price; });
         return serverPrices;
       },
+      async chooseGender(g) {   // v112 (supabase/gender_v112.sql)
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        if (g !== 'm' && g !== 'f') throw new Error('남자 또는 여자를 골라 주세요.');
+        const { error } = await sb.rpc('choose_gender', { p_g: g });
+        if (error) throw new Error(/function|schema/i.test(error.message || '') ? '선생님이 서버 설정(gender_v112.sql)을 마치면 고를 수 있어요.' : friendly(error, '고르지 못했어요'));
+        await loadProfile(Hub.user.id);
+      },
+      async changeGender() {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const { error } = await sb.rpc('change_gender');
+        if (error) throw new Error(/function|schema/i.test(error.message || '') ? '선생님이 서버 설정(gender_v112.sql)을 마치면 쓸 수 있어요.' : friendly(error, '바꾸지 못했어요'));
+        await loadProfile(Hub.user.id);
+      },
       async changeNickname(n) {
         if (!Hub.user) throw new Error('로그인이 필요해요.');
         const nickname = String(n || '').trim();
@@ -676,7 +701,7 @@
       async setAvatar(av) {
         if (!Hub.user) throw new Error('로그인이 필요해요.');
         av = validateAvatar(av);
-        const send = Object.assign({}, av); if (send.bg == null) delete send.bg;   // 배경이 없으면 보내지 않음 (DB가 옛 버전이어도 착용 가능)
+        const send = Object.assign({}, av); if (send.bg == null) delete send.bg; delete send.g;   // v112 성별(g)은 서버가 그대로 지킴   // 배경이 없으면 보내지 않음 (DB가 옛 버전이어도 착용 가능)
         const { error } = await sb.rpc('set_avatar', { p_avatar: send });
         if (error) throw new Error(friendly(error, '착용하지 못했어요'));
         await loadProfile(Hub.user.id);

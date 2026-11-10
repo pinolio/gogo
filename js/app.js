@@ -102,6 +102,35 @@
     } catch (e) { showErr(errEl, e.message); return false; }
     finally { btn.disabled = false; }
   }
+  /* v112 기본 아바타(남/여)를 아직 안 고른 회원: 한 번 무료로 고르는 창 (이 창을 닫으면 이 탭에서는 다시 안 띄움) */
+  let gAsked = false;
+  function askGender(u) {
+    if (!u || (u.avatar && u.avatar.g) || gAsked || document.getElementById('genderModal')) return;
+    gAsked = true;
+    const m = document.createElement('div'); m.className = 'modal'; m.id = 'genderModal';
+    m.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="gTitle">
+      <button class="modal-x" type="button" data-gclose aria-label="닫기">×</button>
+      <h2 id="gTitle" class="modal-title">기본 아바타 고르기</h2>
+      <p class="small" style="margin:6px 0 12px">새 기본 몸이 생겼어요! <b>처음 한 번은 무료</b>로 골라요. 그 뒤에 바꾸려면 상점의 <b>성별 변환권(${Hub.GENDER_PRICE || 100}P)</b>이 필요해요.</p>
+      <div class="gpick" role="radiogroup" aria-label="기본 아바타">
+        <button type="button" role="radio" aria-checked="false" data-g="m"><img src="avatar/body/m_f.png?v=113" alt="" width="54" height="117"><b>남자</b></button>
+        <button type="button" role="radio" aria-checked="false" data-g="f"><img src="avatar/body/f_f.png?v=113" alt="" width="53" height="115"><b>여자</b></button>
+      </div>
+      <p class="err" id="gErr" hidden></p>
+      <button class="btn btn-primary btn-block" type="button" data-gok style="margin-top:12px">이걸로 할게요</button>
+      <p class="small" style="margin:8px 0 0">지금은 skillcom RPG 에서 기본 옷을 입었을 때 새 몸으로 보여요. 다른 게임과 상점 옷은 차례로 바뀔 예정이에요.</p>
+    </div>`;
+    document.body.appendChild(m);
+    const close = () => m.remove();
+    m.querySelector('[data-gclose]').addEventListener('click', close);
+    m.querySelector('[data-gok]').addEventListener('click', async ev => {
+      const sel = m.querySelector('[data-g][aria-checked="true"]'), er = m.querySelector('#gErr');
+      if (!sel) { er.hidden = false; er.textContent = '남자 또는 여자를 골라 주세요.'; return; }
+      ev.target.disabled = true;
+      try { await Hub.chooseGender(sel.dataset.g); close(); toast(sel.dataset.g === 'm' ? '남자 기본 아바타로 정했어요!' : '여자 기본 아바타로 정했어요!'); }
+      catch (e2) { er.hidden = false; er.textContent = e2.message; ev.target.disabled = false; }
+    });
+  }
   function bindAuth() {
     $('#authModal').addEventListener('click', e => { if (e.target.id === 'authModal' || e.target.closest('[data-close]')) closeAuth(); });
     $$('.tabs button').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
@@ -114,15 +143,25 @@
       e.preventDefault();
       const err = $('#signupErr'), btn = e.submitter || $('#signupForm button');
       if ($('#su-pw').value !== $('#su-pw2').value) return showErr(err, '비밀번호 확인이 일치하지 않아요.');
+      const sg = $('#suGender [aria-checked="true"]'); if (!sg) return showErr(err, '기본 아바타(남자·여자)를 골라 주세요.');   // v112
+      gAsked = true;   // 가입 중에는 '처음 고르기' 창을 띄우지 않음
       btn.disabled = true;
       try {
         await Hub.signUp({ username: $('#su-id').value, nickname: $('#su-nick').value, password: $('#su-pw').value });
+        try { await Hub.chooseGender(sg.dataset.g); } catch (ge) { console.warn(ge); }   // v112 (서버 SQL 전이면 다음 접속 때 다시 물어봄)
         toast('가입 완료! 기본 아바타가 만들어졌어요. 상점에서 꾸며 보세요.');
         const cb = afterAuth; closeAuth(); $('#signupForm').reset(); cb && cb();
       } catch (ex) { showErr(err, ex.message); }
       finally { btn.disabled = false; }
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#authModal').hidden) closeAuth(); });
+    // v112 남/여 고르기 버튼 (가입 폼 · 처음 고르기 창 공통)
+    document.addEventListener('click', e => {
+      const b = e.target.closest('.gpick [data-g]'); if (!b) return;
+      b.parentNode.querySelectorAll('[data-g]').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+    });
+    Hub.onChange(u => { if (u && u.avatar && u.avatar.g) { const gm = document.getElementById('genderModal'); if (gm) gm.remove(); } askGender(u); });
+    askGender(Hub.user);
     document.addEventListener('click', e => {
       const a = e.target.closest('[data-auth]'); if (a) { e.preventDefault(); openAuth(a.dataset.auth); }
       const lo = e.target.closest('[data-logout]'); if (lo) { e.preventDefault(); Hub.signOut().then(() => toast('로그아웃했어요.')); }

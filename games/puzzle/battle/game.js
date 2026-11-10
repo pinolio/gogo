@@ -171,6 +171,44 @@
     }).join('');
   }
 
+  /* v112 ↑ 회전 방향 고르기 (사람마다 · 이 기기에 저장) — 'ccw' 반시계(기본, v50) / 'cw' 시계
+   *  시작 전 화면(처음 화면·대기실)에서 고르고, ↑ 키를 누르면 오른쪽 그림의 블록이 고른 방향으로 돌아 미리 볼 수 있음 */
+  const ROT_KEY = 'gogogogo.battle.rot';
+  let rotPref = 'ccw'; try { if (localStorage.getItem(ROT_KEY) === 'cw') rotPref = 'cw'; } catch (e) { /* noop */ }
+  let rotDemo = 0;   // 미리 보기 블록 방향 (0~3)
+  const T_CELLS = [[1, 0], [0, 1], [1, 1], [2, 1]];
+  function rotPanelHTML(compact) {
+    return `<div class="rot-pick${compact ? ' compact' : ''}">
+      <p class="small" style="margin:${compact ? '16px' : '0'} 0 8px"><b>↑ 키 회전 방향</b> <small>나만 바뀌어요 · 시작 전에 골라요</small></p>
+      <div class="rot-row">
+        <div class="seg" role="radiogroup" aria-label="↑ 키 회전 방향">
+          <button type="button" role="radio" aria-checked="${rotPref === 'cw'}" data-rot="cw">↻ 시계 방향<small>오른쪽으로 돌아요</small></button>
+          <button type="button" role="radio" aria-checked="${rotPref === 'ccw'}" data-rot="ccw">↺ 반시계 방향<small>왼쪽으로 돌아요</small></button>
+        </div>
+        <canvas class="rot-prev" id="rotPrev" width="84" height="84" title="↑ 키를 누르면 돌아요"></canvas>
+      </div>
+      <p class="small" style="margin:6px 0 0">↑ 키를 눌러 미리 돌려 보세요. 반대 방향은 Z 키예요.</p>
+    </div>`;
+  }
+  function drawRotPrev() {
+    const cv = $('#rotPrev'); if (!cv) return; const x = cv.getContext('2d'), S = 22, O = 9;
+    x.fillStyle = '#1D2340'; x.fillRect(0, 0, cv.width, cv.height);
+    T_CELLS.forEach(([a, b]) => {
+      let p = [a, b]; for (let i = 0; i < rotDemo; i++) p = [2 - p[1], p[0]];   // 시계 방향으로 rotDemo 번
+      const X = O + p[0] * S, Y = O + p[1] * S;
+      x.fillStyle = '#FFD23F'; x.fillRect(X, Y, S - 2, S - 2); x.fillStyle = '#FFF3B0'; x.fillRect(X, Y, S - 2, 4); x.fillStyle = '#C9A21E'; x.fillRect(X, Y + S - 6, S - 2, 4);
+    });
+  }
+  function spinRotPrev(rev) { const cw = (rotPref === 'cw') !== !!rev; rotDemo = (rotDemo + (cw ? 1 : 3)) % 4; drawRotPrev(); }
+  function bindRotPanel() {
+    $$('[data-rot]', root).forEach(b => b.addEventListener('click', () => {
+      rotPref = b.dataset.rot; try { localStorage.setItem(ROT_KEY, rotPref); } catch (e) { /* noop */ }
+      $$('[data-rot]', root).forEach(x => x.setAttribute('aria-checked', String(x.dataset.rot === rotPref)));
+      spinRotPrev(false); b.blur();
+    }));
+    drawRotPrev();
+  }
+
   /* ================= 처음 화면: 대결 방식 고르기 ================= */
   function renderHome() {
     root.innerHTML = `
@@ -194,7 +232,9 @@
             <li>휴대폰은 화면 버튼(HOLD 포함)으로 해요.</li>
           </ul>
         </div>
+        <div class="panel b-rules">${rotPanelHTML(false)}</div>
       </div>`;
+    bindRotPanel();
     $$('[data-play]', root).forEach(b => b.addEventListener('click', () => {
       const k = b.dataset.play;
       if (k === 'online') { openLobby(); renderLobby(); }
@@ -387,14 +427,15 @@
               <div class="seg" role="radiogroup" aria-label="대전 종류">${Object.entries(RULE).map(([k, v]) => `<button type="button" role="radio" aria-checked="${room.rule === k}" data-rule="${k}">${v.name}<small>${v.desc}</small></button>`).join('')}</div>
               <p class="small" style="margin:16px 0 8px">컴퓨터 상대 추가</p>
               <div class="bot-add">${Object.entries(B.BOT_LEVELS).map(([k, v]) => `<button class="btn btn-sm" type="button" data-addbot="${k}" ${total >= MAX ? 'disabled' : ''}>+ ${v.name}</button>`).join('')}</div>
+              ${rotPanelHTML(true)}
               <button class="btn btn-primary btn-block" type="button" id="btStart" ${cs.ok ? '' : 'disabled'} style="margin-top:16px">대전 시작 ▶</button>
               <p class="small">${cs.why}</p>`
             : `<h3>준비 완료</h3><p class="small" style="margin:0 0 6px"><b>${RULE[room.rule].name}</b> · ${RULE[room.rule].desc}</p><p class="small" style="margin:0">${team ? `<b>${TEAM_NAME[room.myTeam] || ''} 팀</b>으로 참가해요. 팀은 왼쪽에서 바꿀 수 있어요. ` : ''}${esc(hostPeer ? hostPeer.nick : '방장')} 님이 시작하면 바로 경기가 시작돼요.</p>
-               <div class="waiting-dots" aria-hidden="true"><i></i><i></i><i></i></div>`}
+               <div class="waiting-dots" aria-hidden="true"><i></i><i></i><i></i></div>${rotPanelHTML(true)}`}
           </div>
         </div>
       </div>`;
-    AV.paintAll(root);
+    AV.paintAll(root); bindRotPanel();
     $('#btLeave').addEventListener('click', () => leaveRoom());
     if ($('#btCopy')) $('#btCopy').addEventListener('click', () => {
       const done = () => A.toast('방 코드 ' + room.code + '를 복사했어요.');
@@ -749,7 +790,7 @@
               ${mains.map((id, i) => `<div class="main-col">${mains.length > 1 ? `<div class="main-tag">${i ? '2P · 방향키' : '1P · WASD'} <b>${esc(nameOfMain(id))}</b></div>` : ''}${itemMode && !i ? `<div class="main-tag"><b class="slot-no">${slotOf(id)}</b> 내 번호 · 숫자 키 1~${match.n}로 그 사람에게 맨 앞 아이템 사용</div>` : ''}<div class="cabinet ${team ? 'cab-' + match.teamOf[id] : ''}" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas data-main="${esc(id)}" aria-label="${i ? '2P' : '내'} 게임 화면"></canvas></div></div>${itemMode && !i ? '<div class="item-bar" id="itemBar" aria-label="내 아이템 (왼쪽부터 순서대로 사용)"></div>' : ''}</div>`).join('')}
               <div class="overlay" id="btOv"></div>
             </div>
-            <div class="pad pad6" id="pad"><button type="button" data-act="hold" aria-label="블록 저장">HOLD</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">⟲</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button>${itemMode ? '<button type="button" class="pad-it" data-act="itemself" aria-label="맨 앞 아이템을 나에게">나에게</button>' : ''}</div>
+            <div class="pad pad6" id="pad"><button type="button" data-act="hold" aria-label="블록 저장">HOLD</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">${rotPref === 'cw' ? '⟳' : '⟲'}</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button>${itemMode ? '<button type="button" class="pad-it" data-act="itemself" aria-label="맨 앞 아이템을 나에게">나에게</button>' : ''}</div>
             ${itemMode ? '<ul class="item-log" id="itemLog" aria-live="polite"></ul><p class="small it-help">상대 판을 누르거나 숫자 키를 누르면 맨 앞 아이템이 날아가요. 공격 아이템(빨강)은 상대에게만, 방패는 나·같은 편에게만, 줄 빼기·모두 사라지기는 누구에게나!</p>' : ''}
           </div>
           <div class="minis side-r" style="--n:${sides[1].length}">${sides[1].map(miniHTML).join('')}</div>
@@ -814,8 +855,8 @@
     if (a === 'left') eng.move(-1, 0);
     else if (a === 'right') eng.move(1, 0);
     else if (a === 'down') eng.soft();
-    else if (a === 'rotate') eng.rotate(false);
-    else if (a === 'rotateL') eng.rotate(true);
+    else if (a === 'rotate') eng.rotate(rotPref === 'cw' && !match.local[P2]);   // v112: ↑ 방향은 고른 대로 (오프라인 2인은 예전 그대로)
+    else if (a === 'rotateL') eng.rotate(!(rotPref === 'cw' && !match.local[P2]));
     else if (a === 'drop') eng.hard();
     else if (a === 'hold') eng.holdSwap();
   }
@@ -958,7 +999,12 @@
 
   /* ================= 키보드 ================= */
   function onKey(e) {
-    if (!match || !match.running) return;
+    if (!match || !match.running) {   // v112 시작 전: ↑(W·X) / Z 로 회전 방향 미리 보기
+      if (e.type !== 'keydown' || !$('#rotPrev') || (match && match.running)) return;
+      const tg = (e.target.tagName || '').toLowerCase(); if (tg === 'input' || tg === 'textarea') return;
+      const k = KEYMAP[e.code]; if (k !== 'rotate' && k !== 'rotateL') return;
+      e.preventDefault(); spinRotPrev(k === 'rotateL'); return;
+    }
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
     const dg = /^(Digit|Numpad)([1-6])$/.exec(e.code);   // v96 아이템전: 숫자 = 그 번호 사람에게 맨 앞 아이템

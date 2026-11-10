@@ -888,12 +888,29 @@
     x.drawImage(t, X, Y);
   }
   const HM_GROW = 1.07;   // v108 투구 아주 조금 크게
+  /* v112 새 기본 몸 그림 (avatar/body/*.png): 기본 옷만 입었으면 칸 그림 대신 이 그림을 몸으로 씀 (장비 그림은 그 위에 그대로)
+   *  그림 키 27.4칸 · 발바닥 28.4칸 · 가운데 cx(점) — 사이트 아바타 칸 그림과 같은 자리 */
+  const bodyOf = (av, view, eq, hide) => {
+    if (!AV.useBody || !AV.useBody(av)) return null;
+    if (!hide && eq) {   // 장비 그림을 아직 못 받았으면(예전 도트 장비를 써야 하면) 예전 몸 그대로
+      const it = s => eq[s] && D.ITEMS[eq[s]];
+      if ((it('helmet') && !imgOk('ic_hm')) || (it('armor') && !imgOk('ic_ar')) || (it('boots') && !imgOk('ic_bt')) || (it('weapon') && !imgOk(WP_IC[it('weapon').look]))) return null;
+    }
+    return AV.bodyImg(av.g, view);
+  };
+  function drawBody(x, im, cx, k) {
+    const hh = Math.round(27.4 * k), ww = Math.round(im.naturalWidth * hh / im.naturalHeight), by = Math.round(28.4 * k);
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    x.drawImage(im, Math.round(cx - ww / 2), by - hh, ww, hh);
+    x.imageSmoothingEnabled = false;
+  }
   const avCache = {};
   /* v107 방향 그림: view 'b' 뒤 · 's' 옆(오른쪽을 봄). 사람은 사이트 아바타의 자동 방향 그림(AV.gridView),
    *  장비 그림은 투구 뒷모습 = img/ic_hm_b.png(선생님 그림), 나머지는 앞 그림을 쓰거나(뒤) 좁혀서(옆) 씀.
    *  part: 옆모습 걷기용으로 'noArm'(팔 뺀 몸) · 'arm'(가까운 팔 + 무기) 따로 */
   function dirSprite(av, eq, hide, view, part) {
-    const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    const bodyI = bodyOf(av, view, eq, hide);
+    const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!bodyI, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const k = 2, side = view === 's', arm = part === 'arm', noArm = part === 'noArm';
     const hmOn = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');
@@ -913,7 +930,8 @@
     };
     if (swI && view === 'b') drawWeapon();   // 뒤: 무기는 몸 뒤에
     const top = 0;
-    for (let y = top; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
+    if (bodyI) { if (!arm) drawBody(x, bodyI, CX * k + PAD, k); }   // v112 새 기본 몸 (옆 걷기용 '팔' 조각은 비움 → 무기만)
+    else for (let y = top; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
     if (!arm) {
       // v107 신발: 뒤 = ic_bt_b(두 짝 그림 → 왼쪽 반은 왼발, 오른쪽 반은 오른발) · 옆 = ic_bt_s(앞코가 오른쪽) · 없으면 앞 그림
       const btOn = !hide && eq && eq.boots && D.ITEMS[eq.boots], btNm = btOn && (view === 'b' && imgOk('ic_bt_b') ? 'ic_bt_b' : side && imgOk('ic_bt_s') ? 'ic_bt_s' : 'ic_bt'), btI = btOn && imgOk(btNm);
@@ -954,7 +972,8 @@
   }
   function avatarSprite(av, eq, hide, frame, view, part) {
     if ((view === 'b' || view === 's') && AV.gridView) return dirSprite(av, eq, hide, view, part);
-    const key = JSON.stringify([av, hide ? {} : eq, frame, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    const bodyI = bodyOf(av, 'f', eq, hide);
+    const key = JSON.stringify([av, hide ? {} : eq, frame, !!bodyI, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
     frame = leg;
@@ -975,7 +994,8 @@
     const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 9 * k : 0;
     const hmI = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');   // v100 투구 = 새 그림 (머리 전체를 덮음 · 머리칼이 삐져나오지 않게 머리 줄은 비움)
     const [c, x] = mk(GW * k + PAD * 2, GH * k);
-    for (let y = 0; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }   // v108 머리 줄을 비우지 않음 (투구 안 얼굴)
+    if (bodyI) drawBody(x, bodyI, 8.875 * k + PAD, k);   // v112 새 기본 몸 그림
+    else for (let y = 0; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }   // v108 머리 줄을 비우지 않음 (투구 안 얼굴)
     const btI = !hide && eq && eq.boots && D.ITEMS[eq.boots] && imgOk('ic_bt');   // v101 신발 = 새 그림 (두 발에 하나씩 · 오른발은 뒤집어 앞코가 바깥쪽)
     if (btI) {
       const o = D.ITEMS[eq.boots], n = o.legend ? 9 : o.rare ? 10 + o.tier : o.tier, b = swBox(btI, n, 'ic_bt'), L = AV.legs(frame);
