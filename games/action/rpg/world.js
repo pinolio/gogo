@@ -488,13 +488,13 @@
    *  img/ 폴더의 그림을 불러 두었다가 있으면 쓰고, 없으면(또는 늦으면) 코드로 그린 그림을 씀
    *  bld_potion·bld_school·bld_chief·bld_castle / boss_r0~8 / mon_r0~8 (9칸 × 64px) / obj_r0~8_1·2 / key.jpg */
   const RIMG = {}, IMG_DIR = 'games/action/rpg/img/';
-  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw', 'ic_st', 'ic_hm', 'ic_ar', 'ic_rg', 'ic_bt', 'ic_pot'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
+  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw', 'ic_st', 'ic_hm', 'ic_ar', 'ic_rg', 'ic_bt', 'ic_pot', 'ic_hm_b', 'ic_hm_s', 'ic_ar_b', 'ic_ar_s', 'ic_bt_b', 'ic_bt_s'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
   let imgPromise = null;
   function loadImages(timeoutMs) {
     if (!imgPromise) imgPromise = Promise.all(IMG_LIST.concat(['key']).map(n => new Promise(res => {
       const im = new Image(); im.decoding = 'async';
       im.onload = () => { RIMG[n] = im; res(); }; im.onerror = () => res();
-      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : n === 'ic_bt' ? '?v=101' : n === 'ic_pot' ? '?v=102' : /^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
+      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : n === 'ic_bt' ? '?v=101' : n === 'ic_pot' ? '?v=102' : /^ic_(hm|ar|bt)_[bs]$/.test(n) ? '?v=107' : /^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
     })));
     [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(i => ['_ground', '_path', '_water'].forEach(k => img79('r' + i + k)));   // v80 재질은 미리 (기다리지는 않음)
     return Promise.race([imgPromise, new Promise(r => setTimeout(r, timeoutMs || 6000))]);
@@ -728,7 +728,70 @@
     return (swBoxC[ck] = x1 < 0 ? { x: 0, y: 0, w: 80, h: 80 } : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
   }
   const avCache = {};
-  function avatarSprite(av, eq, hide, frame) {
+  /* v107 방향 그림: view 'b' 뒤 · 's' 옆(오른쪽을 봄). 사람은 사이트 아바타의 자동 방향 그림(AV.gridView),
+   *  장비 그림은 투구 뒷모습 = img/ic_hm_b.png(선생님 그림), 나머지는 앞 그림을 쓰거나(뒤) 좁혀서(옆) 씀.
+   *  part: 옆모습 걷기용으로 'noArm'(팔 뺀 몸) · 'arm'(가까운 팔 + 무기) 따로 */
+  function dirSprite(av, eq, hide, view, part) {
+    const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    if (avCache[key]) return avCache[key];
+    const k = 2, side = view === 's', arm = part === 'arm', noArm = part === 'noArm';
+    const cells = AV.refine(AV.gridView(av, 0, view, side ? part : undefined), false);
+    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 9 * k : 0;
+    const hmIt = !hide && eq && eq.helmet && D.ITEMS[eq.helmet], hmNm = hmIt && (view === 'b' && imgOk('ic_hm_b') ? 'ic_hm_b' : side && imgOk('ic_hm_s') ? 'ic_hm_s' : 'ic_hm'), hmI = hmIt && imgOk(hmNm);   // v107 투구 뒷모습·옆모습 그림
+    const [c, x] = mk(GW * k + PAD * 2, GH * k);
+    const nOf = o => (o.legend ? 9 : o.rare ? 10 + o.tier : o.tier);
+    const CX = side ? 9.4 : 8.875;   // 몸 가운데 (칸)
+    const drawWeapon = () => {
+      const n = nOf(wp), b = swBox(swI, n, wIc), [hc, gf] = WP_SZ[wp.look];
+      const hx = (side ? 9.9 : 12.75) * k + PAD, hy = 18.5 * k;
+      let hh = hc * k, ww = Math.max(1, Math.round(b.w * hh / b.h)); if (ww > 13 * k) { hh = Math.round(hh * 13 * k / ww); ww = 13 * k; }
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+      x.save(); x.translate(hx, hy); x.rotate(WP_ANG[wp.look][0] * Math.PI / 180); x.drawImage(swI, n * 80 + b.x, b.y, b.w, b.h, -ww / 2, -hh * gf, ww, hh); x.restore();
+      x.imageSmoothingEnabled = false;
+    };
+    if (swI && view === 'b') drawWeapon();   // 뒤: 무기는 몸 뒤에
+    const top = hmI && !arm && hmNm !== 'ic_hm_s' ? 12 * k : 0;   // 옆모습 투구는 얼굴이 열려 있어 얼굴을 그대로 둠
+    const sideHm = hmI && !arm && hmNm === 'ic_hm_s';   // 옆 투구: 머리는 얼굴 부분(앞쪽 아래)만 남기고 비움 → 머리카락이 삐져나오지 않게
+    for (let y = top; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i] && !(sideHm && y < 12 * k && !(i >= 10 * k && y >= 6 * k))) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
+    if (!arm) {
+      // v107 신발: 뒤 = ic_bt_b(두 짝 그림 → 왼쪽 반은 왼발, 오른쪽 반은 오른발) · 옆 = ic_bt_s(앞코가 오른쪽) · 없으면 앞 그림
+      const btOn = !hide && eq && eq.boots && D.ITEMS[eq.boots], btNm = btOn && (view === 'b' && imgOk('ic_bt_b') ? 'ic_bt_b' : side && imgOk('ic_bt_s') ? 'ic_bt_s' : 'ic_bt'), btI = btOn && imgOk(btNm);
+      if (btI) {
+        const n = nOf(D.ITEMS[eq.boots]), b0 = swBox(btI, n, btNm), L = AV.legs(0), pair = btNm === 'ic_bt_b';
+        x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+        const feet = side ? [[{ x: 9.6, y: L.RF.y }, 0, btNm === 'ic_bt']] : [[L.LF, 2.7, false, 0], [L.RF, 3.3, !pair, 1]];
+        feet.forEach(([F, dx, flip, half]) => {
+          const b = pair ? { x: b0.x + (half ? Math.floor(b0.w / 2) : 0), y: b0.y, w: Math.ceil(b0.w / 2), h: b0.h } : b0;
+          let hh = 4.6 * k, ww = b.w * hh / b.h; const mw = (btNm === 'ic_bt_s' ? 6.4 : 5.4) * k; if (ww > mw) { ww = mw; hh = b.h * ww / b.w; }
+          const cx = (F.x + dx) * k + PAD, by = (F.y + 3) * k, X = Math.round(cx - ww / 2), Y = Math.round(by - hh), W2 = Math.round(ww), H2 = Math.round(hh);
+          if (flip) { x.save(); x.translate(X + W2, Y); x.scale(-1, 1); x.drawImage(btI, n * 80 + b.x, b.y, b.w, b.h, 0, 0, W2, H2); x.restore(); }
+          else x.drawImage(btI, n * 80 + b.x, b.y, b.w, b.h, X, Y, W2, H2);
+        });
+      }
+      const arOn = !hide && eq && eq.armor && D.ITEMS[eq.armor], arNm = arOn && (view === 'b' && imgOk('ic_ar_b') ? 'ic_ar_b' : side && imgOk('ic_ar_s') ? 'ic_ar_s' : 'ic_ar'), arI = arOn && imgOk(arNm);   // v107 갑옷 뒷모습·옆모습 그림
+      if (arI) {
+        const n = nOf(D.ITEMS[eq.armor]), b = swBox(arI, n, arNm);
+        let ww = Math.min(14 * k, Math.max(11 * k, Math.round(b.w * 10.5 * k / b.h))), hh = Math.round(b.h * ww / b.w); if (hh > 12.5 * k) { hh = 12.5 * k; ww = Math.round(b.w * hh / b.h); }
+        if (side) ww = Math.round(ww * (arNm === 'ic_ar_s' ? 0.85 : 0.72));   // 옆 그림은 비스듬한(3/4) 모습이라 조금만 좁힘
+        x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+        x.drawImage(arI, n * 80 + b.x, b.y, b.w, b.h, Math.round(CX * k + PAD - ww / 2), Math.round(11.6 * k), ww, Math.round(hh));
+      }
+      if (hmI) {
+        const n = nOf(hmIt), b = swBox(hmI, n, hmNm);
+        let ww = 12 * k; const hh = Math.max(11 * k, Math.round(b.h * ww / b.w)); if (side && hmNm === 'ic_hm') ww = Math.round(ww * 0.82);   // 옆 그림이 없을 때만 앞 그림을 좁힘
+        x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+        x.drawImage(hmI, n * 80 + b.x, b.y, b.w, b.h, Math.round(CX * k + PAD - ww / 2), Math.round(12.6 * k - hh), ww, hh);
+      }
+    }
+    if (swI && side && !noArm) {   // 옆: 무기는 가까운 손에, 손을 손잡이 위에 다시
+      const hb = [Math.round(9.9 * k + PAD - 2 * k), Math.round(18.5 * k - 2 * k), 4 * k, 4 * k], [hc2, hx2] = mk(hb[2], hb[3]);
+      hx2.drawImage(c, hb[0], hb[1], hb[2], hb[3], 0, 0, hb[2], hb[3]); drawWeapon(); x.drawImage(hc2, hb[0], hb[1]);
+    }
+    const keys = Object.keys(avCache); if (keys.length > 240) delete avCache[keys[0]];
+    return (avCache[key] = c);
+  }
+  function avatarSprite(av, eq, hide, frame, view, part) {
+    if ((view === 'b' || view === 's') && AV.gridView) return dirSprite(av, eq, hide, view, part);
     const key = JSON.stringify([av, hide ? {} : eq, frame, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
@@ -786,7 +849,7 @@
       x.save(); x.translate(hx, hy); x.rotate(ang); x.drawImage(swI, n * 80 + b.x, b.y, b.w, b.h, -ww / 2, -hh * gf, ww, hh); x.restore();
       x.imageSmoothingEnabled = false; x.drawImage(hc2, hb[0], hb[1]);   // 손을 손잡이 위에
     }
-    const keys = Object.keys(avCache); if (keys.length > 80) delete avCache[keys[0]];
+    const keys = Object.keys(avCache); if (keys.length > 240) delete avCache[keys[0]];
     return (avCache[key] = c);
   }
   // 창에 쓰는 작은 그림 (아이템 아이콘): 장비는 그 장비만 따로 그려서 확대, 포션은 병 그림

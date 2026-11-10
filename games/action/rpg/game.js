@@ -985,6 +985,7 @@
         } else if (ml > 0.15) {
           const sp = 150 * (1 + ST.spd / 100) * dt * Math.min(1, ml) * (G.pst && G.pst.slow > 0 ? 0.6 : 1) * (G.pst && G.pst.stun > 0 ? 0 : 1);   // v87 느려짐 · 기절
           G.fx = mx / ml; G.fy = my / ml; if (Math.abs(mx) > 0.2) G.face = mx < 0 ? -1 : 1;
+          G.view = Math.abs(G.fy) > Math.abs(G.fx) * 1.15 ? (G.fy > 0 ? 'f' : 'b') : 's';   // v107 아래 = 앞모습 · 위 = 뒷모습 · 옆 = 옆모습
           movePlayer(G.fx * sp, G.fy * sp); G.moving = true; G.walk += dt; if (Math.floor(G.walk * 8) !== Math.floor((G.walk - dt) * 8)) Fx.dust(G.px, G.py, M.region === 5 ? 'rgba(255,255,255,.8)' : 'rgba(255,240,210,.55)');
         } else { G.moving = false; G.walk = 0; }
         if (K.Space || K.KeyJ || G.btnDown.atk) basicAttack();
@@ -1250,13 +1251,13 @@
       }
       function drawMe(c, now) {
         const posing = now < (G.poseUntil || 0), walkMv = G.moving && !posing, fr = posing ? G.poseK : 0;   // v79 마법·공격 동작 · v105 걷기는 한 장을 조각내 부드럽게(drawFig)
-        const img = avatarSprite(Hub.user ? Hub.user.avatar : AV.normalize({}), S.eq, S.hide, fr);
+        const view = posing ? 'f' : G.view || 'f', fs = figSet(Hub.user ? Hub.user.avatar : AV.normalize({}), S.eq, S.hide, fr, view), img = fs.img;
         const s = img.width > AV.size.w ? 1 : 2, w = img.width * s, h = img.height * s, bob = G.moving ? 0 : Math.round(Math.sin(now / 400)), x = Math.round(G.px - w / 2), y = Math.round(G.py - h + 2 + bob);
         G.meImg = { img, x, y, w, h };
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(G.px, G.py, 16, 5, 0, 0, Math.PI * 2); c.fill();
         if (G.dash) Fx.afterimage(img, x, y, w, h, G.face < 0, Fx.pal(G.dash.els[0])[2]);
         if (G.inv > 0 && !G.dash && Math.floor(now / 60) % 2) c.globalAlpha = 0.45;
-        drawFig(c, img, x, y, w, h, G.face, G.walk * Math.PI * 4, walkMv, S.eq.weapon && !S.hide ? 'left' : true);
+        drawFig(c, img, x, y, w, h, G.face, G.walk * Math.PI * 4, walkMv, S.eq.weapon && !S.hide ? 'left' : true, fs.side);
         c.globalAlpha = 1;
         // 장비 단계 빛 (정예 무기)
         const wp = S.eq.weapon && ITEMS[S.eq.weapon]; if (wp && wp.rare && !S.hide) { c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, G.px + (G.face < 0 ? -14 : 14), y + 14, 18, D.TIER[wp.tier].gem, 0.35 + 0.2 * Math.sin(now / 200)); c.restore(); }
@@ -1337,18 +1338,24 @@
         }
       }
       // v105 사람 그리기: 걸을 때는 AV.rig 로 다리·팔·몸을 이어서 움직임 (순찰병처럼 부드럽게), 왼쪽을 보면 뒤집음
-      function drawFig(c, img, x, y, w, h, face, ph, mv, arms) {
+      function drawFig(c, img, x, y, w, h, face, ph, mv, arms, side) {
         c.save(); if (face < 0) { c.translate(x + w, y); c.scale(-1, 1); } else c.translate(x, y);
-        if (AV.rig) AV.rig(c, img, 0, 0, w, h, ph, mv, { arms }); else c.drawImage(img, 0, 0, w, h);
+        if (side && AV.rigSide) AV.rigSide(c, side.body, side.arm, 0, 0, w, h, ph, mv);   // v107 옆모습: 다리 둘·가까운 팔(무기)을 따로 흔듦
+        else if (AV.rig) AV.rig(c, img, 0, 0, w, h, ph, mv, { arms }); else c.drawImage(img, 0, 0, w, h);
         c.restore();
+      }
+      // v107 방향별 그림 묶음 (옆모습이면 몸·팔 따로)
+      function figSet(av, eq, hide, fr, view) {
+        const img = avatarSprite(av, eq, hide, fr, view);
+        return { img, side: view === 's' ? { body: avatarSprite(av, eq, hide, 0, 's', 'noArm'), arm: avatarSprite(av, eq, hide, 0, 's', 'arm') } : null };
       }
       function drawNpc(c, n, now) {
         if (n.def.img) return drawArmy(c, n, now);
-        const img = npcSprite(n.def.av, 0);
+        const nv = n.moving ? 's' : 'f', fs = nv === 's' ? figSet(AV.normalize(n.def.av), {}, true, 0, 's') : null, img = fs ? fs.img : npcSprite(n.def.av, 0);   // v107 걸어 다니는 마을 사람은 옆모습
         const k = (img.width > AV.size.w ? 1 : 2) * (n.scale || 1), w = img.width * k, h = img.height * k, bob = n.moving ? 0 : Math.round(Math.sin(now / 420 + n.ph));
         const x = Math.round(n.x - w / 2), y = Math.round(n.y - h + 2 + bob);
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(n.x, n.y, 16 * (n.scale || 1), 5, 0, 0, Math.PI * 2); c.fill();
-        drawFig(c, img, x, y, w, h, n.face, (n.walk || 0) * Math.PI * 3.5, n.moving, true);
+        drawFig(c, img, x, y, w, h, n.face, (n.walk || 0) * Math.PI * 3.5, n.moving, true, fs && fs.side);
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         c.strokeText(n.def.name, n.x, y - 6); c.fillStyle = n.def.color || '#9AE6FF'; c.fillText(n.def.name, n.x, y - 6);
         let top = y - 22;
@@ -1367,10 +1374,11 @@
       // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
       function drawPeer(c, p, now) {
         if (!p.av) return;
-        const posing = now < (p.poseUntil || 0), img = avatarSprite(AV.normalize(p.av), p.eq || {}, p.hide, posing ? 'c' : 0);
+        if (Math.hypot(p.vx || 0, p.vy || 0) > 12) p.view = Math.abs(p.vy) > Math.abs(p.vx) * 1.15 ? (p.vy > 0 ? 'f' : 'b') : 's';   // v107 다른 사람도 움직이는 방향 모습
+        const posing = now < (p.poseUntil || 0), pv = posing ? 'f' : p.view || 'f', fs = figSet(AV.normalize(p.av), p.eq || {}, p.hide, posing ? 'c' : 0, pv), img = fs.img;
         const k = img.width > AV.size.w ? 1 : 2, w = img.width * k, h = img.height * k, x = Math.round(p.x - w / 2), y = Math.round(p.y - h + 2);
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(p.x, p.y, 16, 5, 0, 0, Math.PI * 2); c.fill();
-        drawFig(c, img, x, y, w, h, p.face, (p.walk || 0) * Math.PI * 4, p.moving && !posing, p.eq && p.eq.weapon && !p.hide ? 'left' : true);
+        drawFig(c, img, x, y, w, h, p.face, (p.walk || 0) * Math.PI * 4, p.moving && !posing, p.eq && p.eq.weapon && !p.hide ? 'left' : true, fs.side);
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         const nm = p.nick + ' Lv.' + p.lv; c.strokeText(nm, p.x, y - 6); c.fillStyle = '#9AE6FF'; c.fillText(nm, p.x, y - 6);
       }

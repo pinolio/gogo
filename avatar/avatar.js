@@ -434,7 +434,8 @@
       const sk = L.skin; SETU(c, 12, 7, sk); SETU(c, 12, 8, sk);
       SETU(c, 10, 7, OUT); SETU(c, 9, 8, '#FF9AA2'); SETU(c, 11, 9, shade(sk, -0.35));
       if (L.hairCol) {
-        const hs = sideMap(L.hair, 'noArm'); over(c, hs.map((r, y) => r.map(v => (y - PAD <= 10 ? v : null))));
+        // 앞모습에서 얼굴 양옆으로 늘어진 머리는 옆에서 보면 얼굴 앞이 아니라 귀 뒤 → 앞쪽(9칸 이상)은 앞머리(4줄 위)만 남김
+        const hs = sideMap(L.hair, 'noArm'); over(c, hs.map((r, y) => r.map((v, x) => (y - PAD <= 10 && (x - PAD <= 8 || y - PAD <= 4) ? v : null))));
         let bottom = 6; for (let y = 3; y <= 10; y++) if (U(L.hair, 4, y) || U(L.hair, 3, y)) bottom = Math.max(bottom, y);
         for (let y = 2; y <= Math.min(9, bottom + 1); y++) for (let x = 5; x <= 8; x++) if (U(c, x, y)) SETU(c, x, y, L.hairCol);   // 뒤쪽 머리
         for (let x = 5; x <= 11; x++) if (U(c, x, 3)) SETU(c, x, 3, L.hairCol);
