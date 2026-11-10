@@ -923,9 +923,9 @@
 
       /* ---------- 사람(NPC) ---------- */
       // v60 대장장이: 대장간 앞에 서 있음 · 가까이 가면 강화 창
-      const smithNpc = map => (map.forge ? [{ key: 'forge', def: D.SMITH, x: (map.forge.x + map.forge.w + 1) * TS, y: (map.forge.y + map.forge.h + 0.2) * TS, face: -1, ph: 2, smith: true }] : []);
+      const smithNpc = map => (map.forge ? [{ key: 'forge', def: D.npcDef(D.SMITH, map.M.region), x: (map.forge.x + map.forge.w + 1) * TS, y: (map.forge.y + map.forge.h + 0.2) * TS, face: -1, ph: 2, smith: true }] : []);
       // v85 역참지기: 역참 앞에 서 있음 · 가까이 가면 마을 이동 창
-      const stationNpc = map => (map.station ? [{ key: 'station', def: D.STATION, x: map.station.nx * TS, y: (map.station.y + map.station.h + 0.4) * TS, face: map.station.nx > map.station.x ? -1 : 1, ph: 3, smith: true }] : []);
+      const stationNpc = map => (map.station ? [{ key: 'station', def: D.npcDef(D.STATION, map.M.region), x: map.station.nx * TS, y: (map.station.y + map.station.h + 0.4) * TS, face: map.station.nx > map.station.x ? -1 : 1, ph: 3, smith: true }] : []);
       const villageNo = id => +String(id).slice(1) - 1;   // 'v3' → 2
       const stationFront = id => { const m = getMap(id), st = m.station; return st ? { x: (st.path + 0.5) * TS, y: (st.y + st.h + 1.2) * TS } : doorFront(m); };
       function stationGo(id) {
@@ -1210,7 +1210,7 @@
           c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFB86B'; c.fillText(label, cx0, ly + 1);
           return;
         }
-        const alt = o.alt && imgOk(o.alt), bim = o.b && imgOk('bld_' + o.b.type);
+        const alt = (o.alt2 && img79(o.alt2)) || (o.alt && imgOk(o.alt)), bim = o.b && imgOk('bld_' + o.b.type);
         if (bim) {
           const b = o.b, ww = b.w * TS + (b.type === 'castle' ? 90 : 34), hh = bim.naturalHeight * ww / bim.naturalWidth, cx0 = (b.x + b.w / 2) * TS, by = (b.y + b.h) * TS + 6;
           c.drawImage(bim, Math.round(cx0 - ww / 2), Math.round(by - hh), Math.round(ww), Math.round(hh));
@@ -1220,7 +1220,7 @@
           return;
         }
         if (alt) {
-          const im = alt, x = o.tx * TS + 16 - im.naturalWidth / 2, y = (o.ty + 1) * TS - im.naturalHeight + 2, tree = im.naturalHeight > 56;
+          const im = alt, x = o.tx * TS + 16 - im.naturalWidth / 2, y = (o.ty + 1) * TS - im.naturalHeight + 2, tree = o.alt2 && img79(o.alt2) ? o.alt2.startsWith('env_t') : im.naturalHeight > 56;
           if (tree) { const sway = Math.sin(now / 900 + o.tx * 0.7) * 0.012; c.save(); c.translate(x + im.naturalWidth / 2, y + im.naturalHeight); c.transform(1, 0, sway, 1, 0, 0); c.drawImage(im, -im.naturalWidth / 2, -im.naturalHeight); c.restore(); }
           else c.drawImage(im, Math.round(x), Math.round(y));
         } else if (o.kind === 'tree' || o.kind === 'blossom' || o.kind === 'pine' || o.kind === 'snowpine') {   // 바람에 살짝 흔들림
@@ -1231,7 +1231,7 @@
       }
       // v80 조선 병사 (Meshy 그림 한 장): 걸을 때 통통 + 살짝 기울기 · 다친 병사는 가만히
       function drawArmy(c, n, now) {
-        const im = img79(n.def.img), H0 = n.def.h || 64;
+        const im = img79(n.def.img), H0 = Math.round((n.def.h || 64) * (n.scale || 1));
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(n.x, n.y, n.still ? 28 : 16, 5, 0, 0, Math.PI * 2); c.fill();
         if (!im) return;
         const h = H0, w = Math.round(im.naturalWidth * h / im.naturalHeight), y = Math.round(n.y - h + 3);
@@ -1241,9 +1241,14 @@
         c.restore();
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         c.strokeText(n.def.name, n.x, y - 6); c.fillStyle = n.def.color || '#9AE6FF'; c.fillText(n.def.name, n.x, y - 6);
+        let top = y - 22;
+        if (!n.guard && !n.walker) {   // v110 가게 사람 머리 위 느낌표 (그림 NPC 도 같게)
+          const by = top - 8 - Math.abs(Math.sin(now / 260)) * 5; c.fillStyle = '#1D2340'; rr(c, n.x - 9, by - 12, 18, 22, 6); c.fill(); c.fillStyle = '#FFD23F'; rr(c, n.x - 7, by - 10, 14, 18, 5); c.fill();
+          c.fillStyle = '#1D2340'; c.fillRect(n.x - 1.5, by - 7, 3, 8); c.fillRect(n.x - 1.5, by + 3, 3, 3); top = by - 16;
+        }
         if (n.say && n.sayT > 0) {
           c.save(); c.globalAlpha = Math.min(1, n.sayT * 3); c.font = '13px "Jua", "Malgun Gothic", sans-serif';
-          const tw = c.measureText(n.say).width + 20, bx = clamp(n.x - tw / 2, cam.x + 4, cam.x + W - tw - 4), by = y - 52;
+          const tw = c.measureText(n.say).width + 20, bx = clamp(n.x - tw / 2, cam.x + 4, cam.x + W - tw - 4), by = top - 30;
           c.fillStyle = '#1D2340'; rr(c, bx - 2, by - 2, tw + 4, 30, 9); c.fill(); c.beginPath(); c.moveTo(n.x - 7, by + 26); c.lineTo(n.x + 7, by + 26); c.lineTo(n.x, by + 36); c.fill();
           c.fillStyle = '#FFFFFF'; rr(c, bx, by, tw, 26, 8); c.fill(); c.beginPath(); c.moveTo(n.x - 5, by + 25); c.lineTo(n.x + 5, by + 25); c.lineTo(n.x, by + 32); c.fill();
           c.fillStyle = '#1D2340'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(n.say, bx + 10, by + 14); c.restore();
@@ -1350,7 +1355,7 @@
         return { img, side: view === 's' ? { body: avatarSprite(av, eq, hide, 0, 's', 'noArm'), arm: avatarSprite(av, eq, hide, 0, 's', 'arm') } : null };
       }
       function drawNpc(c, n, now) {
-        if (n.def.img) return drawArmy(c, n, now);
+        if (n.def.img && (!n.def.av || img79(n.def.img))) return drawArmy(c, n, now);   // v110 NPC 그림 (못 불러오면 예전 아바타)
         const nv = n.moving ? 's' : 'f', fs = nv === 's' ? figSet(AV.normalize(n.def.av), {}, true, 0, 's') : null, img = fs ? fs.img : npcSprite(n.def.av, 0);   // v107 걸어 다니는 마을 사람은 옆모습
         const k = (img.width > AV.size.w ? 1 : 2) * (n.scale || 1), w = img.width * k, h = img.height * k, bob = n.moving ? 0 : Math.round(Math.sin(now / 420 + n.ph));
         const x = Math.round(n.x - w / 2), y = Math.round(n.y - h + 2 + bob);
@@ -1614,7 +1619,17 @@
         if (!S.help) { S.help = true; markDirty(); }
         try { screenEl.focus({ preventScroll: true }); } catch (e) { /* noop */ }
       }
-      const npcBox = () => { const a = paneArg; if (!a || !a.npc) return ''; const d = a.npc.def; return `<div class="rg-npc"><img src="${npcPortrait(d.av)}" alt=""><div><b style="color:${d.color}">${d.name}</b><p>“${a.hello}”</p></div></div>`; };
+      // v110 대화 창 얼굴: NPC 그림이 있으면 그림 위쪽(머리·어깨)을 64칸에 맞춤
+      const faceC = {};
+      function npcFace(d) {
+        const im = d.img && img79(d.img); if (!im) return d.av ? npcPortrait(d.av) : '';
+        if (faceC[d.img]) return faceC[d.img];
+        const [cv, cx] = P.mk(64, 64), sw = im.naturalWidth, sh = Math.min(im.naturalHeight, Math.round(sw * 1.0)), side = Math.max(sw, sh) * 0.62;
+        const sx = (sw - side) / 2, k = 64 / side; cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+        cx.drawImage(im, sx, 0, side, side, 0, 2, 64, 64);
+        return (faceC[d.img] = cv.toDataURL());
+      }
+      const npcBox = () => { const a = paneArg; if (!a || !a.npc) return ''; const d = a.npc.def; return `<div class="rg-npc"><img src="${npcFace(d)}" alt=""><div><b style="color:${d.color}">${d.name}</b><p>“${a.hello}”</p></div></div>`; };
       const head = (t, sub) => `<h3>${t}<button type="button" class="x" data-x>닫기 (Esc)</button></h3>${sub ? `<p class="sub">${sub}</p>` : ''}`;
       const tabs = (key, list) => `<div class="rg-tabs">${list.map(([k, n]) => `<button type="button" data-tab="${key}:${k}" aria-pressed="${(tab[key] || list[0][0]) === k}">${n}</button>`).join('')}</div>`;
       const edefTxt = () => { const v = Object.values(ST.edefs), lo = Math.min(...v), hi = Math.max(...v); return lo === hi ? lo + '%' : lo + '%+'; };
@@ -1810,7 +1825,7 @@
             <li><b>이동</b> 방향키 · <b>공격</b> Space·J · <b>기본 마법</b> 1~4 · <b>융합 마법</b> Q W E R · <b>포션</b> Z(체력) X(마나) · <b>가방</b> I · <b>마법 창</b> K · <b>창 닫기</b> Esc</li>
             <li>휴대폰은 화면 왼쪽을 끌면 이동(조이스틱), 오른쪽 버튼으로 공격·마법·포션. 가로로 돌리면 더 커요.</li>
             <li>지도 <b>오른쪽 끝 → 다음 지도</b>, 왼쪽 끝 → 이전 지도. 마을 → 사냥터 10곳 → 다음 마을 … 마을 하나가 10레벨씩(솔뫼 마을 Lv.1~10 … 구름절 마을 Lv.71~80), 마지막 도원수 진영은 Lv.80~100.</li>
-            <li>문으로 걸어 들어가면 <b>건물 안</b>이에요. 안에 있는 사람에게 가까이 가면 이야기해요: <b>약방</b> 미나 · <b>도술 서원</b> 루멘(마법 배우기·융합) · <b>이장 댁</b> 이장님(무료 이동·저장). 아래 가운데 문으로 나가요.</li>
+            <li>문으로 걸어 들어가면 <b>건물 안</b>이에요. 안에 있는 사람에게 가까이 가면 이야기해요: <b>약방</b> 아씨 · <b>도술 서원</b> 도사(마법 배우기·융합) · <b>이장 댁</b> 이장님(무료 이동·저장). 아래 가운데 문으로 나가요.</li>
             <li>처음부터 <b>마법 화살</b>(1번 키)을 쓸 수 있어요.</li>
             <li><b>스탯</b>: 레벨이 오를 때마다 포인트 2개 — 왼쪽 위 얼굴(또는 C)을 눌러 힘(피해)·민첩(이동 속도)·지혜(마나 회복)·체력(최대 체력)·<b>저항</b>(물리 방어 +0.5% · 속성 방어 +0.5%)에 올려요. 스탯마다 최대 50.</li>
             <li><b>거래</b>: 온라인 서버에서 같은 지도에 있는 사람을 누르거나 가까이 가서 F → 거래 신청. 둘 다 확인을 누르면 아이템·골드가 바뀌어요.</li>

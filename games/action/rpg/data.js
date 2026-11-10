@@ -324,7 +324,7 @@
     resist: 0.7, weakMul: 1.3,
     /* 보스 기술 (game.js bossSkill): slam 내려찍기 · charge 돌진 · blades 칼비(땅에서 칼날이 솟음) · ring 사방 탄 · fan 부채꼴 탄 · summon 망령 부르기
      *  체력이 절반 아래면 '분노': 기술을 더 자주, 더 많이 씀 */   // midPlus = 옥졸·판관 레벨 = 단계 레벨 + 3 (1-3 옥졸 106 · 1-4 판관 107)
-    npc: { name: '저승차사 강림', color: '#B8A8FF', av: { skin: 's3', hair: 'h_spiky', top: 't_suit', bottom: 'b_armor', shoes: 'sh_black', back: 'bk_cape' },
+    npc: { name: '저승차사 강림', img: 'npc_hell', h: 70, color: '#B8A8FF', av: { skin: 's3', hair: 'h_spiky', top: 't_suit', bottom: 'b_armor', shoes: 'sh_black', back: 'bk_cape' },
       hello: ['전쟁이 끝났어도 저승은 아직 전쟁 중일세.', '산 몸으로 저승에 들어갈 수 있는 이는 자네뿐이야.', '열 관문의 대왕들이 자네를 시험할 걸세. 각오는 됐는가?'],
       lines: ['…저승문이 흔들리고 있어.', '명부를 되찾아야 하네.', '레벨 100이 되면 다시 오게.'] },
     story: [
@@ -339,7 +339,7 @@
         stageName: ['칼산 기슭', '칼날 비탈', '옥졸의 길목', '판관의 심문대', '진광대왕 전'],
         mob: { name: '칼산 망령', img: 'hell1_mob', art: 'h_wraith', shape: 'ghost', colors: { a: '#B8C8E8', b: '#5A6A90', c: '#F0F4FF', d: '#FF5A5F' }, kind: 'aggro' },
         mob2: { name: '칼 든 원혼', img: 'hell1_mob2', art: 'h_soldier', shape: 'skeleton', colors: { a: '#D8D0C0', b: '#7A6A5A', c: '#FFF4E0', d: '#FF3A3A' }, kind: 'shoot' },
-        guard: { name: '우두 옥졸', img: 'hell1_guard', art: 'h_ox', shape: 'beast', colors: { a: '#7A3A2A', b: '#4A2018', c: '#E8C8A0', d: '#FFD23F' }, kind: 'boss', say: '소머리 옥졸이 쇠몽둥이를 들고 길을 막습니다!', skills: ['charge', 'slam'] },
+        guard: { name: '우두 옥졸', img: 'npc_guard', h: 68, img: 'hell1_guard', art: 'h_ox', shape: 'beast', colors: { a: '#7A3A2A', b: '#4A2018', c: '#E8C8A0', d: '#FFD23F' }, kind: 'boss', say: '소머리 옥졸이 쇠몽둥이를 들고 길을 막습니다!', skills: ['charge', 'slam'] },
         judge: { name: '도산 판관', img: 'hell1_judge', art: 'h_judge', shape: 'imp', colors: { a: '#3A3A7A', b: '#20204A', c: '#F0D8B0', d: '#FFD23F' }, kind: 'boss', say: '명부를 잃은 판관이 당신의 죄를 묻습니다!', skills: ['fan', 'ring', 'summon'] },
         boss: { name: '진광대왕', img: 'hell1_king', art: 'h_king1', shape: 'golem', colors: { a: '#C83A3A', b: '#7A1A1A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '첫째 관문의 대왕이 시험을 시작합니다!', skills: ['blades', 'ring', 'charge', 'summon', 'slam'] } },
       { no: 2, king: '초강대왕', hell: '화탕지옥', short: '화탕', day: '둘째 7일', el: 'fire',
@@ -656,23 +656,23 @@
    *  av = 사이트 아바타 옷 그대로 (avatar/avatar.js 의 아이템 id) → 플레이어와 같은 그림체
    *  hello = 창을 열 때 하는 말 (아무거나 하나) · lines = 근처에 가면 머리 위 말풍선 */
   const NPCS = {
-    potion: { name: '약방 아씨 미나', color: '#FF9AA0', av: { skin: 's2', hair: 'h_bun', face: 'f_glasses', top: 't_doctor', bottom: 'b_skirt', shoes: 'sh_red' },
+    potion: { name: '약방 아씨 미나', img: 'npc_potion', h: 62, names: ['약방 아씨 미나', '약방 아씨 소연', '약방 아씨 연화', '약방 아씨 해랑', '약방 아씨 단비', '약방 아씨 설아', '약방 아씨 보라', '약방 아씨 은비', '약방 아씨 초롱'], color: '#FF9AA0', av: { skin: 's2', hair: 'h_bun', face: 'f_glasses', top: 't_doctor', bottom: 'b_skirt', shoes: 'sh_red' },
       hello: ['어서 와요! 오늘 끓인 물약이 아주 잘 됐어요.', '사냥 가기 전에 물약은 넉넉히! 쓰러지면 손해예요.', '안 쓰는 물건은 여기서 팔아도 돼요. 값은 좀 깎이지만요.'] },
-    school: { name: '서원 도사 루멘', color: '#D8B8FF', av: { skin: 's1', hair: 'h_long', hat: 'hat_wizard', face: 'f_beard', top: 't_robe', bottom: 'b_ninja', shoes: 'sh_black' },
+    school: { name: '서원 도사 루멘', img: 'npc_school', h: 66, names: ['서원 도사 루멘', '서원 도사 청암', '서원 도사 운곡', '서원 도사 해암', '서원 도사 석봉', '서원 도사 설봉', '서원 도사 현무', '서원 도사 운학', '서원 도사 백운'], color: '#D8B8FF', av: { skin: 's1', hair: 'h_long', hat: 'hat_wizard', face: 'f_beard', top: 't_robe', bottom: 'b_ninja', shoes: 'sh_black' },
       hello: ['마법은 원소의 대화란다. 두 원소를 섞으면 새 마법이 태어나지.', '레벨이 오르면 다시 오너라. 더 강한 마법을 가르쳐 주마.', '같은 원소끼리는 섞이지 않는단다. 서로 다른 것이 만나야 새것이 되지.'] },
-    chief: { name: '이장님', color: '#9AF0B0', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+    chief: { name: '이장님', img: 'npc_chief', h: 66, names: ['솔뫼 이장님', '대숲 이장님', '나루 이장님', '포구 이장님', '산성 이장님', '눈고개 이장님', '용굴 이장님', '구름절 이장님', '진영 이장님'], color: '#9AF0B0', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
       hello: ['어서 오게! 여기가 자네의 귀환 장소일세.', '가 본 곳이면 어디든 보내 주지. 이동은 무료라네.', '무리하지 말게. 쓰러지면 이 집 앞에서 다시 깨어날 걸세.'] },
-    castle: { name: '도원수', color: '#FFE45C', av: { skin: 's1', hair: 'h_curly', hat: 'hat_emperor', face: 'f_beard', top: 't_suit', bottom: 'b_armor', shoes: 'sh_gold', back: 'bk_cape' },
+    castle: { name: '도원수', img: 'npc_castle', h: 70, color: '#FFE45C', av: { skin: 's1', hair: 'h_curly', hat: 'hat_emperor', face: 'f_beard', top: 't_suit', bottom: 'b_armor', shoes: 'sh_gold', back: 'bk_cape' },
       hello: ['잘 왔소. 왜성 깊은 곳에서 흑룡 이무기가 깨어나고 있소…', '왜군과 요괴가 한데 엉켜 몰려오고 있소. 힘을 길러 두시오.'] },
     guard: { name: '진영 파수꾼', color: '#C9D0F0', av: { skin: 's4', hair: 'h_short', hat: 'hat_darkhelm', top: 't_armor', bottom: 'b_armor', shoes: 'sh_black' },
       lines: ['도원수께 예를 갖추시오.', '진영은 안전하오.', '왜성 쪽 용암 지대는 조심하시오!'] }
   };
   // 마을을 돌아다니는 사람 (마을마다 2명씩 번갈아)
   const VILLAGERS = [
-    { name: '꼬마 콩이', av: { skin: 's2', hair: 'h_twin', top: 't_pe', bottom: 'b_shorts', shoes: 'sh_red' }, lines: ['분수 물 진짜 시원해!', '오른쪽 끝으로 가면 사냥터래!', '나도 커서 마법사 될 거야!'] },
-    { name: '나무꾼 아저씨', av: { skin: 's3', hair: 'h_short_brown', hat: 'hat_straw', face: 'f_mustache', top: 't_overall', bottom: 'b_jeans', shoes: 'sh_boots' }, lines: ['숲에 슬라임이 많아졌어.', '약방 물약은 정말 잘 들어.', '이장님 댁에 들르면 멀리 갈 수 있다네.'] },
-    { name: '여행자 하늘', av: { skin: 's1', hair: 'h_ponytail', hat: 'hat_elfhood', top: 't_elf', bottom: 'b_cargo', shoes: 'sh_hightop', back: 'bk_bag2' }, lines: ['왜군이 사냥터마다 숨어 있대!', '보스는 꼭 장비를 떨어뜨린대!', '도술 서원에서 융합을 배워 봐.'] },
-    { name: '떠돌이 장인 철수', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' }, lines: ['정예 장비는 반짝반짝 빛나지.', '레벨이 모자라면 장비를 못 입어.', '마을 대장간에서 장비를 강화해 봐!'] }
+    { name: '꼬마 콩이', img: 'npc_vil1', h: 54, names: ['꼬마 콩이', '꼬마 팥이', '꼬마 보리', '꼬마 조약돌', '꼬마 별이', '꼬마 눈송이', '꼬마 다람', '꼬마 꽃님', '꼬마 봄이'], av: { skin: 's2', hair: 'h_twin', top: 't_pe', bottom: 'b_shorts', shoes: 'sh_red' }, lines: ['분수 물 진짜 시원해!', '오른쪽 끝으로 가면 사냥터래!', '나도 커서 마법사 될 거야!'] },
+    { name: '나무꾼 아저씨', img: 'npc_vil2', h: 66, names: ['나무꾼 아저씨', '나무꾼 덕배', '나무꾼 칠복', '나무꾼 만석', '나무꾼 억쇠', '나무꾼 두쇠', '나무꾼 삼돌', '나무꾼 봉구', '나무꾼 갑돌'], av: { skin: 's3', hair: 'h_short_brown', hat: 'hat_straw', face: 'f_mustache', top: 't_overall', bottom: 'b_jeans', shoes: 'sh_boots' }, lines: ['숲에 슬라임이 많아졌어.', '약방 물약은 정말 잘 들어.', '이장님 댁에 들르면 멀리 갈 수 있다네.'] },
+    { name: '여행자 하늘', img: 'npc_vil3', h: 64, names: ['여행자 하늘', '여행자 바다', '여행자 노을', '여행자 새벽', '여행자 들꽃', '여행자 솔바람', '여행자 이슬', '여행자 달님', '여행자 해님'], av: { skin: 's1', hair: 'h_ponytail', hat: 'hat_elfhood', top: 't_elf', bottom: 'b_cargo', shoes: 'sh_hightop', back: 'bk_bag2' }, lines: ['왜군이 사냥터마다 숨어 있대!', '보스는 꼭 장비를 떨어뜨린대!', '도술 서원에서 융합을 배워 봐.'] },
+    { name: '떠돌이 장인 철수', img: 'npc_vil4', h: 64, names: ['떠돌이 장인 철수', '떠돌이 장인 만복', '떠돌이 장인 석구', '떠돌이 장인 태복', '떠돌이 장인 용팔', '떠돌이 장인 순돌', '떠돌이 장인 판돌', '떠돌이 장인 춘삼', '떠돌이 장인 덕구'], av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' }, lines: ['정예 장비는 반짝반짝 빛나지.', '레벨이 모자라면 장비를 못 입어.', '마을 대장간에서 장비를 강화해 봐!'] }
   ];
   /* v80 조선군 진영 사람들 (마을마다 · Meshy 그림 img/v79/jo_*.png · 말 걸면 lines 중 하나) */
   const ARMY = {
@@ -690,14 +690,16 @@
   // v85 역참 (마을마다 하나) — 다른 마을로 한 번에 이동
   //  레벨 제한 = 가는 마을의 시작 레벨(LV_RANGE[도착][0]) 이상 · 이용료 = 거리(마을 칸 수) × 도착 마을 번호(1~9) × feeUnit G
   //  예) 솔뫼(1) → 대숲(2) = 1 × 2 × 20 = 40G · 솔뫼 → 도원수 진영(9) = 8 × 9 × 20 = 1,440G · 도원수 진영 → 솔뫼 = 8 × 1 × 20 = 160G
-  const STATION = { name: '역참지기 바람이', color: '#9AE6FF', feeUnit: 20, av: { skin: 's2', hair: 'h_short', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
+  const STATION = { name: '역참지기 바람이', img: 'npc_station', h: 64, names: ['역참지기 바람이', '역참지기 구름이', '역참지기 번개', '역참지기 질풍이', '역참지기 산들이', '역참지기 눈보라', '역참지기 돌개', '역참지기 하늬', '역참지기 회오리'], color: '#9AE6FF', feeUnit: 20, av: { skin: 's2', hair: 'h_short', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
     hello: ['어디로 모실까요? 말이 바람처럼 달립니다!', '먼 마을일수록 말을 여러 번 갈아타야 해서 값이 올라요.', '그 마을 시작 레벨이 안 되면 위험해서 못 모셔요.', '한 번에 휙! 걸어가는 것보다 훨씬 빠르지요.'],
     lines: ['히히힝~', '말 먹이를 줘야겠군.', '역참 이용하세요!'] };
   const stationFee = (from, to) => Math.abs(to - from) * (to + 1) * STATION.feeUnit;   // from·to = 마을 번호 0~8
   // v60 마을 대장간 (마을마다 한 명 · 서 있음 · 가까이 가면 강화 창)
-  const SMITH = { name: '대장장이 무쇠', color: '#FFB86B', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
+  const SMITH = { name: '대장장이 무쇠', img: 'npc_smith', h: 64, names: ['대장장이 무쇠', '대장장이 쇠돌', '대장장이 돌쇠', '대장장이 강쇠', '대장장이 단철', '대장장이 쇠북', '대장장이 불꽃', '대장장이 망치', '대장장이 화덕'], color: '#FFB86B', av: { skin: 's4', hair: 'h_spiky', face: 'f_goggles', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
     hello: ['불이 잘 달궈졌네! 뭘 두드려 볼까?', '강화는 운이야. 실패하면 장비가 산산조각 나니 각오하게!', '+10 까지 가면 전설이 되는 거지. 허허!', '높이 올라갈수록 망치가 무거워진다네. 골드도 두 배씩!'],
     lines: ['땅! 땅! 땅!', '강화하러 왔나?', '불꽃이 좋구먼!'] };
 
-  window.GoRPGData = { WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  // v110 NPC 그림(img/v79/npc_*.png) · 같은 그림을 쓰는 마을마다 이름만 다르게 (names[마을 번호 0~8])
+  const npcDef = (def, r) => (def && def.names && def.names[r] && def.names[r] !== def.name ? Object.assign({}, def, { name: def.names[r] }) : def);
+  window.GoRPGData = { npcDef, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();

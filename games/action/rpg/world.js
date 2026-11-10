@@ -374,7 +374,7 @@
       const v = at(tx, ty); if (v !== 2 && v !== 3) continue;
       const kind = v === 2 ? R.block : R.block2, vr = Math.floor(rnd() * 3), spr = blockSprite(kind, vr, R);
       x.fillStyle = 'rgba(0,0,0,.22)'; x.beginPath(); x.ellipse(tx * TS + 16, ty * TS + 28, 15, 6, 0, 0, Math.PI * 2); x.fill();
-      map.objs.push({ img: spr, x: tx * TS - 16, y: ty * TS - 40, sy: (ty + 1) * TS - 2, kind, tx, ty, alt: 'obj_r' + map.M.region + '_' + (v === 2 ? 1 : 2) });
+      map.objs.push({ img: spr, x: tx * TS - 16, y: ty * TS - 40, sy: (ty + 1) * TS - 2, kind, tx, ty, alt: 'obj_r' + map.M.region + '_' + (v === 2 ? 1 : 2), alt2: map.M.hell ? null : envPick(map.M.region, v, tx, ty) });
       if (kind === 'crystal') map.glows.push({ x: tx * TS + 16, y: ty * TS + 6, r: 70, col: '#B08AFF' });
       if (kind === 'lavarock') map.glows.push({ x: tx * TS + 16, y: ty * TS + 18, r: 40, col: '#FF6A3D' });
     }
@@ -420,6 +420,27 @@
     const { w, h, R, at } = map, [c, x] = mk(w, h), col = { 0: R.ground[0], 1: R.path, 2: shade(R.ground[0], -0.45), 3: shade(R.ground[0], -0.35), 4: R.water, 5: R.ground[0], 6: '#B8A080', 7: '#FFD27A', 8: '#9AD8F5', 9: '#FF8A3D', 10: '#B8A080', 11: '#9AE6FF' };
     for (let y = 0; y < h; y++) for (let i = 0; i < w; i++) { x.fillStyle = col[at(i, y)] || R.ground[0]; x.fillRect(i, y, 1, 1); }
     return c;
+  }
+
+  /* ---------- v110 사냥터·마을 나무·바위 여러 가지 (선생님 그림 img/v79/env_t?·env_r?) ----------
+   *  지역마다 고를 수 있는 그림 목록 · 'old' = 예전 지역 그림(obj_rN_1·2) 그대로 · 칸마다 정해진 무작위(같은 칸은 늘 같은 그림)
+   *  t = 칸 값 2(R.block) 자리 · r = 칸 값 3(R.block2) 자리 */
+  const ENV_POOL = [
+    { t: ['old', 'old', 'env_tA', 'env_tA', 'env_tB', 'env_tI', 'env_tH', 'env_tF', 'env_tF'], r: ['old', 'env_rA', 'env_rB', 'env_rC', 'env_rD'] },          // 0 솔뫼
+    { t: ['old', 'env_tE', 'env_tC', 'env_tB', 'env_tJ'], r: ['old', 'env_rA', 'env_rB', 'env_rG', 'env_rE'] },                     // 1 대숲
+    { t: ['old', 'env_tG', 'env_tF', 'env_tF', 'env_tJ', 'env_tH'], r: ['old', 'env_rB', 'env_rG', 'env_rD'] },                               // 2 갈대늪
+    { t: ['old', 'env_tC', 'env_tG'], r: ['old', 'env_rC', 'env_rD', 'env_rH'] },                                                   // 3 모래톱 포구
+    { t: ['old', 'env_tC', 'env_tE', 'env_tD', 'env_tB'], r: ['old', 'env_rC', 'env_rE', 'env_rH', 'env_rJ', 'env_rD'] },          // 4 돌산성
+    { t: ['old', 'old', 'env_tG'], r: ['old', 'env_rH', 'env_rA'] },                                                                       // 5 눈고개 (눈 나무·얼음은 예전 그림 위주)
+    { t: ['old', 'env_rI'], r: ['old', 'env_rI', 'env_rH', 'env_rC'] },                                                             // 6 용굴 (수정 + 광물 바위)
+    { t: ['old', 'env_tD', 'env_tA', 'env_tF', 'env_tI'], r: ['old', 'env_rJ', 'env_rA', 'env_rB'] },                              // 7 구름절
+    { t: ['old', 'env_rI', 'env_rC'], r: ['old', 'env_tG'] }                                                                        // 8 도원수 진영 (용암 바위 · 마른 나무)
+  ];
+  function envPick(region, v, tx, ty) {
+    const P = ENV_POOL[region]; if (!P) return null;
+    const L = v === 2 ? P.t : P.r; let h = (tx * 73856093) ^ (ty * 19349663) ^ (region * 83492791); h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+    const n = L[(h >>> 0) % L.length]; if (n === 'old') return null;
+    img79(n); return n;   // 미리 받기 시작 (받기 전에는 예전 그림)
   }
 
   /* ---------- 나무·바위 그림 조각 (64 × 80, 칸 왼쪽 위 = (16, 40)) ---------- */
