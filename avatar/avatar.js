@@ -343,7 +343,7 @@
   function useBody(av) {
     if (!av || (av.g !== 'm' && av.g !== 'f')) return false;
     const n = normalize(av), free = id => !id || (byId[id] && byId[id].price === 0);
-    return n.top === 't_basic' && n.bottom === 'b_jeans' && n.shoes === 'sh_basic' && (!n.hat || HAT_OV.includes(n.hat)) && !n.face && !n.back && (free(n.hair) || HAIR_OV.includes(n.hair)) && BODY_SKINS.includes(n.skin);
+    return n.top === 't_basic' && n.bottom === 'b_jeans' && n.shoes === 'sh_basic' && (!n.hat || HAT_OV.includes(n.hat)) && (!n.face || FACE_OV.includes(n.face)) && !n.back && (free(n.hair) || HAIR_OV.includes(n.hair)) && BODY_SKINS.includes(n.skin);
   }
   /* v114 상점 머리(돈 주고 산 머리)를 몸 그림 위에 얹기
    *  avatar/bald/<피부>_<m|f>_<f|s|b>.png = 머리카락을 지운 몸, avatar/hair/<머리>_<f|s|b>.png = 머리만 (선생님 그림)
@@ -373,11 +373,15 @@
    *  HAT_POS[모자][성별+방향] = [기준점에서 그림 왼쪽 위 x, y, 크기] (기준점·크기는 BALD 와 같음) */
   const HAT_OV = ["hat_cap", "hat_sweatband", "hat_beanie", "hat_snapback", "hat_pompom", "hat_hardhat", "hat_straw", "hat_raincoat", "hat_chef", "hat_cat", "hat_santa", "hat_bunnyhood", "hat_bear", "hat_penguin", "hat_fire", "hat_police", "hat_dino", "hat_panda", "hat_pilot", "hat_tophat", "hat_bunny", "hat_devil", "hat_flower", "hat_elfhood", "hat_pumpkin", "hat_racing", "hat_gat", "hat_wizard", "hat_pirate", "hat_astro", "hat_halo", "hat_crown", "hat_darkhelm", "hat_emperor"];
   const HAT_POS = {"hat_cap":{"mf":[-27.0,-68.3,1.0],"ff":[-27.8,-67.8,1.0],"ms":[-24.7,-63.6,1.0],"fs":[-27.4,-65.6,1.0],"mb":[-33.4,-71.7,1.0],"fb":[-32.9,-71.8,1.0]},"hat_sweatband":{"mf":[-26.3,-47.0,1.0],"ff":[-27.1,-46.5,1.0],"ms":[-23.7,-48.8,1.0],"fs":[-26.4,-50.8,1.0],"mb":[-27.3,-51.6,1.0],"fb":[-26.8,-51.7,1.0]},"hat_beanie":{"mf":[-26.3,-75.9,1.0],"ff":[-27.1,-75.4,1.0],"ms":[-22.2,-79.9,1.0],"fs":[-24.9,-81.9,1.0],"mb":[-26.8,-86.1,1.0],"fb":[-26.3,-86.2,1.0]},"hat_snapback":{"mf":[-27.0,-53.2,1.0],"ff":[-27.8,-52.7,1.0],"ms":[-28.1,-66.2,1.0],"fs":[-30.8,-68.2,1.0],"mb":[-33.9,-66.7,1.0],"fb":[-33.4,-66.8,1.0]},"hat_pompom":{"mf":[-29.4,-70.1,1.0],"ff":[-30.2,-69.6,1.0],"ms":[-28.9,-77.3,1.0],"fs":[-31.6,-79.3,1.0],"mb":[-30.4,-76.1,1.0],"fb":[-29.9,-76.2,1.0]},"hat_hardhat":{"mf":[-29.4,-68.8,1.0],"ff":[-30.2,-68.3,1.0],"ms":[-31.7,-73.6,1.0],"fs":[-34.4,-75.6,1.0],"mb":[-29.2,-80.5,1.0],"fb":[-28.7,-80.6,1.0]},"hat_straw":{"mf":[-43.4,-67.0,1.0],"ff":[-44.2,-66.5,1.0],"ms":[-36.5,-73.4,1.0],"fs":[-39.2,-75.4,1.0],"mb":[-43.0,-85.5,1.0],"fb":[-42.5,-85.6,1.0]},"hat_raincoat":{"mf":[-32.9,-73.8,1.0],"ff":[-33.7,-73.3,1.0],"ms":[-36.6,-62.8,1.0],"fs":[-39.3,-64.8,1.0],"mb":[-33.9,-81.2,1.0],"fb":[-33.4,-81.3,1.0]},"hat_chef":{"mf":[-23.5,-70.4,1.0],"ff":[-24.3,-69.9,1.0],"ms":[-23.2,-69.9,1.0],"fs":[-25.9,-71.9,1.0],"mb":[-24.5,-80.1,1.0],"fb":[-24.0,-80.2,1.0]},"hat_cat":{"mf":[-32.9,-57.4,1.0],"ff":[-33.7,-56.9,1.0],"ms":[-43.2,-71.5,1.0],"fs":[-45.9,-73.5,1.0],"mb":[-33.9,-72.0,1.0],"fb":[-33.4,-72.1,1.0]},"hat_santa":{"mf":[-31.6,-77.5,1.0],"ff":[-32.4,-77.0,1.0],"ms":[-35.4,-74.7,1.0],"fs":[-38.1,-76.7,1.0],"mb":[-34.8,-83.5,1.0],"fb":[-34.3,-83.6,1.0]},"hat_bunnyhood":{"mf":[-32.9,-81.0,1.0],"ff":[-33.7,-80.5,1.0],"ms":[-41.6,-91.7,1.0],"fs":[-44.3,-93.7,1.0],"mb":[-33.9,-95.8,1.0],"fb":[-33.4,-95.9,1.0]},"hat_bear":{"mf":[-32.9,-55.2,1.0],"ff":[-33.7,-54.7,1.0],"ms":[-34.2,-64.4,1.0],"fs":[-36.9,-66.4,1.0],"mb":[-33.9,-68.5,1.0],"fb":[-33.4,-68.6,1.0]},"hat_penguin":{"mf":[-32.9,-75.9,1.0],"ff":[-33.7,-75.4,1.0],"ms":[-45.6,-93.8,1.0],"fs":[-48.3,-95.8,1.0],"mb":[-33.9,-84.9,1.0],"fb":[-33.4,-85.0,1.0]},"hat_fire":{"mf":[-37.6,-73.3,1.0],"ff":[-38.4,-72.8,1.0],"ms":[-40.0,-63.8,1.0],"fs":[-42.7,-65.8,1.0],"mb":[-38.6,-79.3,1.0],"fb":[-38.1,-79.4,1.0]},"hat_police":{"mf":[-30.5,-58.9,1.0],"ff":[-31.3,-58.4,1.0],"ms":[-26.0,-66.2,1.0],"fs":[-28.7,-68.2,1.0],"mb":[-31.5,-62.7,1.0],"fb":[-31.0,-62.8,1.0]},"hat_dino":{"mf":[-32.9,-66.6,1.0],"ff":[-33.7,-66.1,1.0],"ms":[-55.8,-77.6,1.0],"fs":[-58.5,-79.6,1.0],"mb":[-33.9,-94.0,1.0],"fb":[-33.4,-94.1,1.0]},"hat_panda":{"mf":[-32.9,-59.8,1.0],"ff":[-33.7,-59.3,1.0],"ms":[-43.2,-70.2,1.0],"fs":[-45.9,-72.2,1.0],"mb":[-33.9,-69.8,1.0],"fb":[-33.4,-69.9,1.0]},"hat_pilot":{"mf":[-30.5,-61.5,1.0],"ff":[-31.3,-61.0,1.0],"ms":[-27.5,-71.5,1.0],"fs":[-30.2,-73.5,1.0],"mb":[-31.5,-65.1,1.0],"fb":[-31.0,-65.2,1.0]},"hat_tophat":{"mf":[-27.0,-73.4,1.0],"ff":[-27.8,-72.9,1.0],"ms":[-24.4,-74.1,1.0],"fs":[-27.1,-76.1,1.0],"mb":[-28.0,-79.4,1.0],"fb":[-27.5,-79.5,1.0]},"hat_bunny":{"mf":[-27.0,-85.9,1.0],"ff":[-27.8,-85.4,1.0],"ms":[-23.2,-96.1,1.0],"fs":[-25.9,-98.1,1.0],"mb":[-28.0,-91.5,1.0],"fb":[-27.5,-91.6,1.0]},"hat_devil":{"mf":[-25.8,-78.3,1.0],"ff":[-26.6,-77.8,1.0],"ms":[-23.2,-85.0,1.0],"fs":[-25.9,-87.0,1.0],"mb":[-26.8,-84.3,1.0],"fb":[-26.3,-84.4,1.0]},"hat_flower":{"mf":[-27.0,-59.4,1.0],"ff":[-27.8,-58.9,1.0],"ms":[-24.4,-59.7,1.0],"fs":[-27.1,-61.7,1.0],"mb":[-28.0,-64.2,1.0],"fb":[-27.5,-64.3,1.0]},"hat_elfhood":{"mf":[-32.3,-61.2,1.0],"ff":[-33.1,-60.7,1.0],"ms":[-36.6,-58.9,1.0],"fs":[-39.3,-60.9,1.0],"mb":[-33.9,-66.1,1.0],"fb":[-33.4,-66.2,1.0]},"hat_pumpkin":{"mf":[-31.7,-61.5,1.0],"ff":[-32.5,-61.0,1.0],"ms":[-29.3,-62.2,1.0],"fs":[-32.0,-64.2,1.0],"mb":[-32.7,-67.5,1.0],"fb":[-32.2,-67.6,1.0]},"hat_racing":{"mf":[-30.5,-68.8,1.0],"ff":[-31.3,-68.3,1.0],"ms":[-28.1,-63.2,1.0],"fs":[-30.8,-65.2,1.0],"mb":[-31.5,-72.1,1.0],"fb":[-31.0,-72.2,1.0]},"hat_gat":{"mf":[-47.0,-76.6,1.0],"ff":[-47.8,-76.1,1.0],"ms":[-45.1,-77.4,1.0],"fs":[-47.8,-79.4,1.0],"mb":[-48.0,-82.6,1.0],"fb":[-47.5,-82.7,1.0]},"hat_wizard":{"mf":[-37.5,-86.0,1.0],"ff":[-38.3,-85.5,1.0],"ms":[-35.3,-87.1,1.0],"fs":[-38.0,-89.1,1.0],"mb":[-38.5,-92.0,1.0],"fb":[-38.0,-92.1,1.0]},"hat_pirate":{"mf":[-35.2,-69.7,1.0],"ff":[-36.0,-69.2,1.0],"ms":[-33.0,-70.3,1.0],"fs":[-35.7,-72.3,1.0],"mb":[-36.2,-75.6,1.0],"fb":[-35.7,-75.7,1.0]},"hat_astro":{"mf":[-35.2,-64.0,1.0],"ff":[-36.0,-63.5,1.0],"ms":[-41.7,-63.3,1.0],"fs":[-44.4,-65.3,1.0],"mb":[-36.2,-73.7,1.0],"fb":[-35.7,-73.8,1.0]},"hat_halo":{"mf":[-31.7,-69.6,1.0],"ff":[-32.5,-69.1,1.0],"ms":[-21.0,-75.0,1.0],"fs":[-23.7,-77.0,1.0],"mb":[-32.7,-75.6,1.0],"fb":[-32.2,-75.7,1.0]},"hat_crown":{"mf":[-23.5,-73.9,1.0],"ff":[-24.3,-73.4,1.0],"ms":[-20.8,-74.7,1.0],"fs":[-23.5,-76.7,1.0],"mb":[-24.5,-79.9,1.0],"fb":[-24.0,-80.0,1.0]},"hat_darkhelm":{"mf":[-34.1,-74.9,1.0],"ff":[-34.9,-74.4,1.0],"ms":[-29.3,-82.5,1.0],"fs":[-32.0,-84.5,1.0],"mb":[-35.1,-80.9,1.0],"fb":[-34.6,-81.0,1.0]},"hat_emperor":{"mf":[-27.0,-94.5,1.0],"ff":[-27.8,-94.0,1.0],"ms":[-24.4,-95.9,1.0],"fs":[-27.1,-97.9,1.0],"mb":[-28.0,-100.5,1.0],"fb":[-27.5,-100.6,1.0]}};
+  /* v117 얼굴 장식(선생님 그림 앞·뒤·옆) · avatar/face/<장식>_<f|s|b>.png · FACE_POS 는 HAT_POS 와 같은 형식 (뒤에서 안 보이는 것은 그 방향 값 없음) */
+  const FACE_OV = ["f_mustache", "f_glasses", "f_mask", "f_goggles", "f_eyepatch", "f_beard", "f_sunglass", "f_mic", "f_headphone", "f_ninja", "f_elf"];
+  const FACE_POS = {"f_mustache":{"mf":[-9.9,-12.9,1.0],"ff":[-10.7,-12.4,1.0],"ms":[15.6,-12.1,1.0],"fs":[12.9,-14.1,1.0]},"f_glasses":{"mf":[-16.9,-28.5,1.0],"ff":[-17.7,-28.0,1.0],"ms":[-6.9,-23.9,1.0],"fs":[-9.6,-25.9,1.0],"mb":[-21.0,-33.3,1.0],"fb":[-20.5,-33.4,1.0]},"f_mask":{"mf":[-18.8,-18.2,1.0],"ff":[-19.6,-17.7,1.0],"ms":[-1.4,-16.0,1.0],"fs":[-4.1,-18.0,1.0],"mb":[-17.9,-26.9,1.0],"fb":[-17.4,-27.0,1.0]},"f_goggles":{"mf":[-20.2,-35.0,1.0],"ff":[-21.0,-34.5,1.0],"ms":[-15.5,-25.8,1.0],"fs":[-18.2,-27.8,1.0],"mb":[-24.0,-39.8,1.0],"fb":[-23.5,-39.9,1.0]},"f_eyepatch":{"mf":[-23.5,-37.8,1.0],"ff":[-24.3,-37.3,1.0],"ms":[-14.7,-33.2,1.0],"fs":[-17.4,-35.2,1.0],"mb":[-24.5,-46.9,1.0],"fb":[-24.0,-47.0,1.0]},"f_beard":{"mf":[-21.2,-17.0,1.0],"ff":[-22.0,-16.5,1.0],"ms":[-5.7,-15.1,1.0],"fs":[-8.4,-17.1,1.0],"mb":[-19.3,-28.7,1.0],"fb":[-18.8,-28.8,1.0]},"f_sunglass":{"mf":[-21.2,-27.7,1.0],"ff":[-22.0,-27.2,1.0],"ms":[-7.7,-25.4,1.0],"fs":[-10.4,-27.4,1.0],"mb":[-24.5,-34.4,1.0],"fb":[-24.0,-34.5,1.0]},"f_mic":{"mf":[-22.3,-45.6,1.0],"ff":[-23.1,-45.1,1.0],"ms":[-10.1,-37.0,1.0],"fs":[-12.8,-39.0,1.0],"mb":[-25.0,-51.7,1.0],"fb":[-24.5,-51.8,1.0]},"f_headphone":{"mf":[-24.9,-46.9,1.0],"ff":[-25.7,-46.4,1.0],"ms":[-7.7,-42.5,1.0],"fs":[-10.4,-44.5,1.0],"mb":[-25.9,-52.1,1.0],"fb":[-25.4,-52.2,1.0]},"f_ninja":{"mf":[-30.5,-54.9,1.0],"ff":[-31.3,-54.4,1.0],"ms":[-50.7,-55.0,1.0],"fs":[-53.4,-57.0,1.0],"mb":[-30.4,-64.3,1.0],"fb":[-29.9,-64.4,1.0]},"f_elf":{"mf":[-29.4,-34.1,1.0],"ff":[-30.2,-33.6,1.0],"ms":[-9.1,-24.5,1.0],"fs":[-11.8,-26.5,1.0],"mb":[-30.4,-35.8,1.0],"fb":[-29.9,-35.9,1.0]}};
   const HAT_BACK = ["hat_beanie_f", "hat_bear_f", "hat_bunnyhood_f", "hat_bunnyhood_s", "hat_cat_f", "hat_cat_s", "hat_dino_f", "hat_dino_s", "hat_elfhood_f", "hat_elfhood_s", "hat_fire_f", "hat_panda_f", "hat_panda_s", "hat_penguin_f", "hat_penguin_s", "hat_raincoat_f", "hat_raincoat_s", "hat_sweatband_b", "hat_sweatband_f", "hat_sweatband_s"];
   function bodyComp(av, view, cb) {
     const n = normalize(av), v = vOf(view), g = n.g === 'f' ? 'f' : 'm', hid = hairOf(n), tid = HAT_OV.includes(n.hat) ? n.hat : null;
-    if (!hid && !tid) return bodyImg(n.g, view, cb, n.skin);
-    const key = n.skin + '_' + g + '_' + v, ck = key + '|' + (hid || '') + '|' + (tid || '');
+    const fid = FACE_OV.includes(n.face) ? n.face : null, fp = fid && FACE_POS[fid] && FACE_POS[fid][g + v];   // 그 방향 그림이 없으면 안 그림
+    if (!hid && !tid && !fp) return bodyImg(n.g, view, cb, n.skin);
+    const key = n.skin + '_' + g + '_' + v, ck = key + '|' + (hid || '') + '|' + (tid || '') + '|' + (fp ? fid : '');
     if (compCv[ck]) return compCv[ck];
     const B = BALD[key], pos = hid && HAIR_POS[hid] && HAIR_POS[hid][g + v], tp = tid && HAT_POS[tid] && HAT_POS[tid][g + v];
     if (!B || (hid && !pos) || (tid && !tp)) return bodyImg(n.g, view, cb, n.skin);
@@ -387,7 +391,8 @@
     const back = hid === 'h_long' && v === 'f' ? loadImg('avatar/hair/h_long_fb' + q, cb) : true;   // 긴 머리 앞모습은 얼굴 뒤로 가는 부분이 따로
     const hat = tid ? loadImg('avatar/hat/' + tid + '_' + v + q, cb) : true;
     const hatB = tid && HAT_BACK.includes(tid + '_' + v) ? loadImg('avatar/hat/' + tid + '_' + v + 'b' + q, cb) : true;
-    if (!base || !hair || !back || !hat || !hatB) return null;
+    const face = fp ? loadImg('avatar/face/' + fid + '_' + v + q, cb) : true;
+    if (!base || !hair || !back || !hat || !hatB || !face) return null;
     const P = 40, W = base.naturalWidth, H = base.naturalHeight, k = B[2];
     const c = document.createElement('canvas'); c.width = W + P * 2; c.height = H + P * 2;
     const x = c.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
@@ -397,6 +402,7 @@
     if (back !== true) put(back, pos[0], pos[1], 1);
     x.drawImage(base, P, P);
     if (hid) put(hair, pos[0], pos[1], 1);
+    if (fp) put(face, fp[0], fp[1], fp[2]);
     if (tid) put(hat, tp[0], tp[1], tp[2]);
     c.pad = P; c.bw = W; c.bh = H; c.top = Math.max(0, top);   // 얹은 그림 맨 위 (캔버스 안)
     return (compCv[ck] = c);
@@ -417,7 +423,7 @@
   const bodyCv = {};
   function bodyCanvas(av, view, cb) {
     const n = normalize(av), im = bodyComp(n, view, cb); if (!im) return null;
-    const key = bodySrc(n.g, view, n.skin) + '|' + (hairOf(n) || '') + '|' + (HAT_OV.includes(n.hat) ? n.hat : ''); if (bodyCv[key]) return bodyCv[key];
+    const key = bodySrc(n.g, view, n.skin) + '|' + (hairOf(n) || '') + '|' + (HAT_OV.includes(n.hat) ? n.hat : '') + '|' + (FACE_OV.includes(n.face) ? n.face : ''); if (bodyCv[key]) return bodyCv[key];
     const c = document.createElement('canvas'); c.width = GW * 4; c.height = GH * 4;
     fitBody(c.getContext('2d'), im, 9 * 4, 4);
     return (bodyCv[key] = c);
@@ -788,7 +794,7 @@
   }
 
   window.GoAvatar = {
-    SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId, bodyImg, useBody, bodySrc, hairSrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, HAIR_OV, HAT_OV,
+    SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId, bodyImg, useBody, bodySrc, hairSrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, HAIR_OV, HAT_OV, FACE_OV,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
     normalize, grid, gridView, scene, draw, paint, paintAll, random, legs, refine, hires, OUT, rig, rigSide, drawWalk,
     walkP: t => t * Math.PI * 2,   // 걸음 수(바퀴) → 위상
