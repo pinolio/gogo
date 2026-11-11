@@ -896,6 +896,7 @@
       const it = s => eq[s] && D.ITEMS[eq[s]];
       if ((it('helmet') && !imgOk('ic_hm')) || (it('armor') && !imgOk('ic_ar')) || (it('boots') && !imgOk('ic_bt')) || (it('weapon') && !imgOk(WP_IC[it('weapon').look]))) return null;
     }
+    if (!hide && eq && eq.helmet && D.ITEMS[eq.helmet] && av && av.hat) av = Object.assign({}, av, { hat: null });   // v114 투구를 쓰면 모자 그림은 빼기
     return AV.bodyComp ? AV.bodyComp(av, view, null) : AV.bodyImg(av.g, view, null, AV.normalize(av).skin);   // v114 피부마다 다른 그림 + 상점 머리 얹기
   };
   function drawBody(x, im, cx, k) {

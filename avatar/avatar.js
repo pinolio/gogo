@@ -343,7 +343,7 @@
   function useBody(av) {
     if (!av || (av.g !== 'm' && av.g !== 'f')) return false;
     const n = normalize(av), free = id => !id || (byId[id] && byId[id].price === 0);
-    return n.top === 't_basic' && n.bottom === 'b_jeans' && n.shoes === 'sh_basic' && !n.hat && !n.face && !n.back && (free(n.hair) || HAIR_OV.includes(n.hair)) && BODY_SKINS.includes(n.skin);
+    return n.top === 't_basic' && n.bottom === 'b_jeans' && n.shoes === 'sh_basic' && (!n.hat || HAT_OV.includes(n.hat)) && !n.face && !n.back && (free(n.hair) || HAIR_OV.includes(n.hair)) && BODY_SKINS.includes(n.skin);
   }
   /* v114 상점 머리(돈 주고 산 머리)를 몸 그림 위에 얹기
    *  avatar/bald/<피부>_<m|f>_<f|s|b>.png = 머리카락을 지운 몸, avatar/hair/<머리>_<f|s|b>.png = 머리만 (선생님 그림)
@@ -369,33 +369,46 @@
   const hairOf = av => { const n = normalize(av); return HAIR_OV.includes(n.hair) ? n.hair : null; };
   // 몸 그림(머리 얹은 것까지) — 그냥 그림이면 Image, 머리를 얹었으면 여백(pad)이 있는 캔버스 · 아직 못 받았으면 null
   const compCv = {};
+  /* v114 상점 모자(선생님 그림 앞·뒤·옆)를 머리 위에 얹기 · avatar/hat/<모자>_<f|s|b>.png (+ <모자>_<f|s>b.png = 얼굴 뒤로 가는 안쪽)
+   *  HAT_POS[모자][성별+방향] = [기준점에서 그림 왼쪽 위 x, y, 크기] (기준점·크기는 BALD 와 같음) */
+  const HAT_OV = ["hat_cap", "hat_sweatband", "hat_beanie", "hat_snapback", "hat_pompom", "hat_hardhat", "hat_straw", "hat_raincoat", "hat_chef", "hat_cat", "hat_santa", "hat_bunnyhood", "hat_bear", "hat_penguin", "hat_fire", "hat_police", "hat_dino", "hat_panda", "hat_pilot", "hat_tophat", "hat_bunny", "hat_devil", "hat_flower", "hat_elfhood", "hat_pumpkin", "hat_racing", "hat_gat", "hat_wizard", "hat_pirate", "hat_astro", "hat_halo", "hat_crown", "hat_darkhelm", "hat_emperor"];
+  const HAT_POS = {"hat_cap":{"mf":[-35.4,-71.7,1.0],"ff":[-36.2,-71.2,1.0],"ms":[-24.7,-67.5,1.0],"fs":[-27.4,-69.5,1.0],"mb":[-28.0,-73.3,1.0],"fb":[-27.5,-73.4,1.0]},"hat_sweatband":{"mf":[-24.7,-43.9,1.0],"ff":[-25.5,-43.4,1.0],"ms":[-22.0,-45.6,1.0],"fs":[-24.7,-47.6,1.0],"mb":[-25.7,-49.9,1.0],"fb":[-25.2,-50.0,1.0]},"hat_beanie":{"mf":[-25.8,-80.1,1.0],"ff":[-26.6,-79.6,1.0],"ms":[-23.2,-81.5,1.0],"fs":[-25.9,-83.5,1.0],"mb":[-26.8,-86.1,1.0],"fb":[-26.3,-86.2,1.0]},"hat_snapback":{"mf":[-24.7,-50.7,1.0],"ff":[-25.5,-50.2,1.0],"ms":[-28.6,-54.8,1.0],"fs":[-31.3,-56.8,1.0],"mb":[-28.0,-67.5,1.0],"fb":[-27.5,-67.6,1.0]},"hat_pompom":{"mf":[-29.4,-70.1,1.0],"ff":[-30.2,-69.6,1.0],"ms":[-24.4,-77.3,1.0],"fs":[-27.1,-79.3,1.0],"mb":[-30.4,-76.1,1.0],"fb":[-29.9,-76.2,1.0]},"hat_hardhat":{"mf":[-28.2,-74.2,1.0],"ff":[-29.0,-73.7,1.0],"ms":[-26.9,-74.5,1.0],"fs":[-29.6,-76.5,1.0],"mb":[-29.2,-80.5,1.0],"fb":[-28.7,-80.6,1.0]},"hat_straw":{"mf":[-44.2,-80.6,1.0],"ff":[-45.0,-80.1,1.0],"ms":[-42.2,-81.2,1.0],"fs":[-44.9,-83.2,1.0],"mb":[-43.0,-85.5,1.0],"fb":[-42.5,-85.6,1.0]},"hat_raincoat":{"mf":[-32.9,-62.1,1.0],"ff":[-33.7,-61.6,1.0],"ms":[-36.6,-62.8,1.0],"fs":[-39.3,-64.8,1.0],"mb":[-33.9,-81.2,1.0],"fb":[-33.4,-81.3,1.0]},"hat_chef":{"mf":[-23.5,-74.1,1.0],"ff":[-24.3,-73.6,1.0],"ms":[-20.8,-71.4,1.0],"fs":[-23.5,-73.4,1.0],"mb":[-24.5,-80.1,1.0],"fb":[-24.0,-80.2,1.0]},"hat_cat":{"mf":[-35.2,-56.0,1.0],"ff":[-36.0,-55.5,1.0],"ms":[-43.2,-71.5,1.0],"fs":[-45.9,-73.5,1.0],"mb":[-35.1,-72.0,1.0],"fb":[-34.6,-72.1,1.0]},"hat_santa":{"mf":[-31.6,-77.5,1.0],"ff":[-32.4,-77.0,1.0],"ms":[-35.4,-74.7,1.0],"fs":[-38.1,-76.7,1.0],"mb":[-34.8,-83.5,1.0],"fb":[-34.3,-83.6,1.0]},"hat_bunnyhood":{"mf":[-35.2,-81.3,1.0],"ff":[-36.0,-80.8,1.0],"ms":[-41.6,-91.7,1.0],"fs":[-44.3,-93.7,1.0],"mb":[-35.1,-96.6,1.0],"fb":[-34.6,-96.7,1.0]},"hat_bear":{"mf":[-35.2,-53.7,1.0],"ff":[-36.0,-53.2,1.0],"ms":[-34.2,-64.4,1.0],"fs":[-36.9,-66.4,1.0],"mb":[-35.1,-68.3,1.0],"fb":[-34.6,-68.4,1.0]},"hat_penguin":{"mf":[-35.2,-75.9,1.0],"ff":[-36.0,-75.4,1.0],"ms":[-45.6,-93.8,1.0],"fs":[-48.3,-95.8,1.0],"mb":[-35.1,-85.3,1.0],"fb":[-34.6,-85.4,1.0]},"hat_fire":{"mf":[-37.6,-70.5,1.0],"ff":[-38.4,-70.0,1.0],"ms":[-40.0,-63.8,1.0],"fs":[-42.7,-65.8,1.0],"mb":[-38.6,-79.3,1.0],"fb":[-38.1,-79.4,1.0]},"hat_police":{"mf":[-30.5,-54.2,1.0],"ff":[-31.3,-53.7,1.0],"ms":[-26.0,-61.4,1.0],"fs":[-28.7,-63.4,1.0],"mb":[-31.5,-62.7,1.0],"fb":[-31.0,-62.8,1.0]},"hat_dino":{"mf":[-35.2,-65.9,1.0],"ff":[-36.0,-65.4,1.0],"ms":[-55.8,-77.6,1.0],"fs":[-58.5,-79.6,1.0],"mb":[-35.1,-94.8,1.0],"fb":[-34.6,-94.9,1.0]},"hat_panda":{"mf":[-35.2,-58.6,1.0],"ff":[-36.0,-58.1,1.0],"ms":[-43.2,-70.2,1.0],"fs":[-45.9,-72.2,1.0],"mb":[-35.1,-69.7,1.0],"fb":[-34.6,-69.8,1.0]},"hat_pilot":{"mf":[-30.5,-56.8,1.0],"ff":[-31.3,-56.3,1.0],"ms":[-26.0,-64.9,1.0],"fs":[-28.7,-66.9,1.0],"mb":[-31.5,-65.1,1.0],"fb":[-31.0,-65.2,1.0]},"hat_tophat":{"mf":[-27.0,-73.4,1.0],"ff":[-27.8,-72.9,1.0],"ms":[-24.4,-74.1,1.0],"fs":[-27.1,-76.1,1.0],"mb":[-28.0,-79.4,1.0],"fb":[-27.5,-79.5,1.0]},"hat_bunny":{"mf":[-27.0,-85.9,1.0],"ff":[-27.8,-85.4,1.0],"ms":[-23.2,-102.0,1.0],"fs":[-25.9,-104.0,1.0],"mb":[-28.0,-91.5,1.0],"fb":[-27.5,-91.6,1.0]},"hat_devil":{"mf":[-25.8,-78.3,1.0],"ff":[-26.6,-77.8,1.0],"ms":[-23.2,-92.3,1.0],"fs":[-25.9,-94.3,1.0],"mb":[-26.8,-84.3,1.0],"fb":[-26.3,-84.4,1.0]},"hat_flower":{"mf":[-27.0,-59.4,1.0],"ff":[-27.8,-58.9,1.0],"ms":[-24.4,-59.7,1.0],"fs":[-27.1,-61.7,1.0],"mb":[-28.0,-64.2,1.0],"fb":[-27.5,-64.3,1.0]},"hat_elfhood":{"mf":[-35.4,-59.2,1.0],"ff":[-36.2,-58.7,1.0],"ms":[-31.5,-59.9,1.0],"fs":[-34.2,-61.9,1.0],"mb":[-33.9,-66.1,1.0],"fb":[-33.4,-66.2,1.0]},"hat_pumpkin":{"mf":[-31.7,-61.5,1.0],"ff":[-32.5,-61.0,1.0],"ms":[-29.3,-62.2,1.0],"fs":[-32.0,-64.2,1.0],"mb":[-32.7,-67.5,1.0],"fb":[-32.2,-67.6,1.0]},"hat_racing":{"mf":[-30.5,-68.8,1.0],"ff":[-31.3,-68.3,1.0],"ms":[-28.1,-63.2,1.0],"fs":[-30.8,-65.2,1.0],"mb":[-31.5,-72.1,1.0],"fb":[-31.0,-72.2,1.0]},"hat_gat":{"mf":[-47.0,-76.6,1.0],"ff":[-47.8,-76.1,1.0],"ms":[-45.1,-77.4,1.0],"fs":[-47.8,-79.4,1.0],"mb":[-48.0,-82.6,1.0],"fb":[-47.5,-82.7,1.0]},"hat_wizard":{"mf":[-37.5,-86.0,1.0],"ff":[-38.3,-85.5,1.0],"ms":[-35.3,-87.1,1.0],"fs":[-38.0,-89.1,1.0],"mb":[-38.5,-92.0,1.0],"fb":[-38.0,-92.1,1.0]},"hat_pirate":{"mf":[-35.2,-69.7,1.0],"ff":[-36.0,-69.2,1.0],"ms":[-33.0,-70.3,1.0],"fs":[-35.7,-72.3,1.0],"mb":[-36.2,-75.6,1.0],"fb":[-35.7,-75.7,1.0]},"hat_astro":{"mf":[-35.2,-64.0,1.0],"ff":[-36.0,-63.5,1.0],"ms":[-41.7,-63.3,1.0],"fs":[-44.4,-65.3,1.0],"mb":[-36.2,-73.7,1.0],"fb":[-35.7,-73.8,1.0]},"hat_halo":{"mf":[-31.7,-73.8,1.0],"ff":[-32.5,-73.3,1.0],"ms":[-21.0,-79.4,1.0],"fs":[-23.7,-81.4,1.0],"mb":[-32.7,-79.8,1.0],"fb":[-32.2,-79.9,1.0]},"hat_crown":{"mf":[-23.5,-73.9,1.0],"ff":[-24.3,-73.4,1.0],"ms":[-20.8,-74.7,1.0],"fs":[-23.5,-76.7,1.0],"mb":[-24.5,-79.9,1.0],"fb":[-24.0,-80.0,1.0]},"hat_darkhelm":{"mf":[-34.1,-74.9,1.0],"ff":[-34.9,-74.4,1.0],"ms":[-29.3,-82.5,1.0],"fs":[-32.0,-84.5,1.0],"mb":[-35.1,-80.9,1.0],"fb":[-34.6,-81.0,1.0]},"hat_emperor":{"mf":[-27.0,-94.5,1.0],"ff":[-27.8,-94.0,1.0],"ms":[-24.4,-95.9,1.0],"fs":[-27.1,-97.9,1.0],"mb":[-28.0,-100.5,1.0],"fb":[-27.5,-100.6,1.0]}};
+  const HAT_BACK = ["hat_beanie_", "hat_beanie_", "hat_bear_", "hat_bear_", "hat_bunnyhood_", "hat_bunnyhood_", "hat_cat_", "hat_cat_", "hat_dino_", "hat_dino_", "hat_elfhood_", "hat_elfhood_", "hat_fire_", "hat_fire_", "hat_panda_", "hat_panda_", "hat_penguin_", "hat_penguin_", "hat_raincoat_", "hat_raincoat_"];
   function bodyComp(av, view, cb) {
-    const n = normalize(av), v = vOf(view), g = n.g === 'f' ? 'f' : 'm', hid = hairOf(n);
-    if (!hid) return bodyImg(n.g, view, cb, n.skin);
-    const key = n.skin + '_' + g + '_' + v, ck = key + '|' + hid;
+    const n = normalize(av), v = vOf(view), g = n.g === 'f' ? 'f' : 'm', hid = hairOf(n), tid = HAT_OV.includes(n.hat) ? n.hat : null;
+    if (!hid && !tid) return bodyImg(n.g, view, cb, n.skin);
+    const key = n.skin + '_' + g + '_' + v, ck = key + '|' + (hid || '') + '|' + (tid || '');
     if (compCv[ck]) return compCv[ck];
-    const B = BALD[key], pos = HAIR_POS[hid] && HAIR_POS[hid][g + v];
-    if (!B || !pos) return bodyImg(n.g, view, cb, n.skin);
-    const q = '.png?v=' + BODY_V, bald = loadImg('avatar/bald/' + key + q, cb), hair = loadImg('avatar/hair/' + hid + '_' + v + q, cb);
+    const B = BALD[key], pos = hid && HAIR_POS[hid] && HAIR_POS[hid][g + v], tp = tid && HAT_POS[tid] && HAT_POS[tid][g + v];
+    if (!B || (hid && !pos) || (tid && !tp)) return bodyImg(n.g, view, cb, n.skin);
+    const q = '.png?v=' + BODY_V;
+    const base = hid ? loadImg('avatar/bald/' + key + q, cb) : bodyImg(n.g, view, cb, n.skin);
+    const hair = hid ? loadImg('avatar/hair/' + hid + '_' + v + q, cb) : true;
     const back = hid === 'h_long' && v === 'f' ? loadImg('avatar/hair/h_long_fb' + q, cb) : true;   // 긴 머리 앞모습은 얼굴 뒤로 가는 부분이 따로
-    if (!bald || !hair || !back) return null;
-    const P = 20, W = bald.naturalWidth, H = bald.naturalHeight, k = B[2];
+    const hat = tid ? loadImg('avatar/hat/' + tid + '_' + v + q, cb) : true;
+    const hatB = tid && HAT_BACK.includes(tid + '_' + v) ? loadImg('avatar/hat/' + tid + '_' + v + 'b' + q, cb) : true;
+    if (!base || !hair || !back || !hat || !hatB) return null;
+    const P = 40, W = base.naturalWidth, H = base.naturalHeight, k = B[2];
     const c = document.createElement('canvas'); c.width = W + P * 2; c.height = H + P * 2;
     const x = c.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
-    const hx = Math.round(P + B[0] + pos[0] * k), hy = Math.round(P + B[1] + pos[1] * k);
-    if (back !== true) x.drawImage(back, hx, hy, Math.round(back.naturalWidth * k), Math.round(back.naturalHeight * k));
-    x.drawImage(bald, P, P);
-    x.drawImage(hair, hx, hy, Math.round(hair.naturalWidth * k), Math.round(hair.naturalHeight * k));
-    c.pad = P; c.bw = W; c.bh = H; c.top = Math.max(0, Math.min(P, hy));   // 머리 그림 맨 위 (캔버스 안)
+    let top = P;
+    const put = (im, px, py, sc) => { const X = Math.round(P + B[0] + px * k), Y = Math.round(P + B[1] + py * k); x.drawImage(im, X, Y, Math.round(im.naturalWidth * sc * k), Math.round(im.naturalHeight * sc * k)); top = Math.min(top, Y); };
+    if (hatB !== true) put(hatB, tp[0], tp[1], tp[2]);
+    if (back !== true) put(back, pos[0], pos[1], 1);
+    x.drawImage(base, P, P);
+    if (hid) put(hair, pos[0], pos[1], 1);
+    if (tid) put(hat, tp[0], tp[1], tp[2]);
+    c.pad = P; c.bw = W; c.bh = H; c.top = Math.max(0, top);   // 얹은 그림 맨 위 (캔버스 안)
     return (compCv[ck] = c);
   }
+
   /* 몸 그림을 칸 크기 k 로 그림: 발끝 = 28.4칸, 원래 몸 그림 키 = 27.4칸, 가운데 x = cx.
    *  얹은 머리가 위로 높으면(닭벼슬 등) 칸 밖으로 안 나가게 조금 작게 */
   function fitBody(x, im, cx, k) {
     const P = im.pad || 0, nw = im.bw || im.naturalWidth, nh = im.bh || im.naturalHeight, foot = 28.4 * k;
     let s = 27.4 * k / nh;
     const tall = nh + P - (im.top != null ? im.top : P);
-    if (tall * s > foot - 0.15 * k) s = (foot - 0.15 * k) / tall;
+    if (tall * s > foot - 0.15 * k) s = Math.max(s * 0.85, (foot - 0.15 * k) / tall);   // 토끼 귀처럼 아주 높으면 조금만 줄이고 위는 살짝 잘림
     const sm = x.imageSmoothingEnabled; x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
     x.drawImage(im, Math.round(cx - (P + nw / 2) * s), Math.round(foot - (P + nh) * s), Math.round((nw + P * 2) * s), Math.round((nh + P * 2) * s));
     x.imageSmoothingEnabled = sm;
@@ -404,7 +417,7 @@
   const bodyCv = {};
   function bodyCanvas(av, view, cb) {
     const n = normalize(av), im = bodyComp(n, view, cb); if (!im) return null;
-    const key = bodySrc(n.g, view, n.skin) + '|' + (hairOf(n) || ''); if (bodyCv[key]) return bodyCv[key];
+    const key = bodySrc(n.g, view, n.skin) + '|' + (hairOf(n) || '') + '|' + (HAT_OV.includes(n.hat) ? n.hat : ''); if (bodyCv[key]) return bodyCv[key];
     const c = document.createElement('canvas'); c.width = GW * 4; c.height = GH * 4;
     fitBody(c.getContext('2d'), im, 9 * 4, 4);
     return (bodyCv[key] = c);
@@ -775,7 +788,7 @@
   }
 
   window.GoAvatar = {
-    SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId, bodyImg, useBody, bodySrc, hairSrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, HAIR_OV,
+    SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId, bodyImg, useBody, bodySrc, hairSrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, HAIR_OV, HAT_OV,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
     normalize, grid, gridView, scene, draw, paint, paintAll, random, legs, refine, hires, OUT, rig, rigSide, drawWalk,
     walkP: t => t * Math.PI * 2,   // 걸음 수(바퀴) → 위상

@@ -214,8 +214,10 @@
   // v114 선생님 그림이 있는 헤어 (상점 카드에 그림으로 보임)
   const HAIR_IMG = ['h_short', 'h_short_brown', 'h_long', 'h_bob', 'h_ponytail', 'h_spiky', 'h_curly', 'h_bun', 'h_topknot', 'h_twin', 'h_twotone', 'h_mohawk'];
   // v114 상점 머리(얹는 머리)는 내 피부·성별 몸에 얹은 모습으로 보여 줌 (옷은 기본)
-  const ovHair = id => slot === 'hair' && id && AV.HAIR_OV && AV.HAIR_OV.includes(id) && (trial.g === 'm' || trial.g === 'f' || !Hub.user);
-  const hairLook = id => ({ skin: AV.BODY_SKINS.includes(trial.skin) ? trial.skin : 's1', g: trial.g === 'f' ? 'f' : 'm', hair: id });
+  const ovHair = id => id && (trial.g === 'm' || trial.g === 'f' || !Hub.user) && ((slot === 'hair' && AV.HAIR_OV && AV.HAIR_OV.includes(id)) || (slot === 'hat' && AV.HAT_OV && AV.HAT_OV.includes(id)));
+  const okHair = h => !h || (AV.byId[h] && AV.byId[h].price === 0) || (AV.HAIR_OV && AV.HAIR_OV.includes(h));
+  // 머리는 그 머리 + 지금 모자 없이 · 모자는 지금 머리(얹을 수 있는 것) + 그 모자 (옷은 기본)
+  const hairLook = id => Object.assign({ skin: AV.BODY_SKINS.includes(trial.skin) ? trial.skin : 's1', g: trial.g === 'f' ? 'f' : 'm' }, slot === 'hat' ? { hair: okHair(trial.hair) ? trial.hair : null, hat: id } : { hair: id });
   function card(id) {
     const it = id ? AV.byId[id] : null;
     const look = ovHair(id) ? hairLook(id) : Object.assign({}, trial, { [slot]: id });
