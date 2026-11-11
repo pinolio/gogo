@@ -120,7 +120,31 @@
   }
   // (x: 발 가운데, y: 발바닥) 기준으로 그림. face: 1 오른쪽, -1 왼쪽
   // v105 walk = 걸음 위상(라디안)을 주면 서 있는 그림을 조각내어 부드럽게 걷기 (AV.rig, RPG 순찰병과 같은 방식) · arms 'left' = 오른손에 라켓
+  // v114 새 몸 그림(옆모습)이 있으면 그것으로: 걷기 = AV.rigSide, 주먹·발차기 등은 몸을 기울여 표현, 맞으면 하얗게
+  let emptyCv = null; const flashCv = new Map();
+  const BODY_TILT = { punch: [0.13, 1.2], kick: [-0.16, -0.6], guard: [-0.08, -0.4], spike: [-0.1, 0], jump: [0, 0], hit: [-0.1, -0.5] };
+  function bodyFighter(ctx, av, pose, x, y, scale, face, alpha, walk) {
+    if (!AV.useBody || !AV.useBody(av) || !AV.bodyCanvas) return false;
+    let bc = AV.bodyCanvas(av, 's'); if (!bc) return false;
+    if (pose === 'hit') {
+      let f = flashCv.get(bc);
+      if (!f) { f = document.createElement('canvas'); f.width = bc.width; f.height = bc.height; const fx = f.getContext('2d'); fx.drawImage(bc, 0, 0); fx.globalCompositeOperation = 'source-atop'; fx.fillStyle = 'rgba(255,255,255,.65)'; fx.fillRect(0, 0, f.width, f.height); flashCv.set(bc, f); }
+      bc = f;
+    }
+    const w = AV.size.w * scale, h = AV.size.h * scale, t = BODY_TILT[pose] || [0, 0];
+    ctx.save(); if (alpha != null) ctx.globalAlpha = alpha;
+    ctx.translate(Math.round(x), Math.round(y)); if (face < 0) ctx.scale(-1, 1);
+    if (walk != null && (pose === 'idle' || pose === 'walk1' || pose === 'walk2') && AV.rigSide) {
+      if (!emptyCv) { emptyCv = document.createElement('canvas'); emptyCv.width = bc.width; emptyCv.height = bc.height; }
+      ctx.imageSmoothingEnabled = true; AV.rigSide(ctx, bc, emptyCv, Math.round(-w / 2), -h, w, h, walk, true, {});
+    } else {
+      ctx.translate(t[1] * scale, 0); ctx.rotate(t[0]);
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bc, Math.round(-w / 2), -h, w, h);
+    }
+    ctx.restore(); return true;
+  }
   function drawFighter(ctx, av, pose, x, y, scale, face, alpha, walk, arms) {
+    if (bodyFighter(ctx, av, pose, x, y, scale, face, alpha, walk)) return;
     if (walk != null && AV.rig && (pose === 'idle' || pose === 'walk1' || pose === 'walk2')) {
       const spr = fighter(av, 'idle'), w = SW * scale, h = SH * scale, bodyCx = (AV.size.w / 2) * scale;
       ctx.save(); if (alpha != null) ctx.globalAlpha = alpha;

@@ -896,9 +896,10 @@
       const it = s => eq[s] && D.ITEMS[eq[s]];
       if ((it('helmet') && !imgOk('ic_hm')) || (it('armor') && !imgOk('ic_ar')) || (it('boots') && !imgOk('ic_bt')) || (it('weapon') && !imgOk(WP_IC[it('weapon').look]))) return null;
     }
-    return AV.bodyImg(av.g, view);
+    return AV.bodyComp ? AV.bodyComp(av, view, null) : AV.bodyImg(av.g, view, null, AV.normalize(av).skin);   // v114 피부마다 다른 그림 + 상점 머리 얹기
   };
   function drawBody(x, im, cx, k) {
+    if (AV.fitBody) { AV.fitBody(x, im, cx, k); x.imageSmoothingEnabled = false; return; }   // v114 머리 얹은 그림(여백 있음)도 같은 크기로
     const hh = Math.round(27.4 * k), ww = Math.round(im.naturalWidth * hh / im.naturalHeight), by = Math.round(28.4 * k);
     x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
     x.drawImage(im, Math.round(cx - ww / 2), by - hh, ww, hh);

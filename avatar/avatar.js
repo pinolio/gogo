@@ -70,7 +70,10 @@
 
   // 피부 (색만 바뀜)
   [['s1', '밝은 피부', 0, '#F7D7B5'], ['s2', '살구 피부', 0, '#EBB58C'], ['s3', '구릿빛 피부', 0, '#C98A55'], ['s4', '갈색 피부', 0, '#8D5A34'],
-   ['s_alien', '외계인', 20, '#8EE08A'], ['s_robot', '로봇', 24, '#BFC7E0']]
+   ['s_alien', '외계인', 20, '#8EE08A'], ['s_robot', '로봇', 24, '#BFC7E0'],
+   // v114 새 피부 10가지 (선생님 그림 · 사람 피부색은 무료, 판타지 피부는 포인트)
+   ['s_dark', '진한 갈색 피부', 0, '#724635'], ['s_blush', '발그레 피부', 0, '#EE8A7D'], ['s_copper', '붉은 구릿빛 피부', 0, '#D86F5C'], ['s_ochre', '황토빛 피부', 0, '#E4A357'], ['s_tan', '햇볕 그을린 피부', 0, '#D16E34'],
+   ['s_purple', '보랏빛 피부', 22, '#BA8FD0'], ['s_ghost', '잿빛 유령 피부', 35, '#A7ACA5'], ['s_elf', '엘프 피부', 40, '#EDCAA6'], ['s_night', '밤하늘 피부', 45, '#435262'], ['s_angel', '천사 피부', 100, '#EEEEF4']]
     .forEach(([id, name, price, color]) => add('skin', id, name, price, { color }));
 
   // 헤어
@@ -172,6 +175,7 @@
   S('hair', 'h_curly', '뽀글 머리', 8, { draw: g => { const c = '#7A4A2A', l = shade(c, 0.25); g.px(4, 0, 8, 1, c); g.px(3, 1, 10, 4, c); g.px(2, 2, 12, 2, c); g.px(3, 5, 1, 3, c); g.px(12, 5, 1, 3, c); g.dot(5, 5, c); g.dot(10, 5, c); [[4, 1], [7, 1], [10, 2], [5, 3], [9, 3], [3, 3], [12, 3]].forEach(([x, y]) => g.dot(x, y, l)); } });
   S('hair', 'h_twotone', '투톤 머리', 10, { draw: g => { const c = '#2B2B3A', b = '#3BC8F5'; shortHair(g, c); g.px(8, 2, 3, 1, b); g.px(8, 3, 4, 2, b); g.px(11, 5, 1, 2, b); g.px(5, 5, 2, 1, c); } });
   S('hair', 'h_bun', '똥머리', 8, { draw: g => { const c = '#6B4226'; shortHair(g, c); g.px(6, 0, 4, 2, c); g.px(7, -1, 2, 1, c); g.dot(10, 1, '#FFD23F'); g.dot(6, 0, shade(c, 0.25)); } });
+  S('hair', 'h_updo', '올림 머리', 8, { draw: g => { const c = '#6B4226'; shortHair(g, c); g.px(6, 0, 4, 2, c); g.px(7, -1, 2, 1, c); g.dot(9, 0, shade(c, 0.25)); } });   // v114 선생님 그림 (몸 그림 위에 얹는 머리)
   S('hat', 'hat_snapback', '거꾸로 스냅백', 6, { draw: g => { const c = '#2B2F55'; g.px(5, 0, 6, 1, c); g.px(4, 1, 8, 3, c); g.px(4, 4, 8, 1, shade(c, -0.35)); g.px(6, 3, 4, 1, '#F3F6FF'); g.dot(7, 1, '#FFD23F'); g.dot(8, 1, '#FFD23F'); } });
   S('hat', 'hat_pompom', '방울 비니', 6, { draw: g => { const c = '#FF7EB6'; g.px(4, 1, 8, 3, c); g.px(4, 4, 8, 1, shade(c, 0.4)); [5, 7, 9].forEach(x => g.px(x, 1, 1, 3, shade(c, -0.15))); g.px(7, -1, 2, 2, '#FFFFFF'); } });
   S('face', 'f_headphone', '헤드폰', 9, { draw: g => { const k = '#3A3F66', c = '#FF5A5F'; g.px(5, 1, 6, 1, k); g.dot(4, 2, k); g.dot(11, 2, k); g.px(3, 3, 1, 2, k); g.px(12, 3, 1, 2, k); g.px(2, 5, 2, 3, c); g.px(12, 5, 2, 3, c); g.dot(2, 6, shade(c, -0.3)); g.dot(13, 6, shade(c, -0.3)); } });
@@ -318,14 +322,19 @@
   /* v112 새 기본 몸 그림 (선생님 그림 · avatar/body/{m|f}_{f 앞|s 옆(오른쪽)|b 뒤}.png)
    *  기본 옷(무료 머리·기본 티·청바지·기본 운동화, 모자·얼굴 장식·등 없음, 밝은 피부 s1·s2)만 입은 사람에게 씀.
    *  상점 옷을 입은 사람은 옷 그림이 들어올 때까지 예전 도트 그대로 */
-  const BODY_V = 113, bodyImgs = {};
-  function bodyImg(g, view, cb) {
-    const k = (g === 'f' ? 'f' : 'm') + '_' + (view === 'b' || view === 's' ? view : 'f');
+  const BODY_V = 114, bodyImgs = {};
+  // v114 피부 18가지 × 남/여 × 앞·옆·뒤 그림 (avatar/body/<피부>_<m|f>_<f|s|b>.png)
+  const BODY_SKINS = ['s1', 's2', 's3', 's4', 's_pale', 's_alien', 's_robot', 's_gold', 's_dark', 's_blush', 's_copper', 's_elf', 's_purple', 's_ghost', 's_ochre', 's_tan', 's_night', 's_angel'];
+  const bodySrc = (g, view, skin) => 'avatar/body/' + (BODY_SKINS.includes(skin) ? skin : 's1') + '_' + (g === 'f' ? 'f' : 'm') + '_' + (view === 'b' || view === 's' ? view : 'f') + '.png?v=' + BODY_V;
+  const hairSrc = id => 'avatar/hair/' + id + '.png?v=' + BODY_V;   // v114 상점 헤어 그림 (앞모습)
+  function bodyImg(g, view, cb, skin) {
+    if (typeof cb === 'string') { skin = cb; cb = null; }
+    const k = bodySrc(g, view, skin);
     let e = bodyImgs[k];
     if (!e) {
       const im = new Image(); e = bodyImgs[k] = { im, ok: false, cbs: [] };
       im.onload = () => { e.ok = true; e.cbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } }); };
-      im.src = (window.GOGO_BASE || '') + 'avatar/body/' + k + '.png?v=' + BODY_V;
+      im.src = (window.GOGO_BASE || '') + k;
     }
     if (e.ok) return e.im;
     if (cb) e.cbs.push(cb);
@@ -334,8 +343,73 @@
   function useBody(av) {
     if (!av || (av.g !== 'm' && av.g !== 'f')) return false;
     const n = normalize(av), free = id => !id || (byId[id] && byId[id].price === 0);
-    return n.top === 't_basic' && n.bottom === 'b_jeans' && n.shoes === 'sh_basic' && !n.hat && !n.face && !n.back && free(n.hair) && (n.skin === 's1' || n.skin === 's2');
+    return n.top === 't_basic' && n.bottom === 'b_jeans' && n.shoes === 'sh_basic' && !n.hat && !n.face && !n.back && (free(n.hair) || HAIR_OV.includes(n.hair)) && BODY_SKINS.includes(n.skin);
   }
+  /* v114 상점 머리(돈 주고 산 머리)를 몸 그림 위에 얹기
+   *  avatar/bald/<피부>_<m|f>_<f|s|b>.png = 머리카락을 지운 몸, avatar/hair/<머리>_<f|s|b>.png = 머리만 (선생님 그림)
+   *  BALD[몸] = [얼굴 가운데 x, 어깨(티셔츠 위) y, 크기], HAIR_POS[머리][성별+방향] = 그 기준점에서 머리 그림 왼쪽 위까지
+   *  무료 머리(짧은 머리 검정·갈색)는 피부 그림의 원래 머리 그대로 (엘프 귀·로봇 안테나 유지) */
+  const HAIR_OV = ['h_long', 'h_bob', 'h_ponytail', 'h_spiky', 'h_curly', 'h_bun', 'h_updo', 'h_topknot', 'h_twin', 'h_twotone', 'h_mohawk'];
+  const HAIR_POS = {"h_short":{"mf":[-23.5,-53.0],"ms":[-20.8,-53.0],"mb":[-24.5,-59.0],"ff":[-24.3,-52.5],"fs":[-23.5,-55.0],"fb":[-24.0,-59.1]},"h_short_brown":{"mf":[-24.0,-51.9],"ms":[-21.3,-52.5],"mb":[-25.0,-58.5],"ff":[-24.8,-51.5],"fs":[-24.0,-54.5],"fb":[-24.6,-58.5]},"h_long":{"mf":[-25.1,-61.6],"ms":[-24.0,-61.6],"mb":[-26.6,-67.6],"ff":[-25.9,-61.2],"fs":[-26.7,-63.6],"fb":[-26.2,-67.7]},"h_bob":{"mf":[-24.6,-52.5],"ms":[-23.0,-53.0],"mb":[-25.6,-57.9],"ff":[-25.4,-52.0],"fs":[-25.6,-55.0],"fb":[-25.1,-58.0]},"h_ponytail":{"mf":[-26.7,-55.7],"ms":[-38.1,-56.8],"mb":[-22.9,-60.6],"ff":[-27.5,-55.2],"fs":[-40.8,-58.8],"fb":[-22.4,-60.7]},"h_spiky":{"mf":[-26.2,-59.5],"ms":[-23.5,-59.5],"mb":[-27.2,-65.5],"ff":[-27.0,-59.0],"fs":[-26.2,-61.5],"fb":[-26.7,-65.6]},"h_curly":{"mf":[-26.2,-54.6],"ms":[-25.1,-54.6],"mb":[-27.2,-60.6],"ff":[-27.0,-54.2],"fs":[-27.8,-56.6],"fb":[-26.7,-60.7]},"h_bun":{"mf":[-22.4,-61.6],"ms":[-26.2,-60.0],"mb":[-23.4,-67.6],"ff":[-23.2,-61.2],"fs":[-28.9,-62.0],"fb":[-23.0,-67.7]},"h_updo":{"mf":[-20.8,-57.9],"ms":[-25.1,-54.6],"mb":[-25.0,-63.9],"ff":[-21.6,-57.4],"fs":[-27.8,-56.6],"fb":[-24.6,-63.9]},"h_topknot":{"mf":[-21.3,-54.1],"ms":[-19.2,-59.5],"mb":[-23.4,-65.5],"ff":[-22.1,-53.6],"fs":[-21.9,-61.5],"fb":[-23.0,-65.6]},"h_twin":{"mf":[-31.6,-50.8],"ms":[-30.5,-51.4],"mb":[-34.2,-56.8],"ff":[-32.4,-50.4],"fs":[-33.2,-53.4],"fb":[-33.8,-56.9]},"h_twotone":{"mf":[-23.5,-53.5],"ms":[-21.3,-51.9],"mb":[-25.6,-57.9],"ff":[-24.3,-53.1],"fs":[-24.0,-53.9],"fb":[-25.1,-58.0]},"h_mohawk":{"mf":[-20.2,-66.5],"ms":[-23.0,-63.3],"mb":[-22.3,-73.0],"ff":[-21.1,-66.0],"fs":[-25.6,-65.3],"fb":[-21.9,-73.1]}};
+  const BALD = {"s1_m_f":[28.0,53,1.0],"s1_m_s":[21.0,53,1.0],"s1_m_b":[35.0,59,1.0],"s1_f_f":[27.5,52,1.0],"s1_f_s":[27.0,55,1.0],"s1_f_b":[33.5,58,1.0],"s2_m_f":[28.0,53,1.0],"s2_m_s":[21.0,53,1.0],"s2_m_b":[35.0,59,1.0],"s2_f_f":[27.5,52,1.0],"s2_f_s":[27.0,55,1.0],"s2_f_b":[33.5,58,1.0],"s3_m_f":[28.5,52,0.981],"s3_m_s":[20.5,52,0.981],"s3_m_b":[34.5,57,0.966],"s3_f_f":[27.5,52,1.0],"s3_f_s":[27.0,55,1.0],"s3_f_b":[33.5,58,1.0],"s4_m_f":[28.0,53,1.0],"s4_m_s":[21.0,53,1.0],"s4_m_b":[35.0,59,1.0],"s4_f_f":[30.0,54,1.0],"s4_f_s":[24.0,57,1.0],"s4_f_b":[34.5,61,1.0],"s_pale_m_f":[28.0,54,1.0],"s_pale_m_s":[25.0,57,1.0],"s_pale_m_b":[35.0,56,0.949],"s_pale_f_f":[27.5,52,1.0],"s_pale_f_s":[27.0,55,1.0],"s_pale_f_b":[33.5,58,1.0],"s_alien_m_f":[28.0,53,1.0],"s_alien_m_s":[21.0,53,1.0],"s_alien_m_b":[35.0,59,1.0],"s_alien_f_f":[28.0,53,1.0],"s_alien_f_s":[28.0,55,1.0],"s_alien_f_b":[33.5,58,1.0],"s_robot_m_f":[28.0,59,1.0],"s_robot_m_s":[28.5,52,0.981],"s_robot_m_b":[34.5,59,1.0],"s_robot_f_f":[27.5,52,1.0],"s_robot_f_s":[27.0,55,1.0],"s_robot_f_b":[33.5,58,1.0],"s_gold_m_f":[28.0,53,1.0],"s_gold_m_s":[21.0,53,1.0],"s_gold_m_b":[35.0,59,1.0],"s_gold_f_f":[28.0,51,0.981],"s_gold_f_s":[21.5,54,0.982],"s_gold_f_b":[32.5,58,1.0],"s_dark_m_f":[28.0,50,0.943],"s_dark_m_s":[22.0,55,1.0],"s_dark_m_b":[34.0,56,0.949],"s_dark_f_f":[27.5,52,1.0],"s_dark_f_s":[27.0,55,1.0],"s_dark_f_b":[33.5,58,1.0],"s_blush_m_f":[28.0,53,1.0],"s_blush_m_s":[21.0,53,1.0],"s_blush_m_b":[35.0,59,1.0],"s_blush_f_f":[27.5,50,0.962],"s_blush_f_s":[30.0,55,1.0],"s_blush_f_b":[33.0,54,0.931],"s_copper_m_f":[28.0,51,0.962],"s_copper_m_s":[20.5,52,0.981],"s_copper_m_b":[34.5,54,0.915],"s_copper_f_f":[27.5,52,1.0],"s_copper_f_s":[27.0,55,1.0],"s_copper_f_b":[33.5,58,1.0],"s_elf_m_f":[28.0,53,1.0],"s_elf_m_s":[21.0,53,1.0],"s_elf_m_b":[35.0,59,1.0],"s_elf_f_f":[28.0,49,0.942],"s_elf_f_s":[28.5,56,1.0],"s_elf_f_b":[32.5,54,0.931],"s_purple_m_f":[28.0,46,0.88],"s_purple_m_s":[20.5,53,1.0],"s_purple_m_b":[35.0,52,0.881],"s_purple_f_f":[27.5,52,1.0],"s_purple_f_s":[27.0,55,1.0],"s_purple_f_b":[33.5,58,1.0],"s_ghost_m_f":[28.0,53,1.0],"s_ghost_m_s":[21.0,53,1.0],"s_ghost_m_b":[35.0,59,1.0],"s_ghost_f_f":[26.5,45,0.88],"s_ghost_f_s":[28.0,55,1.0],"s_ghost_f_b":[32.5,54,0.931],"s_ochre_m_f":[28.0,48,0.906],"s_ochre_m_s":[20.0,52,0.981],"s_ochre_m_b":[34.5,54,0.915],"s_ochre_f_f":[27.5,52,1.0],"s_ochre_f_s":[27.0,55,1.0],"s_ochre_f_b":[33.5,58,1.0],"s_tan_m_f":[28.0,53,1.0],"s_tan_m_s":[21.0,53,1.0],"s_tan_m_b":[35.0,59,1.0],"s_tan_f_f":[27.0,46,0.885],"s_tan_f_s":[28.5,55,1.0],"s_tan_f_b":[32.5,55,0.948],"s_night_m_f":[28.0,47,0.887],"s_night_m_s":[20.5,50,0.943],"s_night_m_b":[34.5,53,0.898],"s_night_f_f":[27.5,52,1.0],"s_night_f_s":[27.0,55,1.0],"s_night_f_b":[33.5,58,1.0],"s_angel_m_f":[28.0,53,1.0],"s_angel_m_s":[21.0,53,1.0],"s_angel_m_b":[35.0,59,1.0],"s_angel_f_f":[26.0,46,0.885],"s_angel_f_s":[28.0,54,0.982],"s_angel_f_b":[32.5,55,0.948]};
+  const imgs = {};
+  function loadImg(src, cb) {
+    let e = imgs[src];
+    if (!e) {
+      const im = new Image(); e = imgs[src] = { im, ok: false, bad: false, cbs: [] };
+      im.onload = () => { e.ok = true; e.cbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } }); };
+      im.onerror = () => { e.bad = true; e.cbs.length = 0; };
+      im.src = (window.GOGO_BASE || '') + src;
+    }
+    if (e.ok) return e.im;
+    if (cb && !e.bad && !e.cbs.includes(cb)) e.cbs.push(cb);
+    return null;
+  }
+  const vOf = view => (view === 'b' || view === 's' ? view : 'f');
+  const hairOf = av => { const n = normalize(av); return HAIR_OV.includes(n.hair) ? n.hair : null; };
+  // 몸 그림(머리 얹은 것까지) — 그냥 그림이면 Image, 머리를 얹었으면 여백(pad)이 있는 캔버스 · 아직 못 받았으면 null
+  const compCv = {};
+  function bodyComp(av, view, cb) {
+    const n = normalize(av), v = vOf(view), g = n.g === 'f' ? 'f' : 'm', hid = hairOf(n);
+    if (!hid) return bodyImg(n.g, view, cb, n.skin);
+    const key = n.skin + '_' + g + '_' + v, ck = key + '|' + hid;
+    if (compCv[ck]) return compCv[ck];
+    const B = BALD[key], pos = HAIR_POS[hid] && HAIR_POS[hid][g + v];
+    if (!B || !pos) return bodyImg(n.g, view, cb, n.skin);
+    const q = '.png?v=' + BODY_V, bald = loadImg('avatar/bald/' + key + q, cb), hair = loadImg('avatar/hair/' + hid + '_' + v + q, cb);
+    const back = hid === 'h_long' && v === 'f' ? loadImg('avatar/hair/h_long_fb' + q, cb) : true;   // 긴 머리 앞모습은 얼굴 뒤로 가는 부분이 따로
+    if (!bald || !hair || !back) return null;
+    const P = 20, W = bald.naturalWidth, H = bald.naturalHeight, k = B[2];
+    const c = document.createElement('canvas'); c.width = W + P * 2; c.height = H + P * 2;
+    const x = c.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    const hx = Math.round(P + B[0] + pos[0] * k), hy = Math.round(P + B[1] + pos[1] * k);
+    if (back !== true) x.drawImage(back, hx, hy, Math.round(back.naturalWidth * k), Math.round(back.naturalHeight * k));
+    x.drawImage(bald, P, P);
+    x.drawImage(hair, hx, hy, Math.round(hair.naturalWidth * k), Math.round(hair.naturalHeight * k));
+    c.pad = P; c.bw = W; c.bh = H; c.top = Math.max(0, Math.min(P, hy));   // 머리 그림 맨 위 (캔버스 안)
+    return (compCv[ck] = c);
+  }
+  /* 몸 그림을 칸 크기 k 로 그림: 발끝 = 28.4칸, 원래 몸 그림 키 = 27.4칸, 가운데 x = cx.
+   *  얹은 머리가 위로 높으면(닭벼슬 등) 칸 밖으로 안 나가게 조금 작게 */
+  function fitBody(x, im, cx, k) {
+    const P = im.pad || 0, nw = im.bw || im.naturalWidth, nh = im.bh || im.naturalHeight, foot = 28.4 * k;
+    let s = 27.4 * k / nh;
+    const tall = nh + P - (im.top != null ? im.top : P);
+    if (tall * s > foot - 0.15 * k) s = (foot - 0.15 * k) / tall;
+    const sm = x.imageSmoothingEnabled; x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    x.drawImage(im, Math.round(cx - (P + nw / 2) * s), Math.round(foot - (P + nh) * s), Math.round((nw + P * 2) * s), Math.round((nh + P * 2) * s));
+    x.imageSmoothingEnabled = sm;
+  }
+  // v114 몸 그림을 사이트 아바타 칸 크기(GW×GH, 1칸 = 4점)에 맞춰 둔 캔버스 (걷기 rig 에 그대로 씀) · 아직 못 받았으면 null
+  const bodyCv = {};
+  function bodyCanvas(av, view, cb) {
+    const n = normalize(av), im = bodyComp(n, view, cb); if (!im) return null;
+    const key = bodySrc(n.g, view, n.skin) + '|' + (hairOf(n) || ''); if (bodyCv[key]) return bodyCv[key];
+    const c = document.createElement('canvas'); c.width = GW * 4; c.height = GH * 4;
+    fitBody(c.getContext('2d'), im, 9 * 4, 4);
+    return (bodyCv[key] = c);
+  }
+  let emptyCv = null;
   function grid(av, frame, opt) {   // opt.noHair: 머리카락·모자 없이 (게임에서 투구 그림을 씌울 때 얼굴이 보이게)
     av = normalize(av); frame = frame || 0; const noHair = opt && opt.noHair;
     const g = Grid(), it = slot => (av[slot] ? byId[av[slot]] : null);
@@ -647,6 +721,18 @@
     }
     const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
     const view = opt.view === 'b' || opt.view === 's' ? opt.view : 'f';   // v106 방향: 'f' 앞 · 'b' 뒤 · 's' 옆(오른쪽)
+    // v114 새 몸 그림은 모든 곳에 (opt.body:false 면 예전 도트) · 앉기·눕기 등 특별 자세는 예전 도트
+    const pz = view === 'f' ? opt.pose : null, crop = opt.crop || 'full';
+    const bc = opt.body !== false && (!pz || pz === 'walk') && useBody(av) ? bodyCanvas(av, view, opt.onBody) : null;
+    if (bc && crop !== 'full') {   // 얼굴·상반신 칸: 몸 그림에서 그 부분만 (1칸 = 4점)
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(bc, cx * 4, cy * 4, cw * 4, ch * 4, x, y, cw * scale, ch * scale);
+      ctx.imageSmoothingEnabled = sm; return;
+    }
+    if (bc) {
+      if (opt.walk != null) { if (view === 's') { if (!emptyCv) { emptyCv = document.createElement('canvas'); emptyCv.width = bc.width; emptyCv.height = bc.height; } rigSide(ctx, bc, emptyCv, x, y, GW * scale, GH * scale, opt.walk, true, opt); } else rig(ctx, bc, x, y, GW * scale, GH * scale, opt.walk, true, opt); }
+      else { ctx.imageSmoothingEnabled = true; ctx.drawImage(bc, x, y, GW * scale, GH * scale); }
+      ctx.imageSmoothingEnabled = sm; return;
+    }
     if (opt.walk != null && (opt.crop || 'full') === 'full') {   // v105 부드러운 걷기 (순찰병처럼)
       if (view === 's') rigSide(ctx, hires(av, 0, null, 's', 'noArm'), hires(av, 0, null, 's', 'arm'), x, y, GW * scale, GH * scale, opt.walk, true, opt);
       else rig(ctx, hires(av, 0, null, view), x, y, GW * scale, GH * scale, opt.walk, true, opt);
@@ -664,13 +750,16 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, cw * s, ch * s);
     if (opt.bg) { ctx.fillStyle = opt.bg; ctx.fillRect(0, 0, cw * s, ch * s); }
+    if (!opt.onBody && opt.body !== false) opt = Object.assign({}, opt, { onBody: () => { if (canvas.isConnected !== false) paint(canvas, av, Object.assign({}, opt, { onBody: () => {} })); } });   // v114 몸 그림을 받으면 다시
     draw(ctx, av, 0, 0, s, opt);
   }
   // data-avatar='{"skin":...}' 속성이 있는 캔버스를 한 번에 그림
   function paintAll(root) {
     (root || document).querySelectorAll('canvas[data-avatar]').forEach(c => {
       let av = {}; try { av = JSON.parse(c.dataset.avatar || '{}'); } catch (e) { /* noop */ }
-      paint(c, av, { scale: +c.dataset.scale || 3, crop: c.dataset.crop || 'full', bg: c.dataset.bg || null, keepCss: c.hasAttribute('data-keepcss'), scene: c.hasAttribute('data-scene') });
+      const o = { scale: +c.dataset.scale || 3, crop: c.dataset.crop || 'full', bg: c.dataset.bg || null, keepCss: c.hasAttribute('data-keepcss'), scene: c.hasAttribute('data-scene'), body: !c.hasAttribute('data-nobody') };
+      if (o.body) o.onBody = () => paint(c, av, o);   // v114 몸 그림을 받으면 다시 그림
+      paint(c, av, o);
     });
   }
   // 이름 등으로 항상 같은 모습이 나오는 무작위 아바타 (컴퓨터 상대·예시 플레이어)
@@ -686,7 +775,7 @@
   }
 
   window.GoAvatar = {
-    SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId, bodyImg, useBody,
+    SLOTS, DEFAULT, OPTIONAL, ITEMS: I, byId, bodyImg, useBody, bodySrc, hairSrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, HAIR_OV,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
     normalize, grid, gridView, scene, draw, paint, paintAll, random, legs, refine, hires, OUT, rig, rigSide, drawWalk,
     walkP: t => t * Math.PI * 2,   // 걸음 수(바퀴) → 위상

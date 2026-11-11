@@ -128,8 +128,8 @@
       <h2 id="gTitle" class="modal-title">기본 아바타 고르기</h2>
       <p class="small" style="margin:6px 0 12px">새 기본 몸이 생겼어요! <b>처음 한 번은 무료</b>로 골라요. 그 뒤에 바꾸려면 상점의 <b>성별 변환권(${Hub.GENDER_PRICE || 100}P)</b>이 필요해요.</p>
       <div class="gpick" role="radiogroup" aria-label="기본 아바타">
-        <button type="button" role="radio" aria-checked="false" data-g="m"><img src="avatar/body/m_f.png?v=113" alt="" width="54" height="117"><b>남자</b></button>
-        <button type="button" role="radio" aria-checked="false" data-g="f"><img src="avatar/body/f_f.png?v=113" alt="" width="53" height="115"><b>여자</b></button>
+        <button type="button" role="radio" aria-checked="false" data-g="m"><img src="avatar/body/s1_m_f.png?v=114" alt="" width="54" height="117"><b>남자</b></button>
+        <button type="button" role="radio" aria-checked="false" data-g="f"><img src="avatar/body/s1_f_f.png?v=114" alt="" width="53" height="115"><b>여자</b></button>
       </div>
       <p class="err" id="gErr" hidden></p>
       <button class="btn btn-primary btn-block" type="button" data-gok style="margin-top:12px">이걸로 할게요</button>

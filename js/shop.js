@@ -46,13 +46,13 @@
   /* v112 성별 변환권 (기본 몸 남 ↔ 여, 100P) · 아직 안 고른 사람은 무료로 한 번 고르기 */
   function genderHTML() {
     const u = Hub.user, price = Hub.GENDER_PRICE || 100, g = u && u.avatar && u.avatar.g, to = g === 'm' ? 'f' : 'm', nm = x => (x === 'm' ? '남자' : '여자');
-    const fig = (x, on) => `<figure class="g-fig${on ? ' on' : ''}"><img src="avatar/body/${x}_f.png?v=113" alt="" width="54" height="117"><figcaption>${nm(x)}${on ? ' · 지금' : ''}</figcaption></figure>`;
+    const sk = u && u.avatar ? u.avatar.skin : 's1', fig = (x, on) => `<figure class="g-fig${on ? ' on' : ''}"><img src="${AV.bodySrc(x, 'f', sk)}" alt="" width="54" height="117"><figcaption>${nm(x)}${on ? ' · 지금' : ''}</figcaption></figure>`;
     return `<div class="panel nick-shop g-shop">
       <div class="nick-ticket" aria-hidden="true"><span>🔁</span><b>성별 변환권</b><em class="num">${price}P</em></div>
       <div>${!u ? '<p class="small">로그인하면 기본 아바타의 성별을 바꿀 수 있어요.</p>'
         : !g ? `<div class="gpick" id="gFirst" role="radiogroup" aria-label="기본 아바타">
-            <button type="button" role="radio" aria-checked="false" data-g="m"><img src="avatar/body/m_f.png?v=113" alt="" width="54" height="117"><b>남자</b></button>
-            <button type="button" role="radio" aria-checked="false" data-g="f"><img src="avatar/body/f_f.png?v=113" alt="" width="53" height="115"><b>여자</b></button></div>
+            <button type="button" role="radio" aria-checked="false" data-g="m"><img src="${AV.bodySrc('m', 'f', 's1')}" alt="" width="54" height="117"><b>남자</b></button>
+            <button type="button" role="radio" aria-checked="false" data-g="f"><img src="${AV.bodySrc('f', 'f', 's1')}" alt="" width="53" height="115"><b>여자</b></button></div>
             <button class="btn btn-sun" type="button" id="gFirstOk" style="margin-top:10px">처음 한 번 무료로 정하기</button>`
         : `<div class="g-row">${fig(g, true)}<span class="g-arrow" aria-hidden="true">→</span>${fig(to, false)}</div>
           <button class="btn btn-sun" type="button" id="gChange" ${u.points < price ? 'disabled' : ''}>${price}P로 ${nm(to)}로 바꾸기</button>
@@ -211,13 +211,20 @@
     startWalk();
   }
 
+  // v114 선생님 그림이 있는 헤어 (상점 카드에 그림으로 보임)
+  const HAIR_IMG = ['h_short', 'h_short_brown', 'h_long', 'h_bob', 'h_ponytail', 'h_spiky', 'h_curly', 'h_bun', 'h_topknot', 'h_twin', 'h_twotone', 'h_mohawk'];
+  // v114 상점 머리(얹는 머리)는 내 피부·성별 몸에 얹은 모습으로 보여 줌 (옷은 기본)
+  const ovHair = id => slot === 'hair' && id && AV.HAIR_OV && AV.HAIR_OV.includes(id) && (trial.g === 'm' || trial.g === 'f' || !Hub.user);
+  const hairLook = id => ({ skin: AV.BODY_SKINS.includes(trial.skin) ? trial.skin : 's1', g: trial.g === 'f' ? 'f' : 'm', hair: id });
   function card(id) {
     const it = id ? AV.byId[id] : null;
-    const look = Object.assign({}, trial, { [slot]: id });
+    const look = ovHair(id) ? hairLook(id) : Object.assign({}, trial, { [slot]: id });
     const sel = picked === id;
     const tier = !it ? '' : Hub.price(id) >= PREMIUM ? ' tier-premium' : Hub.price(id) === 0 ? ' tier-free' : '';
     return `<button type="button" class="item${tier} ${sel ? 'sel' : ''}" data-item="${id || ''}" aria-pressed="${sel}">
-      <canvas data-avatar="${AV.attr(look)}" data-scale="3" data-scene aria-hidden="true"></canvas>
+      ${slot === 'skin' && id && AV.BODY_SKINS && AV.BODY_SKINS.includes(id) ? `<span class="it-img"><img src="${AV.bodySrc(trial.g || 'm', 'f', id)}" alt="" loading="lazy"></span>`
+        : slot === 'hair' && id && HAIR_IMG.includes(id) && !ovHair(id) ? `<span class="it-img"><img src="${AV.hairSrc(id)}" alt="" loading="lazy"></span>`
+        : `<canvas data-avatar="${AV.attr(look)}" data-scale="3" data-scene data-body aria-hidden="true"></canvas>`}
       <span class="it-name">${it ? A.esc(it.name) : '없음'}</span>${badge(id)}</button>`;
   }
 
@@ -227,14 +234,15 @@
     $$('[data-item]', root).forEach(b => { const on = (b.dataset.item || null) === id; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', String(on)); });
     // 다른 칸 썸네일도 새 미리보기 기준으로 다시 그림
     $$('[data-item]', root).forEach(b => {
-      const c = b.querySelector('canvas'), v = b.dataset.item || null;
-      AV.paint(c, Object.assign({}, trial, { [slot]: v }), { scale: 3, scene: true });
+      const c = b.querySelector('canvas'), v = b.dataset.item || null; if (!c) return;   // v114 그림 카드(피부·헤어)는 그대로
+      const look = ovHair(v) ? hairLook(v) : Object.assign({}, trial, { [slot]: v }), o = { scale: 3, scene: true, body: true }; o.onBody = () => AV.paint(c, look, o);
+      AV.paint(c, look, o);
     });
     paintTry(0);
     renderInfo();
   }
 
-  function paintTry(frame) { const c = $('#pvTry'); if (c) AV.paint(c, trial, Object.assign({ scale: 6, scene: true }, frame && frame.walk != null ? frame : { frame })); }
+  function paintTry(frame) { const c = $('#pvTry'); if (c) AV.paint(c, trial, Object.assign({ scale: 6, scene: true, body: true, onBody: () => paintTry(0) }, frame && frame.walk != null ? frame : { frame })); }   // v114 기본 옷이면 새 몸 그림
   function startWalk() {
     clearInterval(walkTimer);
     if (!walking || reduce) { paintTry(0); return; }

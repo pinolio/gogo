@@ -1554,3 +1554,6 @@ a.nm-t:hover { text-decoration: underline; }
 .top .nav a.nav-locked[aria-disabled="true"] { cursor: not-allowed; }
 .nav-lock { margin-right: 3px; font-size: .9em; }
 .top .nav a.nav-locked { white-space: nowrap; }
+/* v114 상점 피부·헤어 카드 = 선생님 그림 */
+.item .it-img { display: grid; place-items: end center; height: 90px; width: 100%; background: linear-gradient(#EAF6FF, #D8F0D0); border-radius: 8px; }
+.item .it-img img { height: 84px; width: auto; image-rendering: auto; }
