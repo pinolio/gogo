@@ -107,7 +107,7 @@
       drawStadium(ctx); drawCourt(ctx);
       const far = proj(1.5, L - 0.5, 0); S.drawFighter(ctx, S.cpuAvatar('tn1'), 'idle', far.x, far.y, 1.4, -1);
       drawNet(ctx);
-      const me = proj(-1.2, -0.4, 0); S.drawFighter(ctx, S.myAvatar(), 'spike', me.x, me.y, 3.2, 1); drawRacket(ctx, 'spike', me.x, me.y, 3.2, 1);
+      const me = proj(-1.2, -0.4, 0); S.drawFighter(ctx, S.myAvatar(), 'spike', me.x, me.y, 3.2, 1, null, null, 'left', HAND.spike); drawRacket(ctx, 'spike', me.x, me.y, 3.2, 1);
       const b = proj(-0.9, 0, 3.1); ctx.fillStyle = '#E8FF4A'; ctx.beginPath(); ctx.arc(b.x, b.y, 9, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     },
@@ -570,7 +570,7 @@
         const g = proj(p.x, p.y, 0), sc = Math.max(1, 2.1 * g.s / S.SPRITE.h) * (big ? 1.5 : 1);
         S.shadow(ctx, g.x, g.y + 2, 0.9 * g.s);
         const pose = p.toss ? 'spike' : p.swing > 0 ? 'punch' : p.walk > 0 ? (Math.floor(p.walk) % 2 ? 'walk1' : 'walk2') : 'idle';
-        S.drawFighter(ctx, p.av, pose, g.x, g.y, sc, p.face, null, p.walk > 0 && pose.startsWith('walk') ? p.walk * Math.PI : null, 'left');
+        S.drawFighter(ctx, p.av, pose, g.x, g.y, sc, p.face, null, p.walk > 0 && pose.startsWith('walk') ? p.walk * Math.PI : null, 'left', HAND[pose] || HAND.idle);   // v120 새 몸 그림: 라켓 쥔 손까지 팔
         drawRacket(ctx, pose, g.x, g.y, sc, p.face);
         if (cold) { ctx.fillStyle = 'rgba(159,232,255,.38)'; ctx.fillRect(g.x - 0.5 * g.s, g.y - S.SPRITE.h * sc, g.s, S.SPRITE.h * sc); }
         const top = g.y - S.SPRITE.h * sc - 10;

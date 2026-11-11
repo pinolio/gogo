@@ -405,23 +405,39 @@
         buildArena(THREE, scene, opt.arena, pre);
 
         /* --- 몸 (아바타 도트 → 3D 블록) --- */
+        /* v120 선생님 11/12 "도트 아바타는 안 나오게": 사람 몸 = 새 몸 그림(앞·뒤)을 붙인 판 두 장 (예전: 도트 칸 → 3D 블록)
+         *  걸을 때는 사이트 아바타처럼 부드럽게 걷는 그림으로 다시 그림 (userData.walk(위상 | null)) */
         function voxel(avatar, tint) {
-          const g = AV.grid(AV.normalize(avatar), 0), GH = g.length, GW = g[0].length, s = 1.8 / GH, grp = new THREE.Group();
-          // 앞면 = 아바타 그림 그대로, 뒷면 = 머리 부분을 머리카락 색으로 (뒤에서 보면 뒤통수)
-          const geo = new THREE.BoxGeometry(s, s, s * 1.15), mat = new THREE.MeshLambertMaterial();
-          const OUT = (AV.OUT || '#1D2340').toLowerCase(), cnt = {}; for (let y = 0; y < Math.min(5, GH); y++) g[y].forEach(c => { if (c && c.toLowerCase() !== OUT) cnt[c] = (cnt[c] || 0) + 1; });
-          const hair = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || '#3A2A20', headRows = Math.round(GH * 0.38);
-          let n = 0; g.forEach(r => r.forEach(c => { if (c) n += 2; }));
-          const mesh = new THREE.InstancedMesh(geo, mat, n), m4 = new THREE.Matrix4(), col = new THREE.Color(); let i = 0;
-          g.forEach((row, y) => row.forEach((c, x) => {
-            if (!c) return;
-            [[1, c], [-1, y < headRows && c.toLowerCase() !== OUT ? hair : c]].forEach(([side, cc]) => {
-              m4.makeTranslation((x - GW / 2 + 0.5) * s, (GH - y - 0.5) * s, side * s * 0.58); mesh.setMatrixAt(i, m4); col.set(cc); if (tint) col.lerp(new THREE.Color(tint), 0.12); mesh.setColorAt(i, col); i++;
-            });
-          }));
-          mesh.castShadow = true; grp.add(mesh);
+          const av = AV.normalize(avatar), grp = new THREE.Group(), H = 1.8, Wd = H * AV.size.w / AV.size.h;
+          const mk2 = view => {
+            const cvs = document.createElement('canvas'), tex = new THREE.CanvasTexture(cvs);
+            if ('colorSpace' in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+            const o = { scale: 8, body: true, view, keepCss: true };
+            const draw = walk => { o.walk = walk; AV.paint(cvs, av, o); if (tint) { const x = cvs.getContext('2d'); x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = tint; x.globalAlpha = 0.12; x.fillRect(0, 0, cvs.width, cvs.height); x.restore(); } tex.needsUpdate = true; };
+            o.onBody = () => draw(o.walk);
+            draw(null);
+            const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: 0.35 });
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(Wd, H), mat); m.position.y = H / 2; m.castShadow = true;
+            grp.add(m); return { m, draw };
+          };
+          const F = mk2('f'), Bk = mk2('b'), Sd = mk2('s');
+          /* 판은 늘 카메라를 봄(빌보드). 몸이 보는 방향과 카메라 방향을 비교해 앞·뒤·옆(좌우 뒤집기) 그림을 고름 → RPG 처럼 4방향 */
+          grp.userData.bill = (yaw, cx, cz, dead) => {
+            const dx = cx - grp.position.x, dz = cz - grp.position.z, L = Math.hypot(dx, dz) || 1, ux = dx / L, uz = dz / L;
+            const fx = Math.sin(yaw + Math.PI), fz = Math.cos(yaw + Math.PI), dot = fx * ux + fz * uz, right = fx * uz - fz * ux;
+            const v = dot > 0.7 ? 'f' : dot < -0.7 ? 'b' : 's';
+            F.m.visible = v === 'f'; Bk.m.visible = v === 'b'; Sd.m.visible = v === 's'; Sd.m.scale.x = right > 0 ? 1 : -1;
+            grp.rotation.set(dead ? -Math.PI / 2 : 0, Math.atan2(ux, uz), 0, 'YXZ');
+          };
+          F.m.visible = true; Bk.m.visible = false; Sd.m.visible = false;
+          let lastW = null, lastT = 0;
+          grp.userData.walk = ph => {   // 걷기: 1/20초마다 다시 그림 · 멈추면 서 있는 그림
+            const now = performance.now();
+            if (ph == null) { if (lastW != null) { lastW = null; F.draw(null); Bk.draw(null); Sd.draw(null); } return; }
+            if (now - lastT < 50) return; lastT = now; lastW = ph; F.draw(ph); Bk.draw(ph); Sd.draw(ph);
+          };
           const sh = new THREE.Mesh(new THREE.CircleGeometry(0.45, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3 })); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.01; grp.add(sh);
-          grp.userData.body = mesh; return grp;
+          grp.userData.body = F.m; return grp;
         }
         function skinnedBox(THREE, root, clip) {
           if (clip) { const mx = new THREE.AnimationMixer(root); mx.clipAction(clip).play(); mx.update(0); }
@@ -712,7 +728,9 @@
               if (U.hp < U.lastHp - 0.5 && !U.dead) U.act('hit');
               U.anim(dt, Math.hypot(U.vx, U.vz) > 0.6);
               U.mesh.position.set(U.x, U.y, U.z); U.mesh.rotation.set(0, U.yaw, 0);   // Meshy 몸은 처음부터 앞(-z)을 봄
-            } else { U.mesh.position.set(U.x, U.y + (U.me && !U.dead && Math.hypot(U.vx, U.vz) > 0.5 ? Math.abs(Math.sin(B.t * 10)) * 0.06 : 0) + (U.dead ? 0.25 : 0), U.z); U.mesh.rotation.set(U.dead ? -Math.PI / 2 : 0, U.yaw + Math.PI, 0, 'YXZ'); }
+            } else { if (U.mesh.userData.walk) U.mesh.userData.walk(!U.dead && Math.hypot(U.vx, U.vz) > 0.5 ? B.t * 9 : null);   // v120 새 몸 그림 걷기
+              U.mesh.position.set(U.x, U.y + (U.dead ? 0.25 : 0), U.z);
+              if (U.mesh.userData.bill) U.mesh.userData.bill(U.yaw, cam.position.x, cam.position.z, U.dead); else U.mesh.rotation.set(U.dead ? -Math.PI / 2 : 0, U.yaw + Math.PI, 0, 'YXZ'); }
             U.lastHp = U.hp;
           });
           const camU = me.dead ? (units.find(u => ally(u) && !u.dead) || me) : me, third = B.view === 3 || me.dead;

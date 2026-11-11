@@ -163,14 +163,14 @@
       c.save(); c.translate(x, y); if (me.face < 0) c.scale(-1, 1);
       const bc = AV.useBody && AV.useBody(av) ? AV.bodyCanvas(av, 'f') : null;   // v114 새 몸 그림: 윗몸 그대로 + 다리는 접은 듯 짧게
       if (bc) { const sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = true; c.drawImage(bc, 0, 0, 72, 82, -18, -s[2] - 41, 36, 41); c.drawImage(bc, 0, 82, 72, 34, -18, -s[2], 36, 9); c.imageSmoothingEnabled = sm; }
-      else AV.draw(c, av, -18, -s[2] - 41, 2, { pose: 'sit' });   // 엉덩이(그림 41px)를 앉는 높이에
+      // v120 몸 그림을 받는 중이면 잠깐 안 그림 (예전 도트는 안 씀)
       c.restore(); return;
     }
     const b = BED[it.id] || [16, '#4A8AE8', 0.05, 0.95], z = b[0] + 2;
     // 아바타 그림(36 × 58)을 매트리스 위 평면에 눕힘: 머리 = 베개 쪽(v 작음) · 발 = 침대 끝
     const o0 = L.P(0.05, 0.02, z + 16), ox = L.P(1.05, 0.02, z + 16), oy = L.P(0.05, 1.86, z + 1);   // 머리 쪽을 베개 위로 살짝 세움
     const bcs = AV.useBody && AV.useBody(av) ? AV.bodyCanvas(av, 'f') : null;   // v114 새 몸 그림
-    const hi = bcs || AV.hires(av, 0, 'sleep');
+    const hi = bcs; if (!hi) return;   // v120 예전 도트(자는 모습)는 안 씀
     c.save(); c.transform((ox[0] - o0[0]) / 36, (ox[1] - o0[1]) / 36, (oy[0] - o0[0]) / 58, (oy[1] - o0[1]) / 58, o0[0], o0[1]);
     const sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = !!bcs; c.drawImage(hi, 0, 0, 36, 58); c.imageSmoothingEnabled = sm; c.restore();
     // 이불: 어깨 아래부터 덮음 (접힌 하얀 끝단 + 이불)

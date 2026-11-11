@@ -225,6 +225,7 @@
     const tier = !it ? '' : Hub.price(id) >= PREMIUM ? ' tier-premium' : Hub.price(id) === 0 ? ' tier-free' : '';
     return `<button type="button" class="item${tier} ${sel ? 'sel' : ''}" data-item="${id || ''}" aria-pressed="${sel}">
       ${slot === 'skin' && id && AV.BODY_SKINS && AV.BODY_SKINS.includes(id) ? `<span class="it-img"><img src="${AV.bodySrc(trial.g || 'm', 'f', id)}" alt="" loading="lazy"></span>`
+        : slot === 'bg' && it && it.img ? `<span class="it-img it-bg"><img src="${(window.GOGO_BASE || '') + it.img}" alt="" loading="lazy"></span>`   // v120 선생님 그림 배경은 그림 그대로
         : slot === 'hair' && id && HAIR_IMG.includes(id) && !ovHair(id) ? `<span class="it-img"><img src="${AV.hairSrc(id)}" alt="" loading="lazy"></span>`
         : `<canvas data-avatar="${AV.attr(look)}" data-scale="3" data-scene data-body aria-hidden="true"></canvas>`}
       <span class="it-name">${it ? A.esc(it.name) : '없음'}</span>${badge(id)}</button>`;

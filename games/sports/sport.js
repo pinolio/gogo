@@ -123,7 +123,53 @@
   // v114 새 몸 그림(옆모습)이 있으면 그것으로: 걷기 = AV.rigSide, 주먹·발차기 등은 몸을 기울여 표현, 맞으면 하얗게
   let emptyCv = null; const flashCv = new Map();
   const BODY_TILT = { punch: [0.13, 1.2], kick: [-0.16, -0.6], guard: [-0.08, -0.4], spike: [-0.1, 0], jump: [0, 0], hit: [-0.1, -0.5] };
-  function bodyFighter(ctx, av, pose, x, y, scale, face, alpha, walk) {
+  /* v120 선생님 11/12 "도트 아바타 말고 부드러운 아바타로": 새 몸 그림(옆모습)에 주먹·발차기·막기·점프·스파이크 팔다리를 그려 줌
+   *  각도: 0 = 아래, 90 = 앞, 180 = 위 (칸 단위, 오른쪽을 보는 그림 기준) */
+  const LIMB_OUT = '#2A2438';
+  const rgbS = c => Array.isArray(c) ? 'rgb(' + c.map(v => Math.round(v)).join(',') + ')' : c;
+  function limbColors(av) {
+    const n = AV.bodyNorm ? AV.bodyNorm(av) : AV.normalize(av), C = AV.CLOTH || {};
+    const skin = (AV.byId[n.skin] && AV.byId[n.skin].color) || '#F2C6A0';
+    const top = C[n.top] ? rgbS(C[n.top].c) : '#F3F6FF', bot = C[n.bottom] ? rgbS(C[n.bottom].c) : '#2F5A96';
+    return { skin, top, bot, f: n.g === 'f' };
+  }
+  // 둥근 막대 (테두리 + 속) — a(시작 칸) → b(끝 칸), wd = 굵기(칸)
+  function rod(ctx, k, a, b, wd, col) {
+    ctx.lineCap = 'round';
+    const ln = (w, c, o) => { ctx.strokeStyle = c; ctx.lineWidth = w * k; ctx.beginPath(); ctx.moveTo((a[0] + (o ? o[0] : 0)) * k, (a[1] + (o ? o[1] : 0)) * k); ctx.lineTo((b[0] + (o ? o[0] : 0)) * k, (b[1] + (o ? o[1] : 0)) * k); ctx.stroke(); };
+    ln(wd + 0.55, LIMB_OUT); ln(wd, col);
+    // 명암: 아래쪽은 조금 어둡게, 위쪽은 밝게 (몸 그림처럼 부드럽게)
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, sgn = ny > 0 ? 1 : -1;
+    ctx.globalAlpha = 0.22; ln(wd * 0.35, '#000', [nx * sgn * wd * 0.3, ny * sgn * wd * 0.3]);
+    ctx.globalAlpha = 0.35; ln(wd * 0.3, '#fff', [-nx * sgn * wd * 0.28, -ny * sgn * wd * 0.28]); ctx.globalAlpha = 1;
+  }
+  const pt = (o, ang, len) => [o[0] + Math.sin(ang * Math.PI / 180) * len, o[1] + Math.cos(ang * Math.PI / 180) * len];
+  // 팔: 어깨 → 팔꿈치(a1) → 손(a2)
+  function arm(ctx, k, co, a1, a2, hand) {
+    const sh = [7.5, 14.1];
+    let el = pt(sh, a1, 2.9), hd = hand || pt(el, a2, 2.7);
+    if (hand) el = [(sh[0] + hand[0]) / 2, (sh[1] + hand[1]) / 2 + 0.6];   // 손 자리가 정해지면 팔꿈치는 가운데쯤 (살짝 아래로 굽힘)
+    rod(ctx, k, el, hd, 1.9, co.skin);
+    rod(ctx, k, sh, pt(sh, Math.atan2(el[0] - sh[0], el[1] - sh[1]) * 180 / Math.PI, Math.min(2.2, Math.hypot(el[0] - sh[0], el[1] - sh[1]))), 2.5, co.top);   // 소매
+    ctx.fillStyle = LIMB_OUT; ctx.beginPath(); ctx.arc(hd[0] * k, hd[1] * k, 1.35 * k, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = co.skin; ctx.beginPath(); ctx.arc(hd[0] * k, hd[1] * k, 1.05 * k, 0, Math.PI * 2); ctx.fill();
+  }
+  function leg(ctx, k, co, a1) {
+    const hp = [8.4, 20.4], kn = pt(hp, a1, 3.3), ft = pt(kn, a1 + 8, 3.3);
+    if (co.f) { rod(ctx, k, kn, ft, 2.1, co.skin); rod(ctx, k, hp, pt(hp, a1, 1.8), 3.2, co.bot); } else { rod(ctx, k, kn, ft, 2.7, co.bot); rod(ctx, k, hp, kn, 3.0, co.bot); }
+    ctx.save(); ctx.translate(ft[0] * k, ft[1] * k); ctx.rotate((90 - a1) * Math.PI / 180);
+    ctx.fillStyle = LIMB_OUT; ctx.beginPath(); ctx.ellipse(1.1 * k, 0, 2.3 * k, 1.5 * k, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3A3A48'; ctx.beginPath(); ctx.ellipse(1.1 * k, 0, 1.9 * k, 1.1 * k, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#F3F6FF'; ctx.fillRect(-0.6 * k, 0.5 * k, 3.4 * k, 0.5 * k); ctx.restore();
+  }
+  const LIMBS = {
+    punch: (ctx, k, co) => arm(ctx, k, co, 92, 92),
+    kick: (ctx, k, co) => leg(ctx, k, co, 82),
+    guard: (ctx, k, co) => arm(ctx, k, co, 50, 175),
+    jump: (ctx, k, co) => arm(ctx, k, co, 200, 190),
+    spike: (ctx, k, co) => arm(ctx, k, co, 188, 178)
+  };
+  function bodyFighter(ctx, av, pose, x, y, scale, face, alpha, walk, hand) {
     if (!AV.useBody || !AV.useBody(av) || !AV.bodyCanvas) return false;
     let bc = AV.bodyCanvas(av, 's'); if (!bc) return false;
     if (pose === 'hit') {
@@ -131,7 +177,7 @@
       if (!f) { f = document.createElement('canvas'); f.width = bc.width; f.height = bc.height; const fx = f.getContext('2d'); fx.drawImage(bc, 0, 0); fx.globalCompositeOperation = 'source-atop'; fx.fillStyle = 'rgba(255,255,255,.65)'; fx.fillRect(0, 0, f.width, f.height); flashCv.set(bc, f); }
       bc = f;
     }
-    const w = AV.size.w * scale, h = AV.size.h * scale, t = BODY_TILT[pose] || [0, 0];
+    const w = AV.size.w * scale, h = AV.size.h * scale, t = hand ? [0, 0] : BODY_TILT[pose] || [0, 0];
     ctx.save(); if (alpha != null) ctx.globalAlpha = alpha;
     ctx.translate(Math.round(x), Math.round(y)); if (face < 0) ctx.scale(-1, 1);
     if (walk != null && (pose === 'idle' || pose === 'walk1' || pose === 'walk2') && AV.rigSide) {
@@ -141,10 +187,20 @@
       ctx.translate(t[1] * scale, 0); ctx.rotate(t[0]);
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bc, Math.round(-w / 2), -h, w, h);
     }
+    const lf = walk != null && (pose === 'idle' || pose === 'walk1' || pose === 'walk2') ? null : LIMBS[pose];
+    if (lf || hand) {   // v120 동작 팔다리 (hand = 라켓 쥔 손 자리[칸] → 그 자리까지 팔을 뻗음)
+      ctx.save(); ctx.translate(-w / 2, -h);
+      const co = limbColors(av);
+      if (hand) { const sh = [7.5, 14.1], d = Math.hypot(hand[0] - sh[0], hand[1] - sh[1]); if (d > 2.6) arm(ctx, scale, co, 0, 0, hand); }
+      else lf(ctx, scale, co);
+      if (pose === 'hit') { /* noop */ }
+      ctx.restore();
+    }
     ctx.restore(); return true;
   }
-  function drawFighter(ctx, av, pose, x, y, scale, face, alpha, walk, arms) {
-    if (bodyFighter(ctx, av, pose, x, y, scale, face, alpha, walk)) return;
+  function drawFighter(ctx, av, pose, x, y, scale, face, alpha, walk, arms, hand) {
+    if (bodyFighter(ctx, av, pose, x, y, scale, face, alpha, walk, hand)) return;
+    if (AV.useBody && AV.useBody(av)) return;   // v120 새 몸 그림을 받는 중이면 잠깐 안 그림 (예전 도트는 안 씀)
     if (walk != null && AV.rig && (pose === 'idle' || pose === 'walk1' || pose === 'walk2')) {
       const spr = fighter(av, 'idle'), w = SW * scale, h = SH * scale, bodyCx = (AV.size.w / 2) * scale;
       ctx.save(); if (alpha != null) ctx.globalAlpha = alpha;
