@@ -91,6 +91,28 @@
     document.body.appendChild(note);
     note.querySelector('.sn-ok').addEventListener('click', () => { closeNote(); onOk(); });
   }
+  // v119 관리자 쪽지 (상점 정리 환불 안내 등)
+  function showMsg(list, onOk) {
+    closeNote();
+    note = document.createElement('div');
+    note.className = 'sn-pop'; note.setAttribute('role', 'dialog'); note.setAttribute('aria-label', '쪽지');
+    note.innerHTML = `
+      <div class="sn-card">
+        <div class="sn-head">📮 쪽지 도착!</div>
+        <div class="sn-body">${list.map(x => `<p class="sn-big">${esc(x.title)}</p><p>${esc(x.body)}</p>${x.points ? `<p class="sn-sum">포인트 <b>+${x.points}P</b></p>` : ''}`).join('')}</div>
+        <div class="sn-foot"><button type="button" class="btn btn-sun sn-ok">확인</button></div>
+      </div>`;
+    document.body.appendChild(note);
+    note.querySelector('.sn-ok').addEventListener('click', () => { closeNote(); onOk(); });
+  }
+  async function msgNote(u) {
+    if (!Hub.noteInbox) return;
+    try {
+      const list = await Hub.noteInbox();
+      if (!list.length || !Hub.user || Hub.user.id !== u.id) return;
+      setTimeout(() => { if (note) return setTimeout(() => msgNote(u), 4000); showMsg(list, () => Hub.noteAck(list.map(x => x.id)).catch(() => {})); }, 900);
+    } catch (e) { /* 쪽지 표가 없으면 조용히 넘어감 */ }
+  }
   async function seasonNote(u) {
     if (!Hub.seasonSettle) return;
     try {
@@ -103,7 +125,7 @@
 
   if (Hub && Hub.onChange) Hub.onChange(u => {
     const uid = u ? u.id : null;
-    if (uid && uid !== lastUid) { maybe(u); seasonNote(u); }
+    if (uid && uid !== lastUid) { maybe(u); seasonNote(u); msgNote(u); }
     if (!uid) closeNote();
     if (!uid) { close(); if (lastUid) ss.set(KEY_SEEN, ''); }   // 로그아웃하면 다음 로그인 때 다시 뜸
     lastUid = uid;

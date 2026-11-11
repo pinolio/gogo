@@ -486,6 +486,8 @@
         return n;
       },
       async seasonInbox() { if (!Hub.user) return []; return (db().awards || []).filter(a => a.user_id === Hub.user.id && !a.notified); },
+      async noteInbox() { return []; },   // v119 쪽지 (체험 모드엔 없음)
+      async noteAck() {},
       async seasonAck(ids) { const d = db(); (d.awards || []).forEach(a => { if (Hub.user && a.user_id === Hub.user.id && ids.includes(a.id)) a.notified = true; }); persist(); },
       async adminSeasonAwards(season) {
         if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
@@ -904,6 +906,15 @@
         return data || [];
       },
       async seasonAck(ids) { if (ids.length) await sb.rpc('season_ack', { p_ids: ids }); },
+      /* ---- v119 관리자 쪽지 (supabase/reset_items_v119.sql: user_notes 표 · note_ack()) ---- */
+      async noteInbox() {
+        if (!Hub.user) return [];
+        const { data, error } = await sb.from('user_notes').select('id,title,body,points').eq('user_id', Hub.user.id).eq('notified', false).order('id');
+        if (error) return [];
+        if ((data || []).length) await loadProfile(Hub.user.id);   // 환불 포인트 반영
+        return data || [];
+      },
+      async noteAck(ids) { if (ids.length) await sb.rpc('note_ack', { p_ids: ids }); },
       async adminSeasonAwards(season) {
         const { data, error } = await sb.from('season_awards').select('id,season,game_id,user_id,score,points,notified,created_at').eq('season', season);
         if (error) throw new Error(/season_awards|relation|schema cache/i.test(error.message || '') ? '시즌 표가 아직 없어요. supabase/season_v75.sql 을 먼저 실행해 주세요.' : friendly(error, '시즌 기록을 불러오지 못했어요'));
