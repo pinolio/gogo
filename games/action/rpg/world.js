@@ -155,6 +155,25 @@
     const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
     return map;
   }
+  /* ---------- v124 맵 만들기(관리자): 직접 그린 맵 → 게임과 같은 그림 ----------
+   *  def = { w, h, region, t: [칸 번호 w*h 개], ponds: [{ k: 'pond_s'|'pond_m'|'pond_l', x, y }] }
+   *  칸 번호: 0 풀(바닥) · 1 길 · 2 나무 · 3 바위 · 4 물 · 5 꽃 · 12 연못 물가(지나감)
+   *  돌려줌: { ground(땅 그림 캔버스), objs(나무·바위 그림), need(아직 못 받은 그림 이름) } */
+  function previewMap(def, id) {
+    const w = def.w, h = def.h, t = Uint8Array.from(def.t);
+    const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 2 : t[y * w + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = v; };
+    const M = { id: id || 'edit', kind: 'field', region: def.region || 0 }, R = D.REGIONS[M.region];
+    const map = { id: M.id, M, R, w, h, t, at, set, mid: Math.floor(h / 2), buildings: [], doors: [], spawns: [], ponds: (def.ponds || []).slice() };
+    const need = texOf(map).concat(map.ponds.map(p => p.k)).filter(n => !img79(n));
+    map.ground = paintGround(map);
+    return { ground: map.ground, objs: map.objs, need, map };
+  }
+  // 맵 만들기 화면에서 나무·바위 하나 그리기 (게임과 같은 그림: Meshy 그림이 있으면 그것, 없으면 예전 그림)
+  function drawMapObj(c, o) {
+    const alt = (o.alt2 && img79(o.alt2)) || (o.alt && imgOk(o.alt));
+    if (alt) c.drawImage(alt, Math.round(o.tx * TS + 16 - alt.naturalWidth / 2), Math.round((o.ty + 1) * TS - alt.naturalHeight + 2));
+    else c.drawImage(o.img, o.x, o.y);
+  }
   /* ---------- v80 마을 = 조선군 진영 (Meshy 그림 img/v79/) ----------
    *  소품은 칸 10(지나갈 수 없음)으로 막고 그림은 map.objs 로 (사람과 앞뒤 순서 맞춤)
    *  병사·다친 병사·군의관 자리는 map.army → room.js villagers() 가 사람(NPC)으로 만듦 */
@@ -1052,5 +1071,5 @@
     return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}${(it.slot === 'weapon' && WP_IC[it.look] && imgOk(WP_IC[it.look])) || (SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot])) || (it.stack && imgOk('ic_pot')) ? ';image-rendering:auto' : ''}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
   }
 
-  window.__GoRPGParts = { loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
+  window.__GoRPGParts = { previewMap, drawMapObj, texOf, POND, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
 })();

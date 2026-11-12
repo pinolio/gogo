@@ -31,7 +31,7 @@
     }
     root.innerHTML = `
       <div class="admin">
-        <div class="page-head"><h1>관리자 설정</h1><p>회원, 전적, 댓글·피드백, 채팅, 로그인 팝업 배너를 한곳에서 관리해요. 바꾼 내용은 바로 사이트에 반영돼요.</p></div>
+        <div class="page-head"><h1>관리자 설정</h1><p>회원, 전적, 댓글·피드백, 채팅, 로그인 팝업 배너를 한곳에서 관리해요. 바꾼 내용은 바로 사이트에 반영돼요.</p><p><a class="btn btn-sun" href="#mapedit">🗺 Skillcom RPG 맵 만들기</a></p></div>
         <div class="admin-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${tab === k}">${n}</button>`).join('')}</div>
         <div id="adminBody" class="admin-body"><p class="empty">불러오는 중…</p></div>
       </div>`;

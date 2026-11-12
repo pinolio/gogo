@@ -1134,6 +1134,10 @@
       current = 'admin'; setNav('admin');
       cleanups.push(window.GoAdmin.render(view(), { toast, esc, fmt, dur, ago, nameOf, avCanvas, games: SET.listAll().map(g => ({ id: g.id, name: g.name })) }));
     }
+    else if (h === 'mapedit' && window.GoMapEdit) {   // v124 관리자 RPG 맵 만들기
+      current = 'admin'; setNav('admin');
+      cleanups.push(window.GoMapEdit.render(view(), { toast, esc, fmt }));
+    }
     else if ((h === 'test' || h.startsWith('test-')) && window.GoTestGames) {   // v70 관리자 테스트 게임
       current = h; setNav('test');
       cleanups.push(window.GoTestGames.render(view(), { toast, esc, fmt }, h.startsWith('test-') ? h.slice(5) : null));

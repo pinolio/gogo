@@ -162,6 +162,7 @@
     const KEY = 'gogogogo.demo.v2', SKEY = 'gogogogo.demo.session';
     const read = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
     const write = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* 저장 불가 환경 */ } };
+    const mapsDb = () => { try { return JSON.parse(read('gogo_rpg_maps') || '{}') || {}; } catch (e) { return {}; } };   // v124
     let mem = null;
 
     // 랭킹이 비어 보이지 않도록 넣어 둔 예시 플레이어 (로그인 불가, 화면에 '예시'로 표시)
@@ -424,6 +425,11 @@
         const d = db();
         return d.records.filter(r => r.game_id === game).map(r => withUser(d, r));
       },
+      /* ---- v124 RPG 맵 만들기 (체험 모드: 이 브라우저에만) ---- */
+      async mapList() { const m = mapsDb(); return Object.values(m).map(x => ({ id: x.id, name: x.name, updated_at: x.updated_at })); },
+      async mapGet(id) { const m = mapsDb(); return m[id] || null; },
+      async mapSave(id, name, data) { if (!Hub.isAdmin()) throw new Error('관리자만 저장할 수 있어요.'); const m = mapsDb(); m[id] = { id, name, data, updated_at: new Date().toISOString() }; write('gogo_rpg_maps', JSON.stringify(m)); },
+      async mapDelete(id) { if (!Hub.isAdmin()) throw new Error('관리자만 지울 수 있어요.'); const m = mapsDb(); delete m[id]; write('gogo_rpg_maps', JSON.stringify(m)); },
       async adminOverview() {
         if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.');
         return overviewFrom(Object.values(db().users), db().records, db().comments || [], db().chat || []);
@@ -844,6 +850,18 @@
         }
         return out;
       },
+      /* ---- v124 RPG 맵 만들기 (supabase/rpg_maps_v124.sql: rpg_maps 표 · 읽기는 누구나 · 쓰기는 관리자) ---- */
+      async mapList() {
+        const { data, error } = await sb.from('rpg_maps').select('id,name,updated_at').order('id');
+        if (error) throw new Error(/rpg_maps/.test(error.message || '') ? '맵 저장 표가 아직 없어요 (supabase/rpg_maps_v124.sql 을 Run 해 주세요).' : friendly(error, '맵 목록을 불러오지 못했어요'));
+        return data || [];
+      },
+      async mapGet(id) { const { data, error } = await sb.from('rpg_maps').select('*').eq('id', id).maybeSingle(); if (error) throw new Error(friendly(error, '맵을 불러오지 못했어요')); return data; },
+      async mapSave(id, name, data) {
+        const { error } = await sb.from('rpg_maps').upsert({ id, name, data, updated_at: new Date().toISOString(), updated_by: Hub.user && Hub.user.id });
+        if (error) throw new Error(friendly(error, '맵을 저장하지 못했어요'));
+      },
+      async mapDelete(id) { const { error } = await sb.from('rpg_maps').delete().eq('id', id); if (error) throw new Error(friendly(error, '맵을 지우지 못했어요')); },
       async adminOverview() {
         const { data, error } = await sb.rpc('admin_overview');
         if (error) throw new Error(friendly(error, '집계를 불러오지 못했어요'));
