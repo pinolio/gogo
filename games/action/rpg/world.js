@@ -41,6 +41,8 @@
   const SOLID = { 2: 1, 3: 1, 4: 1, 6: 1, 8: 1, 9: 1, 10: 1, 11: 1 };   // 9 = v60 대장간 · 10 = v80 진영 소품(천막·대포…) · 11 = v85 역참
   const mapCache = {};
   /* v120 연못 그림: t = 칸(32px) 지도 · W 물(못 지나감) · r 물가(지나감, 나무·꽃 안 놓음 = 칸 12) · . 빈칸 */
+  /* v128 던전 입구 그림 (선생님 시안 · img/v79/dg_*.png, 칸에 맞춘 그림) · t: X 막힘(칸 10) · D 입구(칸 13, 지나감 · 나중에 다른 맵으로) · r 둘레(칸 12) · . 빈칸 */
+  const DUNGEON = {"dg_cave":{"w":224,"h":160,"t":["..rXr..",".rXXXr.","rXXXXXr","rXXDXXr",".XXDXX."]},"dg_ruin":{"w":192,"h":192,"t":["......",".rXXr.",".XXXX.","XXXXXX","XXDXXX","rXDrXX"]}}, DUNGEON_KEYS = ['dg_cave', 'dg_ruin'];
   const POND = {"pond_s":{"w":81,"h":75,"t":["rr.","rWr","..."]},"pond_m":{"w":166,"h":129,"t":[".rrrr.","rWWWr.","rWWWr.","rrWr..","......"]},"pond_l":{"w":206,"h":189,"t":[".rrrrr.","rrWWWr.","rWWWWWr","rWWWWWr","rrWWWr.","rrrrrr."]}}, POND_KEYS = ['pond_s', 'pond_m', 'pond_l'], POND_REG = [0, 1, 2, 3, 4, 7];
   function getMap(id) {
     if (mapCache[id]) return mapCache[id];
@@ -164,13 +166,15 @@
     const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 2 : t[y * w + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = v; };
     const M = { id: id || 'edit', kind: 'field', region: def.region || 0 }, R = D.REGIONS[M.region];
     const map = { id: M.id, M, R, w, h, t, at, set, mid: Math.floor(h / 2), buildings: [], doors: [], spawns: [], ponds: (def.ponds || []).slice() };
-    const need = texOf(map).concat(map.ponds.map(p => p.k)).filter(n => !img79(n));
+    const dgs = (def.dungeons || []).filter(d => DUNGEON[d.k]);
+    const need = texOf(map).concat(map.ponds.map(p => p.k), dgs.map(d => d.k)).filter(n => !img79(n));
     map.ground = paintGround(map);
+    dgs.forEach(d => { const im = img79(d.k), DG = DUNGEON[d.k]; if (im) map.objs.push({ img: im, x: d.x * TS, y: d.y * TS, sy: d.y * TS + DG.h - 4, tx: d.x, ty: d.y, kind: 'dungeon' }); });   // v128 던전 입구 (사람과 앞뒤 순서 맞춤)
     return { ground: map.ground, objs: map.objs, need, map };
   }
   // 맵 만들기 화면에서 나무·바위 하나 그리기 (게임과 같은 그림: Meshy 그림이 있으면 그것, 없으면 예전 그림)
   function drawMapObj(c, o) {
-    const alt = (o.alt2 && img79(o.alt2)) || (o.alt && imgOk(o.alt));
+    const alt = o.kind !== 'dungeon' && ((o.alt2 && img79(o.alt2)) || (o.alt && imgOk(o.alt)));
     if (alt) c.drawImage(alt, Math.round(o.tx * TS + 16 - alt.naturalWidth / 2), Math.round((o.ty + 1) * TS - alt.naturalHeight + 2));
     else c.drawImage(o.img, o.x, o.y);
   }
@@ -1071,5 +1075,5 @@
     return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}${(it.slot === 'weapon' && WP_IC[it.look] && imgOk(WP_IC[it.look])) || (SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot])) || (it.stack && imgOk('ic_pot')) ? ';image-rendering:auto' : ''}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
   }
 
-  window.__GoRPGParts = { previewMap, drawMapObj, texOf, POND, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
+  window.__GoRPGParts = { previewMap, drawMapObj, texOf, POND, DUNGEON, DUNGEON_KEYS, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
 })();

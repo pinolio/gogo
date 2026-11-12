@@ -1232,6 +1232,7 @@ a.card .card-foot .r-rank b { color: #B4560B; }
   --ic-my: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%231D2340' d='M1 1h10v1h-10zM1 2h1v1h-1zM10 2h1v1h-1zM1 3h1v1h-1zM10 3h1v1h-1zM1 4h1v1h-1zM10 4h1v1h-1zM1 5h1v1h-1zM10 5h1v1h-1zM1 6h1v1h-1zM10 6h1v1h-1zM1 7h1v1h-1zM10 7h1v1h-1zM1 8h1v1h-1zM10 8h1v1h-1zM1 9h1v1h-1zM10 9h1v1h-1zM1 10h10v1h-10z'/%3E%3Cpath fill='%23FFFFFF' d='M2 2h8v1h-8zM2 3h7v1h-7zM2 4h6v1h-6zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h2v1h-2zM2 6h1v1h-1zM5 6h1v1h-1zM8 6h2v1h-2zM2 7h2v1h-2zM7 7h3v1h-3zM2 8h3v1h-3zM6 8h4v1h-4zM2 9h8v1h-8z'/%3E%3Cpath fill='%233DDC84' d='M9 3h1v1h-1zM8 4h2v1h-2zM3 5h1v1h-1zM7 5h1v1h-1zM3 6h2v1h-2zM6 6h2v1h-2zM4 7h3v1h-3zM5 8h1v1h-1z'/%3E%3C/svg%3E");
   --ic-admin: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%231D2340' d='M4 0h4v1h-4zM2 1h2v1h-2zM8 1h2v1h-2zM1 2h1v1h-1zM10 2h1v1h-1zM1 3h1v1h-1zM4 3h4v1h-4zM10 3h1v1h-1zM0 4h1v1h-1zM3 4h1v1h-1zM8 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM3 5h1v1h-1zM8 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM3 6h1v1h-1zM8 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM3 7h1v1h-1zM8 7h1v1h-1zM11 7h1v1h-1zM1 8h1v1h-1zM4 8h4v1h-4zM10 8h1v1h-1zM1 9h1v1h-1zM10 9h1v1h-1zM2 10h2v1h-2zM8 10h2v1h-2zM4 11h4v1h-4z'/%3E%3Cpath fill='%23FFD23F' d='M4 1h4v1h-4zM2 2h8v1h-8zM2 3h2v1h-2zM8 3h2v1h-2zM1 4h2v1h-2zM9 4h2v1h-2zM1 5h2v1h-2zM9 5h2v1h-2zM1 6h2v1h-2zM9 6h2v1h-2zM1 7h2v1h-2zM9 7h2v1h-2zM2 8h2v1h-2zM8 8h2v1h-2zM2 9h8v1h-8zM4 10h4v1h-4z'/%3E%3C/svg%3E");
   --ic-test: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%231D2340' d='M3 0h6v1h-6zM4 1h1v1h-1zM7 1h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM3 4h1v1h-1zM8 4h1v1h-1zM2 5h1v1h-1zM9 5h1v1h-1zM1 6h1v1h-1zM10 6h1v1h-1zM1 7h1v1h-1zM9 7h2v1h-2zM0 8h1v1h-1zM11 8h1v1h-1zM0 9h1v1h-1zM11 9h1v1h-1zM0 10h1v1h-1zM11 10h1v1h-1zM1 11h10v1h-10z'/%3E%3Cpath fill='%23FFFFFF' d='M5 1h2v1h-2zM5 2h2v1h-2zM5 3h2v1h-2zM4 4h4v1h-4zM3 5h6v1h-6zM5 7h1v1h-1zM3 9h1v1h-1z'/%3E%3Cpath fill='%233DDC84' d='M2 6h8v1h-8zM2 7h3v1h-3zM6 7h3v1h-3zM1 8h10v1h-10zM1 9h2v1h-2zM4 9h7v1h-7zM1 10h10v1h-10z'/%3E%3C/svg%3E");
+  --ic-maker: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%231D2340' d='M1 9h1v1h-1zM1 10h1v1h-1zM1 11h1v1h-1zM2 8h1v1h-1zM2 9h1v1h-1zM2 10h1v1h-1zM2 11h1v1h-1zM3 7h1v1h-1zM3 8h1v1h-1zM3 9h1v1h-1zM4 6h1v1h-1zM4 7h1v1h-1zM4 8h1v1h-1zM5 5h1v1h-1zM5 6h1v1h-1zM5 7h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM6 6h1v1h-1zM7 3h1v1h-1zM7 4h1v1h-1zM7 5h1v1h-1zM8 2h1v1h-1zM8 3h1v1h-1zM8 4h1v1h-1zM9 1h1v1h-1zM9 2h1v1h-1zM9 3h1v1h-1zM10 1h1v1h-1zM10 2h1v1h-1z'/%3E%3C/svg%3E");
   --ic-room: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%231D2340' d='M5 0h2v1h-2zM4 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM8 2h1v1h-1zM2 3h1v1h-1zM9 3h1v1h-1zM1 4h1v1h-1zM10 4h1v1h-1zM0 5h12v1h-12zM1 6h1v1h-1zM10 6h1v1h-1zM1 7h1v1h-1zM6 7h2v1h-2zM10 7h1v1h-1zM1 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM1 9h1v1h-1zM6 9h3v1h-3zM10 9h1v1h-1zM1 10h1v1h-1zM6 10h3v1h-3zM10 10h1v1h-1zM1 11h10v1h-10z'/%3E%3Cpath fill='%23FF5A5F' d='M5 1h2v1h-2zM4 2h4v1h-4zM3 3h6v1h-6zM2 4h8v1h-8z'/%3E%3Cpath fill='%23FFFFFF' d='M2 6h8v1h-8zM2 7h1v1h-1zM5 7h1v1h-1zM8 7h2v1h-2zM2 8h1v1h-1zM5 8h1v1h-1zM9 8h1v1h-1zM2 9h4v1h-4zM9 9h1v1h-1zM2 10h4v1h-4zM9 10h1v1h-1z'/%3E%3Cpath fill='%234C7DFF' d='M3 7h2v1h-2zM3 8h2v1h-2z'/%3E%3Cpath fill='%23FFD23F' d='M7 8h1v1h-1z'/%3E%3C/svg%3E");
 }
 /* =====================================================================
@@ -1287,6 +1288,7 @@ a.card .card-foot .r-rank b { color: #B4560B; }
 .top .nav a[data-nav="rank"]  { --c: #9B6BFF; --ic: var(--ic-rank); }
 .top .nav a[data-nav="my"]    { --c: #3DDC84; --t: #1D2340; --ic: var(--ic-my); text-shadow: none; }
 .top .nav a[data-nav="admin"] { --c: #FF5A5F; --ic: var(--ic-admin); }
+.top .nav a[data-nav="maker"] { --c: #FF7EB6; --t: #1D2340; --ic: var(--ic-maker); text-shadow: none; }
 .top .nav a[data-nav="test"]  { --c: #FF9F43; --t: #1D2340; --ic: var(--ic-test); text-shadow: none; }
 .top .nav a:hover { transform: translateY(-2px); filter: brightness(1.08) saturate(1.1); color: var(--t); background: var(--c);
   box-shadow: 0 6px 0 #0B0F26, inset 0 2px 0 rgba(255, 255, 255, .5), inset 0 -3px 0 rgba(0, 0, 0, .18); }
@@ -1596,3 +1598,29 @@ a.nm-t:hover { text-decoration: underline; }
 .mapedit .me-list li { display: flex; gap: 6px; align-items: center; }
 .mapedit .me-list li span { font-size: 12px; opacity: .8; }
 @media (max-width: 860px) { .mapedit .me-main { grid-template-columns: 1fr; } }
+
+/* v125 메이커 · 지도 상태 · 맵 관리 */
+.maker .maker-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.maker .maker-card { display: grid; gap: 8px; }
+.maker .mk-ic { font-size: 40px; }
+.maker .mk-steps { margin: 0; padding-left: 20px; color: #1D2340; font-weight: 700; font-size: 14px; }
+.mk-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.mk-list li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border: 2px solid #1D2340; border-radius: 10px; background: #FFFFFF; }
+.mk-date { font-size: 12px; color: #1D2340; opacity: .8; }
+.me-st { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; border: 2px solid #1D2340; color: #1D2340; }
+.me-st.st-draft { background: #FFFFFF; } .me-st.st-sub { background: #FFD23F; } .me-st.st-ret { background: #FFB3B3; } .me-st.st-ok { background: #7FE0A8; }
+.me-note { font-size: 12px; color: #B2232B; font-weight: 700; }
+.mapedit .me-status { flex-basis: 100%; margin: 0; font-weight: 700; font-size: 14px; color: #1D2340; }
+.mapedit .me-admin { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: end; padding-top: 10px; border-top: 2px dashed #1D2340; }
+.mapadmin .ma-main { display: grid; grid-template-columns: 320px 1fr; gap: 12px; align-items: start; margin-top: 10px; }
+.mapadmin .ma-list ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; max-height: 70vh; overflow: auto; }
+.mapadmin .ma-list button { width: 100%; display: grid; gap: 3px; justify-items: start; text-align: left; padding: 8px 10px; border: 2px solid #1D2340; border-radius: 10px; background: #FFFFFF; color: #1D2340; cursor: pointer; font: inherit; }
+.mapadmin .ma-list button[aria-pressed="true"] { background: #FFE9A8; box-shadow: 0 3px 0 #1D2340; }
+.mapadmin .ma-list button span { font-size: 12px; }
+.mapadmin .ma-meta { font-size: 14px; color: #1D2340; }
+.mapadmin .ma-canvas { overflow: auto; border: 3px solid #1D2340; border-radius: 10px; background: #1D2340; margin: 8px 0; }
+.mapadmin .ma-canvas canvas { display: block; width: 100%; height: auto; }
+@media (max-width: 860px) { .mapadmin .ma-main { grid-template-columns: 1fr; } }
+.mk-sec { margin: 12px 0 6px; font-size: 15px; color: #1D2340; }
+.mk-help { margin: 0 0 6px; font-size: 13px; color: #1D2340; }
+.mk-acts { margin-left: auto; display: flex; gap: 4px; }

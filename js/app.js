@@ -28,7 +28,9 @@
   const GAMES = SET.list().map(g => Object.assign(Object.create(g), { cat: CATNAME[g.category] || g.category }));
   const SOON = [['벽돌깨기', '액션'], ['플래피 점프', '아케이드']];
   const CATS = ['전체'].concat(Object.values(CATNAME));
-  const gameById = id => GAMES.find(g => g.id === id && !g.battle);
+  // v125 정비 중 게임(settings.js maint: true)은 목록에 없지만 관리자는 테스트 게임 메뉴에서 들어가 해 볼 수 있음
+  const MAINT = SET.listAll().filter(g => g.maint).map(g => Object.assign(Object.create(g), { cat: CATNAME[g.category] || g.category }));
+  const gameById = id => GAMES.find(g => g.id === id && !g.battle) || (Hub.isAdmin() ? MAINT.find(g => g.id === id) : undefined);
   const nameOf = id => (SET.get(id) || {}).name || id;
 
   /* ---------- 공통 조각 ---------- */
@@ -1134,9 +1136,10 @@
       current = 'admin'; setNav('admin');
       cleanups.push(window.GoAdmin.render(view(), { toast, esc, fmt, dur, ago, nameOf, avCanvas, games: SET.listAll().map(g => ({ id: g.id, name: g.name })) }));
     }
-    else if (h === 'mapedit' && window.GoMapEdit) {   // v124 관리자 RPG 맵 만들기
-      current = 'admin'; setNav('admin');
-      cleanups.push(window.GoMapEdit.render(view(), { toast, esc, fmt }));
+    else if ((h === 'maker' || h === 'mapedit' || h === 'mapadmin') && window.GoMapEdit) {   // v125 메이커 · 지도 그리기(누구나) · 맵 관리(관리자)
+      current = h; setNav(h === 'mapadmin' ? 'admin' : 'maker');
+      const ui = { toast, esc, fmt, openAuth };
+      cleanups.push(h === 'maker' ? window.GoMapEdit.renderMaker(view(), ui) : h === 'mapadmin' ? window.GoMapEdit.renderAdmin(view(), ui) : window.GoMapEdit.render(view(), ui));
     }
     else if ((h === 'test' || h.startsWith('test-')) && window.GoTestGames) {   // v70 관리자 테스트 게임
       current = h; setNav('test');
@@ -1186,7 +1189,7 @@
       else if (current === 'shop' && window.GoShop.refresh) window.GoShop.refresh();
       else if (current === 'closet' && window.GoCloset.refresh) window.GoCloset.refresh();
       else if (current === 'room' && window.GoRoom.refresh) window.GoRoom.refresh();
-      else if (current === 'admin' || String(current).startsWith('test')) route();
+      else if (current === 'admin' || current === 'maker' || current === 'mapadmin' || String(current).startsWith('test')) route();
     });
     try { await Hub.init(); } catch (e) { console.error(e); }
     renderUserChip();

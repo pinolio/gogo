@@ -4,7 +4,7 @@
  *  파일 3개: data.js (숫자·목록) · world.js (지도 만들기·그림) · game.js (이 파일: 움직임·전투·창·저장)
  *  캐릭터: 사이트 아바타 그대로 + 장비를 위에 겹쳐 그림. 가방 창 '장비 안보이기' = 그림만 숨김 (능력치 그대로)
  *  저장: 이 기기(localStorage) + 로그인하면 서버 game_saves 표 (supabase/rpg_v40.sql). 더 최근 것을 불러옴
- *  조작: 방향키 이동 · Space/J 공격 · 1~4 기본 마법 · Q W E R 융합 마법 · Z/X 포션 · I 가방 · K 마법 · F/Enter 들어가기 · Esc 닫기 (v53)
+ *  조작: 방향키 이동 · Space/J 공격 · 1~4 기본 마법 · Q W E R 융합 마법 · Z/X 포션 · V 귀환(가까운 마을, 2분) · I 가방 · K 마법 · F/Enter 들어가기 · Esc 닫기 (v53)
  *        휴대폰: 왼쪽 조이스틱 + 오른쪽 버튼 (캔버스 위)
  */
 (function () {
@@ -207,8 +207,8 @@
   .rg-side { width: min(100%, 560px); display: grid; grid-template-columns: 1fr; gap: 12px; }
   /* v43 크게 보기 */
   /* v104 채널 이동 버튼 (게임 화면 왼쪽) · 창 */
-  .rg-chbtn { position: absolute; left: 1.2%; top: 18.5%; z-index: 2; display: grid; gap: 2px; justify-items: center; min-width: 58px; padding: 7px 8px; border-radius: 12px; background: rgba(10,14,36,.82); border: 2px solid #9AE6FF; color: #FFFFFF; font-family: var(--f-display); font-size: 15px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
-  .rg-chbtn small { font-family: inherit; font-size: 11px; color: #9AE6FF; }
+  .rg-chbtn { position: absolute; left: 1.2%; top: 18.5%; z-index: 2; display: grid; gap: 2px; justify-items: center; min-width: 58px; padding: 7px 10px; border-radius: 10px; background: linear-gradient(180deg, rgba(36,44,88,.95), rgba(12,16,40,.95)); border: 2px solid #D8B25A; outline: 2px solid #0A0E24; color: #FFF3D6; font-family: var(--f-display); font-size: 15px; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,226,150,.35), 0 3px 0 rgba(0,0,0,.35); }   /* v127 금테 */
+  .rg-chbtn small { font-family: inherit; font-size: 11px; color: #F2D58A; }
   .rg-chbtn:hover { filter: brightness(1.15); }
   .rg-chs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .rg-chs .rg-srv.cur[disabled] { opacity: 1; border-color: #9AE6FF; box-shadow: 0 0 0 2px rgba(154,230,255,.35), 0 3px 0 rgba(0,0,0,.3); }
@@ -892,6 +892,19 @@
           if (d < 58 + m.r && (d < 24 + m.r || (mx * dx + my * dy) / (d || 1) > 0.2)) hitMon(m, ST.atk, []);
         });
       }
+      /* v125 귀환 (선생님 11/12: 물약 오른쪽 · 가까운 마을로 바로 · 쿨타임 2분) — 사냥터면 그 지역 마을, 저승 등은 마지막 마을 */
+      const RECALL_CD = 120;
+      const recallLeft = () => Math.max(0, ((S.recallAt || 0) + RECALL_CD * 1000 - Date.now()) / 1000);
+      function recallTown() {
+        const M = MAPBY[S.map]; if (!M || M.hell) return S.home;
+        const v = 'v' + ((M.region || 0) + 1); return MAPBY[v] ? v : S.home;
+      }
+      function doRecall() {
+        if (!S || G.dead || pane) return;
+        if (G.room || (MAPBY[S.map] && MAPBY[S.map].kind === 'village')) { say('이미 마을이에요'); return; }
+        const left = recallLeft(); if (left > 0) { say(`귀환은 ${Math.ceil(left)}초 뒤에 쓸 수 있어요`); return; }
+        S.recallAt = Date.now(); const to = recallTown(); enter(to, 'door'); say(`🏠 ${MAPBY[to].name}(으)로 돌아왔어요`, 2.6);
+      }
       function usePotion(kind) {
         const tiers = POT_T, id = kind === 'hp'
           ? (tiers.map(t => 'hp' + t).filter(i => count(i) > 0).find(i => ITEMS[i].amount <= ST.hp - S.hp) || tiers.map(t => 'hp' + t).slice().reverse().find(i => count(i) > 0))
@@ -1420,14 +1433,38 @@
         });
       }
       // HUD 도구
-      function panelBox(c, x, y, w, h, r) {
-        const g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, 'rgba(30,38,84,.92)'); g.addColorStop(1, 'rgba(12,16,40,.92)');
-        c.fillStyle = '#0A0E24'; rr(c, x - 2, y - 2, w + 4, h + 4, r + 2); c.fill();
-        c.fillStyle = g; rr(c, x, y, w, h, r); c.fill(); c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = 1; rr(c, x + 1, y + 1, w - 2, h - 2, r); c.stroke();
+      /* v127 선생님 시안: 금테 두른 남색 판 (바깥 검은 선 · 금 테두리 · 안쪽 옅은 금 선 · 네 귀퉁이 금 장식) */
+      const GOLD = ['#FFE7A0', '#D8B25A', '#9A6E22'];
+      function goldStroke(c, y, h) { const g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, GOLD[0]); g.addColorStop(0.5, GOLD[1]); g.addColorStop(1, GOLD[2]); return g; }
+      function gem(c, x, y, s) {   // 귀퉁이 마름모 장식
+        c.save(); c.translate(x, y); c.rotate(Math.PI / 4);
+        c.fillStyle = '#0A0E24'; c.fillRect(-s - 1.5, -s - 1.5, s * 2 + 3, s * 2 + 3);
+        const g = c.createLinearGradient(-s, -s, s, s); g.addColorStop(0, GOLD[0]); g.addColorStop(1, GOLD[2]); c.fillStyle = g; c.fillRect(-s, -s, s * 2, s * 2);
+        c.fillStyle = '#7A2A3A'; c.fillRect(-s * 0.4, -s * 0.4, s * 0.8, s * 0.8); c.restore();
+      }
+      function panelBox(c, x, y, w, h, r, opt) {
+        opt = opt || {};
+        const g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, 'rgba(38,46,96,.94)'); g.addColorStop(1, 'rgba(12,16,40,.94)');
+        c.fillStyle = '#0A0E24'; rr(c, x - 3, y - 3, w + 6, h + 6, r + 3); c.fill();
+        c.fillStyle = g; rr(c, x, y, w, h, r); c.fill();
+        c.strokeStyle = goldStroke(c, y, h); c.lineWidth = 2.5; rr(c, x - 0.5, y - 0.5, w + 1, h + 1, r + 0.5); c.stroke();
+        c.strokeStyle = 'rgba(255,226,150,.28)'; c.lineWidth = 1; rr(c, x + 3, y + 3, w - 6, h - 6, Math.max(1, r - 3)); c.stroke();
+        if (opt.gems !== false) { const s = w > 120 && h > 30 ? 3.2 : 2.4; gem(c, x + 1, y + 1, s); gem(c, x + w - 1, y + 1, s); gem(c, x + 1, y + h - 1, s); gem(c, x + w - 1, y + h - 1, s); }
+      }
+      // v127 지도 이름 띠: 양 끝이 뾰족한 두루마리 모양 + 금테
+      function bannerBox(c, cx, y, w, h) {
+        const x0 = cx - w / 2, x1 = cx + w / 2, k = 14, path = (d) => { c.beginPath(); c.moveTo(x0 + k - d, y - d); c.lineTo(x1 - k + d, y - d); c.lineTo(x1 + d * 0.6, y + h / 2); c.lineTo(x1 - k + d, y + h + d); c.lineTo(x0 + k - d, y + h + d); c.lineTo(x0 - d * 0.6, y + h / 2); c.closePath(); };
+        path(4); c.fillStyle = '#0A0E24'; c.fill();
+        const g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, 'rgba(44,52,108,.96)'); g.addColorStop(1, 'rgba(14,18,46,.96)');
+        path(0); c.fillStyle = g; c.fill(); c.strokeStyle = goldStroke(c, y, h); c.lineWidth = 2.5; c.stroke();
+        c.save(); c.translate(0, 0); path(-4); c.strokeStyle = 'rgba(255,226,150,.3)'; c.lineWidth = 1; c.stroke(); c.restore();
+        gem(c, x0 - 1, y + h / 2, 3.2); gem(c, x1 + 1, y + h / 2, 3.2);
+        // 위·아래 가운데 작은 장식 줄
+        c.fillStyle = goldStroke(c, y - 3, 6); c.fillRect(cx - 18, y - 2, 36, 3); c.fillRect(cx - 18, y + h - 1, 36, 3);
       }
       function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
       function bar(c, x, y, w, h, v, cols, label, ghost) {
-        c.fillStyle = '#0A0E24'; rr(c, x - 2, y - 2, w + 4, h + 4, 4); c.fill(); c.fillStyle = '#1E2650'; c.fillRect(x, y, w, h);
+        c.fillStyle = '#0A0E24'; rr(c, x - 3, y - 3, w + 6, h + 6, 5); c.fill(); c.strokeStyle = goldStroke(c, y - 2, h + 4); c.lineWidth = 1.5; rr(c, x - 1.5, y - 1.5, w + 3, h + 3, 4); c.stroke(); c.fillStyle = '#1E2650'; c.fillRect(x, y, w, h);   // v127 금테
         if (ghost != null && ghost > v) { c.fillStyle = '#FFF3B0'; c.fillRect(x, y, Math.round(w * clamp(ghost, 0, 1)), h); }
         const g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, cols[0]); g.addColorStop(1, cols[1]);
         c.fillStyle = g; c.fillRect(x, y, Math.round(w * clamp(v, 0, 1)), h); c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(x, y + 1, Math.round(w * clamp(v, 0, 1)), Math.max(1, h / 4));
@@ -1444,7 +1481,7 @@
         const M = G.map.M;
         // 왼쪽 위: 초상화 + 이름·레벨 + 체력·마나 + 골드
         panelBox(c, 8, 8, 270, 82, 10);
-        c.fillStyle = '#0A0E24'; rr(c, 14, 14, 70, 70, 8); c.fill();
+        c.fillStyle = '#0A0E24'; rr(c, 14, 14, 70, 70, 8); c.fill(); c.strokeStyle = goldStroke(c, 14, 70); c.lineWidth = 2; rr(c, 14, 14, 70, 70, 8); c.stroke();   // v127 금테 초상화
         const pg = c.createLinearGradient(0, 16, 0, 82); pg.addColorStop(0, '#5C86FF'); pg.addColorStop(1, '#2F3FA0'); c.fillStyle = pg; rr(c, 16, 16, 66, 66, 7); c.fill();
         c.drawImage(getPortrait(), 17, 17, 64, 64);
         if (S.sp > 0) {   // 올릴 스탯 포인트가 있으면 얼굴 오른쪽 위에 + 표시 (톡톡 튐)
@@ -1452,7 +1489,7 @@
           c.fillStyle = '#0A0E24'; c.beginPath(); c.arc(0, 0, 11, 0, Math.PI * 2); c.fill(); c.fillStyle = '#FF5A5F'; c.beginPath(); c.arc(0, 0, 9, 0, Math.PI * 2); c.fill();
           c.fillStyle = '#FFFFFF'; c.fillRect(-5, -1.5, 10, 3); c.fillRect(-1.5, -5, 3, 10); c.restore();
         }
-        c.fillStyle = '#FFD23F'; rr(c, 12, 70, 36, 18, 5); c.fill(); c.fillStyle = '#1D2340'; c.font = '12px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('Lv.' + S.lv, 30, 80);
+        c.fillStyle = '#0A0E24'; rr(c, 10, 68, 40, 22, 6); c.fill(); c.fillStyle = goldStroke(c, 70, 18); rr(c, 12, 70, 36, 18, 5); c.fill(); c.fillStyle = '#1D2340'; c.font = '12px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('Lv.' + S.lv, 30, 80);
         c.font = '14px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.fillStyle = '#FFFFFF'; c.fillText(Hub.user ? Hub.user.nickname : '손님', 92, 28);
         c.textAlign = 'right'; c.fillStyle = '#FFD23F'; c.fillText(fmtN(S.gold) + ' G', 270, 28);
         c.fillStyle = '#8A5A10'; c.beginPath(); c.arc(270 - c.measureText(fmtN(S.gold) + ' G').width - 10, 23, 6, 0, Math.PI * 2); c.fill(); c.fillStyle = '#FFD23F'; c.beginPath(); c.arc(270 - c.measureText(fmtN(S.gold) + ' G').width - 10, 23, 4.5, 0, Math.PI * 2); c.fill();
@@ -1467,23 +1504,23 @@
         c.font = '10px "Jua", sans-serif'; c.textAlign = 'right'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; const et = S.lv >= D.MAX_LV ? '만렙!' : `경험치 ${(ex * 100).toFixed(1)}%`; c.strokeText(et, W - 6, H - 11); c.fillStyle = '#FFF3B0'; c.fillText(et, W - 6, H - 11);
         // 위 가운데: 지도 이름
         const t = M.kind !== 'field' || M.hell ? M.name : `사냥터 ${M.no}. ${M.name}`, rec = M.kind === 'room' ? MAPBY[S.map].name + ' · 건물 안' : M.kind === 'village' ? '마을' : `권장 Lv.${M.rec}`;
-        c.font = '16px "Jua", "Malgun Gothic", sans-serif'; const tw = Math.max(c.measureText(t).width, 80) + 30;
-        panelBox(c, W / 2 - tw / 2, 8, tw, 38, 10);
-        c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF'; c.fillText(t, W / 2, 21);
-        c.font = '11px "Jua", sans-serif'; c.fillStyle = M.kind !== 'field' ? '#9AE6FF' : M.rec > S.lv + 6 ? '#FF8A8E' : M.rec > S.lv + 2 ? '#FFD23F' : '#9AF0B0'; c.fillText(rec + (M.kind !== 'village' && M.rec > S.lv + 6 ? ' · 위험!' : ''), W / 2, 37);
+        c.font = '17px "Jua", "Malgun Gothic", sans-serif'; const tw = Math.max(c.measureText(t).width, 90) + 56;
+        bannerBox(c, W / 2, 9, tw, 40);   // v127 두루마리 띠
+        c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; c.strokeText(t, W / 2, 23); c.fillStyle = '#FFF3D6'; c.fillText(t, W / 2, 23);
+        c.font = '11px "Jua", sans-serif'; c.fillStyle = M.kind !== 'field' ? '#9AE6FF' : M.rec > S.lv + 6 ? '#FF8A8E' : M.rec > S.lv + 2 ? '#FFD23F' : '#9AF0B0'; c.fillText(rec + (M.kind !== 'village' && M.rec > S.lv + 6 ? ' · 위험!' : ''), W / 2, 39);
         // v104 채널 이동 버튼 (온라인일 때만)
         { const want = !!(net && net.joined && net.chNo), b = $('#rgChBtn'); if (b && b.hidden === want) b.hidden = !want; if (want && b._no !== net.chNo) { b._no = net.chNo; b.firstChild.textContent = net.chNo + '채널'; } }
         // 서버 표시 (위 가운데 이름 아래)
         if (net && net.joined) {
           const st = `${net.name(net.server)}${net.chNo ? ` · ${net.chNo}채널` : ''} · 여기 ${net.peers.size + 1}명`; c.font = '12px "Jua", "Malgun Gothic", sans-serif'; const sw = c.measureText(st).width + 18;
-          c.fillStyle = 'rgba(10,14,36,.78)'; rr(c, W / 2 - sw / 2, 50, sw, 20, 8); c.fill(); c.fillStyle = '#9AE6FF'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(st, W / 2, 61);
+          c.fillStyle = 'rgba(10,14,36,.85)'; rr(c, W / 2 - sw / 2, 55, sw, 20, 9); c.fill(); c.strokeStyle = goldStroke(c, 55, 20); c.lineWidth = 1.5; rr(c, W / 2 - sw / 2, 55, sw, 20, 9); c.stroke(); c.fillStyle = '#F2E6C4'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(st, W / 2, 66);
         }
         // 오른쪽 위: 작은 지도
         if (!G.room) drawMini(c, now);
         // 보스 체력 (큰 막대)
         const boss = G.mons.find(m => m.boss && !m.dead && (m.aggro || Math.hypot(m.x - G.px, m.y - G.py) < 420));
         if (boss) {
-          const bw = 420, bx = W / 2 - bw / 2, by = 54; panelBox(c, bx - 8, by - 4, bw + 16, 34, 8);
+          const bw = 420, bx = W / 2 - bw / 2, by = net && net.joined ? 84 : 58; panelBox(c, bx - 8, by - 4, bw + 16, 34, 8);
           c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#FF8A8E'; c.fillText('보스 ' + boss.name + ' Lv.' + boss.lvl + (boss.el && ELEM[boss.el] ? ' · ' + ELEM[boss.el].name + ' 속성 (약점 ' + ELEM[D.HELL.weak[boss.el]].name + ')' : ''), bx, by + 7);
           c.textAlign = 'right'; c.fillStyle = '#FFFFFF'; c.fillText(Math.ceil(boss.hp / boss.max * 100) + '%', bx + bw, by + 7);
           boss.hpShow = boss.hpShow == null ? boss.hp / boss.max : Math.max(boss.hp / boss.max, boss.hpShow - 0.3 / 60);
@@ -1501,12 +1538,27 @@
           c.restore();
         }
         if (G.touch || G.room) return;   // 건물 안에서는 아래 마법 칸을 숨김 (나가는 문이 보이게)
-        // 아래 가운데: 기본 마법 4칸(1~4) + 융합 마법 4칸(Q W E R) + 포션 2칸(Z X)
-        const bw = 10 * 54 + 2 * 12 - 4, x0 = Math.round(W / 2 - bw / 2), y0 = H - 62;
+        // 아래 가운데: 기본 마법 4칸(1~4) + 융합 마법 4칸(Q W E R) + 포션 2칸(Z X) + v125 귀환(V)
+        const bw = 11 * 54 + 2 * 12 - 4, x0 = Math.round(W / 2 - bw / 2), y0 = H - 62;
         panelBox(c, x0 - 8, y0 - 8, bw + 16, 60, 12);
         for (let i = 0; i < 4; i++) skillSlot(c, x0 + i * 54, y0, 46, i, now);
         for (let i = 0; i < 4; i++) skillSlot(c, x0 + 4 * 54 + 12 + i * 54, y0, 46, 4 + i, now);
         potionSlot(c, x0 + 8 * 54 + 24, y0, 46, 'hp', 'Z'); potionSlot(c, x0 + 9 * 54 + 24, y0, 46, 'mp', 'X');
+        recallSlot(c, x0 + 10 * 54 + 24, y0, 46); G.recallBox = { x: x0 + 10 * 54 + 24, y: y0, s: 46 };
+      }
+      // v125 귀환 칸: 집 그림 + 남은 시간
+      function recallSlot(c, x, y, s) {
+        const left = recallLeft();
+        c.fillStyle = '#0A0E24'; rr(c, x - 1, y - 1, s + 2, s + 2, 7); c.fill(); c.fillStyle = '#1F4A3A'; rr(c, x, y, s, s, 6); c.fill();
+        c.save(); c.translate(x + s / 2, y + s / 2 + 2);
+        c.fillStyle = '#FFD23F'; c.beginPath(); c.moveTo(-14, -2); c.lineTo(0, -15); c.lineTo(14, -2); c.closePath(); c.fill();   // 지붕
+        c.fillStyle = '#F5E2B8'; c.fillRect(-10, -3, 20, 15); c.fillStyle = '#8A5A2B'; c.fillRect(-3, 3, 6, 9);                    // 벽 · 문
+        c.strokeStyle = '#0A0E24'; c.lineWidth = 2; c.strokeRect(-10, -3, 20, 15); c.restore();
+        if (left > 0) {
+          c.save(); rr(c, x, y, s, s, 6); c.clip(); c.fillStyle = 'rgba(10,14,36,.72)'; c.beginPath(); c.moveTo(x + s / 2, y + s / 2); c.arc(x + s / 2, y + s / 2, s, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / RECALL_CD)); c.closePath(); c.fill(); c.restore();
+          c.font = '15px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; const t = left >= 60 ? Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0') : String(Math.ceil(left)); c.strokeText(t, x + s / 2, y + s / 2); c.fillStyle = '#FFFFFF'; c.fillText(t, x + s / 2, y + s / 2);
+        }
+        c.fillStyle = '#0A0E24'; rr(c, x - 3, y - 3, 15, 15, 4); c.fill(); c.font = '11px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFD23F'; c.fillText('V', x + 4.5, y + 5);
       }
       function drawMini(c, now) {
         const map = G.map, mw = 150, k = mw / map.w, mh = Math.round(map.h * k), x0 = W - mw - 14, y0 = 12;
@@ -1542,13 +1594,14 @@
       }
       const potionImgs = {};
       // 휴대폰 버튼 (캔버스 좌표)
-      const TB = { atk: { x: 880, y: 456, r: 48 }, s0: { x: 768, y: 482, r: 31 }, s1: { x: 778, y: 398, r: 31 }, s2: { x: 836, y: 346, r: 31 }, s3: { x: 914, y: 334, r: 31 }, f0: { x: 694, y: 420, r: 26 }, f1: { x: 712, y: 346, r: 26 }, f2: { x: 768, y: 290, r: 26 }, f3: { x: 842, y: 262, r: 26 }, hp: { x: 688, y: 500, r: 25 }, mp: { x: 636, y: 500, r: 25 } };
+      const TB = { atk: { x: 880, y: 456, r: 48 }, s0: { x: 768, y: 482, r: 31 }, s1: { x: 778, y: 398, r: 31 }, s2: { x: 836, y: 346, r: 31 }, s3: { x: 914, y: 334, r: 31 }, f0: { x: 694, y: 420, r: 26 }, f1: { x: 712, y: 346, r: 26 }, f2: { x: 768, y: 290, r: 26 }, f3: { x: 842, y: 262, r: 26 }, hp: { x: 688, y: 500, r: 25 }, mp: { x: 636, y: 500, r: 25 }, rc: { x: 584, y: 500, r: 25 } };   // v125 rc = 귀환
       function drawTouch(c) {
         if (G.joy && G.joy.on) { c.globalAlpha = 0.3; c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(G.joy.cx, G.joy.cy, 62, 0, Math.PI * 2); c.fill(); c.globalAlpha = 0.85; const g = c.createRadialGradient(G.joy.cx + G.joy.vx * 50, G.joy.cy + G.joy.vy * 50, 4, G.joy.cx + G.joy.vx * 50, G.joy.cy + G.joy.vy * 50, 28); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#9AA8E0'); c.fillStyle = g; c.beginPath(); c.arc(G.joy.cx + G.joy.vx * 50, G.joy.cy + G.joy.vy * 50, 28, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; }
         else { c.globalAlpha = 0.3; c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.beginPath(); c.arc(110, 436, 62, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.arc(110, 436, 24, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1; }
         Object.entries(TB).forEach(([k, b]) => {
           c.globalAlpha = G.btnDown[k] ? 0.9 : 0.62; c.fillStyle = '#0A0E24'; c.beginPath(); c.arc(b.x, b.y, b.r, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1;
           if (k === 'atk') { const g = c.createRadialGradient(b.x, b.y - 10, 4, b.x, b.y, b.r); g.addColorStop(0, '#FFE45C'); g.addColorStop(1, '#C88A10'); c.fillStyle = g; c.beginPath(); c.arc(b.x, b.y, b.r - 5, 0, Math.PI * 2); c.fill(); c.font = '18px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#1D2340'; c.fillText('공격', b.x, b.y + 1); return; }
+          if (k === 'rc') { const left = recallLeft(); c.fillStyle = '#1F4A3A'; c.beginPath(); c.arc(b.x, b.y, b.r - 4, 0, Math.PI * 2); c.fill(); c.font = '20px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF'; c.fillText('🏠', b.x, b.y + 1); if (left > 0) { c.fillStyle = 'rgba(10,14,36,.7)'; c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r - 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left / RECALL_CD); c.fill(); c.font = '13px "Jua", sans-serif'; c.fillStyle = '#FFFFFF'; c.fillText(String(Math.ceil(left)), b.x, b.y + 1); } return; }
           if (k === 'hp' || k === 'mp') { const n = POT_T.reduce((a, t) => a + count(k + t), 0); c.fillStyle = k === 'hp' ? '#D2343A' : '#2F55D9'; c.beginPath(); c.arc(b.x, b.y, b.r - 4, 0, Math.PI * 2); c.fill(); c.font = '13px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF'; c.fillText(String(n), b.x, b.y + 1); return; }
           const fu = k[0] === 'f', i = +k[1], sk = skill(fu ? S.fslots[i] : S.slots[i]);
           c.save(); c.beginPath(); c.arc(b.x, b.y, b.r - 4, 0, Math.PI * 2); c.clip();
@@ -1822,8 +1875,8 @@
         } else if (k === 'help') {
           h = head('도움말', '내 아바타로 떠나는 도트 RPG — 혼자 플레이 첫 버전') + (imgOk('key') ? `<img src="${imgOk('key').src}" alt="" style="width:100%;border-radius:10px;border:2px solid #0A0E24;margin:4px 0 10px;display:block">` : '');
           h += `<ul class="ult-rules">
-            <li><b>이동</b> 방향키 · <b>공격</b> Space·J · <b>기본 마법</b> 1~4 · <b>융합 마법</b> Q W E R · <b>포션</b> Z(체력) X(마나) · <b>가방</b> I · <b>마법 창</b> K · <b>창 닫기</b> Esc</li>
-            <li>휴대폰은 화면 왼쪽을 끌면 이동(조이스틱), 오른쪽 버튼으로 공격·마법·포션. 가로로 돌리면 더 커요.</li>
+            <li><b>이동</b> 방향키 · <b>공격</b> Space·J · <b>기본 마법</b> 1~4 · <b>융합 마법</b> Q W E R · <b>포션</b> Z(체력) X(마나) · <b>귀환</b> V(가까운 마을, 2분마다) · <b>가방</b> I · <b>마법 창</b> K · <b>창 닫기</b> Esc</li>
+            <li>휴대폰은 화면 왼쪽을 끌면 이동(조이스틱), 오른쪽 버튼으로 공격·마법·포션·귀환(🏠). 가로로 돌리면 더 커요.</li>
             <li>지도 <b>오른쪽 끝 → 다음 지도</b>, 왼쪽 끝 → 이전 지도. 마을 → 사냥터 10곳 → 다음 마을 … 마을 하나가 10레벨씩(솔뫼 마을 Lv.1~10 … 구름절 마을 Lv.71~80), 마지막 도원수 진영은 Lv.80~100.</li>
             <li>문으로 걸어 들어가면 <b>건물 안</b>이에요. 안에 있는 사람에게 가까이 가면 이야기해요: <b>약방</b> 아씨 · <b>도술 서원</b> 도사(마법 배우기·융합) · <b>이장 댁</b> 이장님(무료 이동·저장). 아래 가운데 문으로 나가요.</li>
             <li>처음부터 <b>마법 화살</b>(1번 키)을 쓸 수 있어요.</li>
@@ -1998,7 +2051,7 @@
       });
 
       /* ================= 입력 ================= */
-      const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyJ', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyZ', 'KeyX', 'KeyI', 'KeyK', 'KeyC', 'KeyF', 'Enter', 'Escape']);
+      const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyJ', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyZ', 'KeyX', 'KeyV', 'KeyI', 'KeyK', 'KeyC', 'KeyF', 'Enter', 'Escape']);
       function onKey(e) {
         if (!S || !G.map) return;
         const tag = (e.target.tagName || '').toLowerCase();
@@ -2018,6 +2071,7 @@
         else if (e.code === 'KeyQ' || e.code === 'KeyW' || e.code === 'KeyE' || e.code === 'KeyR') cast(4 + 'QWER'.indexOf(e.code[3]));
         else if (e.code === 'KeyZ') usePotion('hp');
         else if (e.code === 'KeyX') usePotion('mp');
+        else if (e.code === 'KeyV') doRecall();   // v125 귀환
         else if (e.code === 'KeyF' || e.code === 'Enter') {
           if (net && net.peers.size) { let pp = null, bd = 70; net.peers.forEach(q => { const dd = Math.hypot(G.px - q.x, G.py - q.y); if (dd < bd) { bd = dd; pp = q; } }); if (pp) { askTrade(pp); return; } }
           if (G.room) { const n = (G.npcs || []).find(q => Math.hypot(G.px - q.talk.x, G.py - q.talk.y) < q.talk.r * 1.4); if (n) talk(n); return; }
@@ -2038,10 +2092,11 @@
         if (e.pointerType === 'touch' || e.pointerType === 'pen') G.touch = true;
         { const q = toC(e); if (q.x < 92 && q.y < 96 && !G.dead) { e.preventDefault(); openPanel('stat'); return; }   // v43 왼쪽 위 얼굴 → 스탯 창
           if (!(G.touch && btnAt(q))) { const pp = peerAt(q); if (pp) { e.preventDefault(); askTrade(pp); return; } } }   // v44 다른 사람 누르기 → 거래
+        { const q = toC(e), rb = G.recallBox; if (!G.touch && rb && !G.room && q.x >= rb.x && q.x <= rb.x + rb.s && q.y >= rb.y && q.y <= rb.y + rb.s) { e.preventDefault(); doRecall(); return; } }   // v125 귀환 칸 누르기
         if (!G.touch) { screenEl.focus({ preventScroll: true }); return; }
         e.preventDefault(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
         const p = toC(e), b = btnAt(p);
-        if (b) { pts[e.pointerId] = { btn: b }; G.btnDown[b] = true; if (b[0] === 's') cast(+b[1]); else if (b[0] === 'f') cast(4 + +b[1]); else if (b === 'hp' || b === 'mp') usePotion(b); return; }
+        if (b) { pts[e.pointerId] = { btn: b }; G.btnDown[b] = true; if (b[0] === 's') cast(+b[1]); else if (b[0] === 'f') cast(4 + +b[1]); else if (b === 'hp' || b === 'mp') usePotion(b); else if (b === 'rc') doRecall(); return; }
         if (p.x < W * 0.55) { pts[e.pointerId] = { joy: true }; G.joy = { on: true, cx: p.x, cy: p.y, vx: 0, vy: 0 }; }
       }, { passive: false });
       canvas.addEventListener('pointermove', e => {

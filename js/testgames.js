@@ -205,6 +205,8 @@
 
   // v79: 신호등 구구단은 정식 게임(#gugu · 이벤트 칸 · 공부? 목록)으로 내보냄 → 테스트 목록에서는 빠짐
   const GAMES = [];
+  // v125 정비 중인 정식 게임 (settings.js 에 hidden: true, maint: true) — 게임 목록·랭킹엔 안 나오고 여기서 관리자만 해 봄
+  const MAINT = () => (window.GoSettings ? window.GoSettings.listAll().filter(g => g.maint) : []);
 
   function render(root, ui, gid) {
     css();
@@ -216,7 +218,7 @@
     if (!g) {
       root.innerHTML = `<div class="tg-wrap"><div class="page-head"><h1>테스트 게임</h1><p>정식으로 내보내기 전에 관리자만 미리 해 보는 곳이에요.</p></div>
         <p class="tg-note">여기 게임은 게임 목록·랭킹·전적에 나오지 않고 포인트도 없어요. 해 보고 괜찮으면 Claude 에게 <b>"○○ 내보내 줘"</b> 라고 하면 정식 게임으로 옮겨요.</p>
-        ${GAMES.length ? '' : '<p class="tg-note">지금 테스트 중인 게임이 없어요. (신호등 구구단은 정식 게임으로 내보냈어요 → <a href="#gugu">신호등 구구단</a>)</p>'}<div class="tg-list">${GAMES.map(x => `<a class="tg-card" href="#test-${x.id}"><span class="tag">테스트</span><b>${ui.esc(x.name)}</b><span>${ui.esc(x.desc)}</span></a>`).join('')}</div></div>`;
+        ${GAMES.length || MAINT().length ? '' : '<p class="tg-note">지금 테스트 중인 게임이 없어요. (신호등 구구단은 정식 게임으로 내보냈어요 → <a href="#gugu">신호등 구구단</a>)</p>'}<div class="tg-list">${GAMES.map(x => `<a class="tg-card" href="#test-${x.id}"><span class="tag">테스트</span><b>${ui.esc(x.name)}</b><span>${ui.esc(x.desc)}</span></a>`).join('')}${MAINT().map(x => `<a class="tg-card" href="#${x.id}"><span class="tag">정비 중</span><b>${ui.esc(x.name)}</b><span>${ui.esc(x.desc || (x.hero && x.hero.desc) || '')} — 정비가 끝나면 다시 게임 목록에 나와요. (settings.js 의 hidden·maint 를 지우면 돼요)</span></a>`).join('')}</div></div>`;
       return () => {};
     }
     root.innerHTML = `<div class="tg-wrap"><div class="page-head"><h1>${ui.esc(g.name)} <small style="font-size:14px;background:#FFD23F;color:#1D2340;border-radius:999px;padding:2px 10px;vertical-align:middle">테스트</small></h1><p><a href="#test">← 테스트 게임 목록</a></p></div><div id="tgBody"></div></div>`;

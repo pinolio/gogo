@@ -162,6 +162,7 @@
     const KEY = 'gogogogo.demo.v2', SKEY = 'gogogogo.demo.session';
     const read = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
     const write = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* 저장 불가 환경 */ } };
+    const draftsDb = () => { try { return JSON.parse(read('gogo_map_drafts') || '{}') || {}; } catch (e) { return {}; } };   // v125
     const mapsDb = () => { try { return JSON.parse(read('gogo_rpg_maps') || '{}') || {}; } catch (e) { return {}; } };   // v124
     let mem = null;
 
@@ -425,6 +426,21 @@
         const d = db();
         return d.records.filter(r => r.game_id === game).map(r => withUser(d, r));
       },
+      /* ---- v125 메이커: 플레이어 지도 (체험 모드: 이 브라우저에만) ---- */
+      async myMaps() { if (!Hub.user) return []; return Object.values(draftsDb()).filter(d => d.owner === Hub.user.id).sort((a, b) => b.id - a.id).map(({ data, ...r }) => r); },
+      async draftGet(id) { const d = draftsDb()[id]; return d && (d.owner === (Hub.user && Hub.user.id) || Hub.isAdmin()) ? d : null; },
+      async draftSave(id, title, data) {
+        if (!Hub.user) throw new Error('로그인하면 저장할 수 있어요.');
+        const all = draftsDb(), now = new Date().toISOString();
+        if (id && all[id]) { const d = all[id]; if (d.owner !== Hub.user.id) throw new Error('내 지도만 고칠 수 있어요.'); if (!['draft', 'returned'].includes(d.status)) throw new Error('제출한 지도는 고칠 수 없어요.'); Object.assign(d, { title, data, status: 'draft', updated_at: now }); }
+        else { if (Object.values(all).filter(d => d.owner === Hub.user.id).length >= 20) throw new Error('지도는 20개까지 저장할 수 있어요.'); id = Math.max(0, ...Object.keys(all).map(Number)) + 1; all[id] = { id, owner: Hub.user.id, title, data, status: 'draft', admin_note: '', official_id: null, created_at: now, updated_at: now, submitted_at: null, profiles: { nickname: Hub.user.nickname } }; }
+        write('gogo_map_drafts', JSON.stringify(all)); return id;
+      },
+      async draftDelete(id) { const all = draftsDb(); delete all[id]; write('gogo_map_drafts', JSON.stringify(all)); },
+      async draftWithdraw(id) { const all = draftsDb(), d = all[id]; if (!d || d.status !== 'submitted') throw new Error('제출한 지도만 회수할 수 있어요.'); d.status = 'draft'; d.submitted_at = null; write('gogo_map_drafts', JSON.stringify(all)); },   // v126
+      async draftSubmit(id) { const all = draftsDb(), d = all[id]; if (!d) throw new Error('지도를 찾지 못했어요.'); d.status = 'submitted'; d.submitted_at = new Date().toISOString(); write('gogo_map_drafts', JSON.stringify(all)); },
+      async adminDrafts(status) { if (!Hub.isAdmin()) throw new Error('관리자만 볼 수 있어요.'); return Object.values(draftsDb()).filter(d => !status || d.status === status).sort((a, b) => (b.submitted_at || b.updated_at).localeCompare(a.submitted_at || a.updated_at)).map(({ data, ...r }) => r); },
+      async adminDraftSet(id, patch) { if (!Hub.isAdmin()) throw new Error('관리자만 바꿀 수 있어요.'); const all = draftsDb(); if (all[id]) Object.assign(all[id], patch, { updated_at: new Date().toISOString() }); write('gogo_map_drafts', JSON.stringify(all)); },
       /* ---- v124 RPG 맵 만들기 (체험 모드: 이 브라우저에만) ---- */
       async mapList() { const m = mapsDb(); return Object.values(m).map(x => ({ id: x.id, name: x.name, updated_at: x.updated_at })); },
       async mapGet(id) { const m = mapsDb(); return m[id] || null; },
@@ -850,6 +866,30 @@
         }
         return out;
       },
+      /* ---- v125 메이커: 플레이어 지도 (supabase/rpg_map_drafts_v125.sql) ---- */
+      async myMaps() {
+        if (!Hub.user) return [];
+        const { data, error } = await sb.from('rpg_map_drafts').select('id,title,status,admin_note,official_id,updated_at,submitted_at').eq('owner', Hub.user.id).order('id', { ascending: false });
+        if (error) throw new Error(/rpg_map_drafts/.test(error.message || '') ? '지도 저장 표가 아직 없어요 (선생님이 준비 중이에요).' : friendly(error, '내 지도를 불러오지 못했어요'));
+        return data || [];
+      },
+      async draftGet(id) { const { data, error } = await sb.from('rpg_map_drafts').select('*,profiles(nickname)').eq('id', id).maybeSingle(); if (error) throw new Error(friendly(error, '지도를 불러오지 못했어요')); return data; },
+      async draftSave(id, title, data) {
+        if (!Hub.user) throw new Error('로그인하면 저장할 수 있어요.');
+        if (id) { const { error } = await sb.from('rpg_map_drafts').update({ title, data, status: 'draft' }).eq('id', id).select('id').single(); if (error) throw new Error(friendly(error, '저장하지 못했어요 (제출한 지도는 고칠 수 없어요)')); return id; }
+        const { data: r, error } = await sb.from('rpg_map_drafts').insert({ title, data }).select('id').single();
+        if (error) throw new Error(friendly(error, '저장하지 못했어요'));
+        return r.id;
+      },
+      async draftDelete(id) { const { error } = await sb.from('rpg_map_drafts').delete().eq('id', id); if (error) throw new Error(friendly(error, '지우지 못했어요')); },
+      async draftWithdraw(id) { const { data, error } = await sb.from('rpg_map_drafts').update({ status: 'draft' }).eq('id', id).select('status').single(); if (error) throw new Error(friendly(error, '회수하지 못했어요')); if (data.status !== 'draft') throw new Error('회수하지 못했어요 (v126 SQL 을 Run 해야 해요)'); },   // v126
+      async draftSubmit(id) { const { error } = await sb.from('rpg_map_drafts').update({ status: 'submitted' }).eq('id', id).select('id').single(); if (error) throw new Error(friendly(error, '제출하지 못했어요')); },
+      async adminDrafts(status) {
+        let q = sb.from('rpg_map_drafts').select('id,owner,title,status,admin_note,official_id,updated_at,submitted_at,profiles(nickname)').order('submitted_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }).limit(300);
+        if (status) q = q.eq('status', status);
+        const { data, error } = await q; if (error) throw new Error(friendly(error, '지도 목록을 불러오지 못했어요')); return data || [];
+      },
+      async adminDraftSet(id, patch) { const { error } = await sb.from('rpg_map_drafts').update(patch).eq('id', id); if (error) throw new Error(friendly(error, '바꾸지 못했어요')); },
       /* ---- v124 RPG 맵 만들기 (supabase/rpg_maps_v124.sql: rpg_maps 표 · 읽기는 누구나 · 쓰기는 관리자) ---- */
       async mapList() {
         const { data, error } = await sb.from('rpg_maps').select('id,name,updated_at').order('id');

@@ -7,6 +7,7 @@ GoSettings.register({
   name: '숫자 코드',
   category: 'board',
   folder: 'games/board/code',
+  hidden: true, maint: true,          // v125 선생님 11/12: 정비 중 → 게임 목록에서 빼고 관리자 '테스트 게임' 메뉴로 (다시 내려면 이 줄을 지우기)
   order: 15,
   tag: 'NEW',
   board: true,                        // 대국 화면 사용 (컴퓨터 / 한 기기로 같이)
