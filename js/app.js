@@ -62,7 +62,7 @@
 
   /* v113 상점 잠시 쉬기 (선생님 11/10): true 면 메뉴 '상점' 앞에 자물쇠 · 누를 수 없음 · 주소로 들어와도 안내만 (관리자는 들어갈 수 있음)
    *  다시 열려면 false 로 바꾸고 버전 올리기 */
-  const SHOP_CLOSED = true;
+  const SHOP_CLOSED = false;   // v123 선생님 11/12: 상점 다시 엶
   const shopLocked = () => SHOP_CLOSED && !Hub.isAdmin();
   function lockShopNav() {
     const a = document.querySelector('.nav a[data-nav="shop"]'); if (!a) return;
