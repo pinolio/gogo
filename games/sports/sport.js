@@ -2,7 +2,7 @@
  * gogo?gogo! — 스포츠 게임 공통 도구 (GoSport)
  *  - keys(map)        : 키보드 입력 (채팅 입력 중에는 무시)
  *  - pad(canvas, W, H, buttons) : 휴대폰용 화면 버튼 (여러 손가락 동시 입력)
- *  - fighter(av)      : 플레이어 아바타를 자세별 도트 그림으로 (서기·걷기·주먹·발차기·막기·점프)
+ *  - drawFighter(...) : 플레이어 아바타(새 몸 그림 옆모습)를 자세별로 (서기·걷기·주먹·발차기·막기·점프·스파이크) — v120 예전 도트 자세 그림은 뺐음
  *  - image(src)       : 그림 불러오기 (다 불러오면 다시 그리도록 알림)
  */
 (function () {
@@ -70,54 +70,8 @@
     };
   }
 
-  /* ---------- 아바타 자세 그림 ----------
-   * 18 × 29 칸 아바타 그림을 바탕으로 팔·다리를 덧그려 자세를 만듭니다.
-   * pose: 'idle' | 'walk1' | 'walk2' | 'punch' | 'kick' | 'guard' | 'jump' | 'hit' | 'spike'
-   * 오른쪽을 보는 그림. 왼쪽은 그릴 때 뒤집음. 가로 폭을 6칸 늘려 팔다리가 들어갈 자리를 둠. */
+  /* ---------- 아바타 자세 그림 (v120: 새 몸 그림만) ---------- SPRITE = 그림 칸 크기 (게임들이 위치 계산에 씀) */
   const EXTRA = 6, SW = AV.size.w + EXTRA, SH = AV.size.h;
-  const cache = new Map();
-  function fighter(av, pose) {
-    const key = AV.attr(av) + '|' + pose;
-    if (cache.has(key)) return cache.get(key);
-    const frame = pose === 'walk1' ? 1 : pose === 'walk2' ? 3 : 0;
-    const g = AV.grid(av, frame).map(r => r.concat(Array(EXTRA).fill(null)));
-    const at = (x, y) => (g[y] && g[y][x]) || null;
-    // 칸 좌표는 테두리 1칸 포함 기준
-    const skin = at(5, 9) || '#F2C6A0', sleeve = at(13, 14) || skin, pant = at(10, 21) || '#3A5A9A', shoe = at(10, 26) || OUT, shirt = at(8, 15) || sleeve;
-    const put = (x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const yy = y + j, xx = x + i; if (g[yy] && xx >= 0 && xx < SW) g[yy][xx] = c; } };
-    const clear = (x, y, w, h) => put(x, y, w, h, null);
-    if (pose === 'punch' || pose === 'spike') {
-      clear(12, 13, 2, 7);                                  // 오른팔 지우고
-      if (pose === 'punch') { put(12, 13, 6, 2, sleeve); put(18, 12, 3, 4, skin); }          // 앞으로 뻗은 팔 + 주먹
-      else { put(12, 6, 2, 7, sleeve); put(12, 3, 3, 3, skin); }                           // 위로 뻗은 팔 (스파이크)
-    } else if (pose === 'kick') {
-      clear(9, 20, 3, 7);                                   // 오른다리 지우고
-      put(10, 19, 7, 3, pant); put(17, 18, 3, 4, shoe);     // 옆으로 뻗은 다리 + 신발
-    } else if (pose === 'guard') {
-      clear(12, 13, 2, 7); clear(4, 13, 2, 7);
-      put(12, 8, 2, 6, sleeve); put(14, 7, 2, 7, sleeve); put(14, 6, 2, 2, skin); put(12, 7, 2, 2, skin);
-    } else if (pose === 'jump') {
-      clear(4, 13, 2, 7); clear(12, 13, 2, 7);
-      put(3, 9, 2, 5, sleeve); put(13, 9, 2, 5, sleeve); put(3, 8, 2, 1, skin); put(13, 8, 2, 1, skin);
-    }
-    // 테두리 다시 계산
-    const base = g.map(r => r.map(c => (c === OUT ? null : c)));
-    const out = base.map(r => r.slice());
-    for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
-      if (base[y][x]) continue;
-      if ((y > 0 && base[y - 1][x]) || (y < SH - 1 && base[y + 1][x]) || (x > 0 && base[y][x - 1]) || (x < SW - 1 && base[y][x + 1])) out[y][x] = OUT;
-    }
-    // v39: 아바타와 같은 2배 정교한 그림 (부드러운 대각선 · 명암 · 반짝이는 눈)
-    const hi = AV.refine ? AV.refine(out, true) : out, K = AV.refine ? 2 : 1;
-    const c = document.createElement('canvas'); c.width = SW * K; c.height = SH * K;
-    const cx = c.getContext('2d');
-    for (let y = 0; y < SH * K; y++) for (let x = 0; x < SW * K; x++) if (hi[y][x]) { cx.fillStyle = hi[y][x]; cx.fillRect(x, y, 1, 1); }
-    // 맞았을 때: 하얗게 번쩍
-    if (pose === 'hit') { cx.globalCompositeOperation = 'source-atop'; cx.fillStyle = 'rgba(255,255,255,.65)'; cx.fillRect(0, 0, SW * K, SH * K); }
-    cache.set(key, c);
-    if (cache.size > 300) cache.delete(cache.keys().next().value);
-    return c;
-  }
   // (x: 발 가운데, y: 발바닥) 기준으로 그림. face: 1 오른쪽, -1 왼쪽
   // v105 walk = 걸음 위상(라디안)을 주면 서 있는 그림을 조각내어 부드럽게 걷기 (AV.rig, RPG 순찰병과 같은 방식) · arms 'left' = 오른손에 라켓
   // v114 새 몸 그림(옆모습)이 있으면 그것으로: 걷기 = AV.rigSide, 주먹·발차기 등은 몸을 기울여 표현, 맞으면 하얗게
@@ -200,21 +154,7 @@
   }
   function drawFighter(ctx, av, pose, x, y, scale, face, alpha, walk, arms, hand) {
     if (bodyFighter(ctx, av, pose, x, y, scale, face, alpha, walk, hand)) return;
-    if (AV.useBody && AV.useBody(av)) return;   // v120 새 몸 그림을 받는 중이면 잠깐 안 그림 (예전 도트는 안 씀)
-    if (walk != null && AV.rig && (pose === 'idle' || pose === 'walk1' || pose === 'walk2')) {
-      const spr = fighter(av, 'idle'), w = SW * scale, h = SH * scale, bodyCx = (AV.size.w / 2) * scale;
-      ctx.save(); if (alpha != null) ctx.globalAlpha = alpha;
-      ctx.translate(Math.round(x), Math.round(y - h)); if (face < 0) ctx.scale(-1, 1);
-      AV.rig(ctx, spr, Math.round(-bodyCx), 0, w, h, walk, true, { padL: 0, arms: arms == null ? true : arms });
-      ctx.restore(); return;
-    }
-    const spr = fighter(av, pose), w = SW * scale, h = SH * scale, bodyCx = (AV.size.w / 2) * scale;
-    ctx.save(); ctx.imageSmoothingEnabled = false;
-    if (alpha != null) ctx.globalAlpha = alpha;
-    ctx.translate(Math.round(x), Math.round(y - h));
-    if (face < 0) ctx.scale(-1, 1);
-    ctx.drawImage(spr, Math.round(-bodyCx), 0, w, h);
-    ctx.restore();
+    // v120 새 몸 그림을 받는 중이면 잠깐 안 그림 (예전 도트는 뺐음)
   }
   function shadow(ctx, x, y, w) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y, w / 2, w / 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
@@ -254,5 +194,5 @@
     };
   }
 
-  window.GoSport = { image, ready, onImages, keys, pad, touchDevice, fighter, drawFighter, shadow, text, bar, cpuAvatar, myAvatar, myName, slotOrder, teamOf, smoother, SPRITE: { w: SW, h: SH } };
+  window.GoSport = { image, ready, onImages, keys, pad, touchDevice, drawFighter, shadow, text, bar, cpuAvatar, myAvatar, myName, slotOrder, teamOf, smoother, SPRITE: { w: SW, h: SH } };
 })();

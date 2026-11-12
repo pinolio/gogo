@@ -94,7 +94,9 @@
     </div>`;
   }
 
-  function paintTry(frame) { const c = $('#clTry'); if (c) AV.paint(c, look, Object.assign({ scale: 6, scene: true }, frame && frame.walk != null ? frame : { frame })); }
+  // v121 배경을 고르면 미리보기 칸 전체를 그 배경 그림으로 (노란 바탕 대신)
+  function stageBg(c, av) { const st = c && c.parentElement, u = AV.bgImg && AV.bgImg(av); if (!st) return false; st.classList.toggle('bg-on', !!u); st.style.backgroundImage = u ? `url("${u}")` : ''; return !!u; }
+  function paintTry(frame) { const c = $('#clTry'); if (!c) return; const on = stageBg(c, look); AV.paint(c, look, Object.assign({ scale: 6, scene: !on }, frame && frame.walk != null ? frame : { frame })); }
   function startWalk() {
     clearInterval(walkTimer);
     if (!walking || reduce) { paintTry(0); return; }

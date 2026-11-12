@@ -211,22 +211,14 @@
     startWalk();
   }
 
-  // v114 선생님 그림이 있는 헤어 (상점 카드에 그림으로 보임)
-  const HAIR_IMG = ['h_short', 'h_short_brown', 'h_long', 'h_bob', 'h_ponytail', 'h_spiky', 'h_curly', 'h_bun', 'h_topknot', 'h_twin', 'h_twotone', 'h_mohawk'];
-  // v114 상점 머리(얹는 머리)는 내 피부·성별 몸에 얹은 모습으로 보여 줌 (옷은 기본)
-  const ovHair = id => id && (trial.g === 'm' || trial.g === 'f' || !Hub.user) && ((slot === 'hair' && AV.HAIR_OV && AV.HAIR_OV.includes(id)) || (slot === 'hat' && AV.HAT_OV && AV.HAT_OV.includes(id)) || (slot === 'face' && AV.FACE_OV && AV.FACE_OV.includes(id)) || (slot === 'shoes' && AV.SHOE_OV && (AV.SHOE_OV.includes(id) || id === 'sh_basic')) || (slot === 'back' && AV.BACK_OV && AV.BACK_OV.includes(id)));
-  const okHair = h => !h || (AV.byId[h] && AV.byId[h].price === 0) || (AV.HAIR_OV && AV.HAIR_OV.includes(h));
-  // 머리는 그 머리 + 지금 모자 없이 · 모자는 지금 머리(얹을 수 있는 것) + 그 모자 (옷은 기본)
-  const hairLook = id => Object.assign({ skin: AV.BODY_SKINS.includes(trial.skin) ? trial.skin : 's1', g: trial.g === 'f' ? 'f' : 'm' }, slot === 'hat' ? { hair: okHair(trial.hair) ? trial.hair : null, hat: id } : slot === 'face' ? { hair: okHair(trial.hair) ? trial.hair : null, face: id } : slot === 'shoes' ? { hair: okHair(trial.hair) ? trial.hair : null, shoes: id } : slot === 'back' ? { hair: okHair(trial.hair) ? trial.hair : null, back: id } : { hair: id });
   function card(id) {
     const it = id ? AV.byId[id] : null;
-    const look = ovHair(id) ? hairLook(id) : Object.assign({}, trial, { [slot]: id });
+    const look = Object.assign({}, trial, { [slot]: id });
     const sel = picked === id;
     const tier = !it ? '' : Hub.price(id) >= PREMIUM ? ' tier-premium' : Hub.price(id) === 0 ? ' tier-free' : '';
     return `<button type="button" class="item${tier} ${sel ? 'sel' : ''}" data-item="${id || ''}" aria-pressed="${sel}">
       ${slot === 'skin' && id && AV.BODY_SKINS && AV.BODY_SKINS.includes(id) ? `<span class="it-img"><img src="${AV.bodySrc(trial.g || 'm', 'f', id)}" alt="" loading="lazy"></span>`
         : slot === 'bg' && it && it.img ? `<span class="it-img it-bg"><img src="${(window.GOGO_BASE || '') + it.img}" alt="" loading="lazy"></span>`   // v120 선생님 그림 배경은 그림 그대로
-        : slot === 'hair' && id && HAIR_IMG.includes(id) && !ovHair(id) ? `<span class="it-img"><img src="${AV.hairSrc(id)}" alt="" loading="lazy"></span>`
         : `<canvas data-avatar="${AV.attr(look)}" data-scale="3" data-scene data-body aria-hidden="true"></canvas>`}
       <span class="it-name">${it ? A.esc(it.name) : '없음'}</span>${badge(id)}</button>`;
   }
@@ -238,14 +230,16 @@
     // 다른 칸 썸네일도 새 미리보기 기준으로 다시 그림
     $$('[data-item]', root).forEach(b => {
       const c = b.querySelector('canvas'), v = b.dataset.item || null; if (!c) return;   // v114 그림 카드(피부·헤어)는 그대로
-      const look = ovHair(v) ? hairLook(v) : Object.assign({}, trial, { [slot]: v }), o = { scale: 3, scene: true, body: true }; o.onBody = () => AV.paint(c, look, o);
+      const look = Object.assign({}, trial, { [slot]: v }), o = { scale: 3, scene: true, body: true }; o.onBody = () => AV.paint(c, look, o);
       AV.paint(c, look, o);
     });
     paintTry(0);
     renderInfo();
   }
 
-  function paintTry(frame) { const c = $('#pvTry'); if (c) AV.paint(c, trial, Object.assign({ scale: 6, scene: true, body: true, onBody: () => paintTry(0) }, frame && frame.walk != null ? frame : { frame })); }   // v114 기본 옷이면 새 몸 그림
+  // v121 배경을 고르면 미리보기 칸 전체를 그 배경 그림으로 (노란 바탕 대신) · 아바타 칸에는 배경을 안 그림
+  function stageBg(c, av) { const st = c && c.parentElement, u = AV.bgImg && AV.bgImg(av); if (!st) return false; st.classList.toggle('bg-on', !!u); st.style.backgroundImage = u ? `url("${u}")` : ''; return !!u; }
+  function paintTry(frame) { const c = $('#pvTry'); if (!c) return; const on = stageBg(c, trial); AV.paint(c, trial, Object.assign({ scale: 6, scene: !on, body: true, onBody: () => paintTry(0) }, frame && frame.walk != null ? frame : { frame })); }   // v114 기본 옷이면 새 몸 그림
   function startWalk() {
     clearInterval(walkTimer);
     if (!walking || reduce) { paintTry(0); return; }

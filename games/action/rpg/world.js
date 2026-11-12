@@ -40,6 +40,8 @@
    * 칸 값: 0 땅 · 1 길 · 2 장애물(큰) · 3 장애물(작은) · 4 물 · 5 꽃(지나갈 수 있음) · 6 건물 · 7 문 · 8 분수 · 9 대장간(v60) */
   const SOLID = { 2: 1, 3: 1, 4: 1, 6: 1, 8: 1, 9: 1, 10: 1, 11: 1 };   // 9 = v60 대장간 · 10 = v80 진영 소품(천막·대포…) · 11 = v85 역참
   const mapCache = {};
+  /* v120 연못 그림: t = 칸(32px) 지도 · W 물(못 지나감) · r 물가(지나감, 나무·꽃 안 놓음 = 칸 12) · . 빈칸 */
+  const POND = {"pond_s":{"w":81,"h":75,"t":["rr.","rWr","..."]},"pond_m":{"w":166,"h":129,"t":[".rrrr.","rWWWr.","rWWWr.","rrWr..","......"]},"pond_l":{"w":206,"h":189,"t":[".rrrrr.","rrWWWr.","rWWWWWr","rWWWWWr","rrWWWr.","rrrrrr."]}}, POND_KEYS = ['pond_s', 'pond_m', 'pond_l'], POND_REG = [0, 1, 2, 3, 4, 7];
   function getMap(id) {
     if (mapCache[id]) return mapCache[id];
     const M = MAPBY[id], R = D.REGIONS[M.region], rnd = seeded('gogo-rpg-' + id);
@@ -97,9 +99,24 @@
           if (x >= w - 6) y += Math.sign(mid - y);
         }
       } else fieldRoad(map, rnd);   // v110 사냥터 길도 마을처럼 부드럽게 굽은 흙길
-      // 연못
+      // 연못 · v120 선생님 그림 연못(작은·중간·큰 3가지, img/v79/pond_*.png)을 통째로 놓음 (풀밭 지역) · 그 밖(눈·용굴·용암·저승)은 예전 칸 연못
       const ponds = 2 + Math.floor(rnd() * 3);
-      for (let p = 0; p < ponds; p++) {
+      if (!M.hell && POND_REG.includes(M.region)) {
+        map.ponds = [];
+        for (let p = 0, tries = 0; p < ponds && tries < 80; tries++) {
+          const k = POND_KEYS[Math.floor(rnd() * 3)], PD = POND[k], tw = PD.t[0].length, th = PD.t.length;
+          const x0 = 4 + Math.floor(rnd() * (w - 8 - tw)), y0 = 2 + Math.floor(rnd() * (h - 4 - th));
+          let okP = true;
+          for (let j = 0; j < th && okP; j++) for (let i = 0; i < tw && okP; i++) {
+            if (PD.t[j][i] === '.') continue;
+            if (at(x0 + i, y0 + j) !== 0) okP = false;
+            for (let b = -1; b <= 1 && okP; b++) for (let a = -1; a <= 1; a++) { const v = at(x0 + i + a, y0 + j + b); if (v === 1 || v === 7 || v === 12) okP = false; }
+          }
+          if (!okP) continue;
+          for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++) { const c = PD.t[j][i]; if (c === 'W') set(x0 + i, y0 + j, 4); else if (c === 'r') set(x0 + i, y0 + j, 12); }
+          map.ponds.push({ k, x: x0, y: y0 }); p++;
+        }
+      } else for (let p = 0; p < ponds; p++) {
         const cx = 6 + rnd() * (w - 12), cy = 4 + rnd() * (h - 8), rx = 2 + rnd() * 3, ry = 1.5 + rnd() * 2;
         for (let yy = Math.floor(cy - ry); yy <= cy + ry; yy++) for (let xx = Math.floor(cx - rx); xx <= cx + rx; xx++) {
           if (((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2 <= 1 && at(xx, yy) === 0 && !(map.roads && [-1, 0, 1].some(j => [-1, 0, 1].some(k => at(xx + j, yy + k) === 1)))) set(xx, yy, 4);   // v110 굽은 길 바로 옆엔 연못 안 만듦
@@ -311,9 +328,9 @@
     const isPath = v => v === 1 || v === 7, G0 = R.ground[0], G1 = R.ground[1], dark = shade(G0, -0.18), light = shade(G0, 0.16);
     map.water = []; map.objs = []; map.glows = [];
     // v80 Meshy 재질 그림 (땅·길·물 192px 이어 붙는 무늬). 아직 안 불러왔으면 옛 색 무늬로 그리고, 다 불러오면 다시 그림
-    const TX = texOf(map), ok = TX.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
+    const TX = texOf(map), NEED = TX.concat((map.ponds || []).map(p => p.k)), ok = NEED.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
     if (!ok && !map.texWait) {   // v82 고침: 이미 받은 그림은 기다릴 수에서 빼야 함 (전에는 하나라도 먼저 받아져 있으면 영영 다시 안 그렸음)
-      map.texWait = true; const need = TX.filter(n => !img79(n)); let left = need.length;
+      map.texWait = true; const need = NEED.filter(n => !img79(n)); let left = need.length;
       const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) map.ground = paintGround(map); };
       need.forEach(n => img79(n, done));
     }
@@ -370,6 +387,8 @@
       if (lf) { px(X, Y, 4, TS, sand); px(X + 4, Y, 2, TS, shade(W0, 0.45)); }
       if (rt) { px(X + 28, Y, 4, TS, sand); px(X + 26, Y, 2, TS, shade(W0, 0.45)); }
     }
+    // v120 선생님 그림 연못 (물 칸 위에 통째로)
+    (map.ponds || []).forEach(p => { const im = img79(p.k); if (im) { x.save(); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(im, p.x * TS, p.y * TS); x.restore(); } });
     // 4) 풀·꽃·돌 장식
     const grassy = !/[#](E8|F3|D6|4A|5A)/.test(G0);
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
@@ -833,35 +852,7 @@
     if (it('ring') && !imgOk('ic_rg')) px(12, 18, 1, 1, T('ring').gem);
     return cells;
   }
-  /* v79 팔 움직임: 걸을 때 팔을 번갈아 흔들고(frame 1·3), 마법을 쓸 때 두 팔을 들고('c'), 공격할 때 무기 팔을 내밂('a')
-   *  아바타 옷 160종을 그대로 쓰기 위해, 다 그린 칸 그림(18×29)에서 팔 부분만 잘라 옮긴 뒤 테두리를 다시 그림 */
-  function armPose(grid, pose, OUT, wpn) {
-    if (!pose) return grid;
-    const H2 = grid.length, W2 = grid[0].length, empty = (x, y) => x < 0 || y < 0 || x >= W2 || y >= H2 || !grid[y][x];
-    // 1) 바깥 테두리만 떼기 (눈처럼 안쪽의 남색은 그대로)
-    const raw = grid.map((r, y) => r.map((c, x) => (c === OUT && (empty(x - 1, y) || empty(x + 1, y) || empty(x, y - 1) || empty(x, y + 1)) ? null : c)));
-    // 2) 칸 묶음 옮기기 (x0..x1, y0..y1 를 dx·dy 만큼), stretch = 비는 줄은 원래 끝 줄로 채워 어깨와 이어지게
-    const move = (x0, x1, y0, y1, dx, dy, stretch) => {
-      const part = [];
-      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (raw[y] && raw[y][x]) { part.push([x, y, raw[y][x]]); if (!stretch) raw[y][x] = null; }
-      if (stretch && dy < 0) for (let y = y1 + dy + 1; y <= y1; y++) for (let x = x0; x <= x1; x++) if (raw[y]) raw[y][x] = null;
-      part.forEach(([x, y, c]) => { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W2 && ny < H2) raw[ny][nx] = c; });
-    };
-    const L = [0, 5], R = [12, 13], WP = [14, W2 - 1];   // 왼팔 · 오른팔 · 무기(오른쪽 바깥, 무기가 있을 때만 옮김)
-    if (pose === 1 || pose === 3) {
-      const up = pose === 1 ? L : R, dn = pose === 1 ? R : L;
-      move(up[0], up[1], 14, 20, 0, -1, true);
-      move(dn[0], dn[1], 14, 20, 0, 1, true);
-      if (wpn) { if (pose === 1) move(WP[0], WP[1], 0, H2 - 1, 0, 1, true); else move(WP[0], WP[1], 0, H2 - 1, 0, -1, true); }
-    } else if (pose === 'c') {             // 마법: 두 팔을 번쩍
-      move(L[0], L[1], 13, 20, 0, -4); move(R[0], R[1], 13, 20, 0, -4); if (wpn) move(WP[0], WP[1], 0, H2 - 1, 0, -3);
-      [[L[1], 13], [L[1] - 1, 13], [R[0], 13], [R[0] + 1, 13]].forEach(([x, y]) => { if (raw[y] && raw[y][x]) raw[y][x] = '#FFF6B0'; });   // 손끝 빛
-    } else if (pose === 'a') {             // 공격: 무기 팔을 앞으로
-      move(R[0], R[1], 13, 20, 1, -2); if (wpn) move(WP[0], WP[1], 0, H2 - 1, 1, -2);
-    }
-    // 3) 테두리 다시
-    return raw.map((r, y) => r.map((c, x) => c || ((!empty(x - 1, y) && raw[y][x - 1]) || (x + 1 < W2 && raw[y][x + 1]) || (y > 0 && raw[y - 1][x]) || (y + 1 < H2 && raw[y + 1][x]) ? OUT : null)));
-  }
+
   const SLOT_IC = { helmet: 'ic_hm', armor: 'ic_ar', ring: 'ic_rg', boots: 'ic_bt' }, WP_IC = { sword: 'ic_sw', staff: 'ic_st' }, WP_SZ = { sword: [16, 0.86], staff: [18, 0.8] },   // 무기 높이(칸) · 손잡이 자리(위에서부터 비율)
     WP_ANG = { sword: { 0: 32, c: 40, a: 75 }, staff: { 0: 18, c: 32, a: 45 } },   // 자세별 기울기(도)
     HAND = { 0: [0, 0], 1: [0, 1], 3: [0, -1], c: [0, -6.5], a: [1, -2] };   // 자세별 무기 쥔 손 위치 (서 있을 때 기준, 칸)   // 무기 그림 · 손에 들 때 높이·아래 끝(칸)
@@ -910,14 +901,11 @@
   let blankC = null; const blankSp = k => { if (!blankC) blankC = mk(GW * k, GH * k)[0]; return blankC; };
   function dirSprite(av, eq, hide, view, part) {
     const bodyI = bodyOf(av, view, eq, hide);
-    const blI = bodyI && part !== 'arm' && AV.backLayer ? AV.backLayer(av, view, null) : null;   // v118 등 장식(날개 등)
     if (!bodyI) return blankSp(view === 's' ? 2 : 2);   // v120 몸 그림을 받는 중이면 잠깐 빈 그림 (도트 안 씀)
-    const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!bodyI, !!blI, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!bodyI, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const k = 2, side = view === 's', arm = part === 'arm', noArm = part === 'noArm';
-    const hmOn = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');
-    const cells = AV.refine(AV.gridView(av, 0, view, side ? part : undefined, hmOn ? { noHair: true } : null), false);   // v108 투구를 쓰면 머리카락 없이
-    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = Math.max(swI ? 9 * k : 0, blI ? 7 * k : 0);
+    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 9 * k : 0;
     const hmIt = !hide && eq && eq.helmet && D.ITEMS[eq.helmet], hmNm = hmIt && (view === 'b' && imgOk('ic_hm_b') ? 'ic_hm_b' : side && imgOk('ic_hm_s') ? 'ic_hm_s' : 'ic_hm'), hmI = hmIt && imgOk(hmNm);   // v107 투구 뒷모습·옆모습 그림
     const [c, x] = mk(GW * k + PAD * 2, GH * k);
     const nOf = o => (o.legend ? 9 : o.rare ? 10 + o.tier : o.tier);
@@ -931,12 +919,7 @@
       x.imageSmoothingEnabled = false;
     };
     if (swI && view === 'b') drawWeapon();   // 뒤: 무기는 몸 뒤에
-    const top = 0;
-    if (blI && !blI.front) drawBody(x, blI, CX * k + PAD, k);
-    if (bodyI) {   // v112 새 기본 몸 (옆 걷기용 '팔' 조각은 비움 → 무기만)
-      if (!arm) drawBody(x, bodyI, CX * k + PAD, k);
-      if (blI && blI.front) drawBody(x, blI, CX * k + PAD, k);
-    } else for (let y = top; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }
+    if (!arm) drawBody(x, bodyI, CX * k + PAD, k);   // v112 새 기본 몸 (옆 걷기용 '팔' 조각은 비움 → 무기만)
     if (!arm) {
       // v107 신발: 뒤 = ic_bt_b(두 짝 그림 → 왼쪽 반은 왼발, 오른쪽 반은 오른발) · 옆 = ic_bt_s(앞코가 오른쪽) · 없으면 앞 그림
       const btOn = !hide && eq && eq.boots && D.ITEMS[eq.boots], btNm = btOn && (view === 'b' && imgOk('ic_bt_b') ? 'ic_bt_b' : side && imgOk('ic_bt_s') ? 'ic_bt_s' : 'ic_bt'), btI = btOn && imgOk(btNm);
@@ -976,34 +959,19 @@
     return (avCache[key] = c);
   }
   function avatarSprite(av, eq, hide, frame, view, part) {
-    if ((view === 'b' || view === 's') && AV.gridView) return dirSprite(av, eq, hide, view, part);
+    if (view === 'b' || view === 's') return dirSprite(av, eq, hide, view, part);
     const bodyI = bodyOf(av, 'f', eq, hide);
-    const blI = bodyI && AV.backLayer ? AV.backLayer(av, 'f', null) : null;   // v118 등 장식
     if (!bodyI) return blankSp(2);   // v120
-    const key = JSON.stringify([av, hide ? {} : eq, frame, !!bodyI, !!blI, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    const key = JSON.stringify([av, hide ? {} : eq, frame, !!bodyI, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
     frame = leg;
-    const hmFace = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');   // v108 투구를 쓰면 머리카락·모자 없이 그려서 투구 안으로 얼굴이 보이게
-    let base = AV.grid(av, frame, hmFace ? { noHair: true } : null), OUT = AV.OUT || '#1D2340';
-    if (!hide) {
-      const g = gearCells(eq, frame);
-      for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x]) base[y][x] = g[y][x];
-      for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {      // 장비 테두리
-        if (g[y][x] || base[y][x]) continue;
-        if ((y > 0 && g[y - 1][x]) || (y < GH - 1 && g[y + 1][x]) || (x > 0 && g[y][x - 1]) || (x < GW - 1 && g[y][x + 1])) base[y][x] = OUT;
-      }
-    }
-    base = armPose(base, pose, OUT, !hide && eq && eq.weapon);
-    // v39 사이트 아바타처럼 2배 정교한 그림(부드러운 대각선·명암·눈 반짝임)이 있으면 장비까지 함께 다듬음
-    const cells = AV.refine ? AV.refine(base, true) : base, k = AV.refine ? 2 : 1;
+    const k = 2;   // v120 몸은 늘 새 몸 그림 (예전 도트 몸·도트 장비 칸 그리기는 뺐음)
     // v99 손에 든 검 · v100 지팡이 = 새 그림 (img/ic_sw.png · ic_st.png). 그림이 넓어서 양옆을 PAD 만큼 넓힘 (가운데는 그대로)
-    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = Math.max(swI ? 9 * k : 0, blI ? 7 * k : 0);
+    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 9 * k : 0;
     const hmI = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');   // v100 투구 = 새 그림 (머리 전체를 덮음 · 머리칼이 삐져나오지 않게 머리 줄은 비움)
     const [c, x] = mk(GW * k + PAD * 2, GH * k);
-    if (blI) drawBody(x, blI, 8.875 * k + PAD, k);
-    if (bodyI) drawBody(x, bodyI, 8.875 * k + PAD, k);   // v112 새 기본 몸 그림
-    else for (let y = 0; y < GH * k; y++) for (let i = 0; i < GW * k; i++) if (cells[y][i]) { x.fillStyle = cells[y][i]; x.fillRect(i + PAD, y, 1, 1); }   // v108 머리 줄을 비우지 않음 (투구 안 얼굴)
+    drawBody(x, bodyI, 8.875 * k + PAD, k);   // v112 새 기본 몸 그림   // v108 머리 줄을 비우지 않음 (투구 안 얼굴)
     const btI = !hide && eq && eq.boots && D.ITEMS[eq.boots] && imgOk('ic_bt');   // v101 신발 = 새 그림 (두 발에 하나씩 · 오른발은 뒤집어 앞코가 바깥쪽)
     if (btI) {
       const o = D.ITEMS[eq.boots], n = o.legend ? 9 : o.rare ? 10 + o.tier : o.tier, b = swBox(btI, n, 'ic_bt'), L = AV.legs(frame);
