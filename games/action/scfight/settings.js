@@ -14,6 +14,7 @@ GoSettings.register({
   category: 'action',
   folder: 'games/action/scfight',
   order: 2,
+  top: 2,                              // v130 메인 화면 맨 앞 (블록 대전보다 앞)
   tag: 'NEW',
   page: 'GoSCFight',
   w: 960, ar: 960 / 540,

@@ -40,6 +40,38 @@
     return { w: W, h: H, region: region || 0, t, ponds: [], dungeons: [], exits: {} };
   }
 
+  /* ---------- v130 샘플 지도 (메이커 · 지도 그리기) ----------
+   *  f: 게임 사냥터 아이디 (data.js MAPS) → 그 사냥터 칸·연못을 그대로 복사 (지역마다 가운데쯤 사냥터 1곳)
+   *  f 가 없으면 cross = 위·아래·왼쪽·오른쪽 길이 만나는 빈 풀밭 (처음부터 그리기 좋게) */
+  let SAMPLES_ = null;
+  const samples = () => SAMPLES_ || (SAMPLES_ = (() => {
+    const D = window.GoRPGData; if (!D) return [];
+    const out = D.REGIONS.map((R, ri) => {
+      const fs = D.MAPS.filter(m => m.kind === 'field' && !m.hell && m.region === ri), m = fs[Math.min(4, fs.length - 1)];
+      return m ? { f: m.id, name: m.name, sub: R.name + ' 사냥터 · Lv.' + m.rec } : null;
+    }).filter(Boolean);
+    out.push({ cross: true, region: 0, name: '십자 길 기본 지도', sub: '네 방향 출구 · 빈 풀밭' });
+    return out.slice(0, 10);
+  })());
+  const sampleC = {};
+  function sampleDef(i) {
+    const q = samples()[i]; if (!q) throw new Error('없는 샘플');
+    if (!sampleC[i]) {
+      if (q.cross) {
+        const d = blank(q.region), mx = W >> 1, my = H >> 1;
+        for (let x = 0; x < W; x++) for (let k = -1; k <= 1; k++) d.t[(my + k) * W + x] = 1;
+        for (let y = 0; y < H; y++) for (let k = -1; k <= 1; k++) d.t[y * W + mx + k] = 1;
+        d.exits = { u: '', d: '', l: '', r: '' }; sampleC[i] = d;
+      } else {
+        const P = window.__GoRPGParts, m = P.getMap(q.f), M = m.M, keep = { 0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 12: 1 };
+        const t = Array.from(m.t, v => (keep[v] ? v : 0));
+        const ex = {}; if (M.prev) ex.l = ''; if (M.next) ex.r = '';   // 출구 자리만 (갈 곳은 비워 둠)
+        sampleC[i] = { w: W, h: H, region: M.region, t, ponds: (m.ponds || []).map(p => ({ k: p.k, x: p.x, y: p.y })), dungeons: [], exits: ex };
+      }
+    }
+    return JSON.parse(JSON.stringify(sampleC[i]));
+  }
+
   function render(root, ui) {
     const admin = Hub.isAdmin();
     const P = window.__GoRPGParts, D = window.GoRPGData;
@@ -68,6 +100,7 @@
             <button type="button" class="btn btn-primary" data-act="submit">📮 제출</button>
             <button type="button" class="btn" data-act="export">파일로 내보내기</button>
             <label class="btn me-file">파일 가져오기<input type="file" id="meImport" accept=".json,application/json" hidden></label>
+            <button type="button" class="btn btn-sky" data-act="samples">🗺 샘플 지도 불러오기</button>
           </div>
           <p class="me-status" id="meStatus"></p>
           ${admin ? `<div class="me-admin">
@@ -318,9 +351,23 @@
         list.innerHTML = rows.length ? `<h3>저장된 맵</h3><ul>${rows.map(r => `<li><button type="button" class="btn" data-load="${ui.esc(r.id)}"><b>${ui.esc(r.name || r.id)}</b> <span>${ui.esc(r.id)}</span></button> <button type="button" class="btn btn-mini" data-del="${ui.esc(r.id)}">지우기</button></li>`).join('')}</ul><button type="button" class="btn" data-act="close">닫기</button>` : '<p class="empty">아직 저장된 맵이 없어요.</p><button type="button" class="btn" data-act="close">닫기</button>';
       } catch (e) { list.innerHTML = `<p class="err">${ui.esc(e.message)}</p><button type="button" class="btn" data-act="close">닫기</button>`; }
     }
+    // v130 샘플 지도: 게임 사냥터를 그대로 가져와 고쳐 쓰기 (지역마다 1개 + 기본 십자길)
+    function showSamples() {
+      list.hidden = false;
+      list.innerHTML = `<h3>🗺 샘플 지도 <small>(${samples().length}개)</small></h3><p class="mk-help">게임에 있는 사냥터를 그대로 가져와요. 고른 뒤 마음대로 고쳐서 <b>저장</b>하면 내 지도가 돼요. (지금 그리던 그림은 ↶ 되돌리기로 다시 볼 수 있어요)</p>
+        <ul class="me-samples">${samples().map((q, i) => `<li><button type="button" data-sample="${i}"><canvas width="200" height="136"></canvas><b>${ui.esc(q.name)}</b><small>${ui.esc(q.sub)}</small></button></li>`).join('')}</ul><button type="button" class="btn" data-act="close">닫기</button>`;
+      $$('[data-sample]', list).forEach((b, i) => setTimeout(() => { if (alive && b.isConnected) { try { drawPreview(b.querySelector('canvas'), sampleDef(i), 0.125); } catch (er) { console.warn('[mapedit] 샘플', er); } } }, 30 * i));
+    }
     list.addEventListener('click', async e => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.act === 'close') { list.hidden = true; return; }
+      if (b.dataset.sample != null) {
+        const i = +b.dataset.sample, q = samples()[i]; let d;
+        try { d = sampleDef(i); } catch (er) { ui.toast('샘플을 만들지 못했어요: ' + er.message); return; }
+        push(); def = d; if (idEl()) idEl().value = ''; $('#meName', root).value = (q.name + ' 고쳐 그리기').slice(0, 30); $('#meRegion', root).value = def.region;
+        draftId = null; draftSt = null; review = null; syncBtns(); schedule(); saveDraft(); showStatus(); list.hidden = true;
+        ui.toast('샘플을 불러왔어요: ' + q.name + ' — 고쳐서 저장하면 내 지도가 돼요'); return;
+      }
       if (b.dataset.dload) { try { await loadDraft(+b.dataset.dload, false); ui.toast('불러왔어요'); } catch (er) { ui.toast(er.message); } return; }
       if (b.dataset.ddel) { if (!confirm('이 지도를 지울까요? 되돌릴 수 없어요.')) return; try { await Hub.draftDelete(+b.dataset.ddel); if (draftId === +b.dataset.ddel) { draftId = null; draftSt = null; saveDraft(); showStatus(); } ui.toast('지웠어요'); showMine(); } catch (er) { ui.toast(er.message); } return; }
       if (b.dataset.dback) { if (!confirm('제출을 회수할까요? 다시 작성 중으로 바뀌어 고칠 수 있어요.')) return; try { await Hub.draftWithdraw(+b.dataset.dback); if (draftId === +b.dataset.dback) { draftSt = 'draft'; saveDraft(); showStatus(); } ui.toast('↩ 회수했어요'); showMine(); } catch (er) { ui.toast(er.message); } return; }
@@ -337,6 +384,7 @@
       if (a === 'redo') { if (redo.length) { undo.push(snap()); restore(redo.pop()); } }
       if (a === 'new') { if (!confirm('지금 그림을 지우고 새 지도를 시작할까요? (저장 안 한 것은 사라져요)')) return; push(); def = blank(+$('#meRegion', root).value); if (idEl()) idEl().value = ''; $('#meName', root).value = ''; draftId = null; draftSt = null; review = null; syncBtns(); schedule(); saveDraft(); showStatus(); }
       if (a === 'list') showList();
+      if (a === 'samples') showSamples();
       if (a === 'mine') showMine();
       if (a === 'withdraw' && draftId) { if (!confirm('제출을 회수할까요? 다시 작성 중으로 바뀌어 고칠 수 있어요.')) return; try { await Hub.draftWithdraw(draftId); draftSt = 'draft'; saveDraft(); showStatus(); ui.toast('↩ 회수했어요. 이제 고칠 수 있어요'); } catch (er) { ui.toast(er.message); } }
       if (a === 'save' || a === 'submit') {
@@ -387,6 +435,7 @@
     if (openReq) {
       if (openReq.draft) loadDraft(openReq.draft, !!openReq.review && admin).catch(er => ui.toast(er.message));
       else if (openReq.official && admin) Hub.mapGet(openReq.official).then(r => { if (!r) return; push(); def = Object.assign(blank(0), r.data); def.exits = def.exits || {}; idEl().value = r.id; $('#meName', root).value = r.name || ''; $('#meRegion', root).value = def.region; draftId = null; draftSt = null; review = null; syncBtns(); schedule(); saveDraft(); showStatus(); }).catch(er => ui.toast(er.message));
+      else if (openReq.samples) showSamples();
       else if (openReq.fresh) { def = blank(0); $('#meName', root).value = ''; draftId = null; draftSt = null; review = null; syncBtns(); schedule(); saveDraft(); showStatus(); }
     }
     return () => { alive = false; clearTimeout(rTimer); document.removeEventListener('keydown', onKey); };
@@ -415,7 +464,7 @@
             <h2>Skillcom RPG 지도 그리기</h2>
             <p>풀·길·나무·바위·물·꽃·연못을 끌어서 50×34칸 사냥터 지도를 그려요. 게임과 같은 그림으로 바로 보여요.</p>
             <ol class="mk-steps"><li>그리기</li><li>저장 (로그인 · 20개까지 · 언제든 고치기)</li><li>📮 제출 → 관리자 검토 (마음이 바뀌면 ↩ 회수·지우기)</li><li>반영되면 게임 속으로!</li></ol>
-            <div class="row"><button type="button" class="btn btn-sun" data-mk="new">새 지도 그리기</button><button type="button" class="btn" data-mk="cont">그리던 지도 이어서</button></div>
+            <div class="row"><button type="button" class="btn btn-sun" data-mk="new">새 지도 그리기</button><button type="button" class="btn btn-sky" data-mk="samples">🗺 샘플 지도로 시작</button><button type="button" class="btn" data-mk="cont">그리던 지도 이어서</button></div>
           </div>
         </div>
         <div class="panel maker-mine"><h2>내 지도</h2><div id="mkMine"><p class="empty">불러오는 중…</p></div></div>
@@ -426,6 +475,7 @@
       const b = e.target.closest('[data-mk],[data-kload],[data-kdel],[data-kback]'); if (!b) return;
       if (b.dataset.mk === 'new') go({ fresh: 1 });
       if (b.dataset.mk === 'cont') location.hash = '#mapedit';
+      if (b.dataset.mk === 'samples') go({ samples: 1 });   // v130 샘플 지도 목록을 연 채로
       if (b.dataset.kload) go({ draft: +b.dataset.kload });
       if (b.dataset.kdel) { if (!confirm('이 지도를 지울까요? 되돌릴 수 없어요.')) return; try { await Hub.draftDelete(+b.dataset.kdel); ui.toast('지웠어요'); loadMine(); } catch (er) { ui.toast(er.message); } }
       if (b.dataset.kback) { if (!confirm('제출을 회수할까요? 다시 작성 중으로 바뀌어 고칠 수 있어요.')) return; try { await Hub.draftWithdraw(+b.dataset.kback); ui.toast('↩ 회수했어요. 열어서 고칠 수 있어요'); loadMine(); } catch (er) { ui.toast(er.message); } }

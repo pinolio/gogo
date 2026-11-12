@@ -13,6 +13,7 @@
   const P = window.__GoRPGParts, CFG = window.GoSettings.get('rpg');
   const { loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, clamp, rand, pick, dist, fmtN, W, H, TS, SAVE_V, GAME, MAPBY, getRoom, npcSprite, npcPortrait, villagers } = P;
   const ITEMS = D.ITEMS, SKILLS = D.SKILLS, ELEM = D.ELEM, Fx = window.GoRPGFx;
+  const EL_IC = { fire: '🔥', water: '💧', wind: '🌪', earth: '🪨', thunder: '⚡', light: '☀', dark: '🌙' };   // v130 스탯 창 속성 방어 그림
   const POT_T = D.POTIONS.filter(p => p.kind === 'hp').map(p => p.tier + 1).reverse();   // 포션 단계 (큰 것부터) 9 … 1
   const ROMAN = ['', ' Ⅱ', ' Ⅲ', ' Ⅳ', ' Ⅴ'];
   const KIND_TXT = { bolt: '탄', nova: '주변 폭발', beam: '일직선', rain: '여러 곳에 떨어짐', pool: '바닥 장판', dash: '돌진', heal: '회복', shield: '보호막' };
@@ -91,9 +92,10 @@
   function newSave() {
     const s = { v: SAVE_V, lv: 1, exp: 0, gold: 50, hp: 0, mp: 0, map: 'v1', x: null, y: null, home: 'v1',
       inv: [{ id: 'hp1', n: 5 }, { id: 'mp1', n: 3 }, { id: 'scroll', n: 1 }], eq: {}, gear: {}, hide: false,
-      stat: { str: 0, dex: 0, int: 0, vit: 0, res: 0 }, statV: 2, sp: 0, skills: ['magicarrow'], slots: ['magicarrow', null, null, null], fslots: [null, null, null, null], visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0 };
+      stat: { str: 0, dex: 0, int: 0, vit: 0, res: 0 }, statV: 2, sp: 0, skills: ['magicarrow'], slots: ['magicarrow', null, null, null], fslots: [null, null, null, null], visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0, reb: 0, rebReady: false, toonSeen: [] };
     return s;
   }
+  const statMax = s => D.STAT.max + ((s && s.reb) || 0) * D.REBIRTH.statUp;   // v131 스탯 한 가지 최대치 (환생마다 +10)
   function fixSave(s) {
     const n = newSave(); if (!s || typeof s !== 'object' || s.v !== SAVE_V) return n;
     const oldStatV = s.statV;   // 기본값을 채우기 전에 기억 (v44 스탯 바뀜 확인용)
@@ -121,8 +123,10 @@
     s.visited = (s.visited || []).filter(id => MAPBY[id]); if (!s.visited.includes('v1')) s.visited.unshift('v1');
     // v44 스탯 4가지(v60 저항 더해 5가지) · 레벨당 2포인트 · 스탯마다 최대 50. v43(힘·민첩·지혜, 레벨당 3) 저장은 한 번 모두 돌려받아 다시 나눔
     const st = s.stat && typeof s.stat === 'object' && oldStatV === 2 ? s.stat : {}; if (oldStatV !== 2) { s.statV = 2; if (s.lv > 1) s.statReset = true; }
-    s.stat = {}; D.STAT.keys.forEach(k => { s.stat[k] = clamp(Math.floor(+st[k] || 0), 0, D.STAT.max); });
-    const total = (s.lv - 1) * (CFG.statPerLevel || 2), used = D.STAT.keys.reduce((a, k) => a + s.stat[k], 0);
+    s.reb = clamp(Math.floor(+s.reb || 0), 0, D.REBIRTH.max);
+    s.stat = {}; D.STAT.keys.forEach(k => { s.stat[k] = clamp(Math.floor(+st[k] || 0), 0, statMax(s)); });
+    s.reb = clamp(Math.floor(+s.reb || 0), 0, D.REBIRTH.max); s.rebReady = !!s.rebReady;   // v131 환생 횟수 · 이번에 환생할 수 있는지(10-5를 깸)
+    const total = (s.lv - 1) * (CFG.statPerLevel || 2) + s.reb * D.REBIRTH.bonus, used = D.STAT.keys.reduce((a, k) => a + s.stat[k], 0);
     if (used > total) { D.STAT.keys.forEach(k => { s.stat[k] = 0; }); s.sp = total; } else s.sp = total - used;
     return s;
   }
@@ -238,6 +242,83 @@
   .rg-detailgrid span { font-size: 12px; } .rg-detailgrid b { font-family: var(--f-display); font-size: 19px; color: #FFFFFF; }
   .rg-detailgrid small { font-size: 11px; color: #AEB7E0; line-height: 1.35; } .rg-detailgrid small.pt { color: #8A93C0; }
   .rg-detailgrid em { font-style: normal; } .rg-detailgrid em.s { color: #FFD23F; } .rg-detailgrid em.g { color: #9AE6FF; }
+  /* v130 스탯 창 새 꾸미기 (선생님 시안): 금테 칸 · 색 띠 스탯 줄 · 금색 +1 · 테두리 색 능력치 카드 */
+  .rg-statui { --gold: #C9A24A; --gold2: #F3D27A; --steel: #8FA6C8; }
+  .rg-statui .rg-statwin { grid-template-columns: 230px 1fr; gap: 14px; }
+  .rg-statui .rg-doll, .rg-statui .rg-bag { position: relative; border: 2px solid var(--gold); border-radius: 6px; padding: 14px;
+    background: radial-gradient(circle at 7px 7px, var(--gold2) 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) 7px, var(--gold2) 2px, transparent 3px), radial-gradient(circle at 7px calc(100% - 7px), var(--gold2) 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), var(--gold2) 2px, transparent 3px), linear-gradient(180deg, #172A47, #0E1A30);
+    box-shadow: 0 0 0 2px #0A0E24, inset 0 0 0 2px #0A0E24; }
+  .rg-statui .rg-statfig .rg-fig { height: 190px; border: 2px solid #0A0E24; border-radius: 8px; background: radial-gradient(circle at 50% 56%, transparent 30%, rgba(120,210,230,.28) 31%, transparent 33%, transparent 43%, rgba(120,210,230,.2) 44%, transparent 46%), radial-gradient(circle at 50% 50%, #24566A, #0E2434 78%); }
+  .rg-statui .rg-statfig .rg-fig img { height: 168px; }
+  .rg-statui .rg-fig .lv { left: 8px; top: 0; padding: 6px 7px 12px; border-radius: 0; border: 2px solid #6B4A12; border-top: 0; background: linear-gradient(180deg, var(--gold2), #B8862E); color: #1D2340; font-size: 13px; clip-path: polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%); }
+  .rg-statui .rg-statfig .nm { color: var(--gold2); font-size: 21px; margin-top: 6px; text-shadow: 0 2px 0 #0A0E24; }
+  .rg-statui .rg-xp { height: 14px; border: 2px solid var(--gold); border-radius: 8px; box-shadow: 0 0 0 1px #0A0E24; } .rg-statui .rg-xp i { background: linear-gradient(180deg, #FFE79A, #E8A92A); }
+  .rg-statui .rg-statfig small { color: #C9D0F0; }
+  .rg-statui .rg-alloc { gap: 9px; }
+  .rg-statui .rg-sp { font-size: 16px; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 4px; } .rg-statui .rg-sp b { font-size: 28px; color: var(--gold2); text-shadow: 0 2px 0 #0A0E24, 0 0 6px rgba(243,210,122,.5); }
+  .rg-statui .rg-st { border: 2px solid var(--c); border-left-width: 2px; border-radius: 6px; padding: 9px 12px; box-shadow: 0 0 0 2px #0A0E24, inset 0 0 0 1px rgba(0,0,0,.4);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--c) 32%, #121C33) 0%, #121C33 38%, #121C33 100%); position: relative; }
+  .rg-statui .rg-st::before { content: ''; position: absolute; left: -2px; top: 6px; bottom: 6px; width: 4px; border-radius: 2px; background: var(--c); box-shadow: 0 0 8px var(--c); }
+  .rg-statui .rg-st .lab b { font-size: 24px; text-shadow: 0 2px 0 #0A0E24; } .rg-statui .rg-st .lab span { font-size: 26px; } .rg-statui .rg-st .lab small.mx { font-size: 15px; color: #AEB7E0; }
+  .rg-statui .rg-st small { color: #DDE2F5; font-size: 13px; }
+  .rg-statui .rg-st .btns { gap: 8px; } .rg-statui .rg-st .btns .rg-mini { min-width: 50px; height: 42px; font-size: 17px; font-family: var(--f-display); border-radius: 6px; border: 2px solid #6B4A12; box-shadow: 0 0 0 1px #0A0E24, inset 0 2px 0 rgba(255,255,255,.4); background: linear-gradient(180deg, var(--gold2), #C8922E); color: #1D2340; }
+  .rg-statui .rg-st .btns .rg-mini.ghost { background: linear-gradient(180deg, #2C3A66, #1A2446); color: #FFFFFF; border-color: var(--steel); box-shadow: 0 0 0 1px #0A0E24, inset 0 1px 0 rgba(255,255,255,.2); }
+  .rg-statui .rg-detailgrid { gap: 10px; margin-top: 14px; }
+  .rg-statui .rg-detailgrid div { background: linear-gradient(180deg, #141F3C, #0E1530); border: 2px solid var(--gold); border-radius: 6px; padding: 9px 12px; box-shadow: 0 0 0 2px #0A0E24, inset 0 0 0 1px rgba(0,0,0,.5); }
+  .rg-statui .rg-detailgrid div:nth-child(4n+2), .rg-statui .rg-detailgrid div:nth-child(4n+4) { border-color: var(--steel); }
+  .rg-statui .rg-detailgrid span { font-size: 13px; font-weight: 700; } .rg-statui .rg-detailgrid b { font-size: 26px; color: var(--c); text-shadow: 0 2px 0 #0A0E24; margin: 2px 0; }
+  .rg-statui .rg-detailgrid small { color: #C9D0F0; font-size: 12px; } .rg-statui .rg-detailgrid small.pt { color: #AEB7E0; }
+  .rg-statui .sub { color: #DDE2F5; }
+  .rg-statui .rg-defgrid { grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 10px; }
+  .rg-statui .rg-defgrid div { border: 2px solid var(--c); border-radius: 6px; background: linear-gradient(180deg, #141F3C, #0E1530); padding: 5px 6px; box-shadow: 0 0 0 2px #0A0E24; font-size: 13px; font-weight: 700; }
+  .rg-statui .rg-defgrid b { font-size: 18px; }
+  /* v130 저승 웹툰 (관문 소개 · 보스 등장 컷) */
+  .rg-toon { position: absolute; inset: 0; z-index: 6; background: rgba(6,4,14,.84); display: flex; justify-content: center; }
+  .rg-toon[hidden] { display: none; }
+  .rg-toon .tn-strip { width: min(600px, 94%); height: 100%; display: flex; flex-direction: column; background: #F7F1E3; border-left: 3px solid #0A0E24; border-right: 3px solid #0A0E24; }
+  .rg-toon .tn-top { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #1D2340; color: #FFE79A; font-family: var(--f-display); font-size: 16px; }
+  .rg-toon .tn-top b { flex: 1; } .rg-toon .tn-skip { background: #2C3A66; color: #FFFFFF; border: 2px solid #8FA6C8; border-radius: 6px; font-size: 13px; padding: 3px 10px; cursor: pointer; }
+  .rg-toon .tn-list { flex: 1; overflow-y: auto; padding: 12px 14px 4px; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; cursor: pointer; }
+  .rg-toon .tn-cut { position: relative; border: 3px solid #0A0E24; border-radius: 4px; overflow: hidden; animation: tnIn .45s ease-out both; flex: none; box-shadow: 4px 4px 0 rgba(10,14,36,.25); }
+  @keyframes tnIn { from { opacity: 0; transform: translateY(26px) scale(.97); } to { opacity: 1; transform: none; } }
+  .rg-toon .tn-cut.nar { min-height: 150px; padding: 18px 16px; background-size: cover; background-position: center; color: #FFFFFF; display: grid; align-content: center; gap: 10px; }
+  .rg-toon .tn-big { font-family: var(--f-display); font-size: 28px; color: #FFE79A; text-shadow: 0 3px 0 #0A0E24, 0 0 12px var(--c); }
+  .rg-toon .tn-big small { display: block; font-size: 15px; color: #FFFFFF; text-shadow: 0 2px 0 #0A0E24; }
+  .rg-toon .tn-box { justify-self: start; max-width: 92%; background: #FFF3B0; color: #1D2340; border: 2px solid #1D2340; padding: 8px 12px; font-size: 14px; line-height: 1.55; box-shadow: 3px 3px 0 #0A0E24; }
+  .rg-toon .tn-cut.say { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 4px; min-height: 180px; padding: 10px 12px 10px 4px;
+    background: radial-gradient(circle at 22% 60%, color-mix(in srgb, var(--c) 55%, transparent), transparent 60%), repeating-conic-gradient(from 0deg at 22% 60%, rgba(255,255,255,.06) 0 6deg, transparent 6deg 14deg), linear-gradient(180deg, #2A1838, #120A1E); }
+  .rg-toon .tn-cut.say.r { grid-template-columns: 1fr 150px; padding: 10px 4px 10px 12px; background: radial-gradient(circle at 78% 60%, color-mix(in srgb, var(--c) 55%, transparent), transparent 60%), repeating-conic-gradient(from 0deg at 78% 60%, rgba(255,255,255,.06) 0 6deg, transparent 6deg 14deg), linear-gradient(180deg, #2A1838, #120A1E); }
+  .rg-toon .tn-cut.say.r img { order: 2; } .rg-toon .tn-cut.say.r .tn-bub { order: 1; }
+  .rg-toon .tn-cut.say img { width: 150px; height: 170px; object-fit: contain; object-position: bottom; filter: drop-shadow(0 4px 0 rgba(0,0,0,.5)); animation: tnPop .5s .15s ease-out both; }
+  @keyframes tnPop { from { transform: translateY(14px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+  .rg-toon .tn-cut.say.king { min-height: 230px; grid-template-columns: 190px 1fr; } .rg-toon .tn-cut.say.king img { width: 190px; height: 215px; }
+  .rg-toon .tn-bub { position: relative; background: #FFFFFF; color: #1D2340; border: 3px solid #0A0E24; border-radius: 22px; padding: 10px 14px 12px; font-size: 14.5px; line-height: 1.55; box-shadow: 3px 3px 0 #0A0E24; animation: tnIn .4s .3s ease-out both; }
+  .rg-toon .tn-bub::before { content: ''; position: absolute; left: -16px; top: 46%; border: 9px solid transparent; border-right: 14px solid #0A0E24; }
+  .rg-toon .tn-bub::after { content: ''; position: absolute; left: -10px; top: calc(46% + 2px); border: 7px solid transparent; border-right: 11px solid #FFFFFF; }
+  .rg-toon .r .tn-bub::before { left: auto; right: -16px; border-right: 9px solid transparent; border-left: 14px solid #0A0E24; }
+  .rg-toon .r .tn-bub::after { left: auto; right: -10px; border-right: 7px solid transparent; border-left: 11px solid #FFFFFF; }
+  .rg-toon .king .tn-bub { border-color: #8A5A12; box-shadow: 3px 3px 0 #8A5A12, 0 0 0 3px #F3D27A; }
+  .rg-toon .tn-nm { display: inline-block; margin: -2px 0 4px; padding: 1px 10px; border-radius: 10px; background: var(--c); color: #1D2340; font-family: var(--f-display); font-size: 14px; border: 2px solid #0A0E24; }
+  .rg-toon .tn-nm small { font-family: inherit; font-size: 11px; margin-left: 4px; }
+  .rg-toon .tn-bub p { margin: 0; }
+  .rg-toon .tn-end { padding: 8px 14px 12px; display: flex; justify-content: center; gap: 8px; }
+  .rg-toon .tn-end[hidden] { display: none; }
+  .rg-toon.one .tn-list { justify-content: center; }   /* 보스 한 컷은 가운데 */
+  .rg-toon .tn-go { font-family: var(--f-display); font-size: 18px; padding: 8px 22px; border-radius: 8px; border: 2px solid #6B4A12; background: linear-gradient(180deg, #F3D27A, #C8922E); color: #1D2340; cursor: pointer; box-shadow: 0 3px 0 #0A0E24; }
+  .rg-toon .tn-hint { text-align: center; font-size: 12px; color: #3A4270; padding: 2px 0 6px; }
+  @media (max-width: 760px) { .rg-toon .tn-cut.say, .rg-toon .tn-cut.say.king { grid-template-columns: 110px 1fr; min-height: 150px; } .rg-toon .tn-cut.say.r { grid-template-columns: 1fr 110px; } .rg-toon .tn-cut.say img, .rg-toon .tn-cut.say.king img { width: 110px; height: 140px; } .rg-toon .tn-bub { font-size: 13px; } }
+  /* v131 환생 */
+  .rg-reb { width: 100%; display: grid; gap: 4px; justify-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(243,210,122,.5); }
+  .rg-reb .cnt { font-size: 13px; color: #C9D0F0; } .rg-reb .cnt b { color: #F3D27A; font-family: var(--f-display); font-size: 17px; }
+  .rg-rebbtn { width: 100%; font-family: var(--f-display); font-size: 16px; padding: 7px 10px; border-radius: 8px; cursor: pointer; border: 2px solid #6B4A12; background: linear-gradient(180deg, #FFE79A, #E8A92A); color: #1D2340; box-shadow: 0 0 0 1px #0A0E24, 0 0 12px rgba(255,210,90,.55); }
+  .rg-rebbtn[disabled] { background: linear-gradient(180deg, #2C3A66, #1A2446); color: #AEB7E0; border-color: #4A5A8A; box-shadow: 0 0 0 1px #0A0E24; cursor: default; }
+  .rg-reb small { font-size: 11px; color: #AEB7E0; text-align: center; line-height: 1.35; }
+  .rg-rebwin { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 12px; }
+  .rg-rebinfo, .rg-rebwarn { border: 2px solid #C9A24A; border-radius: 8px; padding: 10px 12px; background: linear-gradient(180deg, #172A47, #0E1A30); }
+  .rg-rebwarn { border-color: #FF8A8E; background: linear-gradient(180deg, #3A1A2A, #1E0E1A); }
+  .rg-rebwin .tt { font-family: var(--f-display); font-size: 17px; color: #F3D27A; } .rg-rebwarn .tt { color: #FF9AA0; }
+  .rg-rebwin ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 5px; font-size: 13.5px; line-height: 1.5; } .rg-rebwin b.g { color: #9AF0B0; } .rg-rebwarn b { color: #FFE45C; }
+  @media (max-width: 760px) { .rg-rebwin { grid-template-columns: 1fr; } }
   /* v44 거래 */
   .rg-trade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .rg-trade .rg-bag.ok { border-color: #3DDC84; box-shadow: 0 0 0 2px #3DDC84 inset; }
@@ -270,11 +351,11 @@
   .rg-npc p::before { content: ''; position: absolute; left: -9px; top: 10px; border: 7px solid transparent; border-right-color: #0A0E24; border-left: 0; }
   .rg-npc p::after { content: ''; position: absolute; left: -5px; top: 12px; border: 5px solid transparent; border-right-color: #FFFDF4; border-left: 0; }
   /* v41 가방 창 */
-  .rg-inv { display: grid; grid-template-columns: 272px 1fr; gap: 12px; align-items: start; }
+  .rg-inv { display: grid; grid-template-columns: 318px minmax(0, 1fr); gap: 12px; align-items: start; }   /* v129 왼쪽 넓힘 (캐릭터·능력치가 잘리지 않게) */
   .rg-doll, .rg-bag { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(0,0,0,.14)); border: 2px solid #0A0E24; border-radius: 14px; padding: 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
-  .rg-dollgrid { display: grid; grid-template-columns: 64px 1fr 64px; grid-template-rows: repeat(3, 70px); grid-template-areas: "helmet fig weapon" "armor fig ring" "boots fig ."; gap: 6px; }
+  .rg-dollgrid { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; grid-template-rows: repeat(3, 76px); grid-template-areas: "helmet fig weapon" "armor fig ring" "boots fig ."; gap: 6px; }
   .rg-fig { grid-area: fig; position: relative; border-radius: 12px; background: radial-gradient(ellipse at 50% 88%, rgba(255,210,63,.38), transparent 40%), radial-gradient(circle at 50% 35%, #4A5AB0, #1A2148 75%); border: 2px solid #0A0E24; display: grid; place-items: center; overflow: hidden; }
-  .rg-fig img { height: 174px; image-rendering: pixelated; filter: drop-shadow(0 4px 0 rgba(0,0,0,.35)); }
+  .rg-fig img { height: 196px; max-width: 100%; object-fit: contain; image-rendering: auto; filter: drop-shadow(0 4px 0 rgba(0,0,0,.35)); }
   .rg-fig .lv { position: absolute; left: 6px; top: 6px; background: #FFD23F; color: #1D2340; border: 2px solid #0A0E24; border-radius: 6px; font-size: 12px; padding: 0 6px; font-family: var(--f-display); }
   .rg-eqs { position: relative; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #2E3870, #0F1430 70%); border: 2px solid var(--c); border-radius: 10px; cursor: pointer; padding: 0 0 10px; color: #EEF1FF; transition: transform .1s, filter .1s; }
   .rg-eqs img { width: 42px; height: 42px; image-rendering: pixelated; }
@@ -283,10 +364,11 @@
   .rg-eqs img.ph { opacity: .2; filter: grayscale(1) brightness(1.6); }
   .rg-eqs.rare, .rg-cell.rare { box-shadow: 0 0 10px var(--g), inset 0 0 0 1px var(--g); }
   .rg-eqs.sel, .rg-cell.sel { outline: 3px solid #FFD23F; outline-offset: 1px; }
-  .rg-statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: 10px 0; }
-  .rg-statgrid div { white-space: nowrap; gap: 4px; background: #141A3C; border: 2px solid #0A0E24; border-radius: 8px; padding: 3px 7px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .rg-statgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 10px 0; }
+  .rg-statgrid div { min-width: 0; overflow: hidden; white-space: nowrap; gap: 3px; background: #141A3C; border: 2px solid #0A0E24; border-radius: 8px; padding: 4px 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .rg-statgrid span { overflow: hidden; text-overflow: ellipsis; }
   .rg-statgrid b { color: #FFFFFF; font-family: var(--f-display); font-size: 14px; }
-  .rg-bag .rg-tabs { margin-top: 0; }
+  .rg-bag { min-width: 0; } .rg-bag .rg-tabs { margin-top: 0; }
   .rg-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
   .rg-cell { position: relative; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #2A3266, #12183A 75%); border: 2px solid var(--c, #2A3260); border-radius: 8px; padding: 0; cursor: pointer; transition: transform .1s, filter .1s; min-width: 0; }
   .rg-cell.empty { background: rgba(10,14,36,.5); border: 2px solid #20264E; cursor: default; box-shadow: inset 0 2px 4px rgba(0,0,0,.4); }
@@ -386,6 +468,7 @@
   @media (max-width: 760px) {
     .rg-inv { grid-template-columns: 1fr; } .rg-grid { grid-template-columns: repeat(6, 1fr); } .rg-srvs { grid-template-columns: repeat(2, 1fr); }
     .rg-statwin { grid-template-columns: 1fr; } .rg-detailgrid { grid-template-columns: repeat(2, 1fr); } .rg-trade { grid-template-columns: 1fr; }
+    .rg-statui .rg-statwin { grid-template-columns: 1fr; } .rg-statui .rg-detailgrid { grid-template-columns: repeat(2, 1fr); } .rg-statui .rg-defgrid { grid-template-columns: repeat(4, 1fr); } .rg-statui .rg-st .btns .rg-mini { min-width: 42px; height: 38px; }
     .rg-panel { position: fixed; inset: auto 0 0 0; max-height: 72svh; border-radius: 14px 14px 0 0; z-index: 60; }
     .rg-msg { font-size: 12px; }
   }`;
@@ -406,6 +489,7 @@
               <button type="button" class="rg-chbtn" id="rgChBtn" hidden aria-label="채널 이동"><span>1채널</span><small>채널 이동</small></button>
               <button type="button" class="rg-full" id="rgFull" aria-label="화면 크게 보기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
               <div class="rg-panel" id="rgPanel" hidden></div>
+              <div class="rg-toon" id="rgToon" hidden></div>
             </div></div>
             <div class="rg-bar">
               <button type="button" class="btn" data-rg="stat">스탯 (C)</button>
@@ -426,7 +510,7 @@
           <div class="rg-cm">${window.GoSocial ? window.GoSocial.commentsHTML(CFG.name) : ''}</div>
         </div>`;
       const $ = s => el.querySelector(s);
-      const canvas = $('#rgCanvas'), screenEl = $('#rgScreen'), panel = $('#rgPanel'), msgEl = $('#rgMsg');
+      const canvas = $('#rgCanvas'), screenEl = $('#rgScreen'), panel = $('#rgPanel'), msgEl = $('#rgMsg'), toonEl = $('#rgToon');
       let ctx = window.GoPixel.setup(canvas, W, H);
       const onResize = () => { ctx = window.GoPixel.setup(canvas, W, H); };
       window.addEventListener('resize', onResize);
@@ -657,12 +741,55 @@
           m.cast = { k, t: 0 };
         }
       }
+      /* v130 저승 웹툰: 관문에 처음 들어가면 4컷(장소 소개 → 옥졸 → 판관 → 대왕이 차례로 자기소개) · 보스가 나올 때 그 보스 한 컷
+       *  컷은 2.6초마다 하나씩 내려오고, 화면을 누르거나 Space·Enter 로 바로 다음 컷 · Esc·건너뛰기로 닫기. 보는 동안 게임은 멈춤 */
+      let toon = null;
+      const TIMG = 'games/action/rpg/img/v79/', ROLE = { guard: '옥졸 · 3단계', judge: '판관 · 4단계', king: '대왕 · 5단계' };
+      const toonSay = (g, k, side) => { const d = k === 'king' ? g.boss : g[k]; return { kind: 'say', img: `hell${g.no}_${k}`, name: d.name, role: ROLE[k], text: d.intro || d.say, side, king: k === 'king', col: ELEM[g.el].color }; };
+      const gateCuts = g => [{ kind: 'nar', gate: g, col: ELEM[g.el].color, wait: 3200 }, toonSay(g, 'guard', 'l'), toonSay(g, 'judge', 'r'), Object.assign(toonSay(g, 'king', 'l'), { wait: 3400 })];
+      function cutHtml(c) {
+        if (c.kind === 'nar') { const g = c.gate; return `<div class="tn-cut nar" style="--c:${c.col};background-image:linear-gradient(rgba(14,6,24,.5),rgba(14,6,24,.82)),url(${TIMG}hellfloor${g.no}.jpg?v=80)"><div class="tn-big"><small>저승 제${g.no}관문 · ${g.day}</small>${g.hell}</div><div class="tn-box">${g.about}</div></div>`; }
+        return `<div class="tn-cut say ${c.side === 'r' ? 'r' : ''}${c.king ? ' king' : ''}" style="--c:${c.col}"><img src="${TIMG}${c.img}.png?v=80" alt="${c.name}"><div class="tn-bub"><span class="tn-nm">${c.name}<small>${c.role}</small></span><p>${c.text}</p></div></div>`;
+      }
+      function showToon(cuts, opt) {
+        if (!toonEl) { if (opt.done) opt.done(); return; }
+        if (toon) toonClose(true);
+        toon = { cuts, i: 0, opt, t: null }; G.paused = true; G.keys = {}; G.btnDown = {}; G.joy = null;
+        toonEl.innerHTML = `<div class="tn-strip"><div class="tn-top"><b>${opt.title}</b><button type="button" class="tn-skip" data-toon="skip">건너뛰기 ▶▶</button></div><div class="tn-list" data-toon="next"></div><div class="tn-hint">화면을 누르면 다음 컷 · Esc 건너뛰기</div><div class="tn-end" hidden><button type="button" class="tn-go" data-toon="go">${opt.go || '⚔ 싸우러 가기'}</button></div></div>`;
+        toonEl.classList.toggle('one', cuts.length === 1); toonEl.hidden = false; toonNext();
+      }
+      function toonNext() {
+        if (!toon) return; clearTimeout(toon.t);
+        const list = toonEl.querySelector('.tn-list');
+        if (toon.i >= toon.cuts.length) { toonEl.querySelector('.tn-end').hidden = false; const hn = toonEl.querySelector('.tn-hint'); if (hn) hn.hidden = true; if (toon.opt.auto) toon.t = setTimeout(() => toonClose(), toon.opt.auto); return; }
+        const c = toon.cuts[toon.i++]; list.insertAdjacentHTML('beforeend', cutHtml(c));
+        requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
+        toon.t = setTimeout(toonNext, c.wait || 2600);
+      }
+      function toonClose(silent) {
+        if (!toon) return; clearTimeout(toon.t); const o = toon.opt; toon = null; toonEl.hidden = true; toonEl.innerHTML = '';
+        G.paused = !!pane && !(net && net.joined); G.keys = {};
+        if (!silent && o.done) o.done();
+      }
+      if (toonEl) toonEl.addEventListener('click', e => {
+        const b = e.target.closest('[data-toon]'); if (!b || !toon) return;
+        const a = b.dataset.toon;
+        if (a === 'skip' || a === 'go') toonClose(); else if (toon.i < toon.cuts.length) toonNext(); else toonClose();
+      });
+      function hellIntro(g) {   // 관문 처음 = 4컷 · S.toonSeen 에 본 관문 번호
+        S.toonSeen = Array.isArray(S.toonSeen) ? S.toonSeen : [];
+        if (S.toonSeen.includes(g.no)) return;
+        S.toonSeen.push(g.no); markDirty(false);
+        showToon(gateCuts(g), { title: `저승 제${g.no}관문 · ${g.hell}`, go: `⚔ ${g.stageName[0]}(으)로` });
+      }
+      const bossCut = (g, k) => showToon([Object.assign(toonSay(g, k, 'l'), { wait: 1200 })], { title: `${g.no}-${k === 'guard' ? 3 : k === 'judge' ? 4 : 5} · ${(k === 'king' ? g.boss : g[k]).name} 등장!`, go: '⚔ 싸우기', auto: 5200 });
       /* v69 저승 던전: 단계마다 몬스터 50마리 → (3단계 옥졸 · 4단계 판관) → 통과. 5단계는 대왕만 */
       function spawnHell() {
         const M = G.map.M, g = D.HELL.gates[M.gate - 1], s = M.stage, lv = 100 + (M.gate - 1) * 5 + s;
         G.hellRun = { gate: M.gate, stage: s, kills: 0, phase: s === 5 ? 'boss' : 'mob', lv };
-        if (s === 5) { G.mons.push(makeMon(g.boss, lv + D.HELL.bossPlus, true)); G.title = { t: 0, text: g.boss.name, sub: g.boss.say }; return; }
+        if (s === 5) { G.mons.push(makeMon(g.boss, lv + D.HELL.bossPlus, true)); G.title = { t: 0, text: g.boss.name, sub: g.boss.say }; setTimeout(() => { if (G.hellRun && G.hellRun.stage === 5 && G.map.M.hell) bossCut(g, 'king'); }, 600); return; }
         for (let i = 0; i < 18; i++) G.mons.push(makeMon(i % 3 === 2 && g.mob2 ? g.mob2 : g.mob, lv));   // v109 몬스터 1.5배 (12 → 18)
+        if (s === 1) setTimeout(() => { if (G.hellRun && G.map.M.hell && G.map.M.gate === g.no) hellIntro(g); }, 500);   // v130 관문 첫 웹툰
       }
       function hellKill(m) {
         const H = G.hellRun; if (!H || H.phase === 'done') return;
@@ -673,8 +800,20 @@
           G.mons.forEach(x => { x.noRespawn = true; });   // 50마리를 채우면 더 안 나옴
           if (H.stage <= 2) { hellClear(); return; }
           const who = H.stage === 3 ? g.guard : g.judge; H.phase = 'boss';
-          G.mons.push(makeMon(who, H.lv + (D.HELL.midPlus || 0), true)); G.title = { t: 0, text: `${who.name} 등장! (Lv.${H.lv + (D.HELL.midPlus || 0)})`, sub: who.say }; G.shake = 8;
+          G.mons.push(makeMon(who, H.lv + (D.HELL.midPlus || 0), true)); G.title = { t: 0, text: `${who.name} 등장! (Lv.${H.lv + (D.HELL.midPlus || 0)})`, sub: who.say }; G.shake = 8; bossCut(g, H.stage === 3 ? 'guard' : 'judge');   // v130 보스 자기소개 컷
         }
+      }
+      /* v131 환생: Lv.1 · 경험치 0 · 스탯 모두 돌려받고 (환생 횟수 × 20) 포인트 · 마법은 기본 마법(마법 화살)만 · 장비·가방·골드·저승 기록은 그대로 · 솔뫼 마을에서 다시 시작 */
+      function doRebirth() {
+        if (!S.rebReady || (S.reb || 0) >= D.REBIRTH.max) return;
+        S.reb = (S.reb || 0) + 1; S.rebReady = false; S.lv = 1; S.exp = 0;
+        D.STAT.keys.forEach(q => { S.stat[q] = 0; }); S.sp = S.reb * D.REBIRTH.bonus;
+        S.skills = ['magicarrow']; S.slots = ['magicarrow', null, null, null]; S.fslots = [null, null, null, null];
+        S.home = 'v1'; restat(); S.hp = ST.hp; S.mp = ST.mp;
+        pane = null; panel.hidden = true; G.paused = false;
+        enter('v1', 'door');
+        G.title = { t: 0, text: `${S.reb}번째 환생!`, sub: `Lv.1 · 스탯 포인트 ${S.sp}개를 받았어요 (스탯 창에서 나눠 주세요)` }; G.flash = 0.5; Fx.levelUp(G.px, G.py);
+        markDirty(true); save(true); submitRank(); if (net) net.retrack();
       }
       function hellClear() {
         const H = G.hellRun; if (!H || H.phase === 'done') return; H.phase = 'done';
@@ -682,8 +821,10 @@
         if (first) S.hell = idx;
         const last = H.stage >= 5, nx = last ? null : `h${H.gate}-${H.stage + 1}`;
         G.title = { t: 0, text: `${H.gate}-${H.stage} 통과!`, sub: last ? (H.gate >= D.HELL.gates.length ? `${D.HELL.gates[H.gate - 1].king}을(를) 이기고 명부를 되찾았어요! 저승의 질서가 돌아왔어요` : `${D.HELL.gates[H.gate - 1].king}의 시험을 이겼어요! 제${H.gate + 1}관문이 열렸어요`) : '잠시 뒤 다음 단계로 내려가요' }; G.flash = 0.4; Fx.levelUp(G.px, G.py);
+        const final = last && H.gate >= D.HELL.gates.length;   // v131 마지막 관문 대왕 → 환생할 수 있음
+        if (final && (S.reb || 0) < D.REBIRTH.max) S.rebReady = true;
         markDirty(true); if (first) submitRank();
-        setTimeout(() => { if (G.hellRun !== H || G.dead || !G.map || !G.map.M.hell) return; if (nx && MAPBY[nx]) enter(nx, 'L'); else enter('v9', 'door'); }, 4000);
+        setTimeout(() => { if (G.hellRun !== H || G.dead || !G.map || !G.map.M.hell) return; if (nx && MAPBY[nx]) enter(nx, 'L'); else { enter('v9', 'door'); if (final && S.rebReady) setTimeout(() => { if (!G.dead && !pane) openPanel('rebirth', { first: true }); }, 1200); } }, 4000);
       }
       const rankScore = () => ((S.hell || 0) > 0 ? 1000 + S.hell : S.lv);   // v69 랭킹: 지옥을 깨면 1000 + 깬 단계
       const hellTxt = n => (n > 0 ? `${Math.ceil(n / 5)}-${n - (Math.ceil(n / 5) - 1) * 5}` : '-');
@@ -1243,15 +1384,8 @@
         if (o.kind === 'crystal') { c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, o.tx * TS + 16, o.ty * TS + 6, 40, '#B08AFF', 0.35 + 0.15 * Math.sin(now / 400 + o.tx)); c.restore(); }
       }
       // v80 조선 병사 (Meshy 그림 한 장): 걸을 때 통통 + 살짝 기울기 · 다친 병사는 가만히
-      function drawArmy(c, n, now) {
-        const im = img79(n.def.img), H0 = Math.round((n.def.h || 64) * (n.scale || 1));
-        c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(n.x, n.y, n.still ? 28 : 16, 5, 0, 0, Math.PI * 2); c.fill();
-        if (!im) return;
-        const h = H0, w = Math.round(im.naturalWidth * h / im.naturalHeight), y = Math.round(n.y - h + 3);
-        if (!n.cv) { const [cv, cx] = P.mk(w, h); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high'; cx.drawImage(im, 0, 0, w, h); n.cv = cv; }   // v83 병사도 팔다리 움직임 (그림을 한 번 줄여 둠)
-        c.save(); c.translate(n.x, y); if (n.face < 0) c.scale(-1, 1); c.translate(-w / 2, 0);
-        if (n.still) c.drawImage(n.cv, 0, 0); else rig(c, n.cv, w, h, n.def.img === 'jo_horse' ? 'quad' : 'biped', n.moving ? (n.walk || 0) * 8.5 : now / 700 + n.ph, n.moving, 0);
-        c.restore();
+      // v129 사람 이름 · 느낌표 · 말풍선 (그림 NPC · 실내 그림 속 사람 같이 씀)
+      function npcTags(c, n, y, now) {
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         c.strokeText(n.def.name, n.x, y - 6); c.fillStyle = n.def.color || '#9AE6FF'; c.fillText(n.def.name, n.x, y - 6);
         let top = y - 22;
@@ -1266,6 +1400,17 @@
           c.fillStyle = '#FFFFFF'; rr(c, bx, by, tw, 26, 8); c.fill(); c.beginPath(); c.moveTo(n.x - 5, by + 25); c.lineTo(n.x + 5, by + 25); c.lineTo(n.x, by + 32); c.fill();
           c.fillStyle = '#1D2340'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(n.say, bx + 10, by + 14); c.restore();
         }
+      }
+      function drawArmy(c, n, now) {
+        const im = img79(n.def.img), H0 = Math.round((n.def.h || 64) * (n.scale || 1));
+        c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(n.x, n.y, n.still ? 28 : 16, 5, 0, 0, Math.PI * 2); c.fill();
+        if (!im) return;
+        const h = H0, w = Math.round(im.naturalWidth * h / im.naturalHeight), y = Math.round(n.y - h + 3);
+        if (!n.cv) { const [cv, cx] = P.mk(w, h); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high'; cx.drawImage(im, 0, 0, w, h); n.cv = cv; }   // v83 병사도 팔다리 움직임 (그림을 한 번 줄여 둠)
+        c.save(); c.translate(n.x, y); if (n.face < 0) c.scale(-1, 1); c.translate(-w / 2, 0);
+        if (n.still) c.drawImage(n.cv, 0, 0); else rig(c, n.cv, w, h, n.def.img === 'jo_horse' ? 'quad' : 'biped', n.moving ? (n.walk || 0) * 8.5 : now / 700 + n.ph, n.moving, 0);
+        c.restore();
+        npcTags(c, n, y, now);
       }
       function drawMe(c, now) {
         const posing = now < (G.poseUntil || 0), walkMv = G.moving && !posing, fr = posing ? G.poseK : 0;   // v79 마법·공격 동작 · v105 걷기는 한 장을 조각내 부드럽게(drawFig)
@@ -1368,6 +1513,7 @@
         return { img, side: view === 's' ? { body: avatarSprite(av, eq, hide, 0, 's', 'noArm'), arm: avatarSprite(av, eq, hide, 0, 's', 'arm') } : null };
       }
       function drawNpc(c, n, now) {
+        if (n.baked) return npcTags(c, n, n.topY, now);   // v129 실내 그림 속 사람 (몸은 바닥 그림에 있음)
         if (n.def.img && (!n.def.av || img79(n.def.img))) return drawArmy(c, n, now);   // v110 NPC 그림 (못 불러오면 예전 아바타)
         const nv = n.moving ? 's' : 'f', fs = nv === 's' ? figSet(AV.normalize(n.def.av), {}, true, 0, 's') : null, img = fs ? fs.img : npcSprite(n.def.av, 0);   // v107 걸어 다니는 마을 사람은 옆모습
         const k = (img.width > AV.size.w ? 1 : 2) * (n.scale || 1), w = img.width * k, h = img.height * k, bob = n.moving ? 0 : Math.round(Math.sin(now / 420 + n.ph));
@@ -1683,6 +1829,8 @@
         return (faceC[d.img] = cv.toDataURL());
       }
       const npcBox = () => { const a = paneArg; if (!a || !a.npc) return ''; const d = a.npc.def; return `<div class="rg-npc"><img src="${npcFace(d)}" alt=""><div><b style="color:${d.color}">${d.name}</b><p>“${a.hello}”</p></div></div>`; };
+      const rebBox = () => { const n = S.reb || 0, max = D.REBIRTH.max, ok = S.rebReady && n < max;   // v131 스탯 창 아바타 아래 환생 칸
+        return `<div class="rg-reb"><span class="cnt">환생 <b>${n}</b> / ${max}</span><button type="button" class="rg-rebbtn" data-rg2="rebirth" ${ok ? '' : 'disabled'}>♻ 환생하기</button><small>${n >= max ? '환생을 모두 마쳤어요' : ok ? '지금 환생할 수 있어요!' : '저승 10-5 오도전륜대왕을 이기면 열려요'}</small></div>`; };
       const head = (t, sub) => `<h3>${t}<button type="button" class="x" data-x>닫기 (Esc)</button></h3>${sub ? `<p class="sub">${sub}</p>` : ''}`;
       const tabs = (key, list) => `<div class="rg-tabs">${list.map(([k, n]) => `<button type="button" data-tab="${key}:${k}" aria-pressed="${(tab[key] || list[0][0]) === k}">${n}</button>`).join('')}</div>`;
       const edefTxt = () => { const v = Object.values(ST.edefs), lo = Math.min(...v), hi = Math.max(...v); return lo === hi ? lo + '%' : lo + '%+'; };
@@ -1763,7 +1911,7 @@
         } else if (k === 'hell') {   // v69 저승차사: 이야기 + 관문·단계 고르기
           const best = S.hell || 0, t = tab.hell || 'gate';
           h = head('저승문 · 임진왜란 뒤 저승에서 생긴 일', `깬 단계 <b style="color:#FFD23F">${best ? hellTxt(best) : '없음'}</b> · 몬스터는 Lv.101부터 (내 레벨은 100 그대로라 점점 어려워요)`) + npcBox() + tabs('hell', [['gate', '관문 들어가기'], ['story', '이야기']]);
-          if (t === 'story') h += `<div class="rg-story">${D.HELL.story.map(x => `<p>${x}</p>`).join('')}</div>`;
+          if (t === 'story') h += `<div class="rg-story">${D.HELL.story.map(x => `<p>${x}</p>`).join('')}</div><p class="sub" style="margin:10px 0 6px">📖 관문 웹툰 다시 보기 (들어가 본 관문까지)</p><div class="rg-stages">${D.HELL.gates.map(g => `<button type="button" class="rg-stage" data-toongate="${g.no}" ${(S.hell || 0) >= (g.no - 1) * 5 || (S.toonSeen || []).includes(g.no) ? '' : 'disabled'}><b>${g.no}관문</b><span>${g.hell}</span></button>`).join('')}</div>`;
           else h += D.HELL.gates.map(g => { const base = (g.no - 1) * 5;
             return `<div class="rg-gate"><b class="gt">제${g.no}관문 · ${g.hell} <small>${g.king} · ${g.day}</small></b> <span class="rg-el">속성 ${ELEM[g.el].name} · 약점 <b>${ELEM[D.HELL.weak[g.el]].name}</b> 마법 (×${D.HELL.weakMul})</span><p class="sub" style="margin:4px 0 8px">${g.about}</p><div class="rg-stages">${[1, 2, 3, 4, 5].map(st => { const n = base + st, open = n <= best + 1, done = n <= best, lv = 100 + base + st;
               return `<button type="button" class="rg-stage${done ? ' done' : ''}" data-hellgo="h${g.no}-${st}" ${open ? '' : 'disabled'}><b>${g.no}-${st}</b><span>${g.stageName[st - 1]}</span><small>${st === 5 ? '대왕 Lv.' + (lv + D.HELL.bossPlus) : `Lv.${lv} · ${D.HELL.kills}마리${st === 3 ? ` + 옥졸 Lv.${lv + D.HELL.midPlus}` : st === 4 ? ` + 판관 Lv.${lv + D.HELL.midPlus}` : ''}`}</small><i>${done ? '통과' : open ? '들어가기' : '잠김'}</i></button>`; }).join('')}</div></div>`; }).join('') + `<p class="sub">앞 단계를 깨야 다음 단계가 열려요 (1-1 → … → 10-5). 10관문 오도전륜대왕을 이기면 명부를 되찾아요! 저승에서 쓰러지면 그 단계는 처음부터 다시 해요.</p>`;
@@ -1821,12 +1969,27 @@
           h += `<p class="sub" style="margin-top:10px">내 가방 — 눌러서 올리기 (입고 있는 장비는 못 올려요)</p><div class="rg-grid">${bag.map(x => { const left = x.n - (T.mine.items[x.id] || 0), it = ITEMS[x.id]; return `<button type="button" class="rg-cell${it.rare ? ' rare' : ''}" data-tradd="${x.id}" title="${it.name}"><img src="${P.itemImg(x.id)}" alt="${it.name}">${left > 1 ? `<span class="n">${left}</span>` : ''}</button>`; }).join('') || '<span class="rg-trempty">올릴 물건이 없어요</span>'}</div>`;
           const room = roomFor(T.theirs, T.mine);
           h += `<div class="rg-srvact" style="align-items:center"><button type="button" class="rg-mini${T.myOk ? ' on' : ''}" data-trok ${room ? '' : 'disabled'}>${T.myOk ? '확인함 (다시 누르면 풀기)' : '확인'}</button><span class="sub" style="margin:0">${!room ? `가방이 모자라요 (${bagMax()}칸) — 약방에서 가방을 늘리거나 물건을 정리해요` : T.myOk && T.theirOk ? '교환하는 중…' : T.myOk ? '상대가 확인하면 바뀌어요' : T.theirOk ? '상대는 확인했어요. 내용을 보고 확인을 눌러요' : '둘 다 확인을 누르면 바뀌어요'}</span></div>`;
+        } else if (k === 'rebirth') {   // v131 환생 확인 창
+          const n = S.reb || 0, max = D.REBIRTH.max, ok = S.rebReady && n < max, B = D.REBIRTH.bonus;
+          h = head('♻ 환생', paneArg && paneArg.first ? '오도전륜대왕을 이기고 명부를 되찾았어요! 이제 환생할 수 있어요.' : `환생 ${n} / ${max}번 · 저승 마지막 관문(10-5)을 깰 때마다 한 번씩 환생할 수 있어요`);
+          h += `<div class="rg-rebwin"><div class="rg-rebinfo"><b class="tt">환생하면</b><ul>
+            <li>레벨이 <b>Lv.1</b>로 돌아가요 (경험치 0) · 솔뫼 마을에서 다시 시작해요</li>
+            <li>스탯을 모두 돌려받고 <b class="g">추가 스탯 포인트 +${B}</b>개를 더 받아요 (환생 ${n + 1}번째 → 시작 포인트 <b class="g">${(n + 1) * B}</b>개)</li>
+            <li>스탯마다 최대치가 <b class="g">+${D.REBIRTH.statUp}</b> 늘어나요 (${statMax(S)} → <b class="g">${statMax({ reb: n + 1 })}</b>)</li>
+            <li>입고 있는 장비 · 가방 물건 · 골드 · 저승 기록은 <b class="g">그대로</b> 가져가요</li>
+          </ul></div>
+          <div class="rg-rebwarn"><b class="tt">⚠ 꼭 읽어 주세요</b><ul>
+            <li>입고 있는 장비는 계속 입고 있어요. 하지만 <b>한 번 벗으면</b> 그 장비의 착용 레벨(예: Lv.90)까지 다시 올라야 입을 수 있어요!</li>
+            <li>배운 마법은 <b>모두 사라지고</b> 처음 기본 마법(마법 화살)만 남아요. 마법은 레벨을 올리며 도술 서원에서 다시 배워요.</li>
+            <li>환생은 최대 <b>${max}번</b>까지, 저승 10-5를 깰 때마다 한 번씩 할 수 있어요 (지금 ${n}번).</li>
+          </ul></div></div>`;
+          h += `<div class="rg-srvact" style="justify-content:center;gap:10px">${ok ? '<button type="button" class="btn btn-primary" data-rebgo>♻ 환생하기</button>' : `<span class="sub">${n >= max ? '환생을 모두 마쳤어요.' : '저승 10-5 오도전륜대왕을 이기면 환생할 수 있어요.'}</span>`}<button type="button" class="btn" data-x>${ok ? '나중에 할게요' : '닫기'}</button></div>`;
         } else if (k === 'stat') {   // v44 스탯 창: 왼쪽 캐릭터 · 오른쪽 힘·민첩·지혜·체력 올리기 · 아래 자세한 능력치
           const T = D.STAT, a = S.stat, PT = stats(true), used = T.keys.reduce((x, q) => x + a[q], 0), per = CFG.statPerLevel || 2;
           const av = Hub.user ? Hub.user.avatar : AV.normalize({}), fig = avatarSprite(av, S.eq, S.hide, 0).toDataURL(), ex = S.lv >= D.MAX_LV ? 100 : S.exp / D.F.need(S.lv) * 100;
-          h = head('스탯', `레벨이 오를 때마다 포인트 ${per}개 · 원하는 스탯에 올려요 (스탯마다 최대 ${T.max})`);
-          h += `<div class="rg-statwin"><section class="rg-doll rg-statfig"><div class="rg-fig"><img src="${fig}" alt="내 캐릭터"><span class="lv">Lv.${S.lv}</span></div><b class="nm">${Hub.user ? Hub.user.nickname : '손님'}</b><div class="rg-xp"><i style="width:${ex.toFixed(1)}%"></i></div><small>경험치 ${ex.toFixed(1)}%</small></section>`;
-          h += `<section class="rg-bag rg-alloc"><div class="rg-sp">남은 포인트 <b>${S.sp}</b></div>${T.keys.map(q => { const full = a[q] >= T.max; return `<div class="rg-st" style="--c:${T[q].color}"><div class="lab"><b>${T[q].name}</b><span>${a[q]}<small class="mx"> / ${T.max}</small></span></div><small>${T[q].desc}</small><div class="btns"><button type="button" class="rg-mini" data-addst="${q}:1" ${S.sp < 1 || full ? 'disabled' : ''}>+1</button><button type="button" class="rg-mini ghost" data-addst="${q}:5" ${S.sp < 1 || full ? 'disabled' : ''}>+5</button></div></div>`; }).join('')}<div class="rg-srvact"><button type="button" class="rg-mini ghost" data-streset ${used ? '' : 'disabled'}>포인트 다시 나누기 (무료)</button></div></section></div>`;
+          h = head('스탯', `레벨이 오를 때마다 포인트 ${per}개 · 원하는 스탯에 올려요 (스탯마다 최대 ${statMax(S)}${S.reb ? ` · 환생 ${S.reb}번 +${S.reb * D.REBIRTH.statUp}` : ''})`);
+          h += `<div class="rg-statui"><div class="rg-statwin"><section class="rg-doll rg-statfig"><div class="rg-fig"><img src="${fig}" alt="내 캐릭터"><span class="lv">Lv.${S.lv}</span></div><b class="nm">${Hub.user ? Hub.user.nickname : '손님'}</b><div class="rg-xp"><i style="width:${ex.toFixed(1)}%"></i></div><small>경험치 ${ex.toFixed(1)}%</small>${rebBox()}</section>`;
+          h += `<section class="rg-bag rg-alloc"><div class="rg-sp">남은 포인트 <b>${S.sp}</b></div>${T.keys.map(q => { const full = a[q] >= statMax(S); return `<div class="rg-st" style="--c:${T[q].color}"><div class="lab"><b>${T[q].name}</b><span>${a[q]}<small class="mx"> / ${statMax(S)}</small></span></div><small>${T[q].desc}</small><div class="btns"><button type="button" class="rg-mini" data-addst="${q}:1" ${S.sp < 1 || full ? 'disabled' : ''}>+1</button><button type="button" class="rg-mini ghost" data-addst="${q}:5" ${S.sp < 1 || full ? 'disabled' : ''}>+5</button></div></div>`; }).join('')}<div class="rg-srvact"><button type="button" class="rg-mini ghost" data-streset ${used ? '' : 'disabled'}>포인트 다시 나누기 (무료)</button></div></section></div>`;
           const OK2 = { atk: 'atkP', mag: 'magP', hp: 'hpP', mp: 'mpP', spd: 'spdP', crit: 'crit', dmg: 'dmg', mpRegen: 'mpReg', pdef: 'pdef' };
           const fm = v => (Math.round(v * 10) / 10).toLocaleString('ko-KR'), sg = v => (v < 0 ? '−' + fm(-v) : '+' + fm(v)), pt = (k2, unit) => { const b = PT.base[k2] || 0, sv = PT.sta[k2] || 0, g = PT.gear[k2] || 0, op = PT.opt[OK2[k2]] || 0; return [b ? `기본 ${fm(b)}${unit}` : '', sv ? `<em class="s">스탯 +${fm(sv)}${unit}</em>` : '', g ? `<em class="g">장비 +${fm(g)}${unit}</em>` : '', op ? `<em class="g">옵션 ${sg(op)}%</em>` : ''].filter(Boolean).join(' · ') || '—'; };
           const rows = [
@@ -1842,8 +2005,8 @@
             ['치명타', fm(ST.crit) + '% · ×' + fm(ST.critD), '치명타 확률 · 치명타 피해 배수', pt('crit', '%'), '#FFD23F'],
             ['골드 · 경험치', `+${fm(ST.goldP || 0)}% · +${fm(ST.expP || 0)}%`, '장비 옵션으로만 올라요', '', '#FFE45C']
           ];
-          h += `<div class="rg-detailgrid">${rows.map(([n, v, d2, parts, c2]) => `<div><span style="color:${c2}">${n}</span><b>${v}</b>${d2 ? `<small>${d2}</small>` : ''}${parts ? `<small class="pt">${parts}</small>` : ''}</div>`).join('')}</div>`;
-          h += `<p class="sub" style="margin:10px 0 0">속성 방어 — 몬스터마다 속성이 있어요(이름 앞 동그라미). 원거리 탄·보스 공격은 그 속성 피해 + 상태 효과(화상·느려짐·기절·저주 …), 속성 방어가 높을수록 피해도 효과도 줄어요 (저항 +${fm(PT.sta.edef || 0)}% 포함, 최대 ${D.STAT.defCap}%)</p><div class="rg-defgrid">${Object.keys(ELEM).map(e => `<div><span style="color:${ELEM[e].color}">${ELEM[e].name}</span><b>${fm(ST.edefs[e])}%</b></div>`).join('')}</div>`;
+          h += `<div class="rg-detailgrid">${rows.map(([n, v, d2, parts, c2]) => `<div style="--c:${c2}"><span style="color:${c2}">${n}</span><b>${v}</b>${d2 ? `<small>${d2}</small>` : ''}${parts ? `<small class="pt">${parts}</small>` : ''}</div>`).join('')}</div>`;
+          h += `<p class="sub" style="margin:10px 0 0">속성 방어 — 몬스터마다 속성이 있어요(이름 앞 동그라미). 원거리 탄·보스 공격은 그 속성 피해 + 상태 효과(화상·느려짐·기절·저주 …), 속성 방어가 높을수록 피해도 효과도 줄어요 (저항 +${fm(PT.sta.edef || 0)}% 포함, 최대 ${D.STAT.defCap}%)</p><div class="rg-defgrid">${Object.keys(ELEM).map(e => `<div style="--c:${ELEM[e].color}"><span style="color:${ELEM[e].color}">${EL_IC[e] || ''} ${ELEM[e].name}</span><b>${fm(ST.edefs[e])}%</b></div>`).join('')}</div></div>`;
         } else if (k === 'chan') {   // v104 채널 이동
           const L = chList, M = MAPBY[S.map];
           h = head('채널 이동', `${M ? M.name : '이 지도'} · 한 채널에 ${net.opt.chCap || 5}명까지. 같은 채널에 있는 사람끼리만 서로 보여요.`);
@@ -1880,7 +2043,8 @@
             <li>지도 <b>오른쪽 끝 → 다음 지도</b>, 왼쪽 끝 → 이전 지도. 마을 → 사냥터 10곳 → 다음 마을 … 마을 하나가 10레벨씩(솔뫼 마을 Lv.1~10 … 구름절 마을 Lv.71~80), 마지막 도원수 진영은 Lv.80~100.</li>
             <li>문으로 걸어 들어가면 <b>건물 안</b>이에요. 안에 있는 사람에게 가까이 가면 이야기해요: <b>약방</b> 아씨 · <b>도술 서원</b> 도사(마법 배우기·융합) · <b>이장 댁</b> 이장님(무료 이동·저장). 아래 가운데 문으로 나가요.</li>
             <li>처음부터 <b>마법 화살</b>(1번 키)을 쓸 수 있어요.</li>
-            <li><b>스탯</b>: 레벨이 오를 때마다 포인트 2개 — 왼쪽 위 얼굴(또는 C)을 눌러 힘(피해)·민첩(이동 속도)·지혜(마나 회복)·체력(최대 체력)·<b>저항</b>(물리 방어 +0.5% · 속성 방어 +0.5%)에 올려요. 스탯마다 최대 50.</li>
+            <li><b>스탯</b>: 레벨이 오를 때마다 포인트 2개 — 왼쪽 위 얼굴(또는 C)을 눌러 힘(피해 +2%)·민첩(이동 속도 +0.7%)·지혜(마나 회복 +4%)·체력(최대 체력 +2%)·<b>저항</b>(물리 방어 +0.5% · 속성 방어 +0.5%)에 올려요. 스탯마다 최대 50 (환생할 때마다 +10).</li>
+            <li><b>환생</b>: 저승 10-5 오도전륜대왕을 이길 때마다 한 번 (최대 10번) — Lv.1 로 돌아가고 스탯 포인트 +20 · 스탯 최대치 +10 · 장비·가방·골드는 그대로 · 마법은 기본 마법만 남아요.</li>
             <li><b>거래</b>: 온라인 서버에서 같은 지도에 있는 사람을 누르거나 가까이 가서 F → 거래 신청. 둘 다 확인을 누르면 아이템·골드가 바뀌어요.</li>
             <li>직업은 없어요. 레벨이 오르면 도술 서원에서 새 마법을 배우고, 두 원소를 섞어 <b>융합 마법</b>을 만들어요.</li>
             <li><b>속성 상성</b>: 몬스터마다 속성이 있어요(이름 앞 동그라미). <b>약점 속성</b> 마법은 피해 ×1.3 (‘약점!’), 같은 속성은 ×0.7. 약점: 불←물, 물←번개, 번개←땅, 땅←바람, 바람←불, 빛←번개, 어둠←빛. 원소 효과: 불 화상 · 물 느려짐 · 바람 밀어내기 · 땅 큰 피해 · 번개 기절 · 빛 체력 흡수 · <b>어둠 저주(받는 피해 +20%)</b>. 몬스터의 속성 공격도 나에게 같은 종류의 효과를 줘요(속성 방어로 줄어요).</li>
@@ -2014,9 +2178,10 @@
           S.gold -= price; S.skills.push(id); const free = S.fslots.indexOf(null); if (free >= 0) S.fslots[free] = id;
           say(`융합 성공! '${skill(id).name}'${free >= 0 ? ` ${FKEY[free]} 키로 써 보세요` : ' 마법 창(K)에서 Q W E R 칸에 넣어요'}`, 3); markDirty(true);
         } else if (d.stgo) { stationGo(d.stgo); return;   // v85 역참 출발
+        } else if (d.toongate) { const g = D.HELL.gates[+d.toongate - 1]; if (!g) return; pane = null; panel.hidden = true; showToon(gateCuts(g), { title: `저승 제${g.no}관문 · ${g.hell}`, go: '닫기' }); return;   // v130 관문 웹툰 다시 보기
         } else if (d.hellgo) { const id = d.hellgo, M = MAPBY[id]; if (!M || S.lv < D.MAX_LV || (M.gate - 1) * 5 + M.stage > (S.hell || 0) + 1) return; pane = null; panel.hidden = true; G.paused = false; enter(id, 'L'); return; }   // v69 저승 단계 들어가기
         else if (d.go) { const id = d.go; pane = null; panel.hidden = true; G.paused = false; enter(id, MAPBY[id].kind === 'village' ? 'door' : 'L'); return; }
-        else if (d.addst) { const [q, n0] = d.addst.split(':'), n = Math.min(+n0, S.sp, D.STAT.max - (S.stat[q] || 0)); if (n > 0 && S.stat[q] != null) { S.stat[q] += n; S.sp -= n; const hr = S.hp / ST.hp; restat(); if (q === 'vit') S.hp = Math.round(ST.hp * hr); markDirty(true); } }
+        else if (d.addst) { const [q, n0] = d.addst.split(':'), n = Math.min(+n0, S.sp, statMax(S) - (S.stat[q] || 0)); if (n > 0 && S.stat[q] != null) { S.stat[q] += n; S.sp -= n; const hr = S.hp / ST.hp; restat(); if (q === 'vit') S.hp = Math.round(ST.hp * hr); markDirty(true); } }
         else if ('streset' in d) { D.STAT.keys.forEach(q => { S.sp += S.stat[q]; S.stat[q] = 0; }); restat(); markDirty(true); say('스탯 포인트를 모두 돌려받았어요. 다시 나눠 주세요', 2.4); }
         else if (d.trreq) { const pp = net.peers.get(d.trreq); if (!pp) { say('상대가 이 지도에 없어요', 2); closePanel(); return; } G.trade = { with: pp.cid, nick: pp.nick, state: 'wait' }; net.trade({ k: 'req', to: pp.cid }); pane = null; panel.hidden = true; G.paused = false; say(`${pp.nick}님에게 거래 신청을 보냈어요…`, 3); setTimeout(() => { if (G.trade && G.trade.state === 'wait' && G.trade.with === pp.cid) { G.trade = null; say('대답이 없어서 거래 신청을 취소했어요', 2.6); } }, 20000); return; }
         else if (d.tryes) { const pp = net.peers.get(d.tryes); if (!pp) { closePanel(); return; } net.trade({ k: 'yes', to: pp.cid }); startTrade(pp.cid, pp.nick); return; }
@@ -2032,6 +2197,7 @@
         else if (d.fgdo) { tab.fgAsk = null; enhance(d.fgdo); }
         else if (d.srv) { joinServer(d.srv); return; }
         else if (d.ch) { moveChan(+d.ch); return; }
+        else if ('rebgo' in d) { if (!confirm(`정말 환생할까요? Lv.1로 돌아가고 배운 마법이 모두 사라져요. (환생 ${(S.reb || 0) + 1}/${D.REBIRTH.max})`)) return; doRebirth(); return; }   // v131
         else if (d.rg2) { openPanel(d.rg2); return; }
         else if ('solo' in d) { if (net.joined) { net.leave(); say('혼자 하기로 바꿨어요', 2); } closePanel(); return; }
         else if ('savenow' in d) { save(true).then(ok => say(ok || !Store.online() ? '저장했어요' : '이 기기에 저장했어요 (서버 저장은 준비 중)')); return; }
@@ -2060,6 +2226,7 @@
         const r = canvas.getBoundingClientRect(); if (r.bottom < 60 || r.top > innerHeight - 60) return;   // 게임판이 화면에 없으면 무시
         if (!GAME_KEYS.has(e.code)) return;
         const down = e.type === 'keydown';
+        if (toon) { e.preventDefault(); if (down && !e.repeat) { if (e.code === 'Escape') toonClose(); else if (e.code === 'Space' || e.code === 'Enter') { if (toon.i < toon.cuts.length) toonNext(); else toonClose(); } } return; }   // v130 웹툰 보는 중
         if (down && e.code === 'Escape') { if (pane) { e.preventDefault(); closePanel(); } return; }
         if (down && (e.code === 'KeyI' || e.code === 'KeyK' || e.code === 'KeyC')) { e.preventDefault(); const k = e.code === 'KeyI' ? 'inv' : e.code === 'KeyK' ? 'skill' : 'stat'; if (G.dead) return; if (pane === k) closePanel(); else if (!pane || pane === 'inv' || pane === 'skill' || pane === 'stat' || pane === 'help') openPanel(k); return; }
         if (pane) { if (tag !== 'button') e.preventDefault(); return; }

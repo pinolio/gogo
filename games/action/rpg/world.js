@@ -44,6 +44,13 @@
   /* v128 던전 입구 그림 (선생님 시안 · img/v79/dg_*.png, 칸에 맞춘 그림) · t: X 막힘(칸 10) · D 입구(칸 13, 지나감 · 나중에 다른 맵으로) · r 둘레(칸 12) · . 빈칸 */
   const DUNGEON = {"dg_cave":{"w":224,"h":160,"t":["..rXr..",".rXXXr.","rXXXXXr","rXXDXXr",".XXDXX."]},"dg_ruin":{"w":192,"h":192,"t":["......",".rXXr.",".XXXX.","XXXXXX","XXDXXX","rXDrXX"]}}, DUNGEON_KEYS = ['dg_cave', 'dg_ruin'];
   const POND = {"pond_s":{"w":81,"h":75,"t":["rr.","rWr","..."]},"pond_m":{"w":166,"h":129,"t":[".rrrr.","rWWWr.","rWWWr.","rrWr..","......"]},"pond_l":{"w":206,"h":189,"t":[".rrrrr.","rrWWWr.","rWWWWWr","rWWWWWr","rrWWWr.","rrrrrr."]}}, POND_KEYS = ['pond_s', 'pond_m', 'pond_l'], POND_REG = [0, 1, 2, 3, 4, 7];
+  /* v130 성(도원수 진영) 그림 bld_castle.png (820×673) 의 문 자리 → 지도 좌표 (game.js drawObj 와 같은 크기·자리)
+   *  A·B = 두 낮은 담 사이 통로가 성벽에 닿는 왼쪽·오른쪽 끝 · u = 통로가 뻗는 쪽(왼쪽 아래, 낮은 담과 나란히) · 박석 길과 들어가는 칸(문 칸)을 여기에 맞춤 */
+  function castleGeo(b) {
+    const ww = b.w * TS + 90, s = ww / 820, L = (b.x + b.w / 2) * TS - ww / 2, T = (b.y + b.h) * TS + 6 - 673 * s;
+    const P = (ix, iy) => [L + ix * s, T + iy * s];
+    return { A: P(172, 522), B: P(500, 545), u: [-142 * s, 63 * s] };   // A·B = 양쪽 낮은 담 사이 통로 안쪽 끝(성벽 밑)
+  }
   function getMap(id) {
     if (mapCache[id]) return mapCache[id];
     const M = MAPBY[id], R = D.REGIONS[M.region], rnd = seeded('gogo-rpg-' + id);
@@ -61,6 +68,10 @@
       bs.forEach(b => {
         for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) set(x, y, 6);
         b.door = { x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 };
+        if (b.type === 'castle') {   // v130 문 칸 = 그림 속 문 앞 통로가 맨 아랫줄 칸을 지나는 곳
+          const g = castleGeo(b), yc = (b.door.y + 0.5) * TS, t = (yc - (g.A[1] + g.B[1]) / 2) / g.u[1];
+          b.door.x = Math.floor(((g.A[0] + g.B[0]) / 2 + t * g.u[0]) / TS);
+        }
         set(b.door.x, b.door.y, 7);
         map.buildings.push(b); map.doors.push(b);
       });
@@ -252,7 +263,7 @@
         const L = b.x - 1.4, Rr = b.x + b.w + 1.4, fy = b.y + b.h + 1.1;
         roads.push({ pts: [join(L - 0.4), [L - 0.2, cy + 3.2], [L + 0.2, b.y + b.h - 1.2], [L + 1.6, fy], [dx, fy + 0.15]], w: 1.6 });
         roads.push({ pts: [join(Rr + 0.4), [Rr + 0.2, cy + 3.2], [Rr - 0.2, b.y + b.h - 1.2], [Rr - 1.6, fy], [dx, fy + 0.15]], w: 1.6 });
-        plazas.push({ x: dx, y: fy - 0.2, r: 1.9, door: true });
+        plazas.push({ x: dx, y: fy - 0.2, r: 1.9, door: true, castle: b });   // v130 성 문 앞 = 그림 문에 맞춘 박석 길 (paintRoads)
       } else {   // 큰길 아래 집(이장 댁): 오른쪽으로 돌아 문 앞으로
         const R2 = b.x + b.w + 1.3, fy = b.y + b.h + 0.9;
         roads.push({ pts: [join(R2 + 0.8), [R2 + 0.3, cy + 2.6], [R2 + 0.1, b.y + b.h - 1.5], [R2 - 0.9, fy], [dx, fy + 0.1]], w: 1.5 });
@@ -335,7 +346,24 @@
     }));
     // 문 앞 디딤돌 (넓적한 돌 3장) · 진영 앞은 박석(돌판) 마당
     map.plazas.filter(q => q.door).forEach(q => {
-      if (q.r > 1.6) {   // 박석
+      if (q.castle) {   // v130 성 문 앞 박석 길: 문 아래(A~B)에서 낮은 담과 나란히 왼쪽 아래로 · 끝은 양옆으로 넓어지는 마당
+        const g = castleGeo(q.castle), v = [g.B[0] - g.A[0], g.B[1] - g.A[1]], K = 2.1, rows = 20, cols = 9;
+        const P = (t, a) => [g.A[0] + a * v[0] + t * g.u[0], g.A[1] + a * v[1] + t * g.u[1]], flare = t => Math.max(0, t - 1.25) * 0.35;
+        const quad = (pts, col) => { x.fillStyle = col; x.beginPath(); x.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < 4; i++) x.lineTo(pts[i][0], pts[i][1]); x.closePath(); x.fill(); };
+        // 그림자 · 줄눈(바닥)
+        const edge = []; for (let i = 0; i <= rows; i++) { const t = K * i / rows; edge.push(P(t, -flare(t))); } for (let i = rows; i >= 0; i--) { const t = K * i / rows; edge.push(P(t, 1 + flare(t))); }
+        x.fillStyle = 'rgba(30,22,14,.55)'; x.beginPath(); edge.forEach((q2, i) => (i ? x.lineTo(q2[0] + 2, q2[1] + 3) : x.moveTo(q2[0] + 2, q2[1] + 3))); x.closePath(); x.fill();
+        x.fillStyle = '#5E584E'; x.beginPath(); edge.forEach((q2, i) => (i ? x.lineTo(q2[0], q2[1]) : x.moveTo(q2[0], q2[1]))); x.closePath(); x.fill();
+        for (let r = 0; r < rows; r++) {
+          const t0 = K * r / rows + 0.012, t1 = K * (r + 1) / rows - 0.012, f = flare((t0 + t1) / 2), a0 = -f, a1 = 1 + f, n = Math.max(cols, Math.round(cols * (a1 - a0))), off = r % 2 ? 0.5 : 0;
+          for (let i = -1; i < n; i++) {
+            let b0 = a0 + (i + off) / n * (a1 - a0), b1 = a0 + (i + off + 1) / n * (a1 - a0); b0 = Math.max(a0, b0) + 0.012; b1 = Math.min(a1, b1) - 0.012; if (b1 - b0 < 0.03) continue;
+            const c = ['#A8A293', '#B6AF9F', '#9A9487', '#ADA798'][Math.floor(rnd() * 4)];
+            quad([P(t0, b0), P(t0, b1), P(t1, b1), P(t1, b0)], c);
+            const h0 = P(t0, b0), h1 = P(t0, b1); x.strokeStyle = 'rgba(255,255,255,.28)'; x.lineWidth = 1; x.beginPath(); x.moveTo(h0[0], h0[1] + 0.5); x.lineTo(h1[0], h1[1] + 0.5); x.stroke();
+          }
+        }
+      } else if (q.r > 1.6) {   // 박석
         for (let j = -2; j <= 2; j++) for (let i = -3; i <= 3; i++) { const X = (q.x + i * 0.62 + (j % 2) * 0.31) * TS, Y = (q.y + j * 0.42) * TS; if (Math.hypot((X / TS - q.x) / 1.15, (Y / TS - q.y) / 0.75) > q.r * 0.82) continue; const c = ['#A39D90', '#B3AC9C', '#958F83'][Math.floor(rnd() * 3)]; x.fillStyle = 'rgba(40,30,20,.35)'; x.fillRect(X - 9, Y - 5, 18, 11); x.fillStyle = c; x.fillRect(X - 9, Y - 6, 18, 10); x.fillStyle = 'rgba(255,255,255,.25)'; x.fillRect(X - 9, Y - 6, 18, 2); }
       } else for (let k = 0; k < 3; k++) {   // 디딤돌
         const X = (q.x + (k - 1) * 0.12) * TS, Y = (q.y - 0.55 + k * 0.62) * TS, rx = 10 - k, ry = 6;

@@ -1624,3 +1624,11 @@ a.nm-t:hover { text-decoration: underline; }
 .mk-sec { margin: 12px 0 6px; font-size: 15px; color: #1D2340; }
 .mk-help { margin: 0 0 6px; font-size: 13px; color: #1D2340; }
 .mk-acts { margin-left: auto; display: flex; gap: 4px; }
+
+/* v130 지도 그리기 · 샘플 지도 */
+.mapedit .btn-sky, .maker .btn-sky { background: #8AD8FF; color: #1D2340; }
+.me-samples { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.me-samples button { width: 100%; display: grid; gap: 3px; justify-items: start; text-align: left; padding: 8px; background: #FFFFFF; color: #1D2340; border: 2px solid #1D2340; border-radius: 12px; cursor: pointer; font: inherit; box-shadow: 0 3px 0 #1D2340; }
+.me-samples button:hover { background: #FFF6C2; transform: translateY(-1px); }
+.me-samples canvas { width: 100%; height: auto; aspect-ratio: 50 / 34; border-radius: 8px; border: 2px solid #1D2340; background: #6DB85C; }
+.me-samples b { font-size: 14px; } .me-samples small { font-size: 12px; color: #3A4270; }

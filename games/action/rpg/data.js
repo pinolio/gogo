@@ -418,6 +418,41 @@
   };
   HELL.gates.forEach(g => { ['mob', 'mob2', 'guard', 'judge', 'boss'].forEach(k => { if (g[k]) g[k].el = g.el; }); });
   HELL.gates.forEach(g => ['guard', 'judge', 'boss'].forEach(k => { if (g[k]) g[k].rig = 'biped'; }));   // v83 옥졸·판관·대왕 Meshy 그림은 사람 모양 → 두 발로 걷기   // 관문 몬스터 = 관문 속성
+  /* v130 저승 웹툰: 관문마다 옥졸 · 판관 · 대왕이 차례로 나와 '여기는 어디, 나는 누구'를 소개 (game.js showToon)
+   *  [옥졸, 판관, 대왕] — 관문에 처음 들어갈 때 4컷 웹툰 · 3단계 옥졸 · 4단계 판관 · 5단계 대왕이 나올 때 그 한 컷 */
+  const HELL_INTRO = [
+    ['여기는 칼날이 빼곡히 박힌 산, 도산지옥이다! 나는 이 칼산 길목을 지키는 우두 옥졸. 맨발로 오를 각오는 됐느냐?',
+     '나는 도산 판관. 생명을 함부로 한 죄를 명부에 적는 자다. 그런데 왜장이 명부를 훔쳐 가 텅 비었구나… 네 죄부터 다시 적어 주마!',
+     '나는 첫 7일의 문을 다스리는 진광대왕이다. 전쟁에서 칼에 쓰러진 혼들이 이 산을 메웠다. 살아 있는 자여, 네 칼이 얼마나 곧은지 보자!'],
+    ['히히힝! 펄펄 끓는 가마솥이 줄지어 선 화탕지옥이다. 나는 삼지창으로 솥을 젓는 마두 옥졸! 너도 솥에 한번 들어가 보겠느냐?',
+     '나는 화탕 판관. 남의 것을 빼앗은 죄를 이 부채 불길로 묻는다. 마을을 불태운 자들의 이름이 아직 다 지워지지 않았다.',
+     '둘째 7일의 문, 화탕지옥의 주인 초강대왕이다. 불길보다 뜨거운 마음이 있느냐? 없다면 이 솥에서 녹아 버리리라!'],
+    ['으드득… 여기는 모든 것이 얼어붙은 한빙지옥이다. 나는 고드름 몽둥이를 든 얼음 옥졸! 발이 얼기 전에 돌아가라!',
+     '나는 한빙 판관. 은혜를 저버린 죄를 묻는다. 겨울 싸움에서 얼어 죽은 혼들이 아직 여기서 떨고 있지… 너는 누구의 은혜를 입고 왔느냐?',
+     '셋째 7일의 문을 지키는 송제대왕이다. 이 얼음 홀로 차갑게 묻겠다. 너의 마음은 얼음보다 단단하냐?'],
+    ['까악! 잎사귀가 모두 칼날인 숲, 검수지옥에 들어왔구나. 나는 낫을 든 까마귀 옥졸이다. 바람이 불면 칼잎이 쏟아지니 조심해라!',
+     '나는 검수 판관. 거짓 맹세를 한 죄를 깃털 붓으로 적는다. 한 번 한 약속은 칼보다 무겁다는 걸 알고 있느냐?',
+     '넷째 7일의 문, 오관대왕이다. 맹세를 어긴 혼은 칼잎 폭풍을 피할 수 없다. 너의 약속이 진짜인지 바람이 알려 주리라!'],
+    ['둥! 둥! 여기는 거짓말한 혀를 벌하는 발설지옥이다. 나는 천둥북을 멘 천둥 옥졸! 거짓말쟁이는 번개 망치를 맞을 테다!',
+     '나는 발설 판관. 번개 붓으로 거짓과 참을 가른다. 남을 헐뜯은 말 한마디도 이 붓을 피해 가지 못한다.',
+     '나는 다섯째 7일의 문을 다스리는 염라대왕이다. 이 업경대에는 네가 살아서 한 일이 모두 비친다. 자, 거울 앞에 서 보거라!'],
+    ['쉬이익… 독사가 우글거리는 늪, 독사지옥이다. 나는 팔에 뱀을 감은 뱀팔 옥졸. 내 갈고리와 뱀, 둘 다 피할 수 있겠느냐?',
+     '나는 독사 판관. 남을 해친 죄를 묻는다. 내 어깨의 뱀은 거짓말을 하면 바로 알아채고 문다네.',
+     '여섯째 7일의 문, 변성대왕이다. 내 뒤의 큰 뱀이 똬리를 풀기 전에 네 힘을 보여라!'],
+    ['끼기긱! 거대한 톱니가 번개를 튀기며 도는 거해지옥이다. 나는 큰 톱을 멘 톱 옥졸! 톱니 사이에 끼지 않게 조심해라!',
+     '나는 거해 판관. 나라와 백성을 배신한 죄를 이 톱니 도장으로 찍는다. 왜군 편에 선 자들의 이름이 여기 가득하지.',
+     '일곱째 7일의 문을 다스리는 태산대왕이다. 번개 톱니바퀴가 멈추지 않는 한 배신자는 쉬지 못한다. 너는 끝까지 백성 편에 섰느냐?'],
+    ['철컹! 벌겋게 달군 쇠 침상이 가득한 철상지옥이다. 나는 달군 쇠갑옷 옥졸! 내 철퇴는 식는 법이 없지!',
+     '나는 철상 판관. 생명을 업신여긴 죄를 쇠 명부에 새기고 쇠 도장을 찍는다. 한 번 찍힌 도장은 절대 지워지지 않는다.',
+     '죽은 지 100일, 여덟째 문의 평등대왕이다. 이 저울은 왕도 백성도 똑같이 단다. 네 마음의 무게를 달아 보자!'],
+    ['후우우웅! 끝없는 회오리가 부는 풍도지옥이다. 나는 바람주머니를 멘 거인 옥졸. 볼 한 번 부풀리면 넌 저 멀리 날아간다!',
+     '나는 풍도 판관. 남을 속인 죄를 묻는다. 속인 말은 바람처럼 흩어져도 이 명부는 하나도 놓치지 않지.',
+     '죽은 지 1년, 아홉째 문의 도시대왕이다. 내 큰 부채가 회오리를 부르면 거짓은 모두 날아가 버린다. 버틸 수 있겠느냐?'],
+    ['…쉿. 빛 한 점 없는 흑암지옥이다. 나는 등불을 든 그림자 옥졸. 이 등불이 꺼지면 너도 어둠이 된다.',
+     '나는 흑암 판관, 마지막 심판을 맡은 자다. 명부를 훔친 왜장의 원혼이 이 어둠 어딘가에 숨어 있다. 그 원혼을 쫓는 너는 누구냐?',
+     '나는 마지막 3년의 문, 다음 생을 정하는 오도전륜대왕이다. 윤회의 바퀴가 돈다. 나를 이기면 명부를 돌려주마. 마지막 시험이다!']
+  ];
+  HELL.gates.forEach((g, i) => { const t = HELL_INTRO[i] || []; g.guard.intro = t[0]; g.judge.intro = t[1]; g.boss.intro = t[2]; });
   HELL.gates.forEach(g => { for (let s = 1; s <= 5; s++) MAPS.push({ id: `h${g.no}-${s}`, kind: 'field', hell: true, gate: g.no, stage: s, region: 8, no: 0, prev: null, next: null,
     name: `${g.hell} ${g.no}-${s} · ${g.stageName[s - 1]}`, rec: 100 + (g.no - 1) * 5 + s + (s === 5 ? HELL.bossPlus : 0), boss: false, mon: g.mob }); });
 
@@ -438,7 +473,7 @@
   const STAT = {
     keys: ['str', 'dex', 'int', 'vit', 'res'],
     str: { name: '힘', color: '#FF8A8E', desc: '주는 피해 +2% (기본 공격·마법 모두)', dmg: 2 },
-    dex: { name: '민첩', color: '#9AF0B0', desc: '이동 속도 +1%', spd: 1 },
+    dex: { name: '민첩', color: '#9AF0B0', desc: '이동 속도 +0.7%', spd: 0.7 },   // v131 1% → 0.7% (환생으로 최대치가 늘어 너무 빨라지지 않게)
     int: { name: '지혜', color: '#C8A8FF', desc: '마나 회복 +4%', mpRegen: 4 },
     vit: { name: '체력', color: '#FFB86B', desc: '최대 체력 +2% (기본 체력 기준)', hpPct: 2 },
     res: { name: '저항', color: '#7FE0F0', desc: '물리 방어 +0.5% · 속성 방어 +0.5% (불·물·바람·땅·번개·빛)', pdef: 0.5, edef: 0.5 },
@@ -664,7 +699,8 @@
       hello: ['어서 오게! 여기가 자네의 귀환 장소일세.', '가 본 곳이면 어디든 보내 주지. 이동은 무료라네.', '무리하지 말게. 쓰러지면 이 집 앞에서 다시 깨어날 걸세.'] },
     castle: { name: '도원수', img: 'npc_castle', h: 70, color: '#FFE45C', av: { skin: 's1', hair: 'h_curly', hat: 'hat_emperor', face: 'f_beard', top: 't_suit', bottom: 'b_armor', shoes: 'sh_gold', back: 'bk_cape' },
       hello: ['잘 왔소. 왜성 깊은 곳에서 흑룡 이무기가 깨어나고 있소…', '왜군과 요괴가 한데 엉켜 몰려오고 있소. 힘을 길러 두시오.'] },
-    guard: { name: '진영 파수꾼', color: '#C9D0F0', av: { skin: 's4', hair: 'h_short', hat: 'hat_darkhelm', top: 't_armor', bottom: 'b_armor', shoes: 'sh_black' },
+    guard: { name: '진영 파수꾼', color: '#C9D0F0', img: 'npc_guard', h: 66,   // v130 그림 파수꾼 (투구·창·방패) · 그림을 못 받으면 아래 아바타
+      av: { skin: 's4', hair: 'h_short', hat: 'hat_darkhelm', top: 't_armor', bottom: 'b_armor', shoes: 'sh_black' },
       lines: ['도원수께 예를 갖추시오.', '진영은 안전하오.', '왜성 쪽 용암 지대는 조심하시오!'] }
   };
   // 마을을 돌아다니는 사람 (마을마다 2명씩 번갈아)
@@ -701,5 +737,7 @@
 
   // v110 NPC 그림(img/v79/npc_*.png) · 같은 그림을 쓰는 마을마다 이름만 다르게 (names[마을 번호 0~8])
   const npcDef = (def, r) => (def && def.names && def.names[r] && def.names[r] !== def.name ? Object.assign({}, def, { name: def.names[r] }) : def);
-  window.GoRPGData = { npcDef, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  // v131 환생: 저승 10-5(오도전륜대왕)를 깨면 할 수 있음 · Lv.1 로 돌아가고 환생마다 스탯 포인트 +20 · 장비·가방·골드는 그대로 · 마법은 기본 마법만 · 스탯마다 최대치 +10 · 최대 10번 · 10-5를 깰 때마다 한 번
+  const REBIRTH = { max: 10, bonus: 20, statUp: 10 };   // v131 환생마다 스탯 최대치 +10 (50 → 60 → … → 150)
+  window.GoRPGData = { npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();

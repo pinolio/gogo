@@ -14,6 +14,7 @@ GoSettings.register({
   category: 'action',
   folder: 'games/action/rpg',
   order: 1,
+  top: 1,                              // v130 메인 화면 맨 앞 (블록 대전보다 앞)
   tag: 'NEW',
   page: 'GoRPG',                       // 전용 화면 (게임판 + 아래 메뉴 + 랭킹)
   w: 960, ar: 960 / 540,

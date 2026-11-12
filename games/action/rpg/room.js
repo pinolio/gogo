@@ -3,6 +3,7 @@
  *   약방 · 도술 서원 · 이장 댁 · 왕성 — 문으로 걸어 들어가면 실내 지도로 바뀜
  *   실내 = 26 × 15 칸 (832 × 480, 화면 가운데에 놓임). 위 3줄 = 뒷벽, 아래 가운데 2칸 = 나가는 문
  *   사람(NPC)은 사이트 아바타 그림 그대로 (data.js 의 NPCS). 가까이 가면 대화 → 가게·학교·이동 창
+ *   v129 이장 댁 · 도술 서원 · v130 약방 · 도원수 진영 = 선생님 그림 실내 (PIC 표)
  *   world.js 의 __GoRPGParts 에 getRoom · npcSprite · npcPortrait 를 더해 줌
  */
 (function () {
@@ -124,6 +125,34 @@
     return c;
   }
 
+  /* ---------- v129 그림 실내 (img/v79/room_<종류>.png · 832×480 = 26×15칸) ----------
+   *   solid: [x, y, 너비, 높이] 칸 (벽 3줄 · 옆·아래 벽 · 문은 자동) · npc: 그림 속 사람 발(x, y)·머리 위(top) · talk: 말 거는 자리
+   *   glows: [칸 x, 칸 y, 반지름, 색] (촛불·창문 빛이 살짝 일렁이게) */
+  const PIC = {
+    castle: {   // v130 도원수 진영 (파수꾼 둘은 그림에서 지우고 npc_guard 그림으로 따로 세움)
+      solid: [[0, 3, 26, 2], [8, 5, 4, 4], [14, 5, 4, 4], [12, 5, 2, 3], [1, 5, 4, 5], [21, 5, 4, 5], [5, 5, 2, 8], [19, 5, 2, 8], [1, 9, 1, 2], [0, 11, 3, 3], [23, 10, 3, 4], [21, 11, 1, 2], [9, 9, 1, 1], [16, 9, 1, 1]],
+      npc: { x: 13 * TS, y: 5.6 * TS, top: 112 }, talk: { x: 13 * TS, y: 8.7 * TS, r: 70 },
+      extra: [{ key: 'guard', x: 9.6 * TS, y: 9.4 * TS, talk: { x: 9.6 * TS, y: 10.4 * TS, r: 46 }, guard: true, face: 1 }, { key: 'guard', x: 16.5 * TS, y: 9.4 * TS, talk: { x: 16.5 * TS, y: 10.4 * TS, r: 46 }, guard: true, face: -1 }],
+      glows: [[1.5, 3.3, 80, '#FFB13D'], [6.8, 3.3, 80, '#FFB13D'], [19, 3.3, 80, '#FFB13D'], [24.5, 3.3, 80, '#FFB13D'], [10, 1.7, 50, '#FFD27A'], [16, 1.7, 50, '#FFD27A'], [24, 1.6, 50, '#FFD27A']]
+    },
+    potion: {   // v130 약방
+      solid: [[0, 3, 26, 3], [9, 6, 9, 2], [1, 6, 5, 2], [3, 8, 4, 3], [6, 9, 2, 2], [2, 9, 1, 2], [1, 10, 2, 1], [1, 11, 6, 3], [7, 12, 2, 2], [20, 5, 2, 2], [23, 6, 2, 2], [20, 7, 5, 4], [23, 11, 2, 2], [17, 13, 3, 1], [20, 12, 5, 2], [12, 9, 2, 2]],
+      npc: { x: 13 * TS, y: 5.8 * TS, top: 136 }, talk: { x: 13 * TS, y: 8.4 * TS, r: 66 },
+      glows: [[9, 2.2, 90, '#FFE2A8'], [17.5, 2.2, 90, '#FFE2A8'], [5, 10.3, 100, '#FF9A3D'], [5, 8.6, 70, '#FFD27A']]
+    },
+    chief: {
+      solid: [[0, 3, 26, 1], [22, 4, 4, 1], [11, 4, 6, 2], [17, 4, 1, 1], [11, 7, 4, 2], [2, 6, 6, 4], [1, 10, 1, 1], [1, 12, 2, 2], [3, 12, 2, 2], [24, 7, 1, 5], [23, 10, 1, 2], [19, 12, 4, 2], [23, 12, 2, 2]],
+      npc: { x: 13 * TS, y: 5.4 * TS, top: 108 }, talk: { x: 13 * TS, y: 6.6 * TS, r: 66 },
+      glows: [[21, 1.6, 110, '#FFD9A0'], [2, 12.6, 70, '#FF9A3D'], [13, 4, 120, '#FFC878']]
+    },
+    school: {
+      solid: [[0, 3, 26, 2], [0, 5, 3, 1], [23, 5, 3, 1], [10, 5, 6, 2], [8, 6, 1, 1], [18, 6, 1, 1], [3, 7, 3, 2], [1, 8, 1, 2], [24, 7, 2, 4], [1, 10, 1, 2], [2, 11, 3, 1], [21, 11, 3, 1], [8, 12, 1, 1], [18, 12, 1, 1], [1, 12, 1, 2], [2, 13, 3, 1], [24, 11, 1, 3], [22, 13, 2, 1]],
+      npc: { x: 13 * TS, y: 5.2 * TS, top: 90 }, talk: { x: 13 * TS, y: 7.5 * TS, r: 66 },
+      glows: [[8.5, 5.5, 60, '#FFD27A'], [18.5, 5.5, 60, '#FFD27A'], [8.5, 11.6, 60, '#FFD27A'], [18.5, 11.6, 60, '#FFD27A'], [14.7, 4.3, 50, '#FFD27A'], [25, 7.2, 50, '#FFD27A'], [0.9, 8, 50, '#FFD27A'], [4.5, 7.2, 90, '#C8A8FF'], [13, 9.3, 120, '#B48CFF']]
+    }
+  };
+  ['room_chief', 'room_school', 'room_potion', 'room_castle', 'npc_guard'].forEach(n => P.img79(n));   // 미리 불러 둠
+
   /* ---------- 실내 만들기 ---------- */
   const roomCache = {};
   function getRoom(type, region) {
@@ -141,6 +170,21 @@
     const wall = (img, cx, by) => put(img, 0, by, { cx, sy: -1 });      // 벽에 붙은 것 (항상 뒤)
     const NP = D.NPCS;
     const npc = (key, x, y, talk, extra) => map.npcs.push(Object.assign({ key, def: D.npcDef(NP[key], region), x, y, talk, face: 1, ph: rnd() * 6 }, extra || {}));
+
+    // v129 선생님 그림 실내 (이장 댁 · 도술 서원) — 그림을 통째로 바닥으로 쓰고, 가구 자리만 막음. 사람은 그림 속에 있음(baked: 이름·느낌표만 그림)
+    const pic = PIC[type] && P.img79('room_' + type, () => { delete roomCache[id]; });
+    if (pic) {
+      const Q = PIC[type];
+      Q.solid.forEach(r => solid(r[0], r[1], r[2], r[3]));
+      map.npcs.push({ key: type, def: D.npcDef(NP[type], region), x: Q.npc.x, y: Q.npc.y, topY: Q.npc.top, talk: Q.talk, face: 1, ph: rnd() * 6, baked: true });
+      (Q.extra || []).forEach(e => map.npcs.push(Object.assign({ def: D.npcDef(NP[e.key], region), ph: rnd() * 6 }, e)));
+      Q.glows.forEach(g => map.glows.push({ x: g[0] * TS, y: g[1] * TS, r: g[2], col: g[3] }));
+      const [gc, gx] = mk(RW * TS, RH * TS); gx.imageSmoothingEnabled = true; gx.imageSmoothingQuality = 'high'; gx.drawImage(pic, 0, 0, RW * TS, RH * TS);
+      map.ground = gc; map.mini = gc; map.pic = true;
+      map.startL = { x: 13 * TS, y: 13.5 * TS };
+      roomCache[id] = map; const ids0 = Object.keys(roomCache); if (ids0.length > 6) delete roomCache[ids0[0]];
+      return map;
+    }
 
     if (type === 'potion') {
       wall(shelf(4, 'potion', rnd), 3.5 * TS, 3 * TS + 6); solid(1, 3, 5, 1);

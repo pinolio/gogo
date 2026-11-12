@@ -115,7 +115,8 @@
   const all = {};
   const CAT_ORDER = ['puzzle', 'arcade', 'board', 'sports', 'action', 'shooting', 'study'];
   const catIdx = c => { const i = CAT_ORDER.indexOf(c); return i < 0 ? 99 : i; };
-  const byCat = (a, b) => catIdx(a.category) - catIdx(b.category) || (a.order || 99) - (b.order || 99);
+  // v130 top: 분류와 상관없이 맨 앞 (작을수록 앞 · skillcom RPG 1 · Skillcom Fight 2)
+  const byCat = (a, b) => (a.top || 99) - (b.top || 99) || catIdx(a.category) - catIdx(b.category) || (a.order || 99) - (b.order || 99);
   window.GoSettings = {
     // 카테고리 폴더 이름 → 화면에 보이는 이름 (games/ 아래 폴더와 같게 유지)
     CATEGORIES: { puzzle: '퍼즐', arcade: '아케이드', board: '보드게임', sports: '스포츠', action: '액션', shooting: '슈팅', study: '공부?' },
