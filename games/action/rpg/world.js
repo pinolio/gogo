@@ -51,8 +51,40 @@
     const P = (ix, iy) => [L + ix * s, T + iy * s];
     return { A: P(172, 522), B: P(500, 545), u: [-142 * s, 63 * s] };   // A·B = 양쪽 낮은 담 사이 통로 안쪽 끝(성벽 밑)
   }
+  /* v132 대왕 결전장: 선생님 그림 한 장(960×544 = 30×17칸)을 통째로 바닥으로 쓰는 지도 (지금 1-5 진광대왕 전)
+   *  walk: [줄, 왼쪽 칸, 오른쪽 칸] 지나갈 수 있는 칸 (나머지 = 용암·벽 → 막힘, 칸 10) · start: 들어오는 자리(아래 가운데 좁은 길) · boss: 대왕이 서는 자리(위 해골 철문 앞) */
+  const ARENA = {
+    'h1-5': { img: 'arena_h1', walk: [[4, 10, 20], [5, 5, 23], [6, 4, 24], [7, 4, 24], [8, 3, 25], [9, 3, 25], [10, 3, 25], [11, 3, 25], [12, 3, 25], [13, 3, 25], [14, 4, 25], [15, 14, 16], [16, 14, 16]],
+      start: [15.5, 13.8], boss: [15.5, 5.6], glows: [[19, 1.2, 110, '#FFB13D'], [6.7, 1, 70, '#FF6A3D'], [10.2, 0.8, 60, '#FF6A3D'], [24.3, 0.6, 60, '#FF6A3D'], [1.5, 11, 160, '#FF8A2A'], [28.5, 11, 160, '#FF8A2A'], [8, 16, 140, '#FF8A2A'], [23, 16, 140, '#FF8A2A']] },
+    // v132 3-5 송제대왕 전 (한빙지옥): 30×17칸 · 얼음 바닥 전체 · 위 얼음 철문 · block = 그 안의 수정·깃발 자리
+    'h3-5': { img: 'arena_h3', walk: [[4, 2, 23], [5, 1, 23], [6, 2, 28], [7, 2, 28], [8, 2, 28], [9, 1, 28], [10, 1, 28], [11, 2, 28], [12, 4, 26], [13, 4, 26], [14, 4, 26], [15, 4, 12], [15, 14, 26]],
+      block: [[21, 13], [21, 14], [21, 15], [13, 15]],
+      start: [15.5, 14.4], boss: [15.5, 5.2], noTint: true, glows: [[1.6, 6.7, 90, '#7FD8FF'], [10.3, 0.8, 70, '#7FD8FF'], [19.2, 1, 110, '#7FD8FF'], [3.5, 14, 90, '#7FD8FF'], [28.7, 12.5, 90, '#7FD8FF'], [6.7, 0.8, 60, '#7FD8FF'], [27, 2.4, 60, '#7FD8FF'], [25.5, 5, 90, '#BDEFFF']] },
+    // v132 2-5 초강대왕 전 (화탕지옥): 1024×704 = 32×22칸 (화면보다 조금 커서 살짝 따라 움직임) · 네 귀퉁이 가마솥 · 위 가시 철문
+    'h2-5': { img: 'arena_h2', w: 32, h: 22, walk: [[5, 13, 19], [6, 12, 20], [7, 10, 22], [8, 8, 25], [9, 7, 26], [10, 6, 27], [11, 6, 27], [12, 6, 27], [13, 6, 26], [14, 7, 25], [15, 8, 24], [16, 9, 23]],
+      start: [16, 15.8], boss: [16, 6.6], glows: [[12.4, 4.2, 90, '#FFB13D'], [19.5, 4.2, 90, '#FFB13D'], [6.5, 3.5, 120, '#FF6A2A'], [28.5, 3.5, 120, '#FF6A2A'], [3.5, 18, 120, '#FF6A2A'], [28.5, 18.3, 120, '#FF6A2A'], [3, 12, 150, '#FF8A2A'], [16, 20.5, 170, '#FF8A2A'], [29, 8, 140, '#FF8A2A']] }
+  };
+  function arenaMap(id) {
+    const A = ARENA[id], M = MAPBY[id], R = D.REGIONS[M.region], w = A.w || 30, h = A.h || 17, t = new Uint8Array(w * h).fill(10);
+    const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 10 : t[y * w + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = v; };
+    A.walk.forEach(([y, x0, x1]) => { for (let x = x0; x <= x1; x++) set(x, y, 0); });
+    (A.block || []).forEach(([x, y]) => set(x, y, 10));
+    const map = { id, M, R, w, h, t, at, set, mid: 9, arena: true, buildings: [], doors: [], spawns: [], ponds: [], water: [], objs: [], exitL: null, exitR: null,
+      glows: A.glows.map(([x, y, r, col]) => ({ x: x * TS, y: y * TS, r, col })) };
+    map.startL = map.startR = { x: A.start[0] * TS, y: A.start[1] * TS };
+    map.bossAt = { x: A.boss[0] * TS, y: A.boss[1] * TS }; map.noTint = !!A.noTint;   // noTint: 저승 붉은 기운을 덮지 않음 (얼음 결전장)
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!SOLID[at(x, y)]) map.spawns.push({ x: (x + 0.5) * TS, y: (y + 0.8) * TS });
+    const [c, x] = mk(w * TS, h * TS);
+    const paint = () => { const im = img79(A.img); if (im) { x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(im, 0, 0, w * TS, h * TS); return; }
+      x.fillStyle = '#3A1810'; x.fillRect(0, 0, w * TS, h * TS); x.fillStyle = '#E8601A'; for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) if (SOLID[at(xx, yy)]) x.fillRect(xx * TS, yy * TS, TS, TS); };
+    paint(); if (!img79(A.img)) img79(A.img, paint);   // 그림이 늦게 오면 같은 캔버스에 다시 그림
+    map.ground = c; map.mini = c;
+    mapCache[id] = map; const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
+    return map;
+  }
   function getMap(id) {
     if (mapCache[id]) return mapCache[id];
+    if (ARENA[id]) return arenaMap(id);
     const M = MAPBY[id], R = D.REGIONS[M.region], rnd = seeded('gogo-rpg-' + id);
     const w = M.kind === 'village' ? 36 : 50, h = M.kind === 'village' ? 24 : 34;
     const t = new Uint8Array(w * h), at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 2 : t[y * w + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = v; };

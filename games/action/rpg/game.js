@@ -835,6 +835,7 @@
       }
       // v83 보스 자리: 지도 62% 지점 큰길 — 그 칸이 바위·나무면 가장 가까운 빈 칸 (전에는 바위 속에 나와 못 움직이는 일이 있었음)
       function bossPoint() {
+        if (G.map.bossAt) return { x: G.map.bossAt.x, y: G.map.bossAt.y };   // v132 결전장: 정해진 자리
         const x0 = G.map.w * TS * 0.62, y0 = (G.map.mid + 1) * TS; let best = { x: x0, y: y0 }, bd = 1e9;
         if (!solidAt(G.map, x0, y0 - 4) && !solidAt(G.map, x0 - 20, y0 - 4) && !solidAt(G.map, x0 + 20, y0 - 4)) return best;
         G.map.spawns.forEach(q => { const d = Math.hypot(q.x - x0, q.y - y0); if (d < bd && !solidAt(G.map, q.x - 20, q.y - 4) && !solidAt(G.map, q.x + 20, q.y - 4)) { bd = d; best = q; } });
@@ -1317,7 +1318,7 @@
           c.restore();
           const vg = c.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95); vg.addColorStop(0, 'rgba(10,14,36,0)'); vg.addColorStop(1, 'rgba(10,14,36,.55)'); c.fillStyle = vg; c.fillRect(0, 0, W, H);
         } else Fx.drawAmbient(c, map.R === D.REGIONS[map.M.region] ? map.M.region : 0, W, H, { x: cx, y: cy }, now, glowLights);
-        if (map.M && map.M.hell) { c.fillStyle = `rgba(150, 20, 30, ${0.2 + Math.sin(now / 900) * 0.04})`; c.fillRect(0, 0, W, H); }   // v69 저승: 붉은 기운
+        if (map.M && map.M.hell && !map.noTint) { c.fillStyle = `rgba(150, 20, 30, ${0.2 + Math.sin(now / 900) * 0.04})`; c.fillRect(0, 0, W, H); }   // v69 저승: 붉은 기운
         if (G.hurt > 0) { c.fillStyle = 'rgba(255,40,60,' + (G.hurt * 1.2).toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
         if (G.flash > 0) { c.fillStyle = 'rgba(255,255,255,' + (G.flash * 1.5).toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
         drawHud(c, now);
