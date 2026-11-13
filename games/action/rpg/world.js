@@ -552,6 +552,61 @@
       }
     });
   }
+  /* v135 부드러운 웅덩이: 물 칸(4) 둘레를 둥글게 이어 그림 (칸 판정은 그대로 · 4px 도트 계단)
+   *  칸 가운데마다 둥근 무게(가우스)를 더해 경계선을 정함 → 곧은 변은 칸 경계에, 모서리는 둥글게, 오목한 곳은 메워짐
+   *  · 용암(r8_water): 검게 굳은 바위 테두리 + 붉게 빛나는 물가 + 흐르는 노란 줄기
+   *  · 얼음(r5_water): 눈 테두리 + 밝은 얼음 가장자리 · 독늪(r2_water): 이끼 테두리 + 연두 거품 가장자리 */
+  function softPool(x, map, pat, nz, tex) {
+    const { w, h, at } = map, P = 4, GW = w * TS / P, GH = h * TS / P, S2 = 0.95 * 0.95;
+    const kind = tex === 'r5_water' ? 'ice' : tex === 'r2_water' ? 'poison' : 'lava';
+    const C = { lava: { rim: '#2A1712', rim2: '#4A2A1E', edge: 'rgba(255,190,70,', deep: 'rgba(60,0,0,', flow: ['#FFE45C', '#FFB13D'] },
+                ice: { rim: '#EAF6FF', rim2: '#B9DDF2', edge: 'rgba(255,255,255,', deep: 'rgba(0,40,90,', flow: null },
+                poison: { rim: '#14301A', rim2: '#2E5A2A', edge: 'rgba(170,255,90,', deep: 'rgba(0,25,10,', flow: null } }[kind];
+    let any = false; for (let i = 0; i < w * h && !any; i++) if (map.t[i] === 4) any = true; if (!any) return;
+    // 1) 점마다 값 (칸 가운데에서의 거리로 · 1 = 웅덩이 한가운데, 0.5 = 칸 경계 쯤)
+    const F = new Float32Array(GW * GH), F0 = Math.PI * S2;
+    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {
+      const X = (gx + 0.5) * P / TS, Y = (gy + 0.5) * P / TS, tx = Math.floor(X), ty = Math.floor(Y); let f = 0;
+      for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) { if (at(tx + i, ty + j) !== 4) continue; const dx = tx + i + 0.5 - X, dy = ty + j + 0.5 - Y; f += Math.exp(-(dx * dx + dy * dy) / S2); }
+      F[gy * GW + gx] = f / F0 + (nz(X * 0.9, Y * 0.9, 4) - 0.5) * 0.3 + (nz(X * 3.1 + 40, Y * 3.1, 2) - 0.5) * 0.08;   // 물가가 조금씩 울퉁불퉁하게
+    }
+    const v = (gx, gy) => (gx < 0 || gy < 0 || gx >= GW || gy >= GH ? 0 : F[gy * GW + gx]);
+    const T = 0.5, RIM = 0.34;   // 안쪽 경계 · 테두리 바깥 경계
+    const [mc, mx] = mk(w * TS, h * TS), [rc, rx] = mk(w * TS, h * TS);
+    mx.fillStyle = '#000'; rx.fillStyle = C.rim;
+    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) { const f = v(gx, gy); if (f >= T) mx.fillRect(gx * P, gy * P, P, P); else if (f >= RIM) { rx.fillStyle = f >= (T + RIM) / 2 ? C.rim : C.rim2; rx.fillRect(gx * P, gy * P, P, P); } }
+    // 2) 테두리(바위·눈·이끼) → 그 위에 웅덩이 속
+    x.drawImage(rc, 0, 0);
+    const [lc, lx] = mk(w * TS, h * TS);
+    if (pat) { lx.fillStyle = pat; lx.fillRect(0, 0, w * TS, h * TS); } else { lx.fillStyle = map.R.water; lx.fillRect(0, 0, w * TS, h * TS); }
+    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {   // 깊을수록 진하게(물·독) / 용암은 가운데가 밝게 끓음
+      const f = v(gx, gy); if (f < T) continue; const d = Math.min(1, (f - T) / 0.5);
+      if (kind === 'lava') { const n = nz(gx * 0.18, gy * 0.18, 3); if (n > 0.55) { lx.fillStyle = `rgba(255,${(170 + n * 60) | 0},60,${((n - 0.55) * 0.9 * d).toFixed(3)})`; lx.fillRect(gx * P, gy * P, P, P); } else if (n < 0.4) { lx.fillStyle = `rgba(30,0,0,${((0.4 - n) * 1.2).toFixed(3)})`; lx.fillRect(gx * P, gy * P, P, P); } }   // 끓는 곳(밝게)·식은 곳(검게)
+      else { lx.fillStyle = C.deep + (d * 0.3).toFixed(3) + ')'; lx.fillRect(gx * P, gy * P, P, P); }
+      if (f < T + 0.07) { lx.fillStyle = C.edge + (kind === 'lava' ? '0.95)' : '0.65)'); lx.fillRect(gx * P, gy * P, P, P); }   // 물가 한 줄 빛
+      else if (f < T + 0.16) { lx.fillStyle = kind === 'lava' ? 'rgba(40,8,0,0.55)' : C.edge + '0.22)'; lx.fillRect(gx * P, gy * P, P, P); }   // 용암 = 빛 안쪽에 식은 껍질 한 겹
+    }
+    if (C.flow) {   // 용암 흐름: 웅덩이 속을 따라 굽이치는 노란 줄기 (점 4px)
+      const rnd = seeded('flow-' + map.id);
+      for (let k = 0; k < Math.ceil(GW * GH / 260); k++) {
+        let fx = rnd() * GW, fy = rnd() * GH; if (v(fx | 0, fy | 0) < T + 0.15) continue;
+        let ang = rnd() * Math.PI * 2; const col = C.flow[k % 2], ph = rnd() * 6, L = 22 + Math.floor(rnd() * 18);
+        for (let s = 0; s < L; s++) {   // 구불구불 (사인 곡선으로 휘며 나아감)
+          const gx = fx | 0, gy = fy | 0; if (v(gx, gy) < T + 0.12) break;
+          lx.fillStyle = col; lx.globalAlpha = 0.25 + 0.5 * Math.sin(s / L * Math.PI); lx.fillRect(gx * P, gy * P, P, P); lx.globalAlpha = 1;
+          ang += Math.sin(s * 0.45 + ph) * 0.32; fx += Math.cos(ang) * 0.9; fy += Math.sin(ang) * 0.9;
+        }
+      }
+    }
+    lx.globalCompositeOperation = 'destination-in'; lx.drawImage(mc, 0, 0); lx.globalCompositeOperation = 'source-over';
+    x.drawImage(lc, 0, 0);
+    if (kind === 'lava') {   // 테두리 바깥으로 번지는 열기 그림자 (붉은 기운)
+      x.save(); x.globalCompositeOperation = 'lighter';
+      for (let gy = 0; gy < GH; gy += 2) for (let gx = 0; gx < GW; gx += 2) { const f = v(gx, gy); if (f > 0.16 && f < RIM) { x.fillStyle = `rgba(120,30,0,${((f - 0.16) * 0.9).toFixed(3)})`; x.fillRect(gx * P, gy * P, P * 2, P * 2); } }
+      x.restore();
+    }
+  }
+
   function paintGround(map) {
     const { w, h, R, at } = map, [c, x] = mk(w * TS, h * TS), rnd = seeded('paint-' + map.id), nz = noise2('nz-' + map.id);
     const px = (X, Y, ww, hh, col) => { x.fillStyle = col; x.fillRect(X, Y, ww, hh); };
@@ -603,9 +658,11 @@
     }
     if (map.roads) drawRoads(x, map, ok ? pat : null, rnd, nz);
     // 3) 물: 깊이에 따라 진하게 · 물가 모래 테두리 · 위쪽 물보라
-    const W0 = R.water;
+    const W0 = R.water, soft = !!map.M.hell;   // v135 저승 용암·얼음·독늪 = 부드러운 웅덩이 (네모 칸 대신)
+    if (soft) softPool(x, map, ok ? pat[2] : null, nz, TX[2]);
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       if (at(tx, ty) !== 4) continue;
+      if (soft) { map.water.push([tx, ty]); continue; }
       let deep = 0; for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) if (at(tx + i, ty + j) === 4) deep++;
       const X = tx * TS, Y = ty * TS;
       if (ok) { px(X, Y, TS, TS, pat[2]); px(X, Y, TS, TS, `rgba(0,0,0,${(Math.min(1, deep / 25) * 0.3).toFixed(2)})`); }
