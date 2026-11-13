@@ -72,7 +72,18 @@
     ["bg", "bg_sea", "여름 바다", 10, {"theme": "season", "img": "avatar/bg/bg_sea.png?v=120"}],
     ["bg", "bg_forest", "초록 숲", 8, {"theme": "season", "img": "avatar/bg/bg_forest.png?v=120"}],
     ["bg", "bg_cherry", "벚꽃길", 12, {"theme": "season", "img": "avatar/bg/bg_cherry.png?v=120"}],
-    ["bg", "bg_snow", "눈 오는 마을", 12, {"theme": "season", "img": "avatar/bg/bg_snow.png?v=120"}]
+    ["bg", "bg_snow", "눈 오는 마을", 12, {"theme": "season", "img": "avatar/bg/bg_snow.png?v=120"}],
+    // v136 등 장식 10종 (그림 avatar/back/<id>.png = 128×116 칸 6개: 앞 아래·앞 위·뒤 아래·뒤 위·옆 아래·옆 위 · 아바타 18×29칸 + 양옆 7칸)
+    ["back", "bd_bag", "책가방", 6, {"theme": "school", "img": "avatar/back/bd_bag.png?v=136"}],
+    ["back", "bd_bag_sky", "하늘색 책가방", 6, {"theme": "school", "img": "avatar/back/bd_bag_sky.png?v=136"}],
+    ["back", "bd_cape", "영웅 망토", 15, {"theme": "fantasy", "img": "avatar/back/bd_cape.png?v=136"}],
+    ["back", "bd_angel", "천사 날개", 30, {"theme": "fantasy", "img": "avatar/back/bd_angel.png?v=136", "wide": 1}],
+    ["back", "bd_cape_dark", "어둠의 망토", 30, {"theme": "fantasy", "img": "avatar/back/bd_cape_dark.png?v=136"}],
+    ["back", "bd_bat", "박쥐 날개", 35, {"theme": "fantasy", "img": "avatar/back/bd_bat.png?v=136", "wide": 1}],
+    ["back", "bd_fairy", "요정 날개", 45, {"theme": "fantasy", "img": "avatar/back/bd_fairy.png?v=136", "wide": 1}],
+    ["back", "bd_jet", "제트팩", 50, {"theme": "job", "img": "avatar/back/bd_jet.png?v=136"}],
+    ["back", "bd_dragon", "용 날개", 60, {"theme": "fantasy", "img": "avatar/back/bd_dragon.png?v=136", "wide": 1}],
+    ["back", "bd_phoenix", "불사조 날개", 60, {"theme": "fantasy", "img": "avatar/back/bd_phoenix.png?v=136", "wide": 1}]
   ].map(([slot, id, name, price, o]) => Object.assign({ slot, id, name, price }, o || {}));
   const byId = {}; I.forEach(it => { byId[it.id] = it; });
   const SHOP_I = I;
@@ -295,18 +306,26 @@
       ctx.imageSmoothingEnabled = true; ctx.drawImage(bc, cx * 4, cy * 4, cw * 4, ch * 4, x, y, cw * scale, ch * scale);
       ctx.imageSmoothingEnabled = sm; return;
     }
+    // v136 등 장식: 몸 뒤(아래 칸) → 몸 → 몸 앞(위 칸) · 그림은 양옆으로 7칸씩 넓음
+    const bkIt = byId[normalize(av).back], bkIm = bkIt && bkIt.img ? loadImg(bkIt.img, opt.onBody) : null, bkV = view === 'b' ? 1 : view === 's' ? 2 : 0;
+    const bk = layer => { if (!bkIm) return; const sm1 = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = scale < 4; ctx.drawImage(bkIm, (bkV * 2 + layer) * 128, 0, 128, 116, x - BK_PAD * scale, y, (GW + BK_PAD * 2) * scale, GH * scale); ctx.imageSmoothingEnabled = sm1; };
+    bk(0);
     if (opt.walk != null) { if (view === 's') { if (!emptyCv) { emptyCv = document.createElement('canvas'); emptyCv.width = bc.width; emptyCv.height = bc.height; } rigSide(ctx, bc, emptyCv, x, y, GW * scale, GH * scale, opt.walk, true, opt); } else rig(ctx, bc, x, y, GW * scale, GH * scale, opt.walk, true, opt); }
     else { ctx.imageSmoothingEnabled = true; ctx.drawImage(bc, x, y, GW * scale, GH * scale); }
+    bk(1);
     ctx.imageSmoothingEnabled = sm;
   }
+  const BK_PAD = 7;   // v136 등 장식 그림의 양옆 여백 (칸)
+  // v136 날개처럼 넓은 등 장식을 입었으면 캔버스를 양옆으로 넓힘 (자리는 그대로 · 바깥으로 삐져나오게)
+  const wideOf = (av, opt) => { if ((opt.crop || 'full') !== 'full' || opt.keepCss || opt.narrow) return 0; const it = byId[normalize(av).back]; return it && it.img ? BK_PAD : 0; };
   // 캔버스 크기를 맞춰서 그림
   function paint(canvas, av, opt) {
     opt = opt || {};
     const [, , cw0, ch] = CROP[opt.crop || 'full'], s = opt.scale || 4;
-    const M = 0, cw = cw0;
+    const M = wideOf(av, opt), cw = cw0 + M * 2;
     const dpr = 2;   // v39: 2배 그림이 고르게 보이게 항상 2배 해상도
     canvas.width = cw * s * dpr; canvas.height = ch * s * dpr;
-    if (!opt.keepCss) { canvas.style.width = cw * s + 'px'; canvas.style.height = ch * s + 'px'; }
+    if (!opt.keepCss) { canvas.style.width = cw * s + 'px'; canvas.style.height = ch * s + 'px'; canvas.style.marginLeft = canvas.style.marginRight = M ? -M * s + 'px' : ''; }
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, cw * s, ch * s);
