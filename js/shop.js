@@ -16,6 +16,7 @@
   const F = window.GoFurn;
 
   const saved = () => (Hub.user ? Hub.user.avatar : AV.normalize({}));
+  const HIDE_SLOTS = ['hair'];   // v140 선생님 11/13 "헤어는 잠시 보류 · 상점 메뉴에서도 빼줘" (헤어 상품 10종은 avatar.js 에서 뺌 · 그림·코드는 남겨 둠)
   const slotName = id => (AV.SLOTS.find(s => s[0] === id) || [])[1] || id;
   // 테마 고르기: 'all' 전체 · 'basic' 처음부터 있던 아이템 · 그 밖은 avatar.js 의 theme 값
   const inTheme = it => theme === 'all' || (theme === 'basic' ? !it.theme : it.theme === theme);
@@ -174,7 +175,7 @@
       <div class="shop-layout">
       <div class="panel shop-items">
         <div class="slot-tabs" role="tablist" aria-label="아이템 종류">
-          ${AV.SLOTS.map(([id, name]) => `<button type="button" role="tab" aria-selected="${id === slot}" data-slot="${id}">${name}</button>`).join('')}
+          ${AV.SLOTS.filter(([id]) => !HIDE_SLOTS.includes(id)).map(([id, name]) => `<button type="button" role="tab" aria-selected="${id === slot}" data-slot="${id}">${name}</button>`).join('')}
         </div>
         <div class="theme-chips" role="group" aria-label="테마">
           ${(AV.THEMES || []).map(([id, name]) => `<button type="button" class="chip" aria-pressed="${id === theme}" data-theme="${id}">${name}</button>`).join('')}
@@ -219,7 +220,7 @@
     return `<button type="button" class="item${tier} ${sel ? 'sel' : ''}" data-item="${id || ''}" aria-pressed="${sel}">
       ${slot === 'skin' && id && AV.BODY_SKINS && AV.BODY_SKINS.includes(id) ? `<span class="it-img"><img src="${AV.bodySrc(trial.g || 'm', 'f', id)}" alt="" loading="lazy"></span>`
         : slot === 'bg' && it && it.img ? `<span class="it-img it-bg"><img src="${(window.GOGO_BASE || '') + it.img}" alt="" loading="lazy"></span>`   // v120 선생님 그림 배경은 그림 그대로
-        : `<canvas data-avatar="${AV.attr(look)}" data-scale="3" data-scene data-body aria-hidden="true"></canvas>`}
+        : `<canvas data-avatar="${AV.attr(look)}" data-scale="${slot === 'shoes' ? 9 : slot === 'face' || slot === 'hat' || slot === 'hair' ? 6 : 3}"${slot === 'shoes' ? ' data-crop="feet"' : slot === 'face' || slot === 'hat' || slot === 'hair' ? ' data-crop="bust"' : ''} data-scene data-body aria-hidden="true"></canvas>`}
       <span class="it-name">${it ? A.esc(it.name) : '없음'}</span>${badge(id)}</button>`;
   }
 
@@ -230,7 +231,7 @@
     // 다른 칸 썸네일도 새 미리보기 기준으로 다시 그림
     $$('[data-item]', root).forEach(b => {
       const c = b.querySelector('canvas'), v = b.dataset.item || null; if (!c) return;   // v114 그림 카드(피부·헤어)는 그대로
-      const look = Object.assign({}, trial, { [slot]: v }), o = { scale: 3, scene: true, body: true }; o.onBody = () => AV.paint(c, look, o);
+      const look = Object.assign({}, trial, { [slot]: v }), o = slot === 'shoes' ? { scale: 9, crop: 'feet', scene: true, body: true } : slot === 'face' || slot === 'hat' || slot === 'hair' ? { scale: 6, crop: 'bust', scene: true, body: true } : { scale: 3, scene: true, body: true };   // v138 얼굴 장식 카드는 상반신 o.onBody = () => AV.paint(c, look, o);   // v137 신발 카드는 발만 크게
       AV.paint(c, look, o);
     });
     paintTry(0);

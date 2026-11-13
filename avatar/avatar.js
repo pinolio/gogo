@@ -49,12 +49,49 @@
     ["skin", "s_angel", "천사 피부", 100, {"color": "#EEEEF4"}],
     ["hair", "h_short", "짧은 머리 (검정)", 0],
     ["hair", "h_short_brown", "짧은 머리 (갈색)", 0],
+    // v140 헤어 10종은 보류 (선생님 11/13) — 그림 avatar/hair/ 와 그리기 코드(hairParts)는 남겨 둠. 다시 열 때: 작업일지 0000000-73 의 아이템 10줄을 여기 넣고 shop.js HIDE_SLOTS 에서 hair 빼기
     ["top", "t_basic", "기본 티셔츠", 0],
     ["top", "t_stripe", "줄무늬 티", 4],
     ["top", "t_hoodie", "후드티", 8],
     ["bottom", "b_jeans", "청바지", 0],
     ["bottom", "b_cargo", "카고 바지", 6],
     ["shoes", "sh_basic", "기본 운동화", 0],
+    // v139 모자 14종 (그림 avatar/hat/<id>.png = 72×88 칸 6개: 남 앞·옆·뒤, 여 앞·옆·뒤 · 몸 캔버스 y -24 ~ 63 · up = 머리 위로 솟는 점 수 → 그만큼 몸을 조금 작게)
+    ["hat", "ht_cap", "야구 모자", 4, {"theme": "school", "img": "avatar/hat/ht_cap.png?v=139"}],
+    ["hat", "ht_band", "스포츠 머리띠", 4, {"theme": "school", "img": "avatar/hat/ht_band.png?v=139"}],
+    ["hat", "ht_beanie", "비니", 5, {"img": "avatar/hat/ht_beanie.png?v=139"}],
+    ["hat", "ht_snap", "거꾸로 스냅백", 6, {"img": "avatar/hat/ht_snap.png?v=139"}],
+    ["hat", "ht_pom", "방울 비니", 6, {"theme": "season", "img": "avatar/hat/ht_pom.png?v=139", "up": 6}],
+    ["hat", "ht_hard", "안전모", 6, {"theme": "job", "img": "avatar/hat/ht_hard.png?v=139"}],
+    ["hat", "ht_straw", "밀짚모자", 6, {"theme": "season", "img": "avatar/hat/ht_straw.png?v=139"}],
+    ["hat", "ht_rain", "우비 모자", 6, {"theme": "season", "img": "avatar/hat/ht_rain.png?v=139"}],
+    ["hat", "ht_chef", "요리사 모자", 8, {"theme": "job", "img": "avatar/hat/ht_chef.png?v=139", "up": 18}],
+    ["hat", "ht_cat", "고양이 후드", 8, {"theme": "season", "img": "avatar/hat/ht_cat.png?v=139", "up": 5}],
+    ["hat", "ht_santa", "산타 모자", 8, {"theme": "season", "img": "avatar/hat/ht_santa.png?v=139", "up": 3}],
+    ["hat", "ht_bunny", "토끼 후드", 8, {"theme": "season", "img": "avatar/hat/ht_bunny.png?v=139", "up": 21}],
+    ["hat", "ht_bear", "곰 후드", 8, {"theme": "season", "img": "avatar/hat/ht_bear.png?v=139", "up": 2}],
+    ["hat", "ht_peng", "펭귄 후드", 8, {"theme": "season", "img": "avatar/hat/ht_peng.png?v=139"}],
+    // v138 얼굴 장식 11종 (그림 avatar/face/<id>.png = 72×64 칸 6개: 남 앞·옆·뒤, 여 앞·옆·뒤 · 몸 그림 캔버스 위쪽에 얹음 → 게임 속 몸에도 보임)
+    ["face", "fc_mustache", "콧수염", 3, {"img": "avatar/face/fc_mustache.png?v=138"}],
+    ["face", "fc_glasses", "동그란 안경", 4, {"theme": "school", "img": "avatar/face/fc_glasses.png?v=138"}],
+    ["face", "fc_mask", "마스크", 5, {"theme": "school", "img": "avatar/face/fc_mask.png?v=138"}],
+    ["face", "fc_goggles", "실험 보안경", 5, {"theme": "job", "img": "avatar/face/fc_goggles.png?v=138"}],
+    ["face", "fc_patch", "안대", 6, {"theme": "fantasy", "img": "avatar/face/fc_patch.png?v=138"}],
+    ["face", "fc_beard", "산타 수염", 6, {"theme": "season", "img": "avatar/face/fc_beard.png?v=138"}],
+    ["face", "fc_sun", "선글라스", 8, {"img": "avatar/face/fc_sun.png?v=138"}],
+    ["face", "fc_headset", "헤드셋 마이크", 8, {"theme": "job", "img": "avatar/face/fc_headset.png?v=138"}],
+    ["face", "fc_phones", "헤드폰", 9, {"img": "avatar/face/fc_phones.png?v=138"}],
+    ["face", "fc_ninja", "닌자 복면", 10, {"theme": "fantasy", "img": "avatar/face/fc_ninja.png?v=138"}],
+    ["face", "fc_elf", "엘프 귀", 10, {"theme": "fantasy", "img": "avatar/face/fc_elf.png?v=138", "skinKey": 1}],
+    // v137 신발 8종 (몸 그림의 운동화 자리에 색 입히기 + 장화·부츠는 다리 위로 목 · avatar/body/shoes.png + SHOES 표)
+    ["shoes", "sh_red", "빨간 운동화", 3],
+    ["shoes", "sh_slipper", "슬리퍼", 3, {"theme": "season"}],
+    ["shoes", "sh_rain_y", "노란 장화", 5, {"theme": "season"}],
+    ["shoes", "sh_rain_r", "빨간 장화", 5, {"theme": "season"}],
+    ["shoes", "sh_hightop", "하이탑 운동화", 6, {"theme": "school"}],
+    ["shoes", "sh_boots", "검정 부츠", 6],
+    ["shoes", "sh_space", "우주 부츠", 8, {"theme": "job"}],
+    ["shoes", "sh_gold", "황금 신발", 20, {"theme": "fantasy"}],
     ["bottom", "b_uniskirt", "교복 치마", 5, {"theme": "school"}],
     ["bottom", "b_slacks", "교복 바지", 4, {"theme": "school"}],
     ["top", "t_padding", "롱패딩", 12, {"theme": "school"}],
@@ -141,18 +178,76 @@
     }
     return null;
   }
-  const clothOf = n => ({ t: n.top !== 't_basic' && CLOTH[n.top] ? n.top : null, b: n.bottom !== 'b_jeans' && CLOTH[n.bottom] ? n.bottom : null });
+  const clothOf = n => ({ t: n.top !== 't_basic' && CLOTH[n.top] ? n.top : null, b: n.bottom !== 'b_jeans' && CLOTH[n.bottom] ? n.bottom : null, s: n.shoes !== 'sh_basic' && SHOES[n.shoes] ? n.shoes : null });
+  /* v137 신발: avatar/body/shoes.png (cloth.png 와 같은 칸) R = 운동화 칸 밝기 · G = 운동화 바로 위 다리 칸(1~12, 장화·부츠 목) · B = 운동화 안 세로 자리(1 위 ~ 255 바닥)
+   *  k: sneaker 운동화(흰 부분은 c2) · boot 장화·부츠(목 shaft 칸) · slipper 슬리퍼(발은 피부색 · 끈 c) · gold 황금(반짝)
+   *  만드는 법: 클라우드 작업 공간 shoe/detect.py·atlas.py (몸 그림 아래쪽 무채색 덩어리 = 운동화) — 작업일지 0000000-70 */
+  const SHOES = {
+    sh_red: { k: 'sneaker', c: [205, 38, 44], c2: [246, 246, 246] },
+    sh_hightop: { k: 'sneaker', c: [36, 84, 206], c2: [246, 246, 246], shaft: 3 },
+    sh_slipper: { k: 'slipper', c: [36, 58, 112], sole: [230, 232, 240] },
+    sh_rain_y: { k: 'boot', c: [248, 204, 40], shaft: 8, sole: [150, 110, 20] },
+    sh_rain_r: { k: 'boot', c: [204, 38, 40], shaft: 8, sole: [110, 20, 20] },
+    sh_boots: { k: 'boot', c: [44, 44, 52], shaft: 5, sole: [18, 18, 22] },
+    sh_space: { k: 'boot', c: [236, 240, 248], shaft: 6, sole: [150, 160, 180], band: [46, 96, 222], dot: [244, 120, 40] },
+    sh_gold: { k: 'gold', c: [246, 192, 40], shaft: 3, sole: [170, 110, 20] }
+  };
+  let shoeAt = null, shoeLoading = false; const shoeCbs = [];
+  function shoeAtlas(cb) {
+    if (shoeAt) return shoeAt;
+    if (cb && !shoeCbs.includes(cb)) shoeCbs.push(cb);
+    if (!shoeLoading) {
+      shoeLoading = true;
+      const im = new Image(), done = () => shoeCbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } });
+      im.onload = () => { try { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d'); x.drawImage(im, 0, 0); shoeAt = x.getImageData(0, 0, c.width, c.height); } catch (e) { shoeAt = { bad: true }; } done(); };
+      im.onerror = () => { shoeAt = { bad: true }; done(); };
+      im.src = (window.GOGO_BASE || '') + 'avatar/body/shoes.png?v=137';
+    }
+    return null;
+  }
+  const skinCol = id => { const h = (byId[id] && byId[id].color) || '#F7D7B5'; return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; };
+  // 신발 칠하기 (p = 몸 그림 픽셀, A = shoes.png 픽셀, 칸 왼쪽 위 ox·oy)
+  function paintShoes(p, W, H, A, AW, ox, oy, S, skin) {
+    const at = (xx, yy) => (xx < 0 || yy < 0 || xx >= W || yy >= H || xx >= 72 || yy >= 136 ? -1 : ((oy + yy) * AW + ox + xx) * 4);
+    const sh = S.shaft || 0, isShaft = (xx, yy) => { const ai = at(xx, yy); return ai >= 0 && A[ai + 1] > 0 && A[ai + 1] <= sh; };
+    const put = (i, c, m) => { p[i] = Math.min(255, c[0] * m); p[i + 1] = Math.min(255, c[1] * m); p[i + 2] = Math.min(255, c[2] * m); };
+    const dark = S.c.map(v => v * 0.28), SK = skinCol(skin);
+    for (let yy = 0; yy < H && yy < 136; yy++) for (let xx = 0; xx < W && xx < 72; xx++) {
+      const ai = at(xx, yy), i = (yy * W + xx) * 4; if (ai < 0 || !p[i + 3]) continue;
+      const R = A[ai], G = A[ai + 1], Bv = A[ai + 2];
+      if (R) {   // 운동화 자리
+        const b = (R - 1) / 254, v = (Bv - 1) / 254;
+        if (b < 0.2) { put(i, S.k === 'slipper' ? SK.map(c => c * 0.35) : dark, 1); continue; }   // 테두리
+        if (S.k === 'sneaker') { if (b > 0.62) put(i, S.c2, 0.82 + 0.2 * b); else put(i, S.c, 0.62 + 0.75 * b); }
+        else if (S.k === 'slipper') { if (v > 0.78) put(i, S.sole, 0.8 + 0.2 * b); else if (v > 0.28 && v < 0.58) put(i, S.c, 0.7 + 0.5 * b); else put(i, SK, 0.78 + 0.25 * b); }
+        else if (S.k === 'gold') { if (v > 0.84) put(i, S.sole, 1); else put(i, b > 0.7 ? [255, 236, 150] : S.c, 0.62 + 0.55 * b); }
+        else { const lo = S.c[0] + S.c[1] + S.c[2] > 600 ? 0.84 : 0.66; if (v > 0.82) put(i, S.sole, 1); else put(i, S.c, lo + (1.16 - lo) * b); if (S.dot && v > 0.35 && v < 0.6 && b > 0.5 && (xx % 5 === 2)) put(i, S.dot, 1); }
+        continue;
+      }
+      if (G && G <= sh) {   // 장화·부츠 목 (다리 위로)
+        const edge = !isShaft(xx - 1, yy) || !isShaft(xx + 1, yy);
+        const lum = (p[i] + p[i + 1] + p[i + 2]) / 765;
+        if (edge) put(i, dark, 1);
+        else if (G === sh) put(i, S.band || S.c, S.band ? 1 : 1.12);   // 목 끝 테두리(접힌 단)
+        else if (S.band && G === 2) put(i, S.band, 1);
+        else put(i, S.k === 'gold' && lum > 0.5 ? [255, 236, 150] : S.c, (S.c[0] + S.c[1] + S.c[2] > 600 ? 0.9 : 0.78) + 0.45 * lum);
+      } else if (G === sh + 1 && sh) {   // 목 바로 위 한 줄 = 테두리
+        const below = isShaft(xx, yy + 1); if (below) put(i, dark, 1);
+      }
+    }
+  }
   const recCv = {};
   // 몸 그림(base)에 옷 색을 칠한 캔버스 · 칠할 게 없으면 base 그대로 · 아직 준비 안 됐으면 null
   function recolorBody(base, n, view, cb) {
-    const co = clothOf(n); if (!co.t && !co.b) return base;
-    const at = clothAtlas(cb); if (!at) return null; if (at.bad) return base;
+    const co = clothOf(n); if (!co.t && !co.b && !co.s) return base;
+    const at = co.t || co.b ? clothAtlas(cb) : { bad: true }; if (!at) return null;
+    const sat = co.s ? shoeAtlas(cb) : null; if (co.s && !sat) return null;
     const g = n.g === 'f' ? 'f' : 'm', v = vOf(view), si = BODY_SKINS.indexOf(n.skin), ri = CLOTH_GV.indexOf(g + '_' + v);
-    const ck = n.skin + g + v + '|' + co.t + '|' + co.b; if (recCv[ck]) return recCv[ck];
+    const ck = n.skin + g + v + '|' + co.t + '|' + co.b + '|' + co.s; if (recCv[ck]) return recCv[ck];
     const W = base.naturalWidth || base.width, H = base.naturalHeight || base.height;
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const x = c.getContext('2d'); x.drawImage(base, 0, 0);
-    if (si >= 0 && ri >= 0) {
+    if (si >= 0 && ri >= 0 && !at.bad) {
       const d = x.getImageData(0, 0, W, H), p = d.data, AW = at.width, A = at.data, ox = si * 72, oy = ri * 136;
       const T = co.t && CLOTH[co.t], Bt = co.b && CLOTH[co.b];
       for (let yy = 0; yy < H && yy < 136; yy++) for (let xx = 0; xx < W && xx < 72; xx++) {
@@ -168,6 +263,11 @@
       }
       x.putImageData(d, 0, 0);
     }
+    if (co.s && si >= 0 && ri >= 0 && !sat.bad) {   // v137 신발
+      const d = x.getImageData(0, 0, W, H);
+      paintShoes(d.data, W, H, sat.data, sat.width, si * 72, ri * 136, SHOES[co.s], n.skin);
+      x.putImageData(d, 0, 0);
+    }
     c.bw = W; c.bh = H;
     return (recCv[ck] = c);
   }
@@ -178,8 +278,11 @@
     const n = Object.assign({}, normalize(av)), free = id => !id || (byId[id] && byId[id].price === 0 && byId[id].slot === 'hair');
     if (!(n.top === 't_basic' || CLOTH[n.top])) n.top = 't_basic';
     if (!(n.bottom === 'b_jeans' || CLOTH[n.bottom])) n.bottom = 'b_jeans';
-    n.shoes = 'sh_basic'; n.hat = null; n.face = null; n.back = null;
-    if (!free(n.hair)) n.hair = 'h_short';
+    if (!(n.shoes === 'sh_basic' || SHOES[n.shoes])) n.shoes = 'sh_basic';   // v137 신발 8종은 몸 그림에 칠함
+    if (!(n.face && byId[n.face] && byId[n.face].img)) n.face = null;   // v138 얼굴 장식은 몸 그림 캔버스에 얹음
+    if (!(n.hat && byId[n.hat] && byId[n.hat].img)) n.hat = null;   // v139 모자도 몸 그림 캔버스에 얹음
+    n.back = null;
+    if (!free(n.hair) && !(byId[n.hair] && byId[n.hair].slot === 'hair' && byId[n.hair].img)) n.hair = 'h_short';   // v140 헤어 상품은 그대로
     if (!BODY_SKINS.includes(n.skin)) n.skin = 's1';
     return n;
   }
@@ -220,14 +323,64 @@
   const bodyCv = {};
   function bodyCanvas(av, view, cb) {
     const n = bodyNorm(av), im = bodyComp(n, view, cb); if (!im) return null;
-    const co = clothOf(n), key = bodySrc(n.g, view, n.skin) + '|' + co.t + '|' + co.b; if (bodyCv[key]) return bodyCv[key];
+    const co = clothOf(n), key = bodySrc(n.g, view, n.skin) + '|' + co.t + '|' + co.b + '|' + co.s + '|' + n.face + '|' + n.hat + '|' + n.hair; if (bodyCv[key]) return bodyCv[key];
+    const fIt = n.face && byId[n.face], fIm = fIt ? loadImg(fIt.img, cb) : null;
+    const hIt = n.hat && byId[n.hat], hIm = hIt ? loadImg(hIt.img, cb) : null;
+    const rIt = n.hair && byId[n.hair] && byId[n.hair].img ? byId[n.hair] : null, rIm = rIt ? loadImg(rIt.img, cb) : null;
+    if ((fIt && !fIm) || (hIt && !hIm) || (rIt && !rIm)) return null;   // v138~v140 얼굴 장식·모자·헤어 그림을 받으면 onBody 로 다시
     const c = document.createElement('canvas'); c.width = GW * 4; c.height = GH * 4;
-    fitBody(c.getContext('2d'), im, 9 * 4, 4);
+    const cx2 = c.getContext('2d');
+    // v140 머리 위로 솟는 헤어·모자(up)가 있으면 위로 여유를 두고 그린 뒤, 그만큼 몸 전체를 조금 작게 줄여 발끝은 그대로
+    const U = Math.min(21, Math.max(rIt ? rIt.up || 0 : 0, hIt ? hIt.up || 0 : 0));
+    const t = U ? document.createElement('canvas') : c; if (U) { t.width = c.width; t.height = c.height + U; }
+    const tx = U ? t.getContext('2d') : cx2;
+    if (U) { const b0 = document.createElement('canvas'); b0.width = c.width; b0.height = c.height; fitBody(b0.getContext('2d'), im, 9 * 4, 4); tx.drawImage(b0, 0, U); }
+    else fitBody(tx, im, 9 * 4, 4);
+    const ci = (n.g === 'f' ? 3 : 0) + (view === 's' ? 1 : view === 'b' ? 2 : 0);
+    tx.imageSmoothingEnabled = false;
+    if (rIm) {   // v140 헤어: 칸 72×120 (몸 캔버스 y -24 ~ 95) · 초록(0,255,0) 칸 = 원래 머리카락 지우기 · (255,0,밝기) 칸 = 피부색(두피·귀·목)
+      const hp = hairParts(rIm, n.skin, rIt.img);
+      tx.globalCompositeOperation = 'destination-out'; tx.drawImage(hp.er, ci * 72, 0, 72, 120, 0, U - 24, 72, 120);
+      tx.globalCompositeOperation = 'source-over'; tx.drawImage(hp.pt, ci * 72, 0, 72, 120, 0, U - 24, 72, 120);
+    }
+    if (fIm) {   // v138 얼굴 장식: 칸 = 남 앞·옆·뒤, 여 앞·옆·뒤 (72×64, 몸 캔버스 왼쪽 위에 그대로)
+      const src = fIt.skinKey ? skinKeyed(fIm, n.skin, fIt.img) : fIm;
+      tx.drawImage(src, ci * 72, 0, 72, 64, 0, U, 72, 64);
+    }
+    if (hIm) tx.drawImage(hIm, ci * 72, 0, 72, 88, 0, U - 24, 72, 88);   // v139 모자: 칸 72×88 (몸 캔버스 y -24 부터)
+    if (U) { const k = c.height / t.height, dw = c.width * k; cx2.imageSmoothingEnabled = true; cx2.imageSmoothingQuality = 'high'; cx2.drawImage(t, (c.width - dw) / 2, 0, dw, c.height); }
     return (bodyCv[key] = c);
+  }
+  // v140 헤어 그림을 '지울 칸'(er)과 '그릴 칸'(pt, 피부색 칸은 그 사람 피부색)으로 나눔 · 피부마다 한 번
+  const hairCv = {};
+  function hairParts(im, skin, k) {
+    const ck = k + '|' + skin; if (hairCv[ck]) return hairCv[ck];
+    const w = im.naturalWidth, h = im.naturalHeight, mk2 = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+    const er = mk2(), pt = mk2(), px = pt.getContext('2d'); px.drawImage(im, 0, 0);
+    try {
+      const d = px.getImageData(0, 0, w, h), p = d.data, ex = er.getContext('2d'), e = ex.createImageData(w, h), q = e.data, S = skinCol(skin);
+      for (let i = 0; i < p.length; i += 4) {
+        if (!p[i + 3]) continue;
+        if (p[i] === 0 && p[i + 1] === 255 && p[i + 2] === 0) { q[i + 3] = 255; p[i + 3] = 0; continue; }
+        if (p[i] === 255 && p[i + 1] === 0) { q[i + 3] = 255; const b = p[i + 2] / 255; p[i] = Math.min(255, S[0] * b); p[i + 1] = Math.min(255, S[1] * b); p[i + 2] = Math.min(255, S[2] * b); }
+      }
+      px.putImageData(d, 0, 0); ex.putImageData(e, 0, 0);
+    } catch (er2) { /* noop */ }
+    return (hairCv[ck] = { er, pt });
+  }
+  // v138 엘프 귀처럼 피부색으로 칠할 칸 (색 255,0,밝기) → 그 사람 피부색
+  const keyCv = {};
+  function skinKeyed(im, skin, k) {
+    const ck = k + '|' + skin; if (keyCv[ck]) return keyCv[ck];
+    const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+    try { const d = x.getImageData(0, 0, c.width, c.height), p = d.data, S = skinCol(skin);
+      for (let i = 0; i < p.length; i += 4) if (p[i + 3] && p[i] === 255 && p[i + 1] === 0) { const b = p[i + 2] / 255; p[i] = Math.min(255, S[0] * b); p[i + 1] = Math.min(255, S[1] * b); p[i + 2] = Math.min(255, S[2] * b); }
+      x.putImageData(d, 0, 0); } catch (e) { /* noop */ }
+    return (keyCv[ck] = c);
   }
   let emptyCv = null;
   // ctx 에 (x, y) 위치부터 scale 배로 그림. crop: 'full' | 'bust'
-  const CROP = { full: [0, 0, GW, GH], bust: [1, 0, 16, 16] };
+  const CROP = { full: [0, 0, GW, GH], bust: [1, 0, 16, 16], feet: [3.5, 23.9, 11, 5.3] };   // v137 feet = 상점 신발 카드 (발만 크게)
   // opt.scene = true 이면 배경까지 그림 (옷장·상점·홈·내 전적의 내 아바타)
   /* v105 부드러운 걷기 (RPG 순찰병과 같은 방식): 서 있는 그림 한 장을 다리·팔·몸 조각으로 나눠
    *  p(위상, 라디안)에 따라 다리는 엉덩이 기준으로 기울이며 번갈아 들고, 팔은 다리와 반대로 오르내리고, 몸은 살짝 들썩임.
@@ -303,7 +456,7 @@
     const crop = opt.crop || 'full', bc = bodyCanvas(av, view, opt.onBody);
     if (!bc) { ctx.imageSmoothingEnabled = sm; return; }
     if (crop !== 'full') {   // 얼굴·상반신 칸: 몸 그림에서 그 부분만 (1칸 = 4점)
-      ctx.imageSmoothingEnabled = true; ctx.drawImage(bc, cx * 4, cy * 4, cw * 4, ch * 4, x, y, cw * scale, ch * scale);
+      ctx.imageSmoothingEnabled = crop !== 'feet'; ctx.drawImage(bc, cx * 4, cy * 4, cw * 4, ch * 4, x, y, cw * scale, ch * scale);   // v137 신발 카드는 또렷한 도트로
       ctx.imageSmoothingEnabled = sm; return;
     }
     // v136 등 장식: 몸 뒤(아래 칸) → 몸 → 몸 앞(위 칸) · 그림은 양옆으로 7칸씩 넓음
@@ -357,7 +510,7 @@
 
   try { if (typeof document !== 'undefined') setTimeout(() => clothAtlas(null), 300); } catch (e) { /* noop */ }   // v120 옷 색 그림 미리 받기 (게임 속 몸 그림용)
   window.GoAvatar = {
-    SLOTS, DEFAULT, OPTIONAL, ITEMS: SHOP_I, ALL_ITEMS: I, byId, bodyImg, useBody, bodyNorm, bodySrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, CLOTH,
+    SLOTS, DEFAULT, OPTIONAL, ITEMS: SHOP_I, ALL_ITEMS: I, byId, bodyImg, useBody, bodyNorm, bodySrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, CLOTH, SHOES,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
     normalize, draw, paint, paintAll, random, legs, OUT, rig, rigSide,
     walkP: t => t * Math.PI * 2,   // 걸음 수(바퀴) → 위상
