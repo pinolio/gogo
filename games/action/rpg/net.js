@@ -105,7 +105,7 @@
         seen.add(st.cid);
         let p = net.peers.get(st.cid);
         if (!p) { p = { cid: st.cid, x: st.x, y: st.y, tx: st.x, ty: st.y, vx: 0, vy: 0, face: 1, at: performance.now(), walk: 0 }; net.peers.set(st.cid, p); fresh = true; }
-        Object.assign(p, { nick: String(st.nick || '').slice(0, 12), lv: +st.lv || 1, av: st.av, eq: st.eq || {}, hide: !!st.hide });
+        Object.assign(p, { nick: String(st.nick || '').slice(0, 12), lv: +st.lv || 1, av: st.av, eq: st.eq || {}, hide: !!st.hide, uid: String(st.uid || '') });   // v143 uid = 결투 기록용
       });
       net.peers.forEach((p, k) => { if (!seen.has(k)) { net.peers.delete(k); h.onLeave && h.onLeave(k); } });
       if (fresh) { net.lastKey = ''; net.sendT = 9; net.forceOnce = true; }   // 새로 온 사람에게 내 자리를 바로 알려 줌
@@ -139,9 +139,9 @@
       net.sendT += dt;
       const moving = Math.hypot(me.vx, me.vy) > 1;
       const key = moving ? [Math.round(me.vx / 40), Math.round(me.vy / 40)].join(',') : 'stop';   // v103 방향이 크게 바뀔 때만
-      const every = 1.5;   // v103 움직이는 동안 1.5초마다 (예전 0.3~1.2초) — 무료 요금제 메시지 아끼기 (받는 쪽은 속도로 이어 그림)
+      const every = net.fast ? 0.15 : 1.5;   // v103 움직이는 동안 1.5초마다 (예전 0.3~1.2초) — 무료 요금제 메시지 아끼기 (받는 쪽은 속도로 이어 그림) · v143 결투장은 두 사람뿐이라 0.15초마다
       const changed = key !== net.lastKey;
-      if ((moving && (net.sendT >= every || (changed && net.sendT >= 0.25))) || (!moving && changed && net.sendT >= 0.1) || net.forceOnce) {
+      if ((moving && (net.sendT >= every || (changed && net.sendT >= (net.fast ? 0.05 : 0.25)))) || (!moving && changed && net.sendT >= 0.1) || net.forceOnce) {
         net.sendT = 0; net.lastKey = key; net.forceOnce = false;
         net.ch.send({ t: 'p', cid: Hub.clientId, x: Math.round(me.x), y: Math.round(me.y), vx: moving ? Math.round(me.vx) : 0, vy: moving ? Math.round(me.vy) : 0, f: me.face });
       }

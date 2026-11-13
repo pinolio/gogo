@@ -110,7 +110,8 @@
    *  · def.exits {u,d,l,r: 갈 맵} → 갈 맵의 반대쪽 가장자리에 길이 자동으로 뚫려 돌아올 수 있음 (양쪽 연결)
    *    (갈 맵의 왼쪽·오른쪽에 원래 출구가 있으면 위·아래로 비켜서 뚫음 · 마을·저승은 한쪽으로만 감)
    *  · def.dungeons [{k,x,y,to}] → 던전 입구 문 칸(13)을 밟으면 갈 맵으로 · 갈 맵의 아래 가장자리에 돌아오는 길
-   *  · def.mons { mob, mob2, boss: 사냥터 아이디(그 사냥터의 몬스터), lv, n } → 나오는 몬스터 */
+   *  · def.mons { mob, mob2, boss: 사냥터 아이디(그 사냥터의 몬스터), lv, n } → 나오는 몬스터
+   *  · v143 def.mons { list: [{ f: 사냥터 아이디, lv, n }] (몬스터마다 레벨·마릿수), boss, bossLv } — 예전 모양도 그대로 읽음 */
   const OPP = { u: 'd', d: 'u', l: 'r', r: 'l' }, CUSTOM = {}, LINKS = {};
   const fieldMon = id => { const F = MAPBY[id]; return F && F.kind === 'field' && !F.custom && !F.hell && F.mon ? F : null; };
   function registerCustom(rows, admin) {
@@ -123,11 +124,23 @@
       if (!d || !(w >= 20 && w <= 80 && h >= 14 && h <= 60) || !Array.isArray(d.t) || d.t.length !== w * h) return;
       if (!/^[a-z0-9_-]{2,40}$/.test(r.id) || MAPBY[r.id]) return;   // 게임에 원래 있는 맵 아이디(f1·v1…)는 덮어쓰지 않음
       if (!d.pub && !admin) return;
-      const mo = d.mons || {}, mob = fieldMon(mo.mob), mob2 = fieldMon(mo.mob2), boss = fieldMon(mo.boss), region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1);
-      const lv = clamp(Math.floor(+mo.lv || (mob ? mob.rec : boss ? boss.rec : 1)), 1, D.MAX_LV);
-      const M = { id: r.id, kind: 'field', custom: true, test: !d.pub, region, name: String(r.name || r.id).slice(0, 30), rec: lv, boss: !!boss,
-        mon: mob ? mob.mon : null, mon2: mob2 ? mob2.mon : null, mix: 3, bossMon: boss ? boss.mon : null,
-        n: clamp(Math.floor(mo.n == null ? 18 : +mo.n || 0), 0, 30), dropR: (mob || boss) ? (mob || boss).region : region, dropNo: (mob || boss) ? (mob || boss).no : 1, def: d };
+      const mo = d.mons || {}, region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1), LV = v => clamp(Math.floor(+v || 1), 1, D.MAX_LV);
+      let list = [], boss = null, bossLv = 1;
+      if (Array.isArray(mo.list)) {   // v143 몬스터마다 레벨·마릿수 (합쳐서 30마리까지)
+        let left = 30;
+        mo.list.slice(0, 6).forEach(e => { const F = e && fieldMon(e.f); if (!F) return; const n = clamp(Math.floor(+e.n || 0), 0, left); left -= n; if (n) list.push({ mon: F.mon, lv: LV(e.lv || F.rec), n, F }); });
+        boss = fieldMon(mo.boss); if (boss) bossLv = LV(mo.bossLv || boss.rec + 2);
+      } else {   // v134 예전 모양: 몬스터 + 섞일 몬스터(3마리 중 1마리) · 레벨 하나
+        const mob = fieldMon(mo.mob), mob2 = fieldMon(mo.mob2); boss = fieldMon(mo.boss);
+        const lv = LV(mo.lv || (mob ? mob.rec : boss ? boss.rec : 1)), n = clamp(Math.floor(mo.n == null ? 18 : +mo.n || 0), 0, 30);
+        if (mob) list.push({ mon: mob.mon, lv, n: mob2 ? n - Math.floor(n / 3) : n, F: mob, old: true });
+        if (mob2) list.push({ mon: mob2.mon, lv, n: mob ? Math.floor(n / 3) : n, F: mob2, old: true });
+        if (boss) bossLv = lv + 2;
+      }
+      const first = list[0] ? list[0].F : boss, lvs = list.map(e => e.lv).concat(boss ? [bossLv] : []);
+      const M = { id: r.id, kind: 'field', custom: true, test: !d.pub, region, name: String(r.name || r.id).slice(0, 30), rec: lvs.length ? Math.max(...lvs) : 1, boss: !!boss,
+        monList: list.map(e => ({ mon: e.mon, lv: e.lv, n: e.n, old: !!e.old })), bossMon: boss ? boss.mon : null, bossLv,
+        lvMin: lvs.length ? Math.min(...lvs) : 1, dropR: first ? first.region : region, dropNo: first ? first.no : 1, def: d };
       CUSTOM[M.id] = M; MAPBY[M.id] = M; list.push(M);
     });
     const add = (to, L) => { (LINKS[to] = LINKS[to] || []).push(L); };

@@ -28,6 +28,7 @@ GoSettings.register({
   autosaveSec: 20,                     // 이 기기에 자동 저장 간격(초)
   serverSaveSec: 60,                   // 서버(로그인) 저장 간격(초). 레벨 업 · 상점 · 지도 이동 때도 저장
   deathExpLoss: 0.05,
+  duel: { dmgMul: 0.5, countSec: 3, waitSec: 15, backSec: 3, goneSec: 5 },   // v143 결투: 받는 피해 배율(사람끼리는 몬스터보다 약하게) · 시작 전 세기(초) · 상대 기다리기 · 끝나고 돌아가기 · 상대가 안 보이면 이긴 것으로(초)
   online: { servers: 1, cap: 60, chCap: 5, pingSec: 15, names: ['조선-한양'] },   // v103 서버 1개로 통합 (선생님) · 이름 · 최대 60명 (supabase/rpg_server_v103.sql 의 cap 과 같게) · v103 한 지도 채널마다 5명 (rpg_channel_v103.sql 의 cap 과 같게)
   respawnSec: 3,                       // v43 몬스터가 쓰러진 뒤 다시 나오는 시간(초) (전에는 9초)
   bossRespawnSec: 30,                  // 보스가 다시 나오는 시간(초) (전에는 60초)

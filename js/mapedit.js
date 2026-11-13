@@ -92,6 +92,39 @@
       return `<optgroup label="${ui.esc(R.name)}">${fs.map(m => `<option value="${m.id}">${ui.esc(m.mon.name)}${m.boss ? ' 👑' : ''} · ${m.no}번 사냥터 Lv.${m.rec}</option>`).join('')}</optgroup>`;
     }).join('');
 
+    // v143 몬스터 세분화 (선생님 11/13 "몬스터 고르고 그 몬스터의 레벨도 선택"): 몬스터 줄마다 종류 · 레벨 · 마릿수 (최대 6줄, 합쳐서 30마리) + 보스 종류 · 레벨
+    //  저장 모양 def.mons = { list: [{ f: 사냥터 아이디, lv, n }], boss: 사냥터 아이디, bossLv } · 예전 모양(mob·mob2·boss·lv·n)은 열 때 바꿔 줌
+    const MON_ROWS = 6, MON_MAX = 30, recOf = f => { const F = D.MAPS.find(m => m.id === f); return F ? F.rec : 1; };
+    function monFix(mo) {
+      mo = mo || {}; if (Array.isArray(mo.list)) return mo;
+      const n = mo.n == null ? 18 : +mo.n || 0, list = [];
+      if (mo.mob) list.push({ f: mo.mob, lv: mo.lv || recOf(mo.mob), n: mo.mob2 ? n - Math.floor(n / 3) : n });
+      if (mo.mob2) list.push({ f: mo.mob2, lv: mo.lv || recOf(mo.mob2), n: mo.mob ? Math.floor(n / 3) : n });
+      const o = { list }; if (mo.boss) { o.boss = mo.boss; o.bossLv = mo.lv ? mo.lv + 2 : recOf(mo.boss) + 2; }
+      return o;
+    }
+    const monTotal = mo => (mo.list || []).reduce((a, r) => a + (+r.n || 0), 0);
+    function monUI() {
+      const box = $('#meMons', root); if (!box) return;
+      const mo = def.mons = monFix(def.mons), L = mo.list, lvIn = (k, i, v) => `<input type="number" data-mlv="${k}" data-i="${i}" min="1" max="${D.MAX_LV}" value="${v || ''}" placeholder="Lv">`;
+      box.innerHTML = L.map((r, i) => `<div class="me-mon"><select data-mf="${i}">${'<option value="">고르기</option>' + monOpts()}</select><div class="me-mrow"><label>레벨 ${lvIn('m', i, r.lv)}</label><label>마릿수 <input type="number" data-mn="${i}" min="0" max="${MON_MAX}" value="${r.n == null ? '' : r.n}"></label><button type="button" class="me-mx" data-mdel="${i}" aria-label="이 몬스터 빼기">✕</button></div></div>`).join('')
+        + (L.length < MON_ROWS ? `<button type="button" class="btn small" data-madd>＋ 몬스터 더하기</button>` : '')
+        + `<p class="me-hint">몬스터 ${L.length}종 · 모두 ${monTotal(mo)}마리 (최대 ${MON_MAX}마리)</p>`
+        + `<div class="me-mon boss"><label>보스 <select data-mboss><option value="">없음</option>${monOpts(true)}</select></label><div class="me-mrow"><label>보스 레벨 ${lvIn('b', 0, mo.boss ? mo.bossLv : '')}</label></div></div>`;
+      L.forEach((r, i) => { const el = $(`[data-mf="${i}"]`, box); el.value = r.f || ''; });
+      $('[data-mboss]', box).value = mo.boss || '';
+    }
+    const monChange = e => {
+      const el = e.target, mo = def.mons = monFix(def.mons), L = mo.list, lv = v => Math.max(1, Math.min(D.MAX_LV, Math.floor(+v || 1)));
+      if (el.dataset.mf != null) { const r = L[+el.dataset.mf]; r.f = el.value; if (el.value) r.lv = recOf(el.value); }
+      else if (el.dataset.mn != null) { const r = L[+el.dataset.mn], others = monTotal(mo) - (+r.n || 0); r.n = Math.max(0, Math.min(MON_MAX - others, Math.floor(+el.value || 0))); }
+      else if (el.dataset.mlv === 'm') L[+el.dataset.i].lv = lv(el.value);
+      else if (el.dataset.mlv === 'b') { if (mo.boss) mo.bossLv = lv(el.value); }
+      else if (el.dataset.mboss != null) { if (el.value) { mo.boss = el.value; mo.bossLv = recOf(el.value) + 2; } else { delete mo.boss; delete mo.bossLv; } }
+      else return;
+      monUI(); saveDraft();
+    };
+
     root.innerHTML = `
       <div class="mapedit">
         <div class="page-head"><h1>🗺 Skillcom RPG 지도 그리기</h1><p>왼쪽에서 고른 것을 지도에 끌어서 칠해요. 게임과 같은 그림으로 바로 보여요. 로그인하면 저장해 두고 고칠 수 있고, 다 되면 <b>제출</b>을 눌러 관리자에게 보내요. <a href="#maker">← 메이커</a></p></div>
@@ -139,12 +172,7 @@
             <h3>던전 통로 (던전 입구 → 갈 곳)</h3>
             <div class="me-exits" id="meDgList"></div>
             <h3>몬스터 (게임에서 나올 몬스터)</h3>
-            <div class="me-mons">
-              <label>몬스터 <select data-mon="mob"><option value="">없음 (안 나옴)</option>${monOpts()}</select></label>
-              <label>섞일 몬스터 <select data-mon="mob2"><option value="">없음</option>${monOpts()}</select></label>
-              <label>보스 <select data-mon="boss"><option value="">없음</option>${monOpts(true)}</select></label>
-              <div class="me-mrow"><label>레벨 <input type="number" data-mon="lv" min="1" max="${D.MAX_LV}" placeholder="자동"></label><label>마릿수 <input type="number" data-mon="n" min="0" max="30" placeholder="18"></label></div>
-            </div>
+            <div class="me-mons" id="meMons"></div>
             <p class="me-hint">Ctrl+Z 되돌리기 · Ctrl+Y 다시 · 칠한 것은 이 브라우저에 자동으로 임시 저장돼요.</p>
           </aside>
           <div class="me-stage panel">
@@ -205,7 +233,7 @@
       $$('[data-mode]', root).forEach(b => b.setAttribute('aria-pressed', String(mode === b.dataset.mode)));
       $$('[data-brush]', root).forEach(b => b.setAttribute('aria-pressed', String(brush === +b.dataset.brush)));
       $$('[data-zoom]', root).forEach(b => b.setAttribute('aria-pressed', String(zoom === +b.dataset.zoom)));
-      const mo = def.mons || {}; $$('[data-mon]', root).forEach(el => { const v = mo[el.dataset.mon]; el.value = v == null ? '' : v; });
+      monUI();
       const pb = $('#mePub', root); if (pb) pb.checked = !!def.pub;
       EXITS.forEach(([k]) => { const c = $(`[data-exit="${k}"]`, root), t = $(`[data-exitto="${k}"]`, root); c.checked = !!(def.exits && k in def.exits); t.value = (def.exits && def.exits[k]) || ''; t.disabled = !c.checked; });
     }
@@ -344,13 +372,13 @@
     });
     const idOk = id => /^[a-z0-9_-]{2,40}$/.test(id);
     // v134 몬스터 · 공개
-    $$('[data-mon]', root).forEach(el => el.addEventListener('change', () => {
-      const mo = def.mons = Object.assign({}, def.mons || {}), k = el.dataset.mon, v = el.value.trim();
-      if (k === 'lv' || k === 'n') { if (v === '') delete mo[k]; else mo[k] = Math.max(k === 'n' ? 0 : 1, Math.min(k === 'n' ? 30 : D.MAX_LV, Math.floor(+v || 0))); }
-      else if (v) mo[k] = v; else delete mo[k];
-      if (k === 'mob' && v && mo.lv == null) { const F = D.MAPS.find(m => m.id === v); if (F) mo.lv = F.rec; }
-      syncBtns(); saveDraft();
-    }));
+    { const mb = $('#meMons', root);
+      mb.addEventListener('change', monChange);
+      mb.addEventListener('click', e => {
+        const mo = def.mons = monFix(def.mons), L = mo.list;
+        if (e.target.closest('[data-madd]')) { if (L.length < MON_ROWS) L.push({ f: '', lv: 1, n: Math.min(6, MON_MAX - monTotal(mo)) }); monUI(); saveDraft(); }
+        const d = e.target.closest('[data-mdel]'); if (d) { L.splice(+d.dataset.mdel, 1); monUI(); saveDraft(); }
+      }); }
     const pubEl = $('#mePub', root); if (pubEl) pubEl.addEventListener('change', () => { def.pub = pubEl.checked; saveDraft(); });
     const list = $('#meList', root);
     async function showMine() {

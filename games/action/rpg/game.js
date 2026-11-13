@@ -187,6 +187,12 @@
   .rg-row .grow { flex: 1; min-width: 0; }
   .rg-row .btn, .rg-mini { padding: 4px 10px; font-size: 13px; min-width: 0; border-radius: 6px; cursor: pointer; background: #FFD23F; color: #1D2340; border: 2px solid #0A0E24; white-space: nowrap; }
   .rg-mini.ghost { background: #2A325E; color: #EEF1FF; }
+  /* v143 결투 신청 */
+  .rg-mini.duel { background: #FF5A5F; color: #FFFFFF; }
+  .rg-duelask { margin-top: 12px; padding: 10px 12px; border: 2px solid #FF5A5F; border-radius: 10px; background: rgba(255,90,95,.12); display: grid; gap: 6px; }
+  .rg-duelask b { color: #FF8A8E; font-size: 16px; } .rg-duelask p { margin: 0; font-size: 13px; color: #EEF1FF; }
+  .rg-duelask label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #EEF1FF; } .rg-duelask input { width: 120px; padding: 3px 6px; border-radius: 6px; border: 2px solid #0A0E24; font: inherit; background: #FFFFFF; color: #1D2340; }
+  .rg-duelask .rg-mini { justify-self: start; }
   .rg-mini[disabled] { opacity: .45; cursor: default; }
   .rg-mini.on { background: #3DDC84; }
   .rg-ic { width: 40px; height: 40px; flex: none; border-radius: 8px; background: radial-gradient(circle at 35% 30%, #2E3870, #0F1430 70%); border: 2px solid var(--c); image-rendering: pixelated; padding: 1px; box-sizing: border-box; }
@@ -564,7 +570,7 @@
         const M = MAPBY[id]; if (!M) return;
         const map = getMap(id);
         G.map = map; S.map = id; G.room = null; G.npcs = M.kind === 'village' ? villagers(map).concat(smithNpc(map), stationNpc(map), hellNpc(map)) : []; G.hellRun = null; G.onNpc = null; G.pst = null; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
-        if (!quiet) G.title = { t: 0, text: M.kind === 'village' ? M.name : M.name, sub: M.custom ? `특별 지역 · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}${M.test ? ' · 🔒 시험 중 (관리자만)' : ''}` : M.hell ? `저승 ${M.gate}관문 · 몬스터 Lv.${100 + (M.gate - 1) * 5 + M.stage}${M.stage >= 5 ? ' · 대왕 Lv.' + M.rec : M.stage >= 3 ? ` · ${D.HELL.kills}마리 뒤 ${M.stage === 3 ? '옥졸' : '판관'}` : ` · ${D.HELL.kills}마리 잡으면 통과`}` : M.kind === 'village' ? (D.REGIONS[M.region].castle ? '마지막 마을 · 도원수 진영' : `마을 ${M.region + 1}`) : `사냥터 ${M.no} · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}` };
+        if (!quiet) G.title = { t: 0, text: M.kind === 'village' ? M.name : M.name, sub: M.custom ? `특별 지역 · 권장 Lv.${M.lvMin < M.rec ? M.lvMin + '~' + M.rec : M.rec}${M.boss ? ' · 보스' : ''}${M.test ? ' · 🔒 시험 중 (관리자만)' : ''}` : M.hell ? `저승 ${M.gate}관문 · 몬스터 Lv.${100 + (M.gate - 1) * 5 + M.stage}${M.stage >= 5 ? ' · 대왕 Lv.' + M.rec : M.stage >= 3 ? ` · ${D.HELL.kills}마리 뒤 ${M.stage === 3 ? '옥졸' : '판관'}` : ` · ${D.HELL.kills}마리 잡으면 통과`}` : M.kind === 'village' ? (D.REGIONS[M.region].castle ? '마지막 마을 · 도원수 진영' : `마을 ${M.region + 1}`) : `사냥터 ${M.no} · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}` };
         const p = side && typeof side === 'object' ? (side.from != null ? arrivePos(map, side.from) || map.startL : side) : side === 'R' ? map.startR : side === 'door' ? doorFront(map) : side === 'pos' && S.x ? { x: S.x, y: S.y } : map.startL;
         G.px = p.x; G.py = p.y;
         if (solidAt(map, G.px, G.py)) { const q = map.startL; G.px = q.x; G.py = q.y; }
@@ -584,7 +590,7 @@
         netRoom();
       }
       /* ---------- v42 온라인 (net.js) ---------- */
-      const roomKey = () => (G.room ? 'r-' + G.room.type + '-' + G.map.M.region : S.map);
+      const roomKey = () => (G.room ? (G.room.duel ? 'duel-' + G.room.id : 'r-' + G.room.type + '-' + G.map.M.region) : S.map);   // v143 결투장 = 두 사람만의 채널
       const netRoom = () => { if (net && net.joined) net.setRoom(roomKey()); };
       let net = null;
       const baseEq = () => { const o = {}; Object.keys(S.eq).forEach(k => { const it = ITEMS[S.eq[k]]; if (it) o[k] = it.base || it.id; }); return o; };   // v60 다른 사람에게는 기본 장비 id 만 (그림용)
@@ -594,7 +600,12 @@
           onPeers: () => {},
           onFx: (m, p) => { if (p) p.poseUntil = performance.now() + 380; peerFx(m, p); },   // v79 다른 사람이 마법 쓰면 팔 들기
           onTrade: (m, p) => onTrade(m, p),
-          onLeave: cid => { if (G.trade && G.trade.with === cid) { say('상대가 떠나서 거래가 취소됐어요', 2.6); endTrade(false); } },
+          onLeave: cid => {
+            if (G.trade && G.trade.with === cid) { say('상대가 떠나서 거래가 취소됐어요', 2.6); endTrade(false); }
+            if (G.dreq && G.dreq.with === cid) G.dreq = null;   // v143 결투 신청한 상대가 떠남
+            if (G.dpend && G.dpend.with === cid) { S.gold += G.dpend.bet; G.dpend = null; say('상대가 떠나서 결투가 취소됐어요', 2.6); }
+            if (pane === 'duelIn' && paneArg && paneArg.cid === cid) { pane = null; panel.hidden = true; G.paused = false; }
+          },
           onKick: why => { say(why === 'full' ? '서버 인원이 가득 차서 나왔어요. 다른 서버를 골라 주세요' : '서버 연결이 끊겼어요. 다시 골라 주세요', 4); if (!pane) openPanel('servers'); }
         });
       }
@@ -654,8 +665,9 @@
       }
       function onTrade(m, p) {
         const T = G.trade, nick = p.nick || '상대';
+        if (DUEL_MSG.includes(m.k)) { onDuel(m, p); return; }   // v143 결투
         if (m.k === 'req') {
-          if (T || pane || G.dead) { net.trade({ k: 'busy', to: m.cid }); return; }
+          if (T || pane || G.dead || G.duel || G.dreq || G.dpend) { net.trade({ k: 'busy', to: m.cid }); return; }
           openPanel('tradeIn', { cid: m.cid, nick }); return;
         }
         if (!T || T.with !== m.cid) return;
@@ -666,6 +678,188 @@
         if (m.k === 'ok') { T.theirOk = m.key === tradeKey(); if (T.myOk && T.theirOk && Hub.clientId < T.with) { net.trade({ k: 'commit', to: T.with, key: tradeKey() }); applyTrade(); return; } if (pane === 'trade') renderPanel(); return; }
         if (m.k === 'unok') { T.theirOk = false; if (pane === 'trade') renderPanel(); return; }
         if (m.k === 'commit') { if (T.myOk && m.key === tradeKey()) applyTrade(); return; }
+      }
+      /* ---------- v143 1:1 결투 (선생님 11/13 "두 캐릭이 서로 결투 신청 · 동의하면 결투장으로 이동 · 3초 뒤 결투 · 골드 배팅 · 승자가 다 가져감 · 승패 기록") ----------
+       *  거래처럼 사람을 누르거나(F) → 거래·결투 창에서 '결투 신청' (배팅 골드 = 둘 다 같은 금액, 0 = 친선전)
+       *  흐름: A dreq → B 수락 dyes (B 배팅금 먼저 맡김) → A dgo(결투 번호) → 둘 다 결투장(G.room.duel, 채널 'duel-번호')으로 이동
+       *        A 왼쪽 · B 오른쪽 → 둘이 서로 보이면 3초 세고 결투 → HP 0 이 된 사람이 dend → 이긴 사람이 배팅금 2배 + 기록(rpg_duels)
+       *        결투 중 상대가 나가면(5초 넘게 안 보이면) 이긴 것으로 · 끝나면 3초 뒤 원래 자리로, HP·MP 는 결투 전 그대로
+       *  규칙: HP·MP 가득 · 물약·귀환 못 씀 · HP 저절로 안 참 · 시간 제한 없음
+       *  피해: 공격하는 쪽이 '맞혔다'(dhit, 방어 전 피해) → 맞은 쪽이 내 방어·속성 방어·보호막으로 줄여서 받고 남은 HP 를 알려 줌(dhp) */
+      const DCFG = Object.assign({ dmgMul: 0.5, countSec: 3, waitSec: 15, backSec: 3, goneSec: 5 }, CFG.duel || {});
+      const DUEL_MSG = ['dreq', 'dyes', 'dno', 'dbusy', 'dgo', 'dhit', 'dhp', 'dend'];
+      let arenaMap = null;
+      function getArena() {
+        if (arenaMap) return arenaMap;
+        const AW = 30, AH = 17, t = new Uint8Array(AW * AH).fill(2), at = (x, y) => (x < 0 || y < 0 || x >= AW || y >= AH ? 2 : t[y * AW + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < AW && y < AH) t[y * AW + x] = v; };
+        // 걸을 수 있는 바닥 (줄마다 칸 범위) — 그림의 용암·가시 철창·바위·화로는 막힘
+        [[3, 12, 17], [4, 10, 19], [5, 9, 20], [6, 8, 23], [7, 6, 24], [8, 5, 24], [9, 5, 24], [10, 5, 24], [11, 5, 24], [12, 5, 23], [13, 6, 22], [14, 9, 20]].forEach(([y, a, b]) => { for (let x = a; x <= b; x++) set(x, y, 0); });
+        const M = { id: 'duel', kind: 'field', arena: true, region: 8, name: '결투장', rec: 1 };
+        const map = { id: 'duel', M, R: D.REGIONS[8], w: AW, h: AH, t, at, set, mid: 9, buildings: [], doors: [], spawns: [], objs: [], water: [], gates: [], glows: [], fx: [], npcs: [], exitL: null, exitR: null, exit: { x0: -9, x1: -9, y: 99 } };
+        [[11.6, 3.1], [18.4, 3.1], [12.6, 14.6], [17.4, 14.6]].forEach(([x, y]) => { map.glows.push({ x: x * TS, y: y * TS, r: 90, col: '#FF9A3D' }); map.fx.push({ type: 'flame', x: x * TS, y: y * TS - 6 }); });
+        const [gc, gx] = P.mk(AW * TS, AH * TS);
+        const paint = () => { const im = img79('duel_arena'); gx.fillStyle = '#2A1410'; gx.fillRect(0, 0, AW * TS, AH * TS); if (im) { gx.imageSmoothingEnabled = true; gx.imageSmoothingQuality = 'high'; gx.drawImage(im, 0, 0, AW * TS, AH * TS); } };
+        paint(); if (!img79('duel_arena')) img79('duel_arena', paint);
+        map.ground = gc; map.mini = gc; map.pic = true;
+        map.startL = { x: 8.5 * TS, y: 9.7 * TS }; map.startR = { x: 21.5 * TS, y: 9.7 * TS };
+        return (arenaMap = map);
+      }
+      img79('duel_arena');   // 미리 불러 둠
+      const duelBusy = () => !!(G.trade || G.duel || G.dreq || G.dpend || G.dead || G.hellRun);
+      function askDuel(pp, bet) {
+        if (!net || !net.joined) return;
+        bet = clamp(Math.floor(+bet || 0), 0, 1e9);
+        if (duelBusy()) { say('지금은 결투를 신청할 수 없어요', 2); return; }
+        if (bet > S.gold) { say('골드가 모자라요', 2); return; }
+        G.dreq = { with: pp.cid, nick: pp.nick, bet, t: 0 };
+        net.trade({ k: 'dreq', to: pp.cid, bet });
+        say(`${pp.nick}님에게 결투를 신청했어요… (배팅 ${fmtN(bet)}G)`, 3);
+      }
+      function startDuel(id, opp, nick, bet, side) {
+        const pp = net.peers.get(opp);
+        const origin = { map: S.map, back: G.room ? G.room.back : { x: G.px, y: G.py } };
+        S.gold -= bet; save(true);   // 배팅금은 결투장에 들어가며 맡김 (이기면 2배로 돌아옴)
+        G.duel = { id, opp, nick, bet, side, st: 'join', t: 0, origin, hp0: S.hp, mp0: S.mp, oppHp: 1, oppLv: pp ? pp.lv : 1, oppUid: pp ? pp.uid : '', gone: 0, hpT: 0, hpLast: 1 };
+        G.dreq = null; G.dpend = null;
+        if (pane) { pane = null; panel.hidden = true; G.paused = false; }
+        const map = getArena(), p = side === 'L' ? map.startL : map.startR;
+        G.map = map; G.room = { type: 'duel', duel: true, id, back: origin.back, village: origin.map };
+        G.npcs = []; G.onNpc = null; G.mons = []; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null; G.pst = null; G.shield = null; G.dash = null;
+        G.px = p.x; G.py = p.y; G.fx = side === 'L' ? 1 : -1; G.fy = 0; G.face = side === 'L' ? 1 : -1; G.view = 's'; G.onDoor = null; G.keys = {};
+        restat(); S.hp = ST.hp; S.mp = ST.mp;   // 결투는 HP·MP 가득으로
+        G.title = { t: 0, text: '⚔ 결투장', sub: `${nick}님과 결투 · 배팅 ${fmtN(bet)}G${bet ? ` (이기면 ${fmtN(bet * 2)}G)` : ' (친선전)'}` };
+        net.fast = true; netRoom();
+      }
+      function duelDummy() {   // 상대를 '몬스터 자리'로 둬서 내 마법·공격이 원래대로 맞게 함 (그림은 사람으로 그림 · 움직임은 상대 위치)
+        const pp = net.peers.get(G.duel.opp);
+        return { pvp: true, cid: G.duel.opp, x: pp ? pp.x : 0, y: pp ? pp.y : 0, r: 14, spr: { w: 32, h: 56 }, lvl: G.duel.oppLv, mdef: 0, hp: 1, max: 1, dead: false, def: { colors: {} }, name: G.duel.nick, flash: 0, cd: 9, hx: 0, hy: 0 };
+      }
+      function duelHit(m, base, els, opt) {   // 내가 상대를 맞힘 → 방어 전 피해를 보냄 (상대 게임이 방어를 빼고 받음)
+        const D2 = G.duel; if (!D2 || D2.st !== 'fight') return 0;
+        if (m.hitCd > 0) return 0; m.hitCd = 0.12;   // 한 번에 여러 갈래가 맞으면 하나만
+        let raw = base * rand(0.9, 1.1) * (1 + (ST.dmg || 0) / 100);
+        if ((els || []).some(e => ELEM[e].fx === 'heavy')) raw *= 1.2;
+        const crit = Math.random() < ST.crit / 100; if (crit) raw *= ST.critD || D.STAT.critDmg;
+        raw = Math.max(1, Math.round(raw * DCFG.dmgMul));
+        const el = (els || []).find(e => ELEM[e]) || '';
+        net.trade({ k: 'dhit', to: D2.opp, d: raw, el, lv: S.lv, c: crit ? 1 : 0, x: Math.round(G.px), y: Math.round(G.py) });
+        Fx.hit(m.x, m.y - m.spr.h / 2, els, crit); m.flash = 0.12;
+        if (crit) { G.shake = Math.max(G.shake, 4); G.hitstop = 0.05; }
+        if ((els || []).some(e => ELEM[e].fx === 'holy')) S.hp = Math.min(ST.hp, S.hp + Math.max(1, Math.round(raw * 0.03)));
+        return raw;
+      }
+      function duelLose(why) {   // 내 HP 가 0 → 짐
+        const D2 = G.duel; if (!D2 || D2.st === 'end') return;
+        S.hp = 0; D2.st = 'end'; D2.t = 0; D2.win = false; D2.why = why || 'ko';
+        net.trade({ k: 'dend', to: D2.opp, id: D2.id });
+        S.duel = S.duel || { w: 0, l: 0 }; S.duel.l++;
+        G.title = { t: 0, text: '패배…', sub: `${D2.nick}님이 이겼어요${D2.bet ? ` · 배팅 ${fmtN(D2.bet)}G 를 잃었어요` : ''}` };
+        G.shake = 8; G.flash = 0.3; markDirty(true);
+      }
+      function duelWin(why) {
+        const D2 = G.duel; if (!D2 || D2.st === 'end') return;
+        D2.st = 'end'; D2.t = 0; D2.win = true; D2.why = why;
+        S.gold += D2.bet * 2; S.duel = S.duel || { w: 0, l: 0 }; S.duel.w++;
+        G.title = { t: 0, text: '승리!', sub: (why === 'left' ? `${D2.nick}님이 결투장을 나갔어요` : `${D2.nick}님을 이겼어요`) + (D2.bet ? ` · +${fmtN(D2.bet * 2)}G` : '') };
+        Fx.levelUp(G.px, G.py); Fx.coins(G.px, G.py - 30, D2.bet ? 12 : 4); G.flash = 0.3;
+        save(true); recordDuel(D2, why);
+      }
+      async function recordDuel(D2, why) {   // 승패 기록 (아직 화면에는 안 보임 · 선생님 11/13 "기록만 해놓자")
+        if (!(Hub.mode === 'online' && Hub._sb && Hub.user)) return;
+        const row = { duel_id: String(D2.id).slice(0, 40), winner: Hub.user.id, loser: /^[0-9a-f-]{36}$/.test(D2.oppUid || '') ? D2.oppUid : null, winner_nick: String(Hub.user.nickname || '').slice(0, 20), loser_nick: String(D2.nick || '').slice(0, 20), winner_lv: S.lv, loser_lv: D2.oppLv | 0, bet: D2.bet | 0, reason: why === 'left' ? 'left' : 'ko' };
+        try { await Hub._sb.from('rpg_duels').insert(row); } catch (e) { /* 표가 아직 없으면 그냥 넘어감 */ }
+      }
+      function duelBack() {   // 결투장 → 원래 자리 (HP·MP 는 결투 전 그대로)
+        const D2 = G.duel; if (!D2) return;
+        G.duel = null; net.fast = false;
+        const o = D2.origin, M = MAPBY[o.map] ? o.map : S.home;
+        enter(M, o.back && MAPBY[o.map] ? { x: o.back.x, y: o.back.y } : 'door', true);
+        restat(); S.hp = clamp(D2.hp0, 1, ST.hp); S.mp = clamp(D2.mp0, 0, ST.mp);
+        say(D2.res === 'cancel' ? '결투가 취소됐어요' : '원래 자리로 돌아왔어요', 2.4); markDirty(true);
+      }
+      function duelCancel(msg) {   // 상대가 결투장에 오지 않음 → 맡긴 배팅금 돌려받고 돌아감
+        const D2 = G.duel; if (!D2) return;
+        S.gold += D2.bet; D2.res = 'cancel'; say(msg || '상대가 오지 않아 결투가 취소됐어요', 3); duelBack(); save(true);
+      }
+      function duelTick(dt) {
+        if (G.dreq && (G.dreq.t += dt) > 30) { G.dreq = null; }   // 답이 없으면 신청 취소
+        if (G.dpend && (G.dpend.t += dt) > 10) { S.gold += G.dpend.bet; G.dpend = null; say('결투가 시작되지 않아 배팅금을 돌려받았어요', 2.6); }
+        const D2 = G.duel; if (!D2) return;
+        D2.t += dt;
+        const pp = net && net.peers.get(D2.opp);
+        if (D2.st === 'join') {
+          if (pp) { D2.st = 'count'; D2.t = 0; G.title = null; D2.oppLv = pp.lv; if (pp.uid) D2.oppUid = pp.uid; G.mons = [duelDummy()]; }
+          else if (D2.t > DCFG.waitSec) duelCancel();
+          return;
+        }
+        if (D2.st === 'count' || D2.st === 'fight') {
+          if (!pp) { if ((D2.gone += dt) > DCFG.goneSec) duelWin('left'); }
+          else { D2.gone = 0; const m = G.mons[0]; if (m && m.pvp) { m.x = pp.x; m.y = pp.y; m.hitCd = Math.max(0, (m.hitCd || 0) - dt); m.flash -= dt; } }
+        }
+        if (D2.st === 'count' && D2.t >= DCFG.countSec) { D2.st = 'fight'; D2.t = 0; G.title = { t: 1.6, text: '결투 시작!', sub: '' }; G.shake = 5; }
+        if (D2.st === 'fight' && (D2.hpT += dt) > 0.5) {   // 회복 마법 등으로 HP 가 바뀌면 알려 줌
+          D2.hpT = 0; const r = S.hp / ST.hp; if (Math.abs(r - D2.hpLast) > 0.01) { D2.hpLast = r; net.trade({ k: 'dhp', to: D2.opp, hp: +r.toFixed(3) }); }
+        }
+        if (D2.st === 'end' && D2.t >= DCFG.backSec) duelBack();
+      }
+      function onDuel(m, p) {
+        const nick = p.nick || '상대';
+        if (m.k === 'dreq') {
+          if (duelBusy() || pane || (G.room && G.room.duel)) { net.trade({ k: 'dbusy', to: m.cid }); return; }
+          openPanel('duelIn', { cid: m.cid, nick, lv: p.lv, bet: clamp(Math.floor(+m.bet || 0), 0, 1e9) }); return;
+        }
+        if (m.k === 'dno' || m.k === 'dbusy') {
+          if (G.dreq && G.dreq.with === m.cid) { say(m.k === 'dbusy' ? `${nick}님은 지금 다른 일을 하고 있어요` : `${nick}님이 결투를 거절했어요`, 2.6); G.dreq = null; }
+          if (G.dpend && G.dpend.with === m.cid) { S.gold += G.dpend.bet; G.dpend = null; say(`${nick}님이 결투를 취소했어요 (배팅금은 돌려받았어요)`, 2.6); }
+          return;
+        }
+        if (m.k === 'dyes') {   // 신청한 내가 받음 → 결투 번호를 정해서 함께 출발
+          const R = G.dreq; if (!R || R.with !== m.cid) return;
+          if (S.gold < R.bet || G.dead) { net.trade({ k: 'dno', to: m.cid }); G.dreq = null; say('골드가 모자라 결투가 취소됐어요', 2.6); return; }
+          const id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+          net.trade({ k: 'dgo', to: m.cid, id, bet: R.bet });
+          startDuel(id, m.cid, R.nick || nick, R.bet, 'L'); return;
+        }
+        if (m.k === 'dgo') {
+          const Q = G.dpend; if (!Q || Q.with !== m.cid || +m.bet !== Q.bet || !/^[a-z0-9]{4,40}$/.test(String(m.id))) return;
+          S.gold += Q.bet;   // 맡긴 것을 풀고 startDuel 에서 다시 맡김
+          startDuel(String(m.id), m.cid, Q.nick || nick, Q.bet, 'R'); return;
+        }
+        const D2 = G.duel; if (!D2 || D2.opp !== m.cid) return;
+        if (m.k === 'dhit' && D2.st === 'fight') {
+          const el = ELEM[m.el] ? m.el : null, raw = clamp(+m.d || 0, 0, 1e7);
+          const d = hitPlayer(raw, clamp(+m.lv || 1, 1, 200), el, { x: +m.x || G.px, y: +m.y || G.py });
+          if (d && G.duel && G.duel.st === 'fight') { D2.hpLast = S.hp / ST.hp; net.trade({ k: 'dhp', to: D2.opp, hp: +D2.hpLast.toFixed(3), d, c: m.c ? 1 : 0 }); }
+          return;
+        }
+        if (m.k === 'dhp') {
+          D2.oppHp = clamp(+m.hp || 0, 0, 1);
+          const mm = G.mons[0]; if (m.d && mm && mm.pvp) G.texts.push({ x: mm.x + rand(-8, 8), y: mm.y - 62, text: (m.c ? '치명! ' : '') + m.d, color: m.c ? '#FFD23F' : '#FFFFFF', t: 0, big: !!m.c, dmg: true });
+          return;
+        }
+        if (m.k === 'dend' && (D2.st === 'fight' || D2.st === 'count')) { D2.oppHp = 0; duelWin('ko'); }
+      }
+      function drawDuelHud(c) {   // 결투 중: 위 가운데 두 사람 HP 막대 · 3초 세기
+        const D2 = G.duel; if (!D2) return;
+        const me = S.hp / ST.hp, bw = 170, y = 86;
+        const bar2 = (x, r, name, col, right) => {
+          c.fillStyle = 'rgba(10,14,36,.82)'; c.fillRect(x - 4, y - 4, bw + 8, 34);
+          c.fillStyle = '#3A1418'; c.fillRect(x, y + 12, bw, 12);
+          c.fillStyle = col; const w = Math.round(bw * clamp(r, 0, 1)); c.fillRect(right ? x + bw - w : x, y + 12, w, 12);
+          c.font = '14px "Jua", "Malgun Gothic", sans-serif'; c.textBaseline = 'alphabetic'; c.textAlign = right ? 'right' : 'left'; c.fillStyle = '#FFFFFF'; c.fillText(name, right ? x + bw : x, y + 8);
+        };
+        const L = D2.side === 'L', myName = (Hub.user ? Hub.user.nickname : '나') + ' (나)';
+        bar2(W / 2 - bw - 40, L ? me : D2.oppHp, L ? myName : D2.nick, L ? '#3DDC84' : '#FF5A5F', false);
+        bar2(W / 2 + 40, L ? D2.oppHp : me, L ? D2.nick : myName, L ? '#FF5A5F' : '#3DDC84', true);
+        c.font = '22px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = '#0A0E24'; c.strokeText('VS', W / 2, y + 22); c.fillStyle = '#FFD23F'; c.fillText('VS', W / 2, y + 22);
+        if (D2.bet) { c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.strokeText(`배팅 ${fmtN(D2.bet)}G × 2`, W / 2, y + 44); c.fillStyle = '#FFE9A8'; c.fillText(`배팅 ${fmtN(D2.bet)}G × 2`, W / 2, y + 44); }
+        let big = null;
+        if (D2.st === 'join') big = '상대를 기다리는 중…';
+        else if (D2.st === 'count') big = String(Math.max(1, Math.ceil(DCFG.countSec - D2.t)));
+        if (big) {
+          c.save(); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = (D2.st === 'count' ? '96px' : '30px') + ' "Jua", "Malgun Gothic", sans-serif';
+          c.lineWidth = 8; c.strokeStyle = '#0A0E24'; c.strokeText(big, W / 2, H * 0.36); c.fillStyle = D2.st === 'count' ? '#FFD23F' : '#FFFFFF'; c.fillText(big, W / 2, H * 0.36); c.restore();
+        }
       }
       // 화면 좌표(캔버스) → 그 자리에 있는 다른 플레이어
       function peerAt(q) {
@@ -702,9 +896,9 @@
       function spawnAll() {
         const M = G.map.M; G.mons = [];
         if (M.hell) return spawnHell();
-        if (M.custom) {   // v134 특별 지역: 메이커에서 고른 몬스터 · 레벨 · 마릿수 (+ 보스)
-          if (M.bossMon) G.mons.push(makeMon(M.bossMon, M.rec + 2, true));
-          if (M.mon) for (let i = 0; i < M.n; i++) G.mons.push(makeMon(M.mon2 && i % 3 === 2 ? M.mon2 : M.mon, M.rec - 1 + (Math.random() < 0.5 ? 0 : 1)));
+        if (M.custom) {   // v134 특별 지역: 메이커에서 고른 몬스터 · 레벨 · 마릿수 (+ 보스) · v143 몬스터마다 레벨 따로
+          if (M.bossMon) G.mons.push(makeMon(M.bossMon, M.bossLv, true));
+          (M.monList || []).forEach(e => { for (let i = 0; i < e.n; i++) G.mons.push(makeMon(e.mon, e.old ? e.lv - 1 + (Math.random() < 0.5 ? 0 : 1) : e.lv)); });
           return;
         }
         if (M.boss) {
@@ -861,6 +1055,7 @@
       /* ---------- 전투: 피해 계산 ---------- */
       function hitMon(m, base, els, opt) {
         if (m.dead) return 0;
+        if (m.pvp) return duelHit(m, base, els, opt);   // v143 결투 상대
         opt = opt || {};
         const diff = m.lvl - S.lv, lvF = diff > 0 ? Math.max(0.4, 1 - 0.06 * diff) : 1 + Math.min(0.3, -diff * 0.03);
         let dmg = (base * rand(0.9, 1.1) * (1 + (ST.dmg || 0) / 100) - m.mdef * 0.5) * lvF;   // v44 힘 → 주는 피해 +%
@@ -965,6 +1160,7 @@
         return dmg;
       }
       function die() {
+        if (G.duel) { duelLose('ko'); return; }   // v143 결투에서 쓰러짐 = 패배 (경험치 안 잃음)
         G.dead = true; const loss = Math.round(D.F.need(S.lv) * (CFG.deathExpLoss || 0.05));
         S.exp = Math.max(0, S.exp - loss);
         openPanel('dead', { loss });
@@ -987,6 +1183,7 @@
         if (!id) { say(fu ? `${FKEY[slot - 4]} 칸이 비어 있어요. 마법 창(K)에서 융합 마법을 넣어 주세요` : `${slot + 1}번 칸이 비어 있어요. 마법 창(K)에서 넣어 주세요`); return; }
         const sk = skill(id); if (!sk) return;
         if (G.pst && G.pst.stun > 0) return;   // v87 기절 중엔 마법 못 씀
+        if (G.duel && G.duel.st !== 'fight') return;   // v143 결투 시작 전·끝난 뒤
         if (G.map.M.kind !== 'field' && sk.kind !== 'heal' && sk.kind !== 'shield') { say(G.room ? '건물 안에서는 공격 마법을 쓸 수 없어요' : '마을에서는 공격 마법을 쓸 수 없어요'); return; }
         if ((G.cds[id] || 0) > 0) return;
         if (S.mp < sk.mp) { say('마나가 부족해요 (X: 마나 포션)'); return; }
@@ -1026,7 +1223,7 @@
         Fx.use(null);
       }
       function basicAttack() {
-        if (G.atkCd > 0 || G.dead || (G.pst && G.pst.stun > 0)) return;
+        if (G.atkCd > 0 || G.dead || (G.pst && G.pst.stun > 0) || (G.duel && G.duel.st !== 'fight')) return;
         G.atkCd = ST.atkCd; G.poseK = 'a'; G.poseUntil = performance.now() + 220;   // v79 공격 동작
         const staff = S.eq.weapon && ITEMS[S.eq.weapon].look === 'staff';
         const [dx, dy] = aimDir(staff ? 150 : 70);
@@ -1048,6 +1245,7 @@
       }
       function doRecall() {
         if (!S || G.dead || pane) return;
+        if (G.duel) { say('결투 중에는 귀환할 수 없어요'); return; }
         if (G.room || (MAPBY[S.map] && MAPBY[S.map].kind === 'village')) { say('이미 마을이에요'); return; }
         const left = recallLeft(); if (left > 0) { say(`귀환은 ${Math.ceil(left)}초 뒤에 쓸 수 있어요`); return; }
         S.recallAt = Date.now(); const to = recallTown(); enter(to, 'door'); say(`🏠 ${MAPBY[to].name}(으)로 돌아왔어요`, 2.6);
@@ -1061,6 +1259,7 @@
       }
       function useItem(id) {
         const it = ITEMS[id]; if (!it || !count(id)) return;
+        if (G.duel) { say('결투 중에는 물약을 쓸 수 없어요'); return; }   // v143
         if (it.kind === 'hp') { if (S.hp >= ST.hp) { say('체력이 가득 찼어요'); return; } takeItem(id); S.hp = Math.min(ST.hp, S.hp + it.amount); float(G.px, G.py - 70, '+' + it.amount, '#3DDC84'); Fx.heal(G.px, G.py - 28, false); }
         else if (it.kind === 'mp') { if (S.mp >= ST.mp) { say('마나가 가득 찼어요'); return; } takeItem(id); S.mp = Math.min(ST.mp, S.mp + it.amount); float(G.px, G.py - 70, '+' + it.amount, '#6FA0FF'); Fx.burst(G.px, G.py - 28, 16, Fx.pal('water'), { min: 30, max: 90, up: -90, g: -40, shape: 'glow', lmin: 0.5, lmax: 0.9 }); }
         else if (it.kind === 'scroll') { if (G.map.M.kind !== 'field' && S.map === S.home) { say('이미 마을이에요'); return; } takeItem(id); closePanel(); enter(S.home, 'door'); }
@@ -1121,6 +1320,7 @@
         const map = G.map, M = map.M;
         S.play += dt; G.saveT += dt; G.srvT += dt; if (msgT > 0 && (msgT -= dt) <= 0) msgEl.hidden = true;
         G.atkCd -= dt; G.inv -= dt; G.lastHit += dt;
+        duelTick(dt);   // v143 결투
         if (G.pst) {   // v87 내 상태 효과 시간
           const P = G.pst; ['slow', 'stun', 'stunImm', 'curse'].forEach(k2 => { if (P[k2] > 0) P[k2] -= dt; });
           if (P.burn) { P.burn.t -= dt; P.burn.tick -= dt; if (P.burn.tick <= 0 && !G.dead) { P.burn.tick = 0.5; const bd = Math.max(1, Math.round(P.burn.dps * 0.5)); S.hp -= bd; G.texts.push({ x: G.px + rand(-6, 6), y: G.py - 60, text: '-' + bd, color: '#FF8A3D', t: 0, dmg: true }); if (S.hp <= 0) { S.hp = 0; die(); } } if (P.burn && P.burn.t <= 0) P.burn = null; }
@@ -1131,12 +1331,13 @@
         if (G.shield && (G.shield.t -= dt) <= 0) G.shield = null;
         // 자연 회복
         const reg = (M.kind !== 'field' ? 3 : 1) * (G.lastHit > 5 ? 1 : 0.25);
-        S.hp = Math.min(ST.hp, S.hp + ST.hp * 0.012 * reg * dt); S.mp = Math.min(ST.mp, S.mp + ST.mp * 0.02 * reg * (ST.mpRegen / 100) * dt);   // v44 지혜 → 마나 회복
+        if (!G.duel) S.hp = Math.min(ST.hp, S.hp + ST.hp * 0.012 * reg * dt);   // v143 결투 중엔 HP 저절로 안 참 S.mp = Math.min(ST.mp, S.mp + ST.mp * 0.02 * reg * (ST.mpRegen / 100) * dt);   // v44 지혜 → 마나 회복
 
         // 입력 → 이동
         let mx = 0, my = 0; const K = G.keys;
         if (K.ArrowLeft) mx--; if (K.ArrowRight) mx++; if (K.ArrowUp) my--; if (K.ArrowDown) my++;   // v53: 이동은 방향키 (W 는 융합 마법)
         if (G.joy && G.joy.on) { mx = G.joy.vx; my = G.joy.vy; }
+        if (G.duel && G.duel.st !== 'fight') { mx = 0; my = 0; }   // v143 결투 시작 전·끝난 뒤엔 못 움직임
         const ml = Math.hypot(mx, my);
         if (G.dash) {
           const step = Math.min(G.dash.left, 1100 * dt); movePlayer(G.dash.dx * step, G.dash.dy * step); G.dash.left -= step;
@@ -1148,7 +1349,7 @@
           G.view = Math.abs(G.fy) > Math.abs(G.fx) * 1.15 ? (G.fy > 0 ? 'f' : 'b') : 's';   // v107 아래 = 앞모습 · 위 = 뒷모습 · 옆 = 옆모습
           movePlayer(G.fx * sp, G.fy * sp); G.moving = true; G.walk += dt; if (Math.floor(G.walk * 8) !== Math.floor((G.walk - dt) * 8)) Fx.dust(G.px, G.py, M.region === 5 ? 'rgba(255,255,255,.8)' : 'rgba(255,240,210,.55)');
         } else { G.moving = false; G.walk = 0; }
-        if (K.Space || K.KeyJ || G.btnDown.atk) basicAttack();
+        if ((K.Space || K.KeyJ || G.btnDown.atk) && !(G.duel && G.duel.st !== 'fight')) basicAttack();
         if (net) { const vx = (G.px - (G.lpx == null ? G.px : G.lpx)) / dt, vy = (G.py - (G.lpy == null ? G.py : G.lpy)) / dt; G.lpx = G.px; G.lpy = G.py; net.tick(dt, { x: G.px, y: G.py, vx, vy, face: G.face, lv: S.lv }); }
 
         // 출구 (v41: 벽 판정 때문에 끝 6px 까지 못 가서 안 넘어가던 것 → 끝 16px 안에 들어오면 넘어감)
@@ -1180,6 +1381,7 @@
 
         // 몬스터
         G.mons.forEach(m => {
+          if (m.pvp) return;   // v143 결투 상대 자리 (움직임은 상대 위치)
           if (m.dead) { if (m.noRespawn) return; if ((m.respawn -= dt) <= 0) { const n = makeMon(m.def, m.lvl, m.boss); Object.assign(m, n); } return; }
           m.flash -= dt; m.cd -= dt; if (m.lunge > 0) m.lunge -= dt; if (m.knock) m.knock *= Math.pow(0.001, dt);
           if (m.burn) { m.burn.t -= dt; m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 0.5; m.hp -= Math.max(1, Math.round(m.burn.dps * 0.5)); float(m.x, m.y - m.spr.h, Math.max(1, Math.round(m.burn.dps * 0.5)), '#FF9A3D'); if (m.hp <= 0) { killMon(m); return; } } if (m.burn.t <= 0) m.burn = null; }
@@ -1292,7 +1494,7 @@
         // 나무·건물·몬스터·나 — 아래쪽(sy)이 큰 것이 앞
         const list = [];
         for (const o of map.objs) { if (o.x > cx + W + 40 || o.x + o.img.width < cx - 40 || o.y > cy + H + 40 || o.y + o.img.height < cy - 40) continue; list.push({ y: o.sy, o }); }
-        G.mons.forEach(m => { if (!m.dead) list.push({ y: m.y, m }); });
+        G.mons.forEach(m => { if (!m.dead && !m.pvp) list.push({ y: m.y, m }); });
         (G.npcs || []).forEach(n => list.push({ y: n.y, n }));
         if (net) net.peers.forEach(pp => list.push({ y: pp.y, pp }));
         if (G.room) drawRoomFx(c, now, false);   // 벽난로 불·촛불 등은 사람보다 먼저 (머리 위 느낌표·말풍선이 가려지지 않게)
@@ -1673,7 +1875,7 @@
         for (let i = 1; i < 10; i++) { c.fillStyle = 'rgba(10,14,36,.6)'; c.fillRect(W * i / 10, H - 7, 1, 6); }
         c.font = '10px "Jua", sans-serif'; c.textAlign = 'right'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; const et = S.lv >= D.MAX_LV ? '만렙!' : `경험치 ${(ex * 100).toFixed(1)}%`; c.strokeText(et, W - 6, H - 11); c.fillStyle = '#FFF3B0'; c.fillText(et, W - 6, H - 11);
         // 위 가운데: 지도 이름
-        const t = M.kind !== 'field' || M.hell || M.custom ? M.name + (M.test ? ' 🔒' : '') : `사냥터 ${M.no}. ${M.name}`, rec = M.kind === 'room' ? MAPBY[S.map].name + ' · 건물 안' : M.kind === 'village' ? '마을' : `권장 Lv.${M.rec}`;
+        const t = M.kind !== 'field' || M.hell || M.custom || M.arena ? M.name + (M.test ? ' 🔒' : '') : `사냥터 ${M.no}. ${M.name}`, rec = M.arena ? '⚔ 1:1 결투' : M.kind === 'room' ? MAPBY[S.map].name + ' · 건물 안' : M.kind === 'village' ? '마을' : `권장 Lv.${M.rec}`;
         c.font = '17px "Jua", "Malgun Gothic", sans-serif'; const tw = Math.max(c.measureText(t).width, 90) + 56;
         bannerBox(c, W / 2, 9, tw, 40);   // v127 두루마리 띠
         c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; c.strokeText(t, W / 2, 23); c.fillStyle = '#FFF3D6'; c.fillText(t, W / 2, 23);
@@ -1707,7 +1909,8 @@
           c.font = '32px "Jua", "Malgun Gothic", sans-serif'; c.lineWidth = 5; c.strokeStyle = '#0A0E24'; c.strokeText(G.title.text, W / 2, H * 0.3 + 14); c.fillStyle = '#FFFFFF'; c.fillText(G.title.text, W / 2, H * 0.3 + 14);
           c.restore();
         }
-        if (G.touch || G.room) return;   // 건물 안에서는 아래 마법 칸을 숨김 (나가는 문이 보이게)
+        drawDuelHud(c);   // v143 결투 HP 막대 · 3초 세기
+        if (G.touch || (G.room && !G.room.duel)) return;   // 건물 안에서는 아래 마법 칸을 숨김 (나가는 문이 보이게) · 결투장은 보임
         // 아래 가운데: 기본 마법 4칸(1~4) + 융합 마법 4칸(Q W E R) + 포션 2칸(Z X) + v125 귀환(V)
         const bw = 11 * 54 + 2 * 12 - 4, x0 = Math.round(W / 2 - bw / 2), y0 = H - 62;
         panelBox(c, x0 - 8, y0 - 8, bw + 16, 60, 12);
@@ -1801,6 +2004,7 @@
         S.x = Math.round(at.x); S.y = Math.round(at.y); S.savedAt = Date.now();
         if (!G.trade) pruneGear(S);   // v60 판 장비·부서진 장비 정보 지우기 (거래 중에는 그대로)
         const copy = JSON.parse(JSON.stringify(S));
+        if (G.duel) { copy.hp = G.duel.hp0; copy.mp = G.duel.mp0; }   // v143 결투 중 저장: HP·MP 는 결투 전 값
         Store.setLocal(Hub.user && Hub.user.id, copy); G.saveT = 0;
         if (server) { G.srvT = 0; G.dirty = false; return Store.push(copy); }
         return true;
@@ -1824,6 +2028,7 @@
       /* ================= 창 ================= */
       let pane = null, paneArg = null, tab = {};
       function openPanel(kind, arg) {
+        if (G.duel && kind !== 'help') { say('결투 중에는 창을 열 수 없어요', 2); return; }   // v143
         pane = kind; paneArg = arg || null; G.keys = {}; G.btnDown = {}; G.joy = null;
         tab.trash = false; tab.trashAsk = null; tab.sellAsk = null; tab.sellAll = false;   // v68 창을 새로 열면 버리기·팔기 확인은 꺼짐
         G.paused = !(net && net.joined && kind !== 'help');   // 온라인이면 창을 열어도 세상은 계속 (다른 사람이 계속 움직임)
@@ -1836,6 +2041,7 @@
         const wasDoor = ['potion', 'school', 'chief', 'castle'].includes(pane);
         if (pane === 'trade' && G.trade) { endTrade(true); say('거래를 취소했어요', 2); return; }
         if (pane === 'tradeIn' && paneArg) net.trade({ k: 'no', to: paneArg.cid });
+        if (pane === 'duelIn' && paneArg) net.trade({ k: 'dno', to: paneArg.cid });   // v143 결투 거절
         const was = pane; pane = null; panel.hidden = true; G.paused = false;
         if (was === 'help' && Hub.user && net && !net.joined && !G.srvAsked) { G.srvAsked = true; openPanel('servers'); return; }
         if (wasDoor && G.onDoor) { const b = G.onDoor; G.px = (b.door.x + 0.5) * TS; G.py = (b.door.y + 1.9) * TS; G.onDoor = null; }
@@ -1979,8 +2185,12 @@
           h = head('도원수 진영', '퀘스트는 아직 준비 중이에요. 다음 업데이트에서 이곳에서 퀘스트를 받을 수 있어요.') + npcBox();
         } else if (k === 'tradeAsk') {
           const pp = paneArg.pp;
-          h = head('거래 신청', '같은 지도에 있는 사람과 아이템·골드를 바꿀 수 있어요. 두 사람 모두 확인을 눌러야 바뀌어요.');
-          h += `<div class="rg-fuse"><b style="color:#9AE6FF">${pp.nick}</b> (Lv.${pp.lv}) 님에게 거래를 신청할까요?</div><div class="rg-srvact"><button type="button" class="rg-mini" data-trreq="${pp.cid}">거래 신청</button><button type="button" class="rg-mini ghost" data-x>취소</button></div>`;
+          h = head('거래 · 결투 신청', '같은 지도에 있는 사람과 아이템·골드를 바꾸거나, 결투를 신청할 수 있어요.');
+          h += `<div class="rg-fuse"><b style="color:#9AE6FF">${pp.nick}</b> (Lv.${pp.lv}) 님에게 무엇을 신청할까요?</div><div class="rg-srvact"><button type="button" class="rg-mini" data-trreq="${pp.cid}">🤝 거래 신청</button><button type="button" class="rg-mini ghost" data-x>취소</button></div>`;
+          h += `<div class="rg-duelask"><b>⚔ 결투 신청</b><p>둘 다 같은 골드를 걸고 겨뤄요. 이긴 사람이 모두 가져가요. (0 = 친선전) · HP·MP 가득 · 물약 못 씀</p><label>배팅 골드 <input type="number" min="0" max="${S.gold}" step="10" value="${clamp(tab.dbet || 0, 0, S.gold)}" data-dbet> <small>/ ${fmtN(S.gold)} G</small></label><button type="button" class="rg-mini duel" data-dreq="${pp.cid}">⚔ 결투 신청</button></div>`;
+        } else if (k === 'duelIn') {   // v143 결투 신청 받음
+          const a = paneArg, ok = S.gold >= a.bet;
+          h = `<h3>⚔ 결투 신청이 왔어요</h3><div class="rg-fuse"><b style="color:#9AE6FF">${a.nick}</b> (Lv.${a.lv}) 님이 결투를 신청했어요.<br>배팅: <b class="rg-gold">${fmtN(a.bet)} G</b>${a.bet ? ` (이기면 ${fmtN(a.bet * 2)} G · 지면 ${fmtN(a.bet)} G 잃음)` : ' (친선전)'}<br><small>수락하면 결투장으로 이동해서 3초 뒤에 시작해요. HP·MP 가득 · 물약 못 씀 · 끝나면 지금 자리로 돌아와요.</small></div><div class="rg-srvact"><button type="button" class="rg-mini duel" data-dyes="${a.cid}" ${ok ? '' : 'disabled'}>${ok ? '⚔ 수락' : '골드가 모자라요'}</button><button type="button" class="rg-mini ghost" data-dno="${a.cid}">거절</button></div>`;
         } else if (k === 'tradeIn') {
           h = `<h3>거래 신청이 왔어요</h3><div class="rg-fuse"><b style="color:#9AE6FF">${paneArg.nick}</b> 님이 거래를 하고 싶어 해요.</div><div class="rg-srvact"><button type="button" class="rg-mini" data-tryes="${paneArg.cid}">수락</button><button type="button" class="rg-mini ghost" data-trno="${paneArg.cid}">거절</button></div>`;
         } else if (k === 'trade') {
@@ -2210,6 +2420,18 @@
         else if (d.trreq) { const pp = net.peers.get(d.trreq); if (!pp) { say('상대가 이 지도에 없어요', 2); closePanel(); return; } G.trade = { with: pp.cid, nick: pp.nick, state: 'wait' }; net.trade({ k: 'req', to: pp.cid }); pane = null; panel.hidden = true; G.paused = false; say(`${pp.nick}님에게 거래 신청을 보냈어요…`, 3); setTimeout(() => { if (G.trade && G.trade.state === 'wait' && G.trade.with === pp.cid) { G.trade = null; say('대답이 없어서 거래 신청을 취소했어요', 2.6); } }, 20000); return; }
         else if (d.tryes) { const pp = net.peers.get(d.tryes); if (!pp) { closePanel(); return; } net.trade({ k: 'yes', to: pp.cid }); startTrade(pp.cid, pp.nick); return; }
         else if (d.trno) { net.trade({ k: 'no', to: d.trno }); pane = null; panel.hidden = true; G.paused = false; return; }
+        else if (d.dreq) {   // v143 결투 신청 보내기
+          const pp = net.peers.get(d.dreq); if (!pp) { say('상대가 이 지도에 없어요', 2); closePanel(); return; }
+          const inp = panel.querySelector('[data-dbet]'), bet = clamp(Math.floor(+(inp && inp.value) || 0), 0, 1e9); tab.dbet = bet;
+          if (bet > S.gold) { say('골드가 모자라요', 2); return; }
+          pane = null; panel.hidden = true; G.paused = false; askDuel(pp, bet); return;
+        }
+        else if (d.dyes) {   // v143 결투 수락: 배팅금을 먼저 맡기고 상대의 출발 신호(dgo)를 기다림
+          const a = paneArg, pp = net.peers.get(d.dyes); if (!pp || !a || S.gold < a.bet || duelBusy()) { closePanel(); return; }
+          S.gold -= a.bet; G.dpend = { with: pp.cid, nick: pp.nick, bet: a.bet, t: 0 };
+          net.trade({ k: 'dyes', to: pp.cid }); pane = null; panel.hidden = true; G.paused = false; say('결투를 수락했어요! 곧 결투장으로 이동해요…', 2.6); return;
+        }
+        else if (d.dno) { net.trade({ k: 'dno', to: d.dno }); pane = null; panel.hidden = true; G.paused = false; return; }
         else if ('trcancel' in d) { endTrade(true); say('거래를 취소했어요', 2); return; }
         else if (d.tradd) { const T = G.trade; if (!T) return; const id = d.tradd; if (count(id) - (T.mine.items[id] || 0) > 0 && Object.keys(T.mine.items).filter(q => T.mine.items[q] > 0).length < 12) { T.mine.items[id] = (T.mine.items[id] || 0) + 1; sendOffer(); } }
         else if (d.trdel) { const T = G.trade; if (!T) return; T.mine.items[d.trdel] = Math.max(0, (T.mine.items[d.trdel] || 0) - 1); sendOffer(); }
