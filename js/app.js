@@ -290,6 +290,15 @@
     await Promise.all(live.map(async g => {
       const foot = $(`[data-foot="${g.id}"]`, grid);
       try {
+        if (SET.get(g.id) && SET.get(g.id).rebRank) {   // v134 RPG 카드: 1·2위 + 환생 1위
+          const [tops0, rb] = await Promise.all([Hub.leaderboard(g.id, 2), Hub.extraTop ? Hub.extraTop(g.id, 'reb').catch(() => null) : Promise.resolve(null)]);
+          const tops = (tops0 || []).filter(t => t && t.best_score > 0);
+          if (!foot.isConnected) return;
+          foot.classList.add('rec3');
+          foot.innerHTML = ['🥇', '🥈'].map((m, i) => recLine('r-rank', `<i>${m} </i>${i + 1}위`, tops[i] && tops[i].nickname, tops[i] ? sfmt(g.id, tops[i].best_score) : '-')).join('')
+            + recLine('r-rank r-reb', '<i>♻ </i>환생 1위', rb && rb.nickname, rb ? rb.value + '회' : '-');
+          return;
+        }
         if (SET.get(g.id) && SET.get(g.id).cardOld) {
           const tops = (await Hub.leaderboard(g.id, 3) || []).filter(t => t && t.best_score > 0);   // v84 RPG 카드: 1~3위
           if (!foot.isConnected) return;

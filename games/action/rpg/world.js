@@ -104,9 +104,134 @@
     mapCache[id] = map; const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
     return map;
   }
+  /* ================= v134 메이커 지도 → 실제 게임 연결 =================
+   *  공식 맵(rpg_maps 표)을 게임 시작 때 불러와 MAPBY 에 '특별 지역'(custom)으로 등록
+   *  · def.pub = 공개 (끄면 관리자만 들어감 · 시험용)
+   *  · def.exits {u,d,l,r: 갈 맵} → 갈 맵의 반대쪽 가장자리에 길이 자동으로 뚫려 돌아올 수 있음 (양쪽 연결)
+   *    (갈 맵의 왼쪽·오른쪽에 원래 출구가 있으면 위·아래로 비켜서 뚫음 · 마을·저승은 한쪽으로만 감)
+   *  · def.dungeons [{k,x,y,to}] → 던전 입구 문 칸(13)을 밟으면 갈 맵으로 · 갈 맵의 아래 가장자리에 돌아오는 길
+   *  · def.mons { mob, mob2, boss: 사냥터 아이디(그 사냥터의 몬스터), lv, n } → 나오는 몬스터 */
+  const OPP = { u: 'd', d: 'u', l: 'r', r: 'l' }, CUSTOM = {}, LINKS = {};
+  const fieldMon = id => { const F = MAPBY[id]; return F && F.kind === 'field' && !F.custom && !F.hell && F.mon ? F : null; };
+  function registerCustom(rows, admin) {
+    Object.keys(CUSTOM).forEach(id => { delete MAPBY[id]; delete CUSTOM[id]; });
+    Object.keys(LINKS).forEach(k => { delete LINKS[k]; });
+    Object.keys(mapCache).forEach(k => { delete mapCache[k]; });
+    const list = [];
+    (rows || []).forEach(r => {
+      const d = r && r.data, w = d && +d.w, h = d && +d.h;
+      if (!d || !(w >= 20 && w <= 80 && h >= 14 && h <= 60) || !Array.isArray(d.t) || d.t.length !== w * h) return;
+      if (!/^[a-z0-9_-]{2,40}$/.test(r.id) || MAPBY[r.id]) return;   // 게임에 원래 있는 맵 아이디(f1·v1…)는 덮어쓰지 않음
+      if (!d.pub && !admin) return;
+      const mo = d.mons || {}, mob = fieldMon(mo.mob), mob2 = fieldMon(mo.mob2), boss = fieldMon(mo.boss), region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1);
+      const lv = clamp(Math.floor(+mo.lv || (mob ? mob.rec : boss ? boss.rec : 1)), 1, D.MAX_LV);
+      const M = { id: r.id, kind: 'field', custom: true, test: !d.pub, region, name: String(r.name || r.id).slice(0, 30), rec: lv, boss: !!boss,
+        mon: mob ? mob.mon : null, mon2: mob2 ? mob2.mon : null, mix: 3, bossMon: boss ? boss.mon : null,
+        n: clamp(Math.floor(mo.n == null ? 18 : +mo.n || 0), 0, 30), dropR: (mob || boss) ? (mob || boss).region : region, dropNo: (mob || boss) ? (mob || boss).no : 1, def: d };
+      CUSTOM[M.id] = M; MAPBY[M.id] = M; list.push(M);
+    });
+    const add = (to, L) => { (LINKS[to] = LINKS[to] || []).push(L); };
+    const back = T => T && T.kind === 'field' && !T.hell;   // 돌아오는 길을 뚫을 수 있는 맵 (사냥터·특별 지역)
+    list.forEach(M => {
+      const ex = M.def.exits || {};
+      Object.keys(ex).forEach(s => { const T = MAPBY[ex[s]]; if (!OPP[s] || !back(T) || T.id === M.id) return; if (T.custom && (T.def.exits || {})[OPP[s]] === M.id) return; add(T.id, { side: OPP[s], to: M.id }); });
+      (M.def.dungeons || []).forEach(dg => { const T = MAPBY[dg.to]; if (!back(T) || T.id === M.id) return; if (T.custom && (T.def.exits || {}).d === M.id) return; add(T.id, { side: 'd', to: M.id, dg: true }); });
+    });
+    return list.map(M => M.id);
+  }
+  // 가장자리 출구 자리 (칸 범위 a0~a1) · idx = 그쪽에 몇 번째로 뚫는 출구인지
+  function gateSpan(map, side, idx) {
+    const { w, h } = map, my = map.mid;
+    if (side === 'u' || side === 'd') { const c = (w >> 1) + [0, -12, 12][idx % 3]; return [c - 3, c + 2]; }
+    const legacy = (side === 'l' && map.exitL) || (side === 'r' && map.exitR), cs = legacy ? [my - 9, my + 9] : map.M.custom ? [h >> 1, my - 9, my + 9] : [my, my - 9, my + 9];
+    const c = clamp(cs[idx % cs.length], 4, h - 5); return [c - 3, c + 2];
+  }
+  const gateMid = g => (g.a0 + g.a1 + 1) / 2;   // 출구 가운데 (칸 경계 기준)
+  // 들어왔을 때 서는 자리
+  function gatePos(map, g) {
+    const c = gateMid(g);
+    if (g.side === 'l') return { x: 2.5 * TS, y: (c + 0.5) * TS };
+    if (g.side === 'r') return { x: (map.w - 2.5) * TS, y: (c + 0.5) * TS };
+    if (g.side === 'u') return { x: c * TS, y: 2.6 * TS };
+    return { x: c * TS, y: (map.h - 1.7) * TS };
+  }
+  // 출구 길 뚫기: 큰길이 있는 사냥터 = 굽은 흙길 가지, 그 밖 = 곧은 길
+  function carveGate(map, g) {
+    const { w, h, set, at } = map, c = gateMid(g);
+    const out = { l: [-1, c], r: [w + 1, c], u: [c, -1], d: [c, h + 1] }[g.side], ins = { l: [3, c], r: [w - 3, c], u: [c, 3], d: [c, h - 3] }[g.side];
+    const main = map.roads && map.roads.find(r => r.main);
+    if (main) {
+      let best = main.d[0], bd = 1e9; main.d.forEach(p => { if (p[0] < 1 || p[0] > w - 1) return; const dd = (p[0] - ins[0]) ** 2 + (p[1] - ins[1]) ** 2; if (dd < bd) { bd = dd; best = p; } });
+      const pts = [out, ins, [(ins[0] + best[0]) / 2 + (g.side === 'u' || g.side === 'd' ? 0 : 0), (ins[1] + best[1]) / 2], best];
+      const road = { pts, w: 2.5 }; road.d = denseCurve(pts); map.roads.push(road);
+      for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) { const X = tx + 0.5, Y = ty + 0.5; if (road.d.some(([a, b]) => (a - X) ** 2 + (b - Y) ** 2 <= (road.w / 2) ** 2)) set(tx, ty, 1); }
+    }
+    // 가장자리 칸 + 안쪽으로 막힌 칸이 끝날 때까지 (최대 10칸) 길
+    for (let k = g.a0; k <= g.a1; k++) for (let dpt = 0; dpt < 10; dpt++) {
+      const x = g.side === 'l' ? dpt : g.side === 'r' ? w - 1 - dpt : k, y = g.side === 'u' ? dpt : g.side === 'd' ? h - 1 - dpt : k;
+      const v = at(x, y); if (dpt >= 2 && !SOLID[v] && v !== 13) break; if (v === 4 || v === 12 || v === 13 || v === 6) break; set(x, y, 1);
+    }
+  }
+  // 그 맵의 출구 목록 (원래 왼쪽·오른쪽 + 메이커 연결)
+  function addGates(map) {
+    const gs = [], cnt = { u: 0, d: 0, l: 0, r: 0 }, M = map.M;
+    if (map.exitL) gs.push({ side: 'l', to: map.exitL, a0: map.mid - 2, a1: map.mid + 3, legacy: true });
+    if (map.exitR) gs.push({ side: 'r', to: map.exitR, a0: map.mid - 2, a1: map.mid + 3, legacy: true });
+    if (M.custom) Object.entries(M.def.exits || {}).forEach(([s, to]) => { if (!OPP[s]) return; const sp = gateSpan(map, s, cnt[s]++); if (MAPBY[to] && to !== M.id) gs.push({ side: s, to, a0: sp[0], a1: sp[1], link: true }); });
+    (LINKS[map.id] || []).forEach(L => { if (gs.some(g => g.to === L.to && g.side === L.side)) return; const sp = gateSpan(map, L.side, cnt[L.side]++); const g = { side: L.side, to: L.to, a0: sp[0], a1: sp[1], link: true, dg: L.dg }; gs.push(g); carveGate(map, g); });
+    map.gates = gs;
+  }
+  // 들어온 곳(from)에 맞는 자리 (출구 · 던전 입구 앞) — 없으면 null
+  function arrivePos(map, from) {
+    const g = (map.gates || []).find(q => q.to === from); if (g) return gatePos(map, g);
+    const d = (map.dgs || []).find(q => q.to === from), DG = d && DUNGEON[d.k];
+    if (DG) { const di = DG.t.findIndex(r => r.includes('D')); const cx = d.x + (DG.t[di] || DG.t[0]).indexOf('D') + 0.5; return { x: cx * TS + 8, y: (d.y + DG.t.length + 0.85) * TS }; }
+    return null;
+  }
+  // 선 자리의 출구 (가장자리 16px 안) → 그 출구
+  function gateAt(map, px, py) {
+    const gs = map.gates; if (!gs || !gs.length) return null;
+    const side = px < 16 ? 'l' : px > map.w * TS - 16 ? 'r' : py < 14 ? 'u' : py > map.h * TS - 10 ? 'd' : null; if (!side) return null;
+    const on = gs.filter(g => g.side === side); if (!on.length) return null;
+    const k = side === 'l' || side === 'r' ? py / TS : px / TS;
+    let best = null, bd = 1e9; on.forEach(g => { const dd = k < g.a0 ? g.a0 - k : k > g.a1 + 1 ? k - g.a1 - 1 : 0; if (dd < bd) { bd = dd; best = g; } });
+    return bd <= 2 ? best : null;
+  }
+  // 던전 입구 문 칸(13)에 서면 그 던전
+  function dungeonAt(map, px, py) {
+    if (!map.dgs || map.at(Math.floor(px / TS), Math.floor((py - 6) / TS)) !== 13) return null;
+    const tx = Math.floor(px / TS), ty = Math.floor((py - 6) / TS);
+    return map.dgs.find(d => { const DG = DUNGEON[d.k]; return DG && tx >= d.x && ty >= d.y && tx < d.x + DG.t[0].length && ty < d.y + DG.t.length; }) || null;
+  }
+  // 특별 지역 지도 만들기 (메이커로 그린 칸 그대로)
+  function customMap(id) {
+    const M = MAPBY[id], d = M.def, w = +d.w, h = +d.h, R = D.REGIONS[M.region];
+    const t = new Uint8Array(w * h); d.t.forEach((v, i) => { t[i] = clamp(Math.floor(+v || 0), 0, 13); });
+    const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 2 : t[y * w + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = v; };
+    const map = { id, M, R, w, h, t, at, set, mid: h >> 1, buildings: [], doors: [], spawns: [], exitL: null, exitR: null,
+      ponds: (d.ponds || []).filter(p => POND[p.k]).map(p => ({ k: p.k, x: +p.x, y: +p.y })), dgs: (d.dungeons || []).filter(q => DUNGEON[q.k]).map(q => ({ k: q.k, x: +q.x, y: +q.y, to: String(q.to || '') })) };
+    addGates(map);
+    // 들어설 자리: 첫 출구 → 없으면 가운데에서 가장 가까운 빈칸
+    const free = (x, y) => !SOLID[at(x, y)] && !SOLID[at(x - 1, y)] && !SOLID[at(x + 1, y)];
+    let st = map.gates[0] ? gatePos(map, map.gates[0]) : null;
+    if (!st) { for (let r = 0; r < Math.max(w, h) && !st; r++) for (let yy = (h >> 1) - r; yy <= (h >> 1) + r && !st; yy++) for (let xx = (w >> 1) - r; xx <= (w >> 1) + r; xx++) if (free(xx, yy)) { st = { x: (xx + 0.5) * TS, y: (yy + 0.8) * TS }; break; } }
+    map.startL = map.startR = st || { x: w * TS / 2, y: h * TS / 2 };
+    // 몬스터 자리 = 들어설 자리·출구에서 걸어갈 수 있는 빈칸 (출구 바로 앞 4칸은 뺌)
+    const seen = new Uint8Array(w * h), q = [];
+    const seed = p => { const x = Math.floor(p.x / TS), y = Math.floor((p.y - 4) / TS); if (x >= 0 && y >= 0 && x < w && y < h && !SOLID[at(x, y)] && !seen[y * w + x]) { seen[y * w + x] = 1; q.push([x, y]); } };
+    seed(map.startL); map.gates.forEach(g => seed(gatePos(map, g)));
+    while (q.length) { const [x, y] = q.pop(); [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= w || ny >= h || seen[ny * w + nx] || SOLID[at(nx, ny)]) return; seen[ny * w + nx] = 1; q.push([nx, ny]); }); }
+    const nearGate = (xx, yy) => map.gates.some(g => { const p = gatePos(map, g); return Math.abs(p.x / TS - xx) < 4 && Math.abs(p.y / TS - yy) < 4; });
+    for (let yy = 1; yy < h - 1; yy++) for (let xx = 1; xx < w - 1; xx++) if (seen[yy * w + xx] && at(xx, yy) !== 13 && !nearGate(xx, yy)) map.spawns.push({ x: (xx + 0.5) * TS, y: (yy + 0.8) * TS });
+    if (!map.spawns.length) map.spawns.push({ x: map.startL.x, y: map.startL.y });
+    map.ground = paintGround(map);
+    mapCache[id] = map; const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
+    return map;
+  }
   function getMap(id) {
     if (mapCache[id]) return mapCache[id];
     if (ARENA[id]) return arenaMap(id);
+    if (MAPBY[id] && MAPBY[id].custom) return customMap(id);
     const M = MAPBY[id], R = D.REGIONS[M.region], rnd = seeded('gogo-rpg-' + id);
     const w = M.kind === 'village' ? 36 : 50, h = M.kind === 'village' ? 24 : 34;
     const t = new Uint8Array(w * h), at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 2 : t[y * w + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = v; };
@@ -166,6 +291,7 @@
           if (x >= w - 6) y += Math.sign(mid - y);
         }
       } else fieldRoad(map, rnd);   // v110 사냥터 길도 마을처럼 부드럽게 굽은 흙길
+      map.exitL = M.prev || null; map.exitR = M.next || null; addGates(map);   // v134 메이커 지도로 가는 길 (연못·나무보다 먼저 뚫음)
       // 연못 · v120 선생님 그림 연못(작은·중간·큰 3가지, img/v79/pond_*.png)을 통째로 놓음 (풀밭 지역) · 그 밖(눈·용굴·용암·저승)은 예전 칸 연못
       const ponds = 2 + Math.floor(rnd() * 3);
       if (!M.hell && POND_REG.includes(M.region)) {
@@ -198,7 +324,7 @@
       }
     }
     // 출구 (왼쪽 · 오른쪽)
-    map.exitL = M.prev ? M.prev : null; map.exitR = M.next ? M.next : null;
+    map.exitL = M.prev ? M.prev : null; map.exitR = M.next ? M.next : null; if (!map.gates) addGates(map);
     for (let k = -2; k <= 3; k++) {
       if (map.exitL) { set(0, mid + k, 1); set(1, mid + k, at(1, mid + k) === 2 || at(1, mid + k) === 3 ? 0 : at(1, mid + k)); }
       if (map.exitR) { set(w - 1, mid + k, 1); set(w - 2, mid + k, at(w - 2, mid + k) === 2 || at(w - 2, mid + k) === 3 ? 0 : at(w - 2, mid + k)); }
@@ -231,10 +357,9 @@
     const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 2 : t[y * w + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = v; };
     const M = { id: id || 'edit', kind: 'field', region: def.region || 0 }, R = D.REGIONS[M.region];
     const map = { id: M.id, M, R, w, h, t, at, set, mid: Math.floor(h / 2), buildings: [], doors: [], spawns: [], ponds: (def.ponds || []).slice() };
-    const dgs = (def.dungeons || []).filter(d => DUNGEON[d.k]);
+    const dgs = (def.dungeons || []).filter(d => DUNGEON[d.k]); map.dgs = dgs;   // v128 던전 입구 (v134 그리기는 paintGround 안에서)
     const need = texOf(map).concat(map.ponds.map(p => p.k), dgs.map(d => d.k)).filter(n => !img79(n));
     map.ground = paintGround(map);
-    dgs.forEach(d => { const im = img79(d.k), DG = DUNGEON[d.k]; if (im) map.objs.push({ img: im, x: d.x * TS, y: d.y * TS, sy: d.y * TS + DG.h - 4, tx: d.x, ty: d.y, kind: 'dungeon' }); });   // v128 던전 입구 (사람과 앞뒤 순서 맞춤)
     return { ground: map.ground, objs: map.objs, need, map };
   }
   // 맵 만들기 화면에서 나무·바위 하나 그리기 (게임과 같은 그림: Meshy 그림이 있으면 그것, 없으면 예전 그림)
@@ -433,7 +558,7 @@
     const isPath = v => v === 1 || v === 7, G0 = R.ground[0], G1 = R.ground[1], dark = shade(G0, -0.18), light = shade(G0, 0.16);
     map.water = []; map.objs = []; map.glows = [];
     // v80 Meshy 재질 그림 (땅·길·물 192px 이어 붙는 무늬). 아직 안 불러왔으면 옛 색 무늬로 그리고, 다 불러오면 다시 그림
-    const TX = texOf(map), NEED = TX.concat((map.ponds || []).map(p => p.k)), ok = NEED.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
+    const TX = texOf(map), NEED = TX.concat((map.ponds || []).map(p => p.k), (map.dgs || []).map(d => d.k)), ok = NEED.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
     if (!ok && !map.texWait) {   // v82 고침: 이미 받은 그림은 기다릴 수에서 빼야 함 (전에는 하나라도 먼저 받아져 있으면 영영 다시 안 그렸음)
       map.texWait = true; const need = NEED.filter(n => !img79(n)); let left = need.length;
       const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) map.ground = paintGround(map); };
@@ -553,7 +678,12 @@
     }
     // 7) 출구: 빛나는 길
     const exitGlow = (X0, dir) => { for (let k = 0; k < 4; k++) { x.fillStyle = 'rgba(255,255,220,' + (0.18 - k * 0.04) + ')'; x.fillRect(dir < 0 ? X0 : X0 - (k + 1) * 32, (map.mid - 2) * TS, (k + 1) * 32, 6 * TS); } };
-    if (map.exitL) exitGlow(0, -1); if (map.exitR) exitGlow(w * TS, 1);
+    if (map.gates) map.gates.forEach(g => {   // v134 출구마다 빛나는 길 (위·아래·옆 · 메이커 지도 연결 포함)
+      for (let k = 0; k < 4; k++) { x.fillStyle = 'rgba(255,255,220,' + (0.18 - k * 0.04) + ')'; const L = (k + 1) * 32, A = g.a0 * TS, B = (g.a1 + 1 - g.a0) * TS;
+        if (g.side === 'l') x.fillRect(0, A, L, B); else if (g.side === 'r') x.fillRect(w * TS - L, A, L, B); else if (g.side === 'u') x.fillRect(A, 0, B, L); else x.fillRect(A, h * TS - L, B, L); }
+    });
+    else { if (map.exitL) exitGlow(0, -1); if (map.exitR) exitGlow(w * TS, 1); }
+    (map.dgs || []).forEach(d => { const im = img79(d.k), DG = DUNGEON[d.k]; if (im && DG) map.objs.push({ img: im, x: d.x * TS, y: d.y * TS, sy: d.y * TS + DG.h - 4, tx: d.x, ty: d.y, kind: 'dungeon' }); });   // v134 던전 입구 (그림을 늦게 받아도 다시 그릴 때 들어가게 여기서)
     map.objs.sort((a, b2) => a.sy - b2.sy);
     map.mini = paintMini(map);
     return c;
@@ -1157,5 +1287,5 @@
     return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}${(it.slot === 'weapon' && WP_IC[it.look] && imgOk(WP_IC[it.look])) || (SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot])) || (it.stack && imgOk('ic_pot')) ? ';image-rendering:auto' : ''}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
   }
 
-  window.__GoRPGParts = { previewMap, drawMapObj, texOf, POND, DUNGEON, DUNGEON_KEYS, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
+  window.__GoRPGParts = { registerCustom, arrivePos, gateAt, gatePos, dungeonAt, CUSTOM, previewMap, drawMapObj, texOf, POND, DUNGEON, DUNGEON_KEYS, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
 })();

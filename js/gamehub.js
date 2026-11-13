@@ -232,6 +232,14 @@
         persist(); setUser(pub(u));
         return { gained: u.points - before, delta, best: Math.max(prevBest, rec.score), newBest: rec.score > prevBest };
       },
+      // v134 기록의 extra 안 숫자(예: RPG 환생 횟수 reb) 1위 — 같은 값이면 먼저 낸 사람
+      async extraTop(game, key) {
+        let best = null;
+        db().records.forEach(r => { const v = +(r.extra && r.extra[key]) || 0; if (r.game_id !== game || v <= 0) return; if (!best || v > best.value || (v === best.value && r.played_at < best.at)) best = { user_id: r.user_id, value: v, at: r.played_at }; });
+        if (!best) return null;
+        const u = db().users[best.user_id];
+        return { user_id: best.user_id, nickname: u ? u.nickname : '?', value: best.value };
+      },
       async myBest(game) {
         if (!Hub.user) return null;
         return db().records.filter(r => r.user_id === Hub.user.id && r.game_id === game).reduce((m, r) => Math.max(m, r.score), 0);
@@ -444,6 +452,7 @@
       /* ---- v124 RPG 맵 만들기 (체험 모드: 이 브라우저에만) ---- */
       async mapList() { const m = mapsDb(); return Object.values(m).map(x => ({ id: x.id, name: x.name, updated_at: x.updated_at })); },
       async mapGet(id) { const m = mapsDb(); return m[id] || null; },
+      async mapAll() { return Object.values(mapsDb()).map(x => ({ id: x.id, name: x.name, data: x.data })); },   // v134 게임이 시작할 때 공식 맵 전부
       async mapSave(id, name, data) { if (!Hub.isAdmin()) throw new Error('관리자만 저장할 수 있어요.'); const m = mapsDb(); m[id] = { id, name, data, updated_at: new Date().toISOString() }; write('gogo_rpg_maps', JSON.stringify(m)); },
       async mapDelete(id) { if (!Hub.isAdmin()) throw new Error('관리자만 지울 수 있어요.'); const m = mapsDb(); delete m[id]; write('gogo_rpg_maps', JSON.stringify(m)); },
       async adminOverview() {
@@ -639,6 +648,16 @@
         if (error) throw new Error(friendly(error, '초기화하지 못했어요'));
         lsSet(QKEY, lsGet(QKEY, []).filter(x => !(x.user_id === Hub.user.id && x.game_id === game)));
         return (data || []).length;
+      },
+      // v134 기록의 extra 안 숫자(예: RPG 환생 횟수 reb) 1위 — 같은 값이면 먼저 낸 사람
+      async extraTop(game, key) {
+        const { data, error } = await sb.from('play_records').select('user_id,extra,played_at').eq('game_id', game)
+          .order('extra->' + key, { ascending: false, nullsFirst: false }).order('played_at', { ascending: true }).limit(1);
+        if (error) throw error;
+        const r = data && data[0], v = r && r.extra ? +r.extra[key] || 0 : 0;
+        if (!v) return null;
+        const { data: ps } = await sb.from('profiles').select('nickname').eq('id', r.user_id).limit(1);
+        return { user_id: r.user_id, nickname: (ps && ps[0] && ps[0].nickname) || '?', value: v };
       },
       async myBest(game) {
         if (!Hub.user) return null;
@@ -897,6 +916,11 @@
         return data || [];
       },
       async mapGet(id) { const { data, error } = await sb.from('rpg_maps').select('*').eq('id', id).maybeSingle(); if (error) throw new Error(friendly(error, '맵을 불러오지 못했어요')); return data; },
+      async mapAll() {   // v134 게임이 시작할 때 공식 맵 전부 (칸 그림 포함 · 표가 없으면 빈 목록)
+        const { data, error } = await sb.from('rpg_maps').select('id,name,data').order('id').limit(200);
+        if (error) { console.warn('[hub] rpg_maps', error.message); return []; }
+        return data || [];
+      },
       async mapSave(id, name, data) {
         const { error } = await sb.from('rpg_maps').upsert({ id, name, data, updated_at: new Date().toISOString(), updated_by: Hub.user && Hub.user.id });
         if (error) throw new Error(friendly(error, '맵을 저장하지 못했어요'));

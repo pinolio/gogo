@@ -11,7 +11,7 @@
   'use strict';
   const D = window.GoRPGData, AV = window.GoAvatar, Hub = window.GameHub, BGM = window.GoBGM;
   const P = window.__GoRPGParts, CFG = window.GoSettings.get('rpg');
-  const { loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, clamp, rand, pick, dist, fmtN, W, H, TS, SAVE_V, GAME, MAPBY, getRoom, npcSprite, npcPortrait, villagers } = P;
+  const { registerCustom, arrivePos, gateAt, dungeonAt, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, clamp, rand, pick, dist, fmtN, W, H, TS, SAVE_V, GAME, MAPBY, getRoom, npcSprite, npcPortrait, villagers } = P;
   const ITEMS = D.ITEMS, SKILLS = D.SKILLS, ELEM = D.ELEM, Fx = window.GoRPGFx;
   const EL_IC = { fire: '🔥', water: '💧', wind: '🌪', earth: '🪨', thunder: '⚡', light: '☀', dark: '🌙' };   // v130 스탯 창 속성 방어 그림
   const POT_T = D.POTIONS.filter(p => p.kind === 'hp').map(p => p.tier + 1).reverse();   // 포션 단계 (큰 것부터) 9 … 1
@@ -101,7 +101,7 @@
     const oldStatV = s.statV;   // 기본값을 채우기 전에 기억 (v44 스탯 바뀜 확인용)
     Object.keys(n).forEach(k => { if (s[k] === undefined) s[k] = n[k]; });
     s.lv = clamp(Math.floor(+s.lv || 1), 1, D.MAX_LV); s.exp = Math.max(0, +s.exp || 0); s.gold = Math.max(0, Math.floor(+s.gold || 0));
-    if (!MAPBY[s.map]) s.map = 'v1'; if (!MAPBY[s.home] || MAPBY[s.home].kind !== 'village') s.home = 'v1';
+    if (!MAPBY[s.home] || MAPBY[s.home].kind !== 'village') s.home = 'v1'; if (!MAPBY[s.map]) { s.map = s.home; s.x = 0; }   // v134 특별 지역이 없어지면(비공개·삭제) 마지막 마을로
     // v60 장비 하나하나 등록 → 가방·장비 확인 → 예전 기본 장비는 +0 장비로 바꿈 → 안 쓰는 정보 지움
     s.gear = s.gear && typeof s.gear === 'object' && !Array.isArray(s.gear) ? s.gear : {};
     Object.keys(s.gear).forEach(u => { const g = /^[a-z0-9]{4,16}$/.test(u) && validGear(s.gear[u]); if (g) { s.gear[u] = g; regGear(u, g); } else delete s.gear[u]; });
@@ -564,8 +564,8 @@
         const M = MAPBY[id]; if (!M) return;
         const map = getMap(id);
         G.map = map; S.map = id; G.room = null; G.npcs = M.kind === 'village' ? villagers(map).concat(smithNpc(map), stationNpc(map), hellNpc(map)) : []; G.hellRun = null; G.onNpc = null; G.pst = null; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
-        if (!quiet) G.title = { t: 0, text: M.kind === 'village' ? M.name : M.name, sub: M.hell ? `저승 ${M.gate}관문 · 몬스터 Lv.${100 + (M.gate - 1) * 5 + M.stage}${M.stage >= 5 ? ' · 대왕 Lv.' + M.rec : M.stage >= 3 ? ` · ${D.HELL.kills}마리 뒤 ${M.stage === 3 ? '옥졸' : '판관'}` : ` · ${D.HELL.kills}마리 잡으면 통과`}` : M.kind === 'village' ? (D.REGIONS[M.region].castle ? '마지막 마을 · 도원수 진영' : `마을 ${M.region + 1}`) : `사냥터 ${M.no} · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}` };
-        const p = side && typeof side === 'object' ? side : side === 'R' ? map.startR : side === 'door' ? doorFront(map) : side === 'pos' && S.x ? { x: S.x, y: S.y } : map.startL;
+        if (!quiet) G.title = { t: 0, text: M.kind === 'village' ? M.name : M.name, sub: M.custom ? `특별 지역 · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}${M.test ? ' · 🔒 시험 중 (관리자만)' : ''}` : M.hell ? `저승 ${M.gate}관문 · 몬스터 Lv.${100 + (M.gate - 1) * 5 + M.stage}${M.stage >= 5 ? ' · 대왕 Lv.' + M.rec : M.stage >= 3 ? ` · ${D.HELL.kills}마리 뒤 ${M.stage === 3 ? '옥졸' : '판관'}` : ` · ${D.HELL.kills}마리 잡으면 통과`}` : M.kind === 'village' ? (D.REGIONS[M.region].castle ? '마지막 마을 · 도원수 진영' : `마을 ${M.region + 1}`) : `사냥터 ${M.no} · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}` };
+        const p = side && typeof side === 'object' ? (side.from != null ? arrivePos(map, side.from) || map.startL : side) : side === 'R' ? map.startR : side === 'door' ? doorFront(map) : side === 'pos' && S.x ? { x: S.x, y: S.y } : map.startL;
         G.px = p.x; G.py = p.y;
         if (solidAt(map, G.px, G.py)) { const q = map.startL; G.px = q.x; G.py = q.y; }
         if (!S.visited.includes(id)) S.visited.push(id);
@@ -702,6 +702,11 @@
       function spawnAll() {
         const M = G.map.M; G.mons = [];
         if (M.hell) return spawnHell();
+        if (M.custom) {   // v134 특별 지역: 메이커에서 고른 몬스터 · 레벨 · 마릿수 (+ 보스)
+          if (M.bossMon) G.mons.push(makeMon(M.bossMon, M.rec + 2, true));
+          if (M.mon) for (let i = 0; i < M.n; i++) G.mons.push(makeMon(M.mon2 && i % 3 === 2 ? M.mon2 : M.mon, M.rec - 1 + (Math.random() < 0.5 ? 0 : 1)));
+          return;
+        }
         if (M.boss) {
           G.mons.push(makeMon(M.mon, M.rec + 2, true));
           const minion = D.MAPS.find(m => m.kind === 'field' && m.no === M.no - 1);
@@ -813,7 +818,7 @@
         pane = null; panel.hidden = true; G.paused = false;
         enter('v1', 'door');
         G.title = { t: 0, text: `${S.reb}번째 환생!`, sub: `Lv.1 · 스탯 포인트 ${S.sp}개를 받았어요 (스탯 창에서 나눠 주세요)` }; G.flash = 0.5; Fx.levelUp(G.px, G.py);
-        markDirty(true); save(true); submitRank(); if (net) net.retrack();
+        markDirty(true); save(true); G.lastSubmit = 0; submitRank(); if (net) net.retrack();   // v134 환생하자마자 환생 횟수 기록
       }
       function hellClear() {
         const H = G.hellRun; if (!H || H.phase === 'done') return; H.phase = 'done';
@@ -890,7 +895,7 @@
         Fx.death(m.x, m.y - m.spr.h / 2, m.def.colors, m.boss); Fx.coins(m.x, m.y - m.spr.h / 2, m.boss ? 14 : Math.min(6, 2 + Math.floor(m.gold / 40)));
         if (m.boss) { G.shake = 10; G.flash = 0.35; G.hitstop = 0.12; G.title = { t: 0, text: '보스 처치!', sub: m.name }; }
         // 떨어뜨리는 물건
-        const M = G.map.M, t = M.region, k = (M.no - 1) % 10, drops = [];
+        const M = G.map.M, t = M.dropR != null ? M.dropR : M.region, k = ((M.dropNo || M.no) - 1) % 10, drops = [];   // v134 특별 지역은 고른 몬스터의 사냥터 기준
         // v60 장비는 떨어질 때마다 새 장비(옵션 무작위) · 드랍률 올림: 보통 6% · 정예 2.5%(사냥터 4번째부터) · 물약 10%
         //  보스: 장비 1개 + 25% 로 1개 더 · 마지막 보스(사냥터 90) 35% 전설 · 마지막 사냥터 3곳(98~100) 0.3% 전설
         const gear = (rare, boss, tt) => { tt = tt == null ? t : tt; const ids = D.GEAR_BASE.filter(id => { const it = ITEMS[id]; return it.tier === tt && (tt >= 9 || it.rare === rare); }); const u = newUid(); S.gear[u] = { b: pick(ids), en: 0, op: rollOpts(tt, optCount(rare, boss, tt >= 9)) }; return regGear(u, S.gear[u]); };
@@ -1147,8 +1152,13 @@
         if (net) { const vx = (G.px - (G.lpx == null ? G.px : G.lpx)) / dt, vy = (G.py - (G.lpy == null ? G.py : G.lpy)) / dt; G.lpx = G.px; G.lpy = G.py; net.tick(dt, { x: G.px, y: G.py, vx, vy, face: G.face, lv: S.lv }); }
 
         // 출구 (v41: 벽 판정 때문에 끝 6px 까지 못 가서 안 넘어가던 것 → 끝 16px 안에 들어오면 넘어감)
-        if (G.px < 16 && map.exitL) { enter(map.exitL, 'R'); return; }
-        if (G.px > map.w * TS - 16 && map.exitR) { enter(map.exitR, 'L'); return; }
+        //  v134 출구마다 판정 (위·아래 출구 · 메이커 지도 연결 · 한쪽에 출구 여러 개) — 원래 왼쪽·오른쪽 출구는 예전 그대로 'R'·'L' 자리로
+        if (!G.room) {
+          const gt = gateAt(map, G.px, G.py);
+          if (gt) { const T = MAPBY[gt.to]; if (T) { enter(gt.to, T.kind === 'village' ? 'door' : gt.legacy ? (gt.side === 'l' ? 'R' : 'L') : { from: map.id }); return; } }
+          const dg = dungeonAt(map, G.px, G.py);
+          if (dg) { const T = MAPBY[dg.to]; if (T) { enter(dg.to, T.kind === 'village' ? 'door' : { from: map.id }); return; } if (!G.dgSaid) { G.dgSaid = true; say('이 던전 입구는 아직 아무 데도 이어지지 않았어요', 2.4); setTimeout(() => { G.dgSaid = false; }, 3000); } }
+        }
         // 건물 안: 아래 문으로 나감 · 사람 가까이 가면 대화
         if (G.room) {
           if (G.py > (map.exit.y + 0.25) * TS && G.px > map.exit.x0 * TS - 8 && G.px < (map.exit.x1 + 1) * TS + 8) { leaveRoom(); return; }
@@ -1262,7 +1272,14 @@
         c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
         // 출구 화살표 (움직이며 빛남)
         const arrows = (X, dir) => { for (let i = 0; i < 3; i++) { const yy = (map.mid - 0.5) * TS + i * 22, off = ((now / 300 + i * 0.3) % 1) * 14 * dir; c.globalAlpha = 0.5 + 0.4 * Math.sin(now / 200 + i); c.fillStyle = '#FFF6C2'; c.beginPath(); c.moveTo(X + off, yy); c.lineTo(X + off + dir * 14, yy + 7); c.lineTo(X + off, yy + 14); c.fill(); } c.globalAlpha = 1; };
-        if (map.exitL && cx < 80) arrows(14, -1); if (map.exitR && cx > map.w * TS - W - 80) arrows(map.w * TS - 14, 1);
+        const arrowsV = (Y, xc, dir) => { for (let i = 0; i < 3; i++) { const xx = xc - 33 + i * 22, off = ((now / 300 + i * 0.3) % 1) * 14 * dir; c.globalAlpha = 0.5 + 0.4 * Math.sin(now / 200 + i); c.fillStyle = '#FFF6C2'; c.beginPath(); c.moveTo(xx, Y + off); c.lineTo(xx + 7, Y + off + dir * 14); c.lineTo(xx + 14, Y + off); c.fill(); } c.globalAlpha = 1; };
+        (map.gates || []).forEach(g => {   // v134 출구마다 화살표 (위·아래·옆)
+          const m2 = (g.a0 + g.a1 + 1) / 2;
+          if (g.side === 'l' && cx < 80) { if (g.legacy) arrows(14, -1); else { const yy0 = (m2 - 1) * TS; for (let i = 0; i < 3; i++) { const yy = yy0 + i * 22, off = ((now / 300 + i * 0.3) % 1) * -14; c.globalAlpha = 0.5 + 0.4 * Math.sin(now / 200 + i); c.fillStyle = '#FFF6C2'; c.beginPath(); c.moveTo(14 + off, yy); c.lineTo(off, yy + 7); c.lineTo(14 + off, yy + 14); c.fill(); } c.globalAlpha = 1; } }
+          else if (g.side === 'r' && cx > map.w * TS - W - 80) { if (g.legacy) arrows(map.w * TS - 14, 1); else { const yy0 = (m2 - 1) * TS, X = map.w * TS - 14; for (let i = 0; i < 3; i++) { const yy = yy0 + i * 22, off = ((now / 300 + i * 0.3) % 1) * 14; c.globalAlpha = 0.5 + 0.4 * Math.sin(now / 200 + i); c.fillStyle = '#FFF6C2'; c.beginPath(); c.moveTo(X + off, yy); c.lineTo(X + off + 14, yy + 7); c.lineTo(X + off, yy + 14); c.fill(); } c.globalAlpha = 1; } }
+          else if (g.side === 'u' && cy < 80) arrowsV(24, m2 * TS, -1);
+          else if (g.side === 'd' && cy > map.h * TS - H - 80) arrowsV(map.h * TS - 24, m2 * TS, 1);
+        });
         // 바닥 효과
         Fx.drawFx(c, true, now);
         G.pools.forEach(p => Fx.drawPool(c, p, now));
@@ -1302,9 +1319,15 @@
         c.globalAlpha = 1;
         // 출구 이름
         c.font = '13px "Jua", "Malgun Gothic", sans-serif';
-        const ex = (id, x, al) => { const M = MAPBY[id]; const t = (al === 'left' ? '← ' : '') + (M.kind === 'village' ? M.name : `${M.no}. ${M.name} (Lv.${M.rec})`) + (al === 'right' ? ' →' : ''), y = (map.mid + 3.4) * TS; c.textAlign = al; c.lineWidth = 3; c.strokeStyle = '#1D2340'; c.strokeText(t, x, y); c.fillStyle = '#FFFFFF'; c.fillText(t, x, y); };
-        if (map.exitL && cx <= 4) ex(map.exitL, 8, 'left');
-        if (map.exitR && cx >= map.w * TS - W - 4) ex(map.exitR, map.w * TS - 8, 'right');
+        const mapLabel = M => (M.kind === 'village' ? M.name : M.custom ? `${M.name} (Lv.${M.rec})` : `${M.no}. ${M.name} (Lv.${M.rec})`);
+        const ex = (id, x, al, yy, pre, post) => { const M = MAPBY[id]; if (!M) return; const t = (pre || (al === 'left' ? '← ' : '')) + mapLabel(M) + (post || (al === 'right' ? ' →' : '')), y = yy == null ? (map.mid + 3.4) * TS : yy; c.textAlign = al; c.lineWidth = 3; c.strokeStyle = '#1D2340'; c.strokeText(t, x, y); c.fillStyle = '#FFFFFF'; c.fillText(t, x, y); };
+        (map.gates || []).forEach(g => {   // v134 출구 이름 (위·아래·옆)
+          const m2 = (g.a0 + g.a1 + 1) / 2;
+          if (g.side === 'l' && cx <= 4) ex(g.to, 8, 'left', g.legacy ? null : (m2 + 2.9) * TS);
+          else if (g.side === 'r' && cx >= map.w * TS - W - 4) ex(g.to, map.w * TS - 8, 'right', g.legacy ? null : (m2 + 2.9) * TS);
+          else if (g.side === 'u') ex(g.to, m2 * TS, 'center', 2.1 * TS, '↑ ', ' ');
+          else if (g.side === 'd') ex(g.to, m2 * TS, 'center', (map.h - 1.5) * TS, '↓ ', ' ');
+        });
         c.restore();
         // 지역 분위기 (어두운 지역은 나·빛나는 것 둘레만 밝게)
         glowLights.length = 0;
@@ -1650,7 +1673,7 @@
         for (let i = 1; i < 10; i++) { c.fillStyle = 'rgba(10,14,36,.6)'; c.fillRect(W * i / 10, H - 7, 1, 6); }
         c.font = '10px "Jua", sans-serif'; c.textAlign = 'right'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; const et = S.lv >= D.MAX_LV ? '만렙!' : `경험치 ${(ex * 100).toFixed(1)}%`; c.strokeText(et, W - 6, H - 11); c.fillStyle = '#FFF3B0'; c.fillText(et, W - 6, H - 11);
         // 위 가운데: 지도 이름
-        const t = M.kind !== 'field' || M.hell ? M.name : `사냥터 ${M.no}. ${M.name}`, rec = M.kind === 'room' ? MAPBY[S.map].name + ' · 건물 안' : M.kind === 'village' ? '마을' : `권장 Lv.${M.rec}`;
+        const t = M.kind !== 'field' || M.hell || M.custom ? M.name + (M.test ? ' 🔒' : '') : `사냥터 ${M.no}. ${M.name}`, rec = M.kind === 'room' ? MAPBY[S.map].name + ' · 건물 안' : M.kind === 'village' ? '마을' : `권장 Lv.${M.rec}`;
         c.font = '17px "Jua", "Malgun Gothic", sans-serif'; const tw = Math.max(c.measureText(t).width, 90) + 56;
         bannerBox(c, W / 2, 9, tw, 40);   // v127 두루마리 띠
         c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; c.strokeText(t, W / 2, 23); c.fillStyle = '#FFF3D6'; c.fillText(t, W / 2, 23);
@@ -1786,7 +1809,7 @@
         if (!Hub.user) return;
         const now = Date.now(); if (now - G.lastSubmit < 4000 && !pd) return; G.lastSubmit = now;
         const sec = Math.min(86400, Math.round(S.play - G.playMark)); G.playMark = S.play;
-        try { await Hub.submitScore({ game_id: GAME, score: rankScore(), duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills, hell: S.hell ? hellTxt(S.hell) : null } }); loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }
+        try { await Hub.submitScore({ game_id: GAME, score: rankScore(), duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills, hell: S.hell ? hellTxt(S.hell) : null, reb: S.reb || 0 } }); loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }   // v134 환생 횟수(reb)도 기록 (메인 카드 '환생 1위')
       }
       function bossReward() { const p = (CFG.points && CFG.points.boss) || 0; if (p) { submitRank(p); A.toast(`보스 처치! +${p}P`); } }
       async function loadRank() {
@@ -2313,10 +2336,17 @@
       const onOrient = () => setTimeout(fitScreen, 250);
       window.addEventListener('orientationchange', onOrient);
 
+      /* ================= v134 메이커 공식 맵 불러오기 ================= */
+      async function loadCustom() {
+        if (!Hub.mapAll || !registerCustom) return;
+        try { const rows = await Promise.race([Hub.mapAll(), new Promise(r => setTimeout(() => r(null), 5000))]); if (rows) registerCustom(rows, Hub.isAdmin && Hub.isAdmin()); }
+        catch (e) { console.warn('[rpg] 메이커 지도 불러오기 실패', e.message); }
+      }
+
       /* ================= 시작 ================= */
       (async () => {
         loadingText = '그림 불러오는 중…';
-        const [s] = await Promise.all([Store.load(), loadImages(6000)]); if (!alive) return; loadingText = '';
+        const [s] = await Promise.all([loadCustom().then(() => Store.load()), loadImages(6000)]); if (!alive) return; loadingText = '';   // v134 메이커 공식 맵을 먼저 등록 (저장된 자리가 특별 지역일 수 있음)
         S = s; restat(); if (!S.hp) S.hp = ST.hp; if (!S.mp) S.mp = ST.mp;
         G.touch = window.matchMedia && matchMedia('(pointer: coarse)').matches;
         enter(S.map, S.x ? 'pos' : 'L');

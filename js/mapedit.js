@@ -86,6 +86,11 @@
     let tool = { kind: 'tile', v: 0 }, brush = 1, mode = 'paint', zoom = 0.75, grid = true;
     const undo = [], redo = [];
     const regions = D.REGIONS.map((r, i) => [i, r.name]);
+    // v134 몬스터 고르기: 게임 사냥터의 몬스터를 빌려 씀 (값 = 사냥터 아이디) · 보스 칸은 보스 사냥터를 먼저
+    const monOpts = bossFirst => D.REGIONS.map((R, ri) => {
+      const fs = D.MAPS.filter(m => m.kind === 'field' && !m.hell && m.region === ri && m.mon).sort((a, b) => bossFirst ? (b.boss - a.boss) || a.no - b.no : a.no - b.no);
+      return `<optgroup label="${ui.esc(R.name)}">${fs.map(m => `<option value="${m.id}">${ui.esc(m.mon.name)}${m.boss ? ' 👑' : ''} · ${m.no}번 사냥터 Lv.${m.rec}</option>`).join('')}</optgroup>`;
+    }).join('');
 
     root.innerHTML = `
       <div class="mapedit">
@@ -109,6 +114,7 @@
             <button type="button" class="btn" data-act="list">공식 맵 불러오기</button>
             <button type="button" class="btn btn-sun" data-act="official">✅ 공식 맵으로 저장·반영</button>
             <button type="button" class="btn" data-act="return" id="meReturn">↩ 돌려보내기</button>
+            <label class="me-chk"><input type="checkbox" id="mePub"> 🌏 공개 (끄면 관리자만 들어가 시험)</label>
             <a class="btn" href="#mapadmin">맵 관리로</a>
           </div>` : ''}
         </div>
@@ -129,8 +135,16 @@
             <label class="me-chk"><input type="checkbox" id="meGrid" checked> 칸 줄 보기</label>
             <h3>출구 (켜면 가장자리에 길이 뚫려요)</h3>
             <div class="me-exits">${EXITS.map(([k, n]) => `<label><input type="checkbox" data-exit="${k}"> ${n} → <input type="text" data-exitto="${k}" placeholder="갈 맵 (예: f2)" maxlength="40"></label>`).join('')}</div>
+            <p class="me-hint">갈 맵: 마을 v1~v9 · 사냥터 f1~f90 · 다른 공식 맵 아이디. 게임에서는 갈 맵 쪽에도 돌아오는 길이 저절로 생겨요 (마을은 한쪽으로만).</p>
             <h3>던전 통로 (던전 입구 → 갈 곳)</h3>
             <div class="me-exits" id="meDgList"></div>
+            <h3>몬스터 (게임에서 나올 몬스터)</h3>
+            <div class="me-mons">
+              <label>몬스터 <select data-mon="mob"><option value="">없음 (안 나옴)</option>${monOpts()}</select></label>
+              <label>섞일 몬스터 <select data-mon="mob2"><option value="">없음</option>${monOpts()}</select></label>
+              <label>보스 <select data-mon="boss"><option value="">없음</option>${monOpts(true)}</select></label>
+              <div class="me-mrow"><label>레벨 <input type="number" data-mon="lv" min="1" max="${D.MAX_LV}" placeholder="자동"></label><label>마릿수 <input type="number" data-mon="n" min="0" max="30" placeholder="18"></label></div>
+            </div>
             <p class="me-hint">Ctrl+Z 되돌리기 · Ctrl+Y 다시 · 칠한 것은 이 브라우저에 자동으로 임시 저장돼요.</p>
           </aside>
           <div class="me-stage panel">
@@ -191,6 +205,8 @@
       $$('[data-mode]', root).forEach(b => b.setAttribute('aria-pressed', String(mode === b.dataset.mode)));
       $$('[data-brush]', root).forEach(b => b.setAttribute('aria-pressed', String(brush === +b.dataset.brush)));
       $$('[data-zoom]', root).forEach(b => b.setAttribute('aria-pressed', String(zoom === +b.dataset.zoom)));
+      const mo = def.mons || {}; $$('[data-mon]', root).forEach(el => { const v = mo[el.dataset.mon]; el.value = v == null ? '' : v; });
+      const pb = $('#mePub', root); if (pb) pb.checked = !!def.pub;
       EXITS.forEach(([k]) => { const c = $(`[data-exit="${k}"]`, root), t = $(`[data-exitto="${k}"]`, root); c.checked = !!(def.exits && k in def.exits); t.value = (def.exits && def.exits[k]) || ''; t.disabled = !c.checked; });
     }
 
@@ -327,6 +343,15 @@
       $(`[data-exitto="${k}"]`, root).addEventListener('input', e => { if (def.exits && k in def.exits) { def.exits[k] = e.target.value.trim(); drawOver(); saveDraft(); } });
     });
     const idOk = id => /^[a-z0-9_-]{2,40}$/.test(id);
+    // v134 몬스터 · 공개
+    $$('[data-mon]', root).forEach(el => el.addEventListener('change', () => {
+      const mo = def.mons = Object.assign({}, def.mons || {}), k = el.dataset.mon, v = el.value.trim();
+      if (k === 'lv' || k === 'n') { if (v === '') delete mo[k]; else mo[k] = Math.max(k === 'n' ? 0 : 1, Math.min(k === 'n' ? 30 : D.MAX_LV, Math.floor(+v || 0))); }
+      else if (v) mo[k] = v; else delete mo[k];
+      if (k === 'mob' && v && mo.lv == null) { const F = D.MAPS.find(m => m.id === v); if (F) mo.lv = F.rec; }
+      syncBtns(); saveDraft();
+    }));
+    const pubEl = $('#mePub', root); if (pubEl) pubEl.addEventListener('change', () => { def.pub = pubEl.checked; saveDraft(); });
     const list = $('#meList', root);
     async function showMine() {
       if (!Hub.user) { ui.toast('로그인하면 내 지도를 볼 수 있어요'); if (ui.openAuth) ui.openAuth('login'); return; }
