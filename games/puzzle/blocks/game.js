@@ -57,7 +57,8 @@
   function Engine(opt) {
     opt = opt || {};
     const rnd = opt.seed != null ? mulberry32(opt.seed) : Math.random;
-    const e = { grid: null, cur: null, queue: [], hold: null, canHold: true, score: 0, lines: 0, level: 1, sent: 0, over: false, acc: 0, pending: [], elapsed: 0, hidePieces: 0 };
+    const e = { grid: null, cur: null, queue: [], hold: null, canHold: true, score: 0, lines: 0, level: 1, sent: 0, over: false, acc: 0, pending: [], elapsed: 0, hidePieces: 0, ground: 0 };
+    const LOCK_MS = opt.lockMs != null ? opt.lockMs : 200;   // v146 바닥에 닿은 뒤 0.2초 기다렸다 붙음 (선생님 11/14) · 그 사이 움직이거나 돌리면 다시 0.2초
     let bag = [];
     // 다음 블록: 5개까지 미리 보임 (e.next = 바로 다음 1개)
     Object.defineProperty(e, 'next', { get: () => e.queue[0] || null });
@@ -80,7 +81,7 @@
     };
     function topOut() { if (e.over) return; e.over = true; opt.onTopOut && opt.onTopOut(); }
     function place(p) {
-      e.cur = p; e.cur.x = ((COLS - e.cur.m[0].length) / 2) | 0; e.cur.y = e.cur.k === 'I' ? -1 : 0;
+      e.cur = p; e.cur.x = ((COLS - e.cur.m[0].length) / 2) | 0; e.cur.y = e.cur.k === 'I' ? -1 : 0; e.ground = 0;
       if (e.hit(e.cur.m, e.cur.x, e.cur.y)) topOut();
     }
     function spawn() {
@@ -108,13 +109,13 @@
     e.interval = () => Math.max(90, 800 - (e.level - 1) * 65) / (opt.speed || 1);   // v58: opt.speed = 빠르기 배수 (랭킹 대전 1.5)
     e.move = function (dx, dy) {
       if (e.over || e.hit(e.cur.m, e.cur.x + dx, e.cur.y + dy)) return false;
-      e.cur.x += dx; e.cur.y += dy; return true;
+      e.cur.x += dx; e.cur.y += dy; e.ground = 0; return true;   // v146 움직이면 붙기 기다림을 처음부터
     };
     e.rotate = function (ccw) {
       if (e.over) return;
       // v50: 기본 회전(↑·W·탭)은 반시계방향, 반대 키(Z·Q·/)는 시계방향 (선생님 요청)
       let m = rotCW(rotCW(rotCW(e.cur.m))); if (ccw) m = rotCW(rotCW(m));
-      for (const [ox, oy] of KICKS) if (!e.hit(m, e.cur.x + ox, e.cur.y + oy)) { e.cur.m = m; e.cur.x += ox; e.cur.y += oy; return; }
+      for (const [ox, oy] of KICKS) if (!e.hit(m, e.cur.x + ox, e.cur.y + oy)) { e.cur.m = m; e.cur.x += ox; e.cur.y += oy; e.ground = 0; return; }
     };
     // 받은 공격 줄을 바닥에서 밀어 올림 (한 번의 공격마다 빈칸 위치는 무작위)
     function applyGarbage() {
@@ -156,13 +157,16 @@
       spawn();
       opt.onLock && opt.onLock();
     }
-    e.soft = function () { if (e.over) return; if (e.move(0, 1)) { e.score += 1; e.acc = 0; } else lock(); };
+    e.soft = function () { if (e.over) return; if (e.move(0, 1)) { e.score += 1; e.acc = 0; } };   // v146 바닥에서 ↓ 는 바로 붙지 않음 (0.2초 뒤 붙음) · Space 는 바로 붙음
     e.hard = function () { if (e.over) return; let n = 0; while (e.move(0, 1)) n++; e.score += n * 2; lock(); };
     e.update = function (dt) {
       if (e.over) return;
       e.elapsed += dt; e.acc += dt;
       if (opt.levelFn) e.level = opt.levelFn(e);
-      if (e.acc >= e.interval()) { e.acc = 0; if (!e.move(0, 1)) lock(); }
+      if (e.acc >= e.interval()) { e.acc = 0; e.move(0, 1); }
+      // v146 바닥(또는 블록 위)에 닿아 있으면 0.2초 세고 붙임 · 움직이거나 돌리면 e.ground = 0 으로 다시 셈
+      if (e.hit(e.cur.m, e.cur.x, e.cur.y + 1)) { e.ground += dt; if (e.ground >= LOCK_MS) { e.ground = 0; lock(); } }
+      else e.ground = 0;
     };
     e.addGarbage = n => { if (!e.over && n > 0) e.pending.push(n); };
     /* ---- v96 아이템전 ---- */

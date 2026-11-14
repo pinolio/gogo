@@ -294,6 +294,10 @@
     '왜군 정예병': 'wae_samurai', '왜군 조총 정예': 'wae_gun', '왜성 수문장': 'wae_general' };
   const WAE_MIX = [['왜군 궁수', 'wae_bow', 'shoot'], ['왜군 창병', 'wae_spear', 'aggro'], ['왜군 조총병', 'wae_gun', 'shoot'], ['낭인 무사', 'wae_ronin', 'aggro'], ['왜군 첩자', 'wae_ninja', 'aggro'],
     ['왜군 깃발병', 'wae_flag', 'aggro'], ['왜군 북잡이', 'wae_drum', 'aggro'], ['왜군 승병', 'wae_monk', 'aggro'], ['왜장 무사', 'wae_samurai', 'aggro'], ['왜군 조총대장', 'wae_captain', 'shoot'], ['왜군 기마무사', 'wae_cavalry', 'aggro']];
+  /* v146 선생님 그림: 도트로만 그리던 장승 3종 · 구미호 5종 → 그림 (img/v79/dot_*.png, 선생님 그림에서 잘라 배경 지움 · 모두 오른쪽을 봄) */
+  const DOT_IMG = { '장승 요괴': ['dot_jang8', 60], '바닷가 장승': ['dot_jang33', 60], '산성 장승': ['dot_jang43', 60],
+    '구미호': ['dot_fox15', 58], '잿빛 여우 요괴': ['dot_fox26', 58], '설산 구미호': ['dot_fox54', 58], '보라 구미호': ['dot_fox64', 58], '하늘 구미호': ['dot_fox75', 58] };
+  MAPS.forEach(m => { const d = m.kind === 'field' && !m.hell && m.mon && DOT_IMG[m.mon.name]; if (d) { m.mon.img79 = d[0]; m.mon.h = d[1]; } });
   MAPS.forEach(m => {
     if (m.kind !== 'field' || m.hell || !m.mon) return;
     if (WAE_IMG[m.mon.name]) { m.mon.img79 = WAE_IMG[m.mon.name]; if (m.mon.img79 === 'wae_cavalry') m.mon.h = 72; }

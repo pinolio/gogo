@@ -494,6 +494,66 @@
   .rg-defgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 8px; }
   .rg-defgrid div { background: #141A3C; border: 2px solid #0A0E24; border-radius: 8px; padding: 3px 4px; text-align: center; font-size: 11px; }
   .rg-defgrid b { display: block; font: 14px var(--f-display); color: #FFFFFF; }
+  /* v146 금테 꾸미기 — 스탯 창·가방 창과 같은 느낌을 다른 창(마법·대장간·약방·서원·이장 댁·역참·저승문·거래·채널 등)에도 (선생님 11/14) */
+  .rg-panel.rg-deco { --gold: #C9A24A; --gold2: #F3D27A; --steel: #8FA6C8; border: 3px solid var(--gold); box-shadow: 0 0 0 3px #0A0E24, inset 0 0 0 2px #0A0E24, inset 0 0 0 4px rgba(243,210,122,.22), 0 8px 0 rgba(0,0,0,.35);
+    background: radial-gradient(circle at 10px 10px, var(--gold2) 3px, transparent 4px), radial-gradient(circle at calc(100% - 10px) 10px, var(--gold2) 3px, transparent 4px), radial-gradient(circle at 10px calc(100% - 10px), var(--gold2) 3px, transparent 4px), radial-gradient(circle at calc(100% - 10px) calc(100% - 10px), var(--gold2) 3px, transparent 4px),
+      radial-gradient(ellipse at 50% 0%, rgba(120,210,230,.16), transparent 55%), linear-gradient(180deg, rgba(23,36,70,.98), rgba(10,16,36,.98)); padding: 14px 18px; }
+  .rg-deco h3 { color: var(--gold2); font-size: 24px; text-shadow: 0 2px 0 #0A0E24, 0 0 8px rgba(243,210,122,.35); padding-bottom: 8px; margin-bottom: 8px; position: relative; }
+  .rg-deco h3::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 2px; background: linear-gradient(90deg, transparent, #9A6E22 6%, var(--gold2) 50%, #9A6E22 94%, transparent); }
+  .rg-deco h3 .x { background: linear-gradient(180deg, #2C3A66, #1A2446); border: 2px solid var(--steel); box-shadow: 0 0 0 1px #0A0E24; font-family: inherit; }
+  .rg-deco .sub { color: #C9D0F0; }
+  .rg-deco .rg-tabs button { background: linear-gradient(180deg, #2C3A66, #1A2446); color: #FFFFFF; border: 2px solid var(--steel); box-shadow: 0 0 0 1px #0A0E24, inset 0 1px 0 rgba(255,255,255,.2); padding: 6px 14px; font-size: 14px; }
+  .rg-deco .rg-tabs button[aria-pressed="true"] { background: linear-gradient(180deg, var(--gold2), #C8922E); color: #1D2340; border-color: #6B4A12; box-shadow: 0 0 0 1px #0A0E24, inset 0 2px 0 rgba(255,255,255,.4), 0 0 8px rgba(243,210,122,.4); font-weight: 700; }
+  .rg-deco .rg-tabs .rg-mini:not(.ghost):not(.on) { background: linear-gradient(180deg, var(--gold2), #C8922E); color: #1D2340; border-color: #6B4A12; font-weight: 700; }
+  .rg-deco .rg-row { position: relative; --c: var(--gold); background: linear-gradient(90deg, color-mix(in srgb, var(--c) 16%, #141F3C), #0E1530 55%); border: 2px solid var(--c); border-radius: 6px; padding: 8px 12px 8px 14px; box-shadow: 0 0 0 2px #0A0E24, inset 0 0 0 1px rgba(0,0,0,.4); }
+  .rg-deco .rg-row::before { content: ''; position: absolute; left: -2px; top: 6px; bottom: 6px; width: 4px; border-radius: 2px; background: var(--c); box-shadow: 0 0 8px var(--c); }
+  .rg-deco .rg-list > .rg-row:nth-child(even):not([style*="--c"]) { --c: var(--steel); }
+  .rg-deco .rg-row:hover { border-color: var(--gold2); }
+  .rg-deco .rg-row .nm { font-size: 15px; } .rg-deco .rg-row .ds { color: #DDE2F5; }
+  .rg-deco .rg-row.sel { outline: none; border-color: var(--gold2); box-shadow: 0 0 0 2px #0A0E24, 0 0 0 4px rgba(243,210,122,.55), 0 0 14px rgba(243,210,122,.45); }
+  .rg-deco .rg-row.ask { --c: #FF5A5F; }
+  .rg-deco .rg-row.off { opacity: .6; }
+  .rg-deco .rg-mini { border: 2px solid #6B4A12; box-shadow: 0 0 0 1px #0A0E24, inset 0 2px 0 rgba(255,255,255,.4); background: linear-gradient(180deg, var(--gold2), #C8922E); color: #1D2340; font-weight: 700; padding: 6px 12px; }
+  .rg-deco .rg-mini.ghost { background: linear-gradient(180deg, #2C3A66, #1A2446); color: #FFFFFF; border-color: var(--steel); box-shadow: 0 0 0 1px #0A0E24, inset 0 1px 0 rgba(255,255,255,.2); font-weight: 400; }
+  .rg-deco .rg-mini[disabled] { background: linear-gradient(180deg, #2C3A66, #1A2446); color: #9AE6FF; border-color: #4A5A8A; opacity: 1; box-shadow: 0 0 0 1px #0A0E24; }
+  .rg-deco .rg-mini.on { background: linear-gradient(180deg, #8AF5B5, #2FB868); border-color: #135A32; color: #0A2A18; }
+  .rg-deco .rg-mini.warn, .rg-deco .rg-mini.duel { background: linear-gradient(180deg, #FF9A9E, #D2343A); border-color: #5A1018; color: #FFFFFF; }
+  .rg-deco .rg-sk, .rg-deco .rg-row .rg-ic { border: 2px solid var(--gold); box-shadow: 0 0 0 2px #0A0E24, 0 0 6px rgba(243,210,122,.3); border-radius: 6px; }
+  .rg-deco .rg-npc { border: 2px solid var(--gold); border-radius: 6px; background: linear-gradient(90deg, rgba(243,210,122,.14), rgba(14,26,48,.6)); box-shadow: 0 0 0 2px #0A0E24; }
+  .rg-deco .rg-npc img { border: 2px solid var(--gold); box-shadow: 0 0 0 2px #0A0E24; background: radial-gradient(circle at 50% 50%, #24566A, #0E2434 78%); }
+  .rg-deco .rg-bagup { border: 2px solid var(--gold2); border-radius: 6px; box-shadow: 0 0 0 2px #0A0E24, 0 0 12px rgba(243,210,122,.25); background: linear-gradient(90deg, #2A4A9A, #172A47); }
+  .rg-deco .rg-fuse { border: 2px solid #B57BFF; border-radius: 6px; background: linear-gradient(180deg, #2A1F4E, #150F30); box-shadow: 0 0 0 2px #0A0E24; }
+  /* 마법 창: 위 = 기본 1~4 · 융합 QWER 두 칸 판 */
+  .rg-skbar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 12px; }
+  .rg-skset { position: relative; border: 2px solid var(--gold); border-radius: 6px; padding: 10px 12px 12px; box-shadow: 0 0 0 2px #0A0E24, inset 0 0 0 2px #0A0E24;
+    background: radial-gradient(circle at 7px 7px, var(--gold2) 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) 7px, var(--gold2) 2px, transparent 3px), radial-gradient(circle at 7px calc(100% - 7px), var(--gold2) 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), var(--gold2) 2px, transparent 3px), linear-gradient(180deg, #172A47, #0E1A30); }
+  .rg-skset.fu { --gold: #B57BFF; --gold2: #E7A6FF; background: radial-gradient(circle at 7px 7px, #E7A6FF 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) 7px, #E7A6FF 2px, transparent 3px), radial-gradient(circle at 7px calc(100% - 7px), #E7A6FF 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #E7A6FF 2px, transparent 3px), linear-gradient(180deg, #24183F, #120C28); }
+  .rg-skset h4 { margin: 0 0 8px; font: 17px var(--f-display); color: var(--gold2); text-shadow: 0 2px 0 #0A0E24; } .rg-skset h4 small { color: #C9D0F0; font-size: 12px; font-family: inherit; margin-left: 4px; }
+  .rg-skset .rg-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0; }
+  .rg-deco .rg-slot { position: relative; display: grid; justify-items: center; align-content: start; gap: 4px; padding: 14px 4px 6px; min-height: 92px; text-align: center; font-size: 12px; line-height: 1.2; border: 2px solid var(--gold); border-radius: 6px; background: radial-gradient(circle at 50% 38%, rgba(120,210,230,.25), transparent 60%), #0E1A30; box-shadow: 0 0 0 2px #0A0E24; }
+  .rg-deco .rg-slot b { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); min-width: 22px; padding: 1px 6px; border: 2px solid #6B4A12; border-radius: 4px; background: linear-gradient(180deg, var(--gold2), #C8922E); color: #1D2340; font: 13px var(--f-display); box-shadow: 0 0 0 1px #0A0E24; }
+  .rg-deco .rg-slot .rg-sk { width: 46px; height: 46px; }
+  .rg-deco .rg-slot i { color: #9AE6FF; padding: 14px 0 0; font-size: 12px; }
+  .rg-deco .rg-slot i::before { content: '＋'; display: block; font-size: 22px; color: var(--gold2); opacity: .7; }
+  .rg-deco .rg-row .keys { display: flex; gap: 6px; } .rg-deco .rg-row .keys .rg-mini { min-width: 38px; height: 36px; padding: 0 8px; font: 15px var(--f-display); }
+  /* 대장간 */
+  .rg-deco .rg-forge { gap: 14px; }
+  .rg-deco .rg-forge > .rg-list { border: 2px solid var(--steel); border-radius: 6px; padding: 10px; background: linear-gradient(180deg, #172A47, #0E1A30); box-shadow: 0 0 0 2px #0A0E24; max-height: 360px; align-content: start; }
+  .rg-deco .rg-anvil { border: 2px solid var(--gold); border-radius: 6px; box-shadow: 0 0 0 2px #0A0E24, inset 0 0 0 2px #0A0E24; padding: 12px 14px;
+    background: radial-gradient(circle at 7px 7px, var(--gold2) 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) 7px, var(--gold2) 2px, transparent 3px), radial-gradient(circle at 7px calc(100% - 7px), var(--gold2) 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), var(--gold2) 2px, transparent 3px), radial-gradient(circle at 50% 18%, rgba(255,138,61,.3), transparent 60%), linear-gradient(180deg, #2A1E30, #120E22); }
+  .rg-deco .rg-forgeh { margin: 0 0 8px; font: 16px var(--f-display); color: var(--gold2); text-shadow: 0 2px 0 #0A0E24; }
+  .rg-deco .rg-anvil .big { padding: 10px; border: 2px solid var(--gold); border-radius: 6px; background: rgba(10,14,36,.55); box-shadow: 0 0 0 2px #0A0E24; }
+  .rg-deco .rg-anvil .big .rg-ic { width: 72px; height: 72px; }
+  .rg-deco .rg-anvil .ladder { gap: 4px; margin: 12px 0 8px; }
+  .rg-deco .rg-anvil .ladder span { font-size: 12px; padding: 4px 0; border-radius: 4px; border: 2px solid #2A3A66; background: linear-gradient(180deg, #1C2850, #10183A); box-shadow: 0 0 0 1px #0A0E24; color: #DDE2F5; }
+  .rg-deco .rg-anvil .ladder span.done { background: linear-gradient(180deg, var(--gold2), #C8922E); border-color: #6B4A12; color: #1D2340; }
+  .rg-deco .rg-anvil .ladder span.next { background: linear-gradient(180deg, #FFB86B, #FF6A3D); border-color: #FFE7A0; color: #1D2340; font-weight: 700; }
+  .rg-deco .rg-anvil .ladder span.risk { box-shadow: 0 0 0 1px #0A0E24, inset 0 -4px 0 #FF3A3A; }
+  .rg-deco .rg-anvil .go { border: 2px solid #6B4A12; border-radius: 6px; box-shadow: 0 0 0 2px #0A0E24, inset 0 2px 0 rgba(255,255,255,.4), 0 4px 0 #0A0E24; }
+  /* 이장 댁 지역 묶음 */
+  .rg-deco .rg-region { border: 2px solid var(--steel); border-radius: 6px; padding: 8px 10px 4px; margin-top: 10px; background: linear-gradient(180deg, #172A47, #0E1A30); box-shadow: 0 0 0 2px #0A0E24; }
+  .rg-deco .rg-region > b { display: block; font: 16px var(--f-display); color: var(--gold2); margin-bottom: 4px; text-shadow: 0 2px 0 #0A0E24; }
+  @media (max-width: 760px) { .rg-skbar { grid-template-columns: 1fr; } .rg-deco .rg-slot { min-height: 80px; } }
   @media (max-width: 640px) { .rg-forge { grid-template-columns: 1fr; } .rg-defgrid { grid-template-columns: repeat(3, 1fr); } }
   @media (max-height: 520px) {   /* 휴대폰 가로: 게임판을 화면 높이에 꽉 차게 */
     .rg-page .cabinet { max-width: min(100%, calc((100svh - 14px) * 1.7778 + 8px)); padding: 3px; border-radius: 8px; border-width: 2px; }
@@ -784,14 +844,16 @@
         S.hp = 0; D2.st = 'end'; D2.t = 0; D2.win = false; D2.why = why || 'ko';
         net.trade({ k: 'dend', to: D2.opp, id: D2.id });
         S.duel = S.duel || { w: 0, l: 0 }; S.duel.l++;
-        G.title = { t: 0, text: '패배…', sub: `${D2.nick}님이 이겼어요${D2.bet ? ` · 배팅 ${fmtN(D2.bet)}G 를 잃었어요` : ''}` };
+        D2.winner = D2.nick; D2.sub = D2.bet ? `배팅 ${fmtN(D2.bet)}G 를 잃었어요` : '친선전';   // v146 결과 창(drawDuelHud)에 승리자 · 3초 뒤 복귀 안내
+        G.title = null;
         G.shake = 8; G.flash = 0.3; markDirty(true);
       }
       function duelWin(why) {
         const D2 = G.duel; if (!D2 || D2.st === 'end') return;
         D2.st = 'end'; D2.t = 0; D2.win = true; D2.why = why;
         S.gold += D2.bet * 2; S.duel = S.duel || { w: 0, l: 0 }; S.duel.w++;
-        G.title = { t: 0, text: '승리!', sub: (why === 'left' ? `${D2.nick}님이 결투장을 나갔어요` : `${D2.nick}님을 이겼어요`) + (D2.bet ? ` · +${fmtN(D2.bet * 2)}G` : '') };
+        D2.winner = (Hub.user ? Hub.user.nickname : '나'); D2.sub = (why === 'left' ? `${D2.nick}님이 결투장을 나갔어요` : `${D2.nick}님을 이겼어요`) + (D2.bet ? ` · +${fmtN(D2.bet * 2)}G` : '');   // v146
+        G.title = null;
         Fx.levelUp(G.px, G.py); Fx.coins(G.px, G.py - 30, D2.bet ? 12 : 4); G.flash = 0.3;
         save(true); recordDuel(D2, why);
       }
@@ -884,6 +946,20 @@
         bar2(W / 2 + 40, L ? D2.oppHp : me, L ? D2.nick : myName, L ? '#FF5A5F' : '#3DDC84', true);
         c.font = '22px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = '#0A0E24'; c.strokeText('VS', W / 2, y + 22); c.fillStyle = '#FFD23F'; c.fillText('VS', W / 2, y + 22);
         if (D2.bet) { c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.strokeText(`배팅 ${fmtN(D2.bet)}G × 2`, W / 2, y + 44); c.fillStyle = '#FFE9A8'; c.fillText(`배팅 ${fmtN(D2.bet)}G × 2`, W / 2, y + 44); }
+        if (D2.st === 'end') {   // v146 결투 결과: 승리자 · 3초 뒤 원래 자리로 (선생님 11/14)
+          const left = Math.max(1, Math.ceil(DCFG.backSec - D2.t)), bw2 = Math.min(W - 40, 440), bh2 = 150, bx = W / 2 - bw2 / 2, by = H * 0.36 - bh2 / 2;
+          c.save(); c.fillStyle = 'rgba(10,14,36,.45)'; c.fillRect(0, 0, W, H);
+          panelBox(c, bx, by, bw2, bh2, 10);
+          c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 5; c.strokeStyle = '#0A0E24';
+          c.font = '34px "Jua", "Malgun Gothic", sans-serif'; const head = D2.win ? '🏆 승리!' : '패배…';
+          c.strokeText(head, W / 2, by + 30); c.fillStyle = D2.win ? '#FFD23F' : '#FF8A8E'; c.fillText(head, W / 2, by + 30);
+          c.font = '20px "Jua", "Malgun Gothic", sans-serif'; const wl = `승리자 : ${D2.winner || ''}`;
+          c.strokeText(wl, W / 2, by + 66); c.fillStyle = '#FFFFFF'; c.fillText(wl, W / 2, by + 66);
+          c.font = '14px "Jua", "Malgun Gothic", sans-serif'; c.lineWidth = 4; c.strokeText(D2.sub || '', W / 2, by + 92); c.fillStyle = '#FFE9A8'; c.fillText(D2.sub || '', W / 2, by + 92);
+          c.font = '16px "Jua", "Malgun Gothic", sans-serif'; const bk = `${left}초 뒤 원래 자리로 돌아가요`;
+          c.strokeText(bk, W / 2, by + 122); c.fillStyle = '#9AE6FF'; c.fillText(bk, W / 2, by + 122);
+          c.restore(); return;
+        }
         let big = null;
         if (D2.st === 'join') big = '상대를 기다리는 중…';
         else if (D2.st === 'count') big = String(Math.max(1, Math.ceil(DCFG.countSec - D2.t)));
@@ -1224,7 +1300,7 @@
         const crit = Math.random() < ST.crit / 100; if (crit) dmg *= ST.critD || D.STAT.critDmg;
         dmg = Math.max(1, Math.round(dmg));
         if (m.dummy) return dummyHit(m, dmg, crit, weakHit, els);   // v144 훈련장 허수아비
-        m.hp -= dmg; m.flash = 0.12; m.aggro = true; m.knock = (m.x < G.px ? -1 : 1) * (crit ? 6 : 3);
+        m.hp -= dmg; m.flash = 0.12; m.aggro = true; m.knock = (m.x < G.px ? -1 : 1) * (crit ? 6 : 3) * (m.boss ? 1 / 3 : 1); /* v146 보스는 맞아도 1/3 만 움찔 (선생님 11/14) */
         const elc = els && els.length ? Fx.pal(els[0])[1] : '#FFFFFF';
         G.texts.push({ x: m.x + rand(-8, 8), y: m.y - m.spr.h - 4, text: (crit ? '치명! ' : '') + (weakHit ? '약점! ' : '') + dmg, color: crit ? '#FFD23F' : elc, t: 0, big: crit, dmg: true });
         Fx.hit(m.x, m.y - m.spr.h / 2, els, crit);
@@ -1234,7 +1310,7 @@
           if (fx === 'burn') m.burn = { t: 3, dps: dmg * 0.12, tick: 0.5 };
           else if (fx === 'slow') m.slow = 2.5;
           else if (fx === 'stun' && !opt.noStun) m.stun = m.boss ? 0.25 : 0.7;
-          else if (fx === 'push') { const a = Math.atan2(m.y - G.py, m.x - G.px), k = m.boss ? 8 : 46; moveMon(m, Math.cos(a) * k, Math.sin(a) * k); }
+          else if (fx === 'push') { const a = Math.atan2(m.y - G.py, m.x - G.px), k = m.boss ? 8 / 3 : 46; /* v146 보스 밀어내기 1/3 (8 → 약 2.7px) */ moveMon(m, Math.cos(a) * k, Math.sin(a) * k); }
           else if (fx === 'holy') S.hp = Math.min(ST.hp, S.hp + Math.max(1, Math.round(dmg * 0.03)));
           else if (fx === 'curse') m.curse = 4;   // v87 어둠: 4초 동안 받는 피해 +20%
         });
@@ -2272,11 +2348,13 @@
           const tq = tab.trashAsk && count(tab.trashAsk) ? tab.trashAsk : null;   // v68 버리기 경고
           if (tq) { const it = ITEMS[tq], n = count(tq), gd = it.slot && it.grade != null ? GRADE[it.grade] : null;
             h += `<div class="rg-warnbg"><div class="rg-warn" role="alertdialog" aria-label="아이템 버리기 경고"><b class="t">⚠ 정말 버릴까요?</b>${itemIcon(tq)}<p class="nm"${gd ? ` style="color:${gd.color}"` : ''}>${it.name}${n > 1 ? ' ×' + n : ''}${gd ? `<span class="rg-grade">${gd.name}</span>` : ''}</p><p>버린 물건은 <b>사라지고 되돌릴 수 없어요.</b>${it.slot ? ` 약방에 팔면 <b class="rg-price">${fmtN(sellPrice(tq))} G</b> 를 받을 수 있어요.` : ''}</p><div class="btns"><button type="button" class="rg-mini warn" data-trashdo="${tq}:1">${n > 1 ? '1개 버리기' : '버리기'}</button>${n > 1 ? `<button type="button" class="rg-mini warn" data-trashdo="${tq}:${n}">${n}개 모두 버리기</button>` : ''}<button type="button" class="rg-mini" data-trashno>취소</button></div></div></div>`; }
-        } else if (k === 'skill') {
+        } else if (k === 'skill') {   // v146 금테 꾸미기: 위 두 판(기본 1~4 · 융합 QWER) + 아래 배운 마법 (원소 색 줄)
           h = head('마법', '기본 마법은 <b>1~4</b> 칸, 융합 마법은 <b>Q W E R</b> 칸에 넣어요. 같은 마법을 다른 칸에 넣으면 옮겨져요. 새 마법은 마을의 <b>도술 서원</b>에서 배워요.');
-          h += `<div class="rg-slots">${[0, 1, 2, 3].map(i => { const sk = skill(S.slots[i]); return `<span class="rg-slot"><b>${i + 1}</b>${sk ? `<img class="rg-sk" src="${Fx.iconURL(sk)}" alt="">${sk.name}` : '<i>비어 있음</i>'}</span>`; }).join('')}</div>`;
-          h += `<div class="rg-slots">${[0, 1, 2, 3].map(i => { const sk = skill(S.fslots[i]); return `<span class="rg-slot" style="border-color:#B57BFF"><b style="color:#E7A6FF">${FKEY[i]}</b>${sk ? `<img class="rg-sk" src="${Fx.iconURL(sk)}" alt="">${sk.name}` : '<i>융합 마법</i>'}</span>`; }).join('')}</div>`;
-          h += `<ul class="rg-list">${S.skills.length ? S.skills.map(id => { const sk = skill(id); return `<li class="rg-row"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${sk.fusion ? '융합 · ' : ''}${sk.name} <small style="color:#AEB7E0">Lv.${sk.lv}</small></span><span class="ds">${describe(sk)}</span></span>${[0, 1, 2, 3].map(i => sk.fusion ? `<button type="button" class="rg-mini${S.fslots[i] === id ? ' on' : ' ghost'}" data-slot="f${i}|${id}">${FKEY[i]}</button>` : `<button type="button" class="rg-mini${S.slots[i] === id ? ' on' : ' ghost'}" data-slot="${i}|${id}">${i + 1}</button>`).join('')}</li>`; }).join('') : '<li class="rg-row">아직 배운 마법이 없어요. Lv.3이 되면 솔뫼 마을 도술 서원에서 파이어볼을 배울 수 있어요.</li>'}</ul>`;
+          const slotHtml = (id, key, empty) => { const sk = skill(id); return `<span class="rg-slot"><b>${key}</b>${sk ? `<img class="rg-sk" src="${Fx.iconURL(sk)}" alt="">${sk.name}` : `<i>${empty}</i>`}</span>`; };
+          h += `<div class="rg-skbar"><section class="rg-skset"><h4>⚡ 기본 마법<small>숫자 1~4</small></h4><div class="rg-slots">${[0, 1, 2, 3].map(i => slotHtml(S.slots[i], i + 1, '비어 있음')).join('')}</div></section>`;
+          h += `<section class="rg-skset fu"><h4>✦ 융합 마법<small>Q W E R</small></h4><div class="rg-slots">${[0, 1, 2, 3].map(i => slotHtml(S.fslots[i], FKEY[i], '융합 마법')).join('')}</div></section></div>`;
+          const skCol = sk => (ELEM[(sk.els || [])[0]] || {}).color || '#C9A24A';
+          h += `<ul class="rg-list">${S.skills.length ? S.skills.map(id => { const sk = skill(id); return `<li class="rg-row" style="--c:${skCol(sk)}"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${sk.fusion ? '융합 · ' : ''}${sk.name} <small style="color:#C9D0F0">Lv.${sk.lv}</small></span><span class="ds">${describe(sk)}</span></span><span class="keys">${[0, 1, 2, 3].map(i => sk.fusion ? `<button type="button" class="rg-mini${S.fslots[i] === id ? ' on' : ' ghost'}" data-slot="f${i}|${id}">${FKEY[i]}</button>` : `<button type="button" class="rg-mini${S.slots[i] === id ? ' on' : ' ghost'}" data-slot="${i}|${id}">${i + 1}</button>`).join('')}</span></li>`; }).join('') : '<li class="rg-row">아직 배운 마법이 없어요. Lv.3이 되면 솔뫼 마을 도술 서원에서 파이어볼을 배울 수 있어요.</li>'}</ul>`;
         } else if (k === 'potion') {
           const ri = G.map.M.region, t = tab.potion || 'buy';
           h = head('약방', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 이 마을은 ${ri + 1}단계 포션까지 팔아요`) + npcBox() + tabs('potion', [['buy', '사기'], ['sell', '팔기'], ['xchg', '💱 포인트 교환']]);   // v145 골드 ↔ 사이트 포인트
@@ -2300,7 +2378,7 @@
           h = head('도술 서원', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 마법 배우기 · 두 원소 섞기`) + npcBox() + tabs('school', [['learn', '마법 배우기'], ['fuse', '마법 융합']]);
           if (t === 'learn') {
             const list = Object.values(SKILLS).filter(s => s.village <= ri).sort((a, b) => a.lv - b.lv);
-            h += `<p class="sub">이 마을까지의 마법을 배울 수 있어요. 다음 마을에 가면 더 강한 마법이 있어요.</p><ul class="rg-list">${list.map(s => { const has = S.skills.includes(s.id), ok = S.lv >= s.lv, sk = skill(s.id); return `<li class="rg-row${ok || has ? '' : ' off'}"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${s.name} <small style="color:#AEB7E0">Lv.${s.lv} · ${fmtN(s.price)} G</small></span><span class="ds">${describe(sk)}</span></span>${has ? '<span class="rg-mini on">배움</span>' : `<button type="button" class="rg-mini" data-learn="${s.id}" ${ok && S.gold >= s.price ? '' : 'disabled'}>${ok ? '배우기' : 'Lv.' + s.lv}</button>`}</li>`; }).join('')}</ul>`;
+            h += `<p class="sub">이 마을까지의 마법을 배울 수 있어요. 다음 마을에 가면 더 강한 마법이 있어요.</p><ul class="rg-list">${list.map(s => { const has = S.skills.includes(s.id), ok = S.lv >= s.lv, sk = skill(s.id); return `<li class="rg-row${ok || has ? '' : ' off'}" style="--c:${(ELEM[(sk.els || [])[0]] || {}).color || '#C9A24A'}"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${s.name} <small style="color:#AEB7E0">Lv.${s.lv} · ${fmtN(s.price)} G</small></span><span class="ds">${describe(sk)}</span></span>${has ? '<span class="rg-mini on">배움</span>' : `<button type="button" class="rg-mini" data-learn="${s.id}" ${ok && S.gold >= s.price ? '' : 'disabled'}>${ok ? '배우기' : 'Lv.' + s.lv}</button>`}</li>`; }).join('')}</ul>`;
           } else {
             const base = S.skills.filter(id => SKILLS[id]);
             const a = tab.fa && base.includes(tab.fa) ? tab.fa : base[0], b = tab.fb && base.includes(tab.fb) ? tab.fb : base.find(x => SKILLS[x].el !== (SKILLS[a] || {}).el);
@@ -2332,9 +2410,9 @@
           const mine = Object.keys(S.eq).map(sl => ({ id: S.eq[sl], worn: true })).concat(S.inv.filter(x => ITEMS[x.id] && ITEMS[x.id].slot).map(x => ({ id: x.id, worn: false })));
           if (!mine.some(x => x.id === tab.fgSel)) tab.fgSel = (mine.find(x => (ITEMS[x.id].en || 0) < ENH.max) || mine[0] || {}).id || null;
           h = head('대장간 · 장비 강화', `<span class="rg-gold">${fmtN(S.gold)} G</span> · +0 → +${ENH.max} · 1강마다 기본 능력치 +${Math.round(ENH.per * 100)}% · <b style="color:#FFD23F">+7 까지는 실패하면 한 단계 내려가요</b> · <b style="color:#FF8A8E">+8 부터는 실패하면 장비가 부서져요!</b>`) + npcBox();
-          h += `<div class="rg-forge"><ul class="rg-list">${mine.length ? mine.map(x => { const it = ITEMS[x.id], en = it.en || 0, full = en >= ENH.max; return `<li class="rg-row${tab.fgSel === x.id ? ' sel' : ''}">${itemIcon(x.id)}<span class="grow"><span class="nm" style="color:${GRADE[it.grade || 0].color}">${it.name}${x.worn ? ' <small style="color:#9AF0B0">입는 중</small>' : ''}</span><span class="ds">${full ? '최고 강화!' : `+${en}→+${en + 1} · 성공 ${ENH.rate[en]}% · ${fmtN(ENH.cost(en))} G`}</span></span><button type="button" class="rg-mini${tab.fgSel === x.id ? ' on' : ' ghost'}" data-fgsel="${x.id}">고르기</button></li>`; }).join('') : '<li class="rg-row">강화할 장비가 없어요. 사냥터에서 장비를 얻어 오세요!</li>'}</ul>`;
+          h += `<div class="rg-forge"><ul class="rg-list"><li class="rg-forgeh">🛡 내 장비 고르기</li>${mine.length ? mine.map(x => { const it = ITEMS[x.id], en = it.en || 0, full = en >= ENH.max; return `<li class="rg-row${tab.fgSel === x.id ? ' sel' : ''}">${itemIcon(x.id)}<span class="grow"><span class="nm" style="color:${GRADE[it.grade || 0].color}">${it.name}${x.worn ? ' <small style="color:#9AF0B0">입는 중</small>' : ''}</span><span class="ds">${full ? '최고 강화!' : `+${en}→+${en + 1} · 성공 ${ENH.rate[en]}% · ${fmtN(ENH.cost(en))} G`}</span></span><button type="button" class="rg-mini${tab.fgSel === x.id ? ' on' : ' ghost'}" data-fgsel="${x.id}">고르기</button></li>`; }).join('') : '<li class="rg-row">강화할 장비가 없어요. 사냥터에서 장비를 얻어 오세요!</li>'}</ul>`;
           const id = tab.fgSel, it = ITEMS[id];
-          h += '<section class="rg-anvil">';
+          h += '<section class="rg-anvil"><p class="rg-forgeh">🔨 모루 · 강화하기</p>';
           if (it) {
             const en = it.en || 0, full = en >= ENH.max, cost = full ? 0 : ENH.cost(en), rate = full ? 0 : ENH.rate[en], B = ITEMS[it.base] || it, k2 = 1 + ENH.per * (en + 1);
             const nm = { atk: '공격', mag: '마력', def: '방어', hp: '체력', mp: '마나', spd: '속도%' };
@@ -2355,7 +2433,7 @@
           D.REGIONS.forEach((R, ri) => {
             const vid = 'v' + (ri + 1), fs = D.MAPS.filter(m => m.kind === 'field' && !m.hell && m.region === ri);
             if (!vis.includes(vid) && !fs.some(m => vis.includes(m.id))) return;
-            h += `<p class="sub" style="margin-top:8px"><b>${R.name}</b> 지역</p><div class="rg-tabs">${vis.includes(vid) ? `<button type="button" class="rg-mini" data-go="${vid}">${R.name}</button>` : ''}${fs.map(m => vis.includes(m.id) ? `<button type="button" class="rg-mini ghost" data-go="${m.id}">${m.no}. ${m.name} (Lv.${m.rec})</button>` : '').join('')}</div>`;
+            h += `<div class="rg-region"><b>${ri + 1}. ${R.name} 지역</b><div class="rg-tabs">${vis.includes(vid) ? `<button type="button" class="rg-mini" data-go="${vid}">${R.name}</button>` : ''}${fs.map(m => vis.includes(m.id) ? `<button type="button" class="rg-mini ghost" data-go="${m.id}">${m.no}. ${m.name} (Lv.${m.rec})</button>` : '').join('')}</div></div>`;
           });
           h += '<p class="sub" style="margin-top:8px">※ 퀘스트는 준비 중이에요. 나중에 마지막 마을의 성에서 나눠 줄 예정이에요.</p>';
         } else if (k === 'castle') {
@@ -2473,6 +2551,7 @@
             <li>쓰러지면 경험치가 조금 줄고 마지막 마을에서 다시 시작해요. <b>귀환 주문서</b>로 언제든 마을로 돌아갈 수 있어요.</li>
           </ul><button type="button" class="btn btn-primary" data-x>모험 시작!</button>`;
         }
+        panel.classList.toggle('rg-deco', !!k && k !== 'inv' && k !== 'stat');   // v146 금테 꾸미기 (가방·스탯 창은 원래 꾸밈)
         panel.innerHTML = h;
         if (k === 'inv' && tab.trashAsk) panel.scrollTop = 0;   // v68 버리기 경고가 보이게
       }
