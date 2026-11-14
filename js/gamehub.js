@@ -232,6 +232,23 @@
         persist(); setUser(pub(u));
         return { gained: u.points - before, delta, best: Math.max(prevBest, rec.score), newBest: rec.score > prevBest };
       },
+      // v145 skillcom RPG 골드 ↔ 포인트 (체험 모드: 골드는 게임이 넘겨줌 · 하루 방향마다 100P)
+      async rpgExchangeToday() {
+        const u = me(), day = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }), x = (db().rpgx || {})[u.id];
+        return x && x.day === day ? { g2p_today: x.g2p || 0, p2g_today: x.p2g || 0 } : { g2p_today: 0, p2g_today: 0 };
+      },
+      async rpgExchange(dir, pts, gold) {
+        const d = db(), u = me(), day = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+        if (u.banned) throw new Error('이용이 정지된 계정이에요.');
+        pts = Math.floor(+pts || 0); if (!['g2p', 'p2g'].includes(dir) || pts < 1 || pts > 100) throw new Error('한 번에 1~100 포인트까지 바꿀 수 있어요');
+        d.rpgx = d.rpgx || {}; let x = d.rpgx[u.id]; if (!x || x.day !== day) x = d.rpgx[u.id] = { day, g2p: 0, p2g: 0 };
+        if (x[dir] + pts > 100) throw new Error(`오늘은 ${Math.max(0, 100 - x[dir])} 포인트만 더 바꿀 수 있어요 (하루 100P)`);
+        let g = Math.max(0, Math.floor(+gold || 0));
+        if (dir === 'g2p') { if (g < pts * 100) throw new Error(`골드가 모자라요 (필요 ${pts * 100}G · 가진 ${g}G)`); g -= pts * 100; u.points += pts; }
+        else { if (u.points < pts) throw new Error(`포인트가 모자라요 (필요 ${pts}P · 가진 ${u.points}P)`); g += pts * 100; u.points -= pts; }
+        x[dir] += pts; persist(); setUser(pub(u));
+        return { gold: g, points: u.points, g2p_today: x.g2p, p2g_today: x.p2g };
+      },
       // v134 기록의 extra 안 숫자(예: RPG 환생 횟수 reb) 1위 — 같은 값이면 먼저 낸 사람
       async extraTop(game, key) {
         let best = null;
@@ -641,6 +658,20 @@
         if (error) throw new Error(friendly(error, '기록을 저장하지 못했어요'));
         await loadProfile(Hub.user.id);
         return { delta: r.points_delta, gained: Hub.user ? Hub.user.points - before : 0, best: Math.max(prevBest, rec.score), newBest: rec.score > prevBest };
+      },
+      // v145 skillcom RPG 골드 ↔ 포인트 (supabase/rpg_exchange_v145.sql) — 골드는 서버에 저장된 캐릭터에서 서버가 직접 빼고 더함
+      async rpgExchangeToday() {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const { data, error } = await sb.rpc('rpg_exchange_today');
+        if (error) throw new Error(/function|schema cache|does not exist/i.test(error.message) ? '교환 준비가 아직 안 됐어요 (관리자: rpg_exchange_v145.sql)' : friendly(error, '교환 정보를 불러오지 못했어요'));
+        return data || { g2p_today: 0, p2g_today: 0 };
+      },
+      async rpgExchange(dir, pts) {
+        if (!Hub.user) throw new Error('로그인이 필요해요.');
+        const { data, error } = await sb.rpc('rpg_exchange', { p_dir: dir, p_points: Math.floor(+pts || 0) });
+        if (error) throw new Error(/function|schema cache|does not exist/i.test(error.message) ? '교환 준비가 아직 안 됐어요 (관리자: rpg_exchange_v145.sql)' : (error.message || '교환하지 못했어요'));
+        await loadProfile(Hub.user.id);
+        return data;
       },
       async resetStats(game) {
         if (!Hub.user) throw new Error('로그인이 필요해요.');

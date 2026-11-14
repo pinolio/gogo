@@ -434,6 +434,35 @@
   .rg-opts { display: flex; flex-wrap: wrap; gap: 3px 6px; margin-top: 4px; padding: 0; list-style: none; }
   .rg-opts li { font-size: 12px; background: rgba(255,255,255,.06); border: 1px solid #2A3266; border-radius: 6px; padding: 1px 6px; }
   .rg-opts li.pos { color: #9AF0B0; } .rg-opts li.neg { color: #FF8A8E; }
+  .rg-xchg { margin-top: 8px; padding: 12px; border: 2px solid #FFD23F; border-radius: 12px; background: #1D2340; }
+  .rg-xchg .t { display: block; color: #FFD23F; font-size: 16px; margin-bottom: 10px; text-align: center; }
+  .rg-xgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 560px) { .rg-xgrid { gap: 6px; } .rg-xc { padding: 8px 6px; } .rg-xc .h { font-size: 14px; } .rg-xc input { width: 64px; font-size: 15px; } .rg-xc .go { font-size: 13px; padding: 7px 8px; } .rg-xc .qk .rg-mini { padding: 4px 7px; } }
+  .rg-xc { border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; }
+  .rg-xc.g2p { background: #3A2E0A; border: 2px solid #FFD23F; }
+  .rg-xc.p2g { background: #0E2E3E; border: 2px solid #5AD8F5; }
+  .rg-xc .h { font-size: 17px; color: #FFFFFF; }
+  .rg-xc .h .ar { color: #9AF0B0; }
+  .rg-xc .have { margin: 0; color: #9AE6FF; font-size: 13px; }
+  .rg-xc .have b { color: #FFFFFF; }
+  .rg-xc .num { color: #FFFFFF; font-size: 14px; }
+  .rg-xc input { width: 90px; padding: 6px 8px; border-radius: 8px; border: 2px solid #FFD23F; background: #FFF6C2; color: #1D2340; font: inherit; font-size: 17px; text-align: center; }
+  .rg-xc .qk { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
+  .rg-xc .calc { margin: 2px 0; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; font-size: 13px; color: #FFE9A8; }
+  .rg-xc .calc .out b { color: #FF9AA0; font-size: 15px; } .rg-xc .calc .in b { color: #9AF0B0; font-size: 15px; } .rg-xc .calc .ar { color: #FFFFFF; font-size: 16px; }
+  .rg-xc .go { font-size: 15px; padding: 8px 16px; }
+  .rg-xc.g2p .go { background: #FFD23F; color: #1D2340; } .rg-xc.p2g .go { background: #5AD8F5; color: #1D2340; }
+  .rg-xc .lim { margin: 0; color: #9AF0B0; font-size: 12px; }
+  .rg-xchg .ok { color: #9AF0B0; margin: 8px 0 0; text-align: center; }
+  .rg-xchg .err { color: #FF9AA0; margin: 8px 0 0; text-align: center; }
+  .rg-xchg .note { color: #9AE6FF; font-size: 12px; margin: 8px 0 0; text-align: center; }
+  .rg-vanish { margin-top: 12px; padding: 10px 12px; border: 2px solid #FF5A5F; border-radius: 12px; background: #2A1430; text-align: left; }
+  .rg-vanish .t { display: block; color: #FF9AA0; font-size: 15px; margin-bottom: 6px; }
+  .rg-vanish .ok { color: #9AF0B0; margin: 0; }
+  .rg-vanish .rg-list { max-height: 210px; overflow: auto; margin: 0; }
+  .rg-vanish .wh { margin-left: 6px; color: #FFD23F; font-size: 12px; }
+  .rg-vanish .sub2 { color: #9AE6FF; font-size: 12px; margin: 8px 0 0; }
+  .rg-vanish-note { margin-top: 10px; color: #9AF0B0; font-size: 13px; }
   .rg-grade { font-size: 11px; border: 1px solid currentColor; border-radius: 6px; padding: 0 5px; margin-left: 4px; vertical-align: 2px; }
   .rg-forge { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 10px; }
   .rg-forge .rg-list { max-height: 330px; overflow-y: auto; }
@@ -962,6 +991,55 @@
         const tp = P2.top; c.fillText(tp ? `👑 1위 ${tp.nickname} ${kfmt(Math.max(tp.value, 0))}` : '👑 1위 아직 없음', x + w - 14, y + 78);
         if (P2.cur >= DPS_MAX) { c.fillStyle = '#FF9AA0'; c.fillText('최대 10조!', x + w - 14, y + 48); }
       }
+      /* ---------- v145 약방 '포인트 교환': RPG 골드 100 = 사이트 포인트 1 (양쪽) · 방향마다 하루 100P ----------
+       *  온라인: 지금 캐릭터를 서버에 먼저 저장 → rpg_exchange(서버가 저장된 골드를 직접 확인·차감) → 받은 골드로 맞춤 */
+      const XRATE = 100, XDAY = 100;
+      function xchgLoad() {
+        if (!Hub.user || !Hub.rpgExchangeToday) return;
+        Hub.rpgExchangeToday().then(r => { tab.xday = r; tab.xerr = null; if (pane === 'potion') renderPanel(); }).catch(e => { tab.xerr = e.message; if (pane === 'potion') renderPanel(); });
+      }
+      function xchgHtml() {
+        if (!Hub.user) return `<div class="rg-xchg"><p class="sub">로그인하면 RPG 골드와 사이트 상점 포인트를 바꿀 수 있어요.</p></div>`;
+        if (!tab.xday && !tab.xload) { tab.xload = true; setTimeout(xchgLoad, 0); }   // 창을 처음 열 때 오늘 바꾼 양 불러옴
+        const xd = tab.xday || { g2p_today: 0, p2g_today: 0 }, pts = Hub.user.points || 0, xn = tab.xn || {};
+        const card = (dir, from, to, left, have) => {   // 왼쪽 골드→포인트 · 오른쪽 포인트→골드
+          const n = xn[dir] || 10, cost = dir === 'g2p' ? `${fmtN(n * XRATE)} G` : `${n} P`, get = dir === 'g2p' ? `${n} P` : `${fmtN(n * XRATE)} G`;
+          return `<div class="rg-xc ${dir}"><b class="h">${from} <span class="ar">→</span> ${to}</b>
+            <p class="have">${have}</p>
+            <label class="num"><input id="rg-xn-${dir}" data-xin="${dir}" type="number" min="1" max="${XDAY}" value="${n}" inputmode="numeric" aria-label="${from}을 ${to}로 바꿀 양 (포인트)"> 포인트</label>
+            <div class="qk">${[1, 10, 50, 100].map(q => `<button type="button" class="rg-mini ghost" data-xset="${dir}:${q}">${q}</button>`).join('')}</div>
+            <p class="calc"><span class="out">내는 것 <b>${cost}</b></span><span class="ar">➜</span><span class="in">받는 것 <b>${get}</b></span></p>
+            <button type="button" class="rg-mini go" data-xdir="${dir}" ${tab.xbusy || !left ? 'disabled' : ''}>${dir === 'g2p' ? '⭐ 포인트로 바꾸기' : '🪙 골드로 바꾸기'}</button>
+            <p class="lim">오늘 남은 한도 <b>${left} P</b> / ${XDAY} P</p></div>`;
+        };
+        return `<div class="rg-xchg"><b class="t">💱 골드 ↔ 사이트 포인트 · 100 G = 1 P</b>
+          <div class="rg-xgrid">${card('g2p', '🪙 골드', '⭐ 포인트', Math.max(0, XDAY - (xd.g2p_today || 0)), `가진 골드 <b>${fmtN(S.gold)} G</b>`)}${card('p2g', '⭐ 포인트', '🪙 골드', Math.max(0, XDAY - (xd.p2g_today || 0)), `가진 포인트 <b>${fmtN(pts)} P</b>`)}</div>
+          ${tab.xmsg ? `<p class="ok">${tab.xmsg}</p>` : ''}${tab.xerr ? `<p class="err">${tab.xerr}</p>` : ''}
+          <p class="note">한도는 방향마다 하루 ${XDAY} P · 한국 시간 자정에 다시 채워져요.</p></div>`;
+      }
+      function xchgCalc(dir) {   // 숫자를 바꾸면 '내는 것 → 받는 것' 만 바로 고침 (창을 다시 그리지 않아 입력이 끊기지 않음)
+        const inp = panel.querySelector('#rg-xn-' + dir), box = inp && inp.closest('.rg-xc'); if (!box) return;
+        const n = Math.max(0, Math.floor(+inp.value || 0)); tab.xn = Object.assign({}, tab.xn, { [dir]: n });
+        box.querySelector('.out b').textContent = dir === 'g2p' ? `${fmtN(n * XRATE)} G` : `${n} P`;
+        box.querySelector('.in b').textContent = dir === 'g2p' ? `${n} P` : `${fmtN(n * XRATE)} G`;
+      }
+      async function xchgDo(dir, n) {
+        if (tab.xbusy || !Hub.user || !Hub.rpgExchange) return;
+        n = Math.floor(+n || 0); tab.xn = Object.assign({}, tab.xn, { [dir]: n }); tab.xmsg = null; tab.xerr = null;
+        if (n < 1 || n > XDAY) { tab.xerr = `1~${XDAY} 포인트 사이로 적어 주세요`; renderPanel(); return; }
+        if (dir === 'g2p' && S.gold < n * XRATE) { tab.xerr = `골드가 모자라요 (필요 ${fmtN(n * XRATE)} G)`; renderPanel(); return; }
+        if (dir === 'p2g' && (Hub.user.points || 0) < n) { tab.xerr = `포인트가 모자라요 (필요 ${n} P)`; renderPanel(); return; }
+        tab.xbusy = true; renderPanel();
+        try {
+          G.xLock = true;
+          if (Store.online()) { const ok = await save(true, true); if (!ok) throw new Error('서버에 저장하지 못했어요. 잠시 뒤 다시 해 주세요'); }   // 서버가 지금 골드를 보게
+          const r = await Hub.rpgExchange(dir, n, S.gold);
+          S.gold = Math.max(0, Math.floor(+r.gold || 0)); tab.xday = r; G.xLock = false; save(true);
+          tab.xmsg = dir === 'g2p' ? `✅ ${fmtN(n * XRATE)} G → ${n} P 로 바꿨어요` : `✅ ${n} P → ${fmtN(n * XRATE)} G 로 바꿨어요`;
+          A.toast(tab.xmsg.replace('✅ ', ''));
+        } catch (e) { tab.xerr = e.message || '교환하지 못했어요'; }
+        G.xLock = false; tab.xbusy = false; if (pane === 'potion') renderPanel();
+      }
       function leaveRoom() {
         const r = G.room; if (!r) return;
         if (r.train && G.dps) { if (G.dps.dirty || (S.dpsBest || 0) > G.dps.best0) { G.dps.dirty = false; save(true); submitRank(0, true); } G.dpsTop = G.dps.top; G.dps = null; }
@@ -1244,7 +1322,18 @@
         if (G.duel) { duelLose('ko'); return; }   // v143 결투에서 쓰러짐 = 패배 (경험치 안 잃음)
         G.dead = true; const loss = Math.round(D.F.need(S.lv) * (CFG.deathExpLoss || 0.05));
         S.exp = Math.max(0, S.exp - loss);
-        openPanel('dead', { loss });
+        const risk = deathRisk(), gone = risk ? vaporize() : [];
+        if (gone.length) { restat(); S.hp = 0; save(true); }   // 바로 저장 (새로 고침으로 피하지 못하게)
+        openPanel('dead', { loss, risk, gone });
+      }
+      /* v145 죽음의 위험: 권장 Lv.101 이상 사냥터(저승 관문 · 지도 만들기 Lv.101~)에서 쓰러지면
+       *  착용 장비 · 가방 속 장비가 하나하나 CFG.deathVanish(2%) 확률로 증발. 사냥터 1~100 은 아무것도 안 사라짐 */
+      const deathRisk = () => { const M = G.map && G.map.M; return !!(M && M.kind === 'field' && !M.arena && !M.train && (M.rec || 0) >= (CFG.deathRiskLv || 101)); };
+      function vaporize() {
+        const p = CFG.deathVanish != null ? CFG.deathVanish : 0.02, gone = [];
+        Object.keys(S.eq).forEach(slot => { const id = S.eq[slot]; if (id && ITEMS[id] && ITEMS[id].slot && Math.random() < p) { gone.push({ id, where: '착용' }); delete S.eq[slot]; } });
+        S.inv.slice().forEach(x => { const it = ITEMS[x.id]; if (!it || !it.slot) return; let k = 0; for (let i = 0; i < x.n; i++) if (Math.random() < p) k++; for (let i = 0; i < k; i++) { takeItem(x.id, 1); gone.push({ id: x.id, where: '가방' }); } });
+        return gone;
       }
 
       /* ---------- 마법 쓰기 ---------- */
@@ -2084,8 +2173,9 @@
 
       /* ---------- 저장 ---------- */
       function markDirty(soon) { G.dirty = true; if (soon && G.srvT < (CFG.serverSaveSec || 60) - 8) G.srvT = (CFG.serverSaveSec || 60) - 8; }
-      async function save(server) {
+      async function save(server, xok) {
         if (!S) return;
+        if (G.xLock && !xok) server = false;   // v145 포인트 교환 중에는 서버 저장을 미룸 (서버가 바꾼 골드를 옛 값으로 덮지 않게)
         const at = G.room ? G.room.back : { x: G.px, y: G.py };   // 건물 안이면 그 건물 문 앞을 저장
         S.x = Math.round(at.x); S.y = Math.round(at.y); S.savedAt = Date.now();
         if (!G.trade) pruneGear(S);   // v60 판 장비·부서진 장비 정보 지우기 (거래 중에는 그대로)
@@ -2189,10 +2279,11 @@
           h += `<ul class="rg-list">${S.skills.length ? S.skills.map(id => { const sk = skill(id); return `<li class="rg-row"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${sk.fusion ? '융합 · ' : ''}${sk.name} <small style="color:#AEB7E0">Lv.${sk.lv}</small></span><span class="ds">${describe(sk)}</span></span>${[0, 1, 2, 3].map(i => sk.fusion ? `<button type="button" class="rg-mini${S.fslots[i] === id ? ' on' : ' ghost'}" data-slot="f${i}|${id}">${FKEY[i]}</button>` : `<button type="button" class="rg-mini${S.slots[i] === id ? ' on' : ' ghost'}" data-slot="${i}|${id}">${i + 1}</button>`).join('')}</li>`; }).join('') : '<li class="rg-row">아직 배운 마법이 없어요. Lv.3이 되면 솔뫼 마을 도술 서원에서 파이어볼을 배울 수 있어요.</li>'}</ul>`;
         } else if (k === 'potion') {
           const ri = G.map.M.region, t = tab.potion || 'buy';
-          h = head('약방', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 이 마을은 ${ri + 1}단계 포션까지 팔아요`) + npcBox() + tabs('potion', [['buy', '사기'], ['sell', '팔기']]);
+          h = head('약방', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 이 마을은 ${ri + 1}단계 포션까지 팔아요`) + npcBox() + tabs('potion', [['buy', '사기'], ['sell', '팔기'], ['xchg', '💱 포인트 교환']]);   // v145 골드 ↔ 사이트 포인트
+          if (t === 'xchg') h += xchgHtml();
           if (t === 'buy') { const bu = S.bagUp || 0, bc = D.BAG.cost(bu); h += `<div class="rg-bagup"><span class="ic">🎒</span><span class="grow"><b>가방 늘리기 +${D.BAG.step}칸</b><small>지금 ${bagMax()}칸 → ${bu < D.BAG.max ? bagMax() + D.BAG.step : bagMax()}칸 · 최대 ${D.BAG.base + D.BAG.step * D.BAG.max}칸 (${bu}/${D.BAG.max}번)</small></span>${bu >= D.BAG.max ? '<span class="rg-mini on">최대</span>' : `<button type="button" class="rg-mini" data-bagup ${S.gold >= bc ? '' : 'disabled'}>${fmtN(bc)} G</button>`}</div>`; }
           if (t === 'buy') h += `<ul class="rg-list">${D.POTIONS.filter(p => p.tier <= ri).map(p => `<li class="rg-row">${itemIcon(p.id)}<span class="grow"><span class="nm">${p.name} <small style="color:#AEB7E0">가진 수 ${count(p.id)}</small></span><span class="ds">${p.desc} · ${fmtN(p.price)} G</span></span><button type="button" class="rg-mini" data-buy="${p.id}:1" ${S.gold >= p.price ? '' : 'disabled'}>1개</button><button type="button" class="rg-mini" data-buy="${p.id}:10" ${S.gold >= p.price * 10 ? '' : 'disabled'}>10개</button></li>`).join('')}</ul>`;
-          else {   // v68 팔기: 장비는 등급·레벨·강화로 값이 정해짐. 희귀 이상·강화한 장비는 한 번 더 묻기
+          else if (t === 'sell') {   // v68 팔기: 장비는 등급·레벨·강화로 값이 정해짐. 희귀 이상·강화한 장비는 한 번 더 묻기
             const gear = S.inv.filter(x => ITEMS[x.id].slot).sort((a, b) => sellPrice(b.id) - sellPrice(a.id)), etc = S.inv.filter(x => !ITEMS[x.id].slot);
             const plain = gear.filter(x => !ITEMS[x.id].en && (ITEMS[x.id].grade || 0) === 0), plainSum = plain.reduce((t, x) => t + sellPrice(x.id) * x.n, 0);
             const ask = tab.sellAsk && count(tab.sellAsk) ? tab.sellAsk : null;
@@ -2355,6 +2446,11 @@
           }
         } else if (k === 'dead') {
           h = `<h3>쓰러졌어요…</h3><p class="sub">경험치를 ${fmtN(paneArg.loss)} 잃었어요. (레벨은 그대로)<br>마지막으로 들른 마을(${MAPBY[S.home].name})의 이장 댁 앞에서 다시 시작해요.</p><button type="button" class="btn btn-primary" data-revive>마을에서 다시 시작</button>`;
+          // v145 증발한 장비 (부활 버튼 바로 아래 · 그림과 함께)
+          const gone = paneArg.gone || [];
+          if (!paneArg.risk) h += `<p class="rg-vanish-note">💚 사냥터 1~100 에서는 쓰러져도 장비가 사라지지 않아요.</p>`;
+          else if (!gone.length) h += `<div class="rg-vanish"><b class="t">🔥 장비 증발 위험 지역 (권장 Lv.101 이상)</b><p class="ok">다행히 사라진 장비가 없어요! (장비마다 ${Math.round((CFG.deathVanish != null ? CFG.deathVanish : 0.02) * 100)}% 확률)</p></div>`;
+          else h += `<div class="rg-vanish"><b class="t">🔥 쓰러지며 장비 ${gone.length}개가 증발했어요</b><ul class="rg-list">${gone.map(g => { const it = ITEMS[g.id] || { name: '장비' }, gd = it.grade != null ? GRADE[it.grade] : null; return `<li class="rg-row">${itemIcon(g.id)}<span class="grow"><span class="nm"${gd ? ` style="color:${gd.color}"` : ''}>${it.name}${gd ? `<span class="rg-grade">${gd.name}</span>` : ''}</span><small class="wh">${g.where}</small></span></li>`; }).join('')}</ul><p class="sub2">권장 Lv.101 이상 사냥터에서는 쓰러질 때마다 착용 장비 · 가방 속 장비가 하나하나 ${Math.round((CFG.deathVanish != null ? CFG.deathVanish : 0.02) * 100)}% 확률로 사라져요.</p></div>`;
         } else if (k === 'help') {
           h = head('도움말', '내 아바타로 떠나는 도트 RPG — 혼자 플레이 첫 버전') + (imgOk('key') ? `<img src="${imgOk('key').src}" alt="" style="width:100%;border-radius:10px;border:2px solid #0A0E24;margin:4px 0 10px;display:block">` : '');
           h += `<ul class="ult-rules">
@@ -2365,6 +2461,8 @@
             <li>처음부터 <b>마법 화살</b>(1번 키)을 쓸 수 있어요.</li>
             <li><b>스탯</b>: 레벨이 오를 때마다 포인트 2개 — 왼쪽 위 얼굴(또는 C)을 눌러 힘(피해 +2%)·민첩(이동 속도 +0.7%)·지혜(마나 회복 +4%)·체력(최대 체력 +2%)·<b>저항</b>(물리 방어 +0.5% · 속성 방어 +0.5%)에 올려요. 스탯마다 최대 50 (환생할 때마다 +10).</li>
             <li><b>환생</b>: 저승 10-5 오도전륜대왕을 이길 때마다 한 번 (최대 10번) — Lv.1 로 돌아가고 스탯 포인트 +20 · 스탯 최대치 +10 · 장비·가방·골드는 그대로 · 마법은 기본 마법만 남아요.</li>
+            <li><b>죽음의 위험</b>: 사냥터 1~100 에서는 쓰러져도 경험치만 조금 잃어요. 권장 <b>Lv.101 이상</b> 사냥터(저승 관문 등)에서 쓰러지면 착용 장비 · 가방 속 장비가 하나하나 <b>2%</b> 확률로 증발해요 (쓰러진 창에 사라진 장비가 나와요).</li>
+            <li><b>포인트 교환</b>: 약방의 💱 포인트 교환 탭에서 골드 <b>100 G = 사이트 포인트 1 P</b> (양쪽 모두 · 하루 방향마다 100P 까지).</li>
             <li><b>거래</b>: 온라인 서버에서 같은 지도에 있는 사람을 누르거나 가까이 가서 F → 거래 신청. 둘 다 확인을 누르면 아이템·골드가 바뀌어요.</li>
             <li>직업은 없어요. 레벨이 오르면 도술 서원에서 새 마법을 배우고, 두 원소를 섞어 <b>융합 마법</b>을 만들어요.</li>
             <li><b>속성 상성</b>: 몬스터마다 속성이 있어요(이름 앞 동그라미). <b>약점 속성</b> 마법은 피해 ×1.3 (‘약점!’), 같은 속성은 ×0.7. 약점: 불←물, 물←번개, 번개←땅, 땅←바람, 바람←불, 빛←번개, 어둠←빛. 원소 효과: 불 화상 · 물 느려짐 · 바람 밀어내기 · 땅 큰 피해 · 번개 기절 · 빛 체력 흡수 · <b>어둠 저주(받는 피해 +20%)</b>. 몬스터의 속성 공격도 나에게 같은 종류의 효과를 줘요(속성 방어로 줄어요).</li>
@@ -2433,6 +2531,7 @@
         if (r.ok) { say(`${net.name(n)}에 들어왔어요!${r.players ? ` (지금 ${r.players}명)` : ''}`, 2.6); closePanel(); }
         else { say(r.reason === 'full' ? `${net.name(n)}은 가득 찼어요 (${cap}명). 잠시 뒤 다시 해 주세요` : r.reason === 'sql' ? '온라인 서버 준비가 아직 안 됐어요' : r.reason === 'banned' ? '이 계정은 지금 온라인에 들어갈 수 없어요' : '서버에 들어가지 못했어요. 잠시 뒤 다시 해 주세요', 3.5); loadServers(); }
       }
+      panel.addEventListener('input', e => { const t = e.target; if (t && t.dataset && t.dataset.xin) xchgCalc(t.dataset.xin); });   // v145 교환 숫자
       panel.addEventListener('change', e => {
         const t = e.target;
         if (t.matches('[data-trgold]')) { const T = G.trade; if (!T) return; T.mine.gold = clamp(Math.floor(+t.value || 0), 0, S.gold); sendOffer(); renderPanel(); return; }
@@ -2444,7 +2543,9 @@
         const b = e.target.closest('button'); if (!b || b.disabled) return;
         const d = b.dataset;
         if ('x' in d) { closePanel(); return; }
-        if (d.tab) { const [k, v] = d.tab.split(':'); tab[k] = v; renderPanel(); return; }
+        if (d.tab) { const [k, v] = d.tab.split(':'); tab[k] = v; if (k === 'potion' && v === 'xchg') xchgLoad(); renderPanel(); return; }
+        if (d.xdir) { const inp = panel.querySelector('#rg-xn-' + d.xdir); xchgDo(d.xdir, inp ? inp.value : 0); return; }   // v145 골드 ↔ 포인트 (왼쪽 g2p · 오른쪽 p2g)
+        if (d.xset) { const [xd2, q] = d.xset.split(':'), inp = panel.querySelector('#rg-xn-' + xd2); if (inp) { inp.value = q; xchgCalc(xd2); } return; }
         if ('trash' in d) { tab.trash = !tab.trash; tab.trashAsk = null; renderPanel(); return; }
         if ('trashno' in d) { tab.trashAsk = null; tab.trash = false; renderPanel(); return; }
         if (d.trashdo) {   // v68 쓰레기통: 경고에서 '버리기'를 눌렀을 때만 지움
