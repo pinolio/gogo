@@ -313,6 +313,72 @@
     drawPlane(ctx, 0, 210, 540, false, 0); drawPlane(ctx, 1, 274, 560, false, 0.05);
   }
 
+
+  /* ---------- v148 화면 꾸미기 (선생님 시안: 보라 테두리 · 금빛 점수 · P 카드 4장 · 폭탄 그림) ---------- */
+  const UIF = 'Galmuri11, sans-serif';
+  function otext(ctx, s, x, y, size, fill, align, lw) {   // 굵은 남색 테두리 글자
+    ctx.save(); ctx.font = '700 ' + size + 'px ' + UIF; ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.strokeStyle = '#141833'; ctx.lineWidth = lw || Math.max(3, size / 5); ctx.strokeText(s, x, y);
+    if (Array.isArray(fill)) { const g = ctx.createLinearGradient(0, y - size / 2, 0, y + size / 2); fill.forEach((c, i) => g.addColorStop(i / (fill.length - 1), c)); ctx.fillStyle = g; } else ctx.fillStyle = fill;
+    ctx.fillText(s, x, y); const w = ctx.measureText(s).width; ctx.restore(); return w;
+  }
+  function uiFrame(ctx) {   // 보라 테두리 + 네 귀퉁이 못
+    ctx.save();
+    ctx.fillStyle = '#2A1A5A'; ctx.fillRect(0, 0, W, 9); ctx.fillRect(0, H - 9, W, 9); ctx.fillRect(0, 0, 9, H); ctx.fillRect(W - 9, 0, 9, H);
+    ctx.fillStyle = '#8E62EE'; ctx.fillRect(1, 1, W - 2, 6); ctx.fillRect(1, H - 7, W - 2, 6); ctx.fillRect(1, 1, 6, H - 2); ctx.fillRect(W - 7, 1, 6, H - 2);
+    ctx.fillStyle = '#B9A0FF'; ctx.fillRect(1, 1, W - 2, 2); ctx.fillRect(1, 1, 2, H - 2);
+    ctx.strokeStyle = '#141833'; ctx.lineWidth = 2; ctx.strokeRect(8, 8, W - 16, H - 16);
+    [[5, 5], [W - 5, 5], [5, H - 5], [W - 5, H - 5]].forEach(([x, y]) => { ctx.fillStyle = '#4B2E9E'; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#D8C8FF'; ctx.fillRect(x - 2, y - 2, 2, 2); });
+    ctx.restore();
+  }
+  function uiCard(ctx, x, y, full, t) {   // 노랑 카드(빈칸) / P 카드
+    const w = 19, h = 25;
+    ctx.save();
+    if (full) { ctx.globalAlpha = 0.35 + 0.15 * Math.sin(t * 6); ctx.fillStyle = '#FFD23F'; ctx.fillRect(x - 3, y - 3, w + 6, h + 6); ctx.globalAlpha = 1; }
+    ctx.fillStyle = '#141833'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+    ctx.fillStyle = '#DDE6F2'; ctx.fillRect(x, y, w, h); ctx.fillStyle = '#9FB2CC'; ctx.fillRect(x + w - 2, y + 2, 2, h - 2); ctx.fillRect(x + 2, y + h - 2, w - 2, 2);
+    const g = ctx.createLinearGradient(0, y + 2, 0, y + h - 2);
+    if (full) { g.addColorStop(0, '#FFF6C8'); g.addColorStop(0.5, '#FFC232'); g.addColorStop(1, '#FF7A1A'); }
+    else { g.addColorStop(0, '#FFE070'); g.addColorStop(1, '#FF9A2A'); }
+    ctx.fillStyle = g; ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(x + 3, y + 3, 2, h - 8);
+    if (full) {
+      ctx.fillStyle = '#FFFBE6'; [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([a, b]) => ctx.fillRect(x + w / 2 - 1 + a * 6, y + h / 2 - 1 + b * 7, 2, 2));
+      otext(ctx, 'P', x + w / 2, y + h / 2 + 1, 15, ['#FF7A5A', '#D8201A'], 'center', 3);
+    }
+    ctx.restore();
+  }
+  function uiPIcon(ctx, x, y, t) {   // 불꽃 P
+    const f = Math.floor(t * 10) % 2;
+    ctx.save();
+    ctx.fillStyle = '#FF7A1A'; ctx.beginPath(); ctx.moveTo(x - 9, y + 10); ctx.lineTo(x - 7, y - 6); ctx.lineTo(x - 3, y - 1); ctx.lineTo(x, y - 13 - f * 2); ctx.lineTo(x + 3, y - 2); ctx.lineTo(x + 7, y - 8); ctx.lineTo(x + 9, y + 10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.moveTo(x - 6, y + 10); ctx.lineTo(x - 3, y - 2); ctx.lineTo(x, y - 7 - f); ctx.lineTo(x + 3, y - 1); ctx.lineTo(x + 6, y + 10); ctx.closePath(); ctx.fill();
+    otext(ctx, 'P', x, y + 3, 19, ['#FF8A5A', '#C81E14'], 'center', 4);
+    ctx.restore();
+  }
+  function uiBomb(ctx, x, y, t) {   // 폭탄 (모두 같은 색) + 위에 초록 B
+    ctx.save();
+    ctx.fillStyle = '#141833'; ctx.beginPath(); ctx.arc(x, y, 10.5, 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createRadialGradient(x - 3, y - 4, 1, x, y, 10); g.addColorStop(0, '#5A6688'); g.addColorStop(0.5, '#2C3350'); g.addColorStop(1, '#1A1F33');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x - 5, y - 5, 3, 3);
+    ctx.fillStyle = '#141833'; ctx.fillRect(x + 3, y - 11, 6, 5); ctx.fillStyle = '#7F95B8'; ctx.fillRect(x + 4, y - 10, 4, 3);
+    ctx.strokeStyle = '#E0A85A'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 7, y - 11); ctx.quadraticCurveTo(x + 10, y - 17, x + 13, y - 14); ctx.stroke();
+    if (Math.floor(t * 8) % 2) { ctx.fillStyle = '#FFD23F'; ctx.fillRect(x + 12, y - 17, 3, 3); ctx.fillStyle = '#FF7A1A'; ctx.fillRect(x + 14, y - 15, 2, 2); }
+    otext(ctx, 'B', x - 1, y - 21, 15, ['#7FF0A8', '#2FBF66'], 'center', 3);
+    ctx.restore();
+  }
+  function uiBadge(ctx, x, y, letter, t) {   // 빛나는 동그라미 글자 (변신 키)
+    ctx.save();
+    const a = 0.35 + 0.2 * Math.sin(t * 5);
+    ctx.strokeStyle = 'rgba(255,210,63,' + a + ')'; ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4 + t * 0.6; ctx.beginPath(); ctx.moveTo(x + Math.cos(an) * 14, y + Math.sin(an) * 14); ctx.lineTo(x + Math.cos(an) * 20, y + Math.sin(an) * 20); ctx.stroke(); }
+    ctx.fillStyle = '#141833'; ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#FFD23F'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 10.5, 0, Math.PI * 2); ctx.stroke();
+    otext(ctx, letter, x, y + 1, 15, ['#FFF2A8', '#FF9A2A'], 'center', 3);
+    ctx.restore();
+  }
+
   window.GoGames.sky = {
     id: 'sky', size: [W, H],
     thumb(ctx, w, h) {
@@ -589,11 +655,11 @@
         if (!wantFire(p) || p.fm === 1 || p.fm === 3) return;   // v147 Z 를 누르는 동안만 · 변신하는 0.5초는 쉼
         const x = p.x, y = p.y - 14, v = -900, add = (dx, ang) => list.push({ x: x + dx, y, vx: Math.sin(ang || 0) * -v, vy: Math.cos(ang || 0) * v, o: p.slot, real });
         const pw = p.power;
-        if (p.fm !== 2) {   // v147 비행기: 일직선 총알 2줄 + P 단계마다 옆 미사일 한 쌍씩 (P2 = 1쌍 · P3 = 2쌍 · P4 = 3쌍)
+        if (p.fm !== 2) {   // v147 비행기: 일직선 총알 2줄 + P 카드마다 옆 미사일 한 쌍씩 (v148: P 1장 = 1쌍 … 4장 = 4쌍)
           if (p.cd <= 0) { p.cd = 0.09; add(-5); add(5); }
           if (pw >= 2 && p.mcd <= 0) {
             p.mcd = 0.34;
-            for (let k = 1; k < Math.min(4, pw); k++) [-1, 1].forEach(sd => list.push({ x: x + sd * (9 + k * 11), y: y + 10, vx: 0, vy: -620, o: p.slot, real, d: 3, m: 1 }));
+            for (let k = 1; k < Math.min(5, pw); k++) [-1, 1].forEach(sd => list.push({ x: x + sd * (9 + k * 11), y: y + 10, vx: 0, vy: -620, o: p.slot, real, d: 3, m: 1 }));
           }
           return;
         }
@@ -601,7 +667,8 @@
         if (pw <= 1) { add(-5); add(5); }
         else if (pw === 2) { add(-8); add(0); add(8); }
         else if (pw === 3) { add(-12); add(-4); add(4); add(12); add(-10, -0.14); add(10, 0.14); }
-        else { add(-14); add(-5); add(5); add(14); add(-10, -0.12); add(10, 0.12); add(-16, -0.26); add(16, 0.26); }
+        else if (pw === 4) { add(-14); add(-5); add(5); add(14); add(-10, -0.12); add(10, 0.12); add(-16, -0.26); add(16, 0.26); }
+        else { add(-14); add(-5); add(5); add(14); add(-10, -0.12); add(10, 0.12); add(-16, -0.26); add(16, 0.26); add(-20, -0.4); add(20, 0.4); }   // v148 P 4장
       }
       function step(dt) {
         gameT += dt;
@@ -659,10 +726,10 @@
         if (over) { overT -= dt; if (overT <= 0 && phase !== 'over') finish(false); }
       }
       function pickup(p, it) {
-        if (it.k === 'P') { if (p.power < 4) p.power++; else p.score += 1000; }
+        if (it.k === 'P') { it.full = p.power >= 5; if (p.power < 5) p.power++; else p.score += 500; }   // v148 P 카드 4장(power 5)까지 · 넘치면 별처럼 +500
         else if (it.k === 'B') { if (p.bombs < 6) p.bombs++; else p.score += 1000; }
         else p.score += 500;
-        FX.push({ txt: it.k === 'star' ? '+500' : it.k === 'P' ? 'POWER UP' : 'BOMB +1', x: it.x, y: it.y, vx: 0, vy: -30, life: 0.8, max: 0.8 });
+        FX.push({ txt: it.k === 'star' || (it.k === 'P' && it.full) ? '+500' : it.k === 'P' ? 'POWER UP' : 'BOMB +1', x: it.x, y: it.y, vx: 0, vy: -30, life: 0.8, max: 0.8 });
       }
       function hitCheck(p) {
         for (const b of B) { const rr = BUL_R[b.k] * 0.8 + 3; if ((b.x - p.x) ** 2 + (b.y - p.y) ** 2 < rr * rr) { b.hit = true; return true; } }
@@ -843,6 +910,7 @@
           [1, 0.7, 0.4].forEach(m => { ctx.beginPath(); ctx.arc(b.x, b.y, k * 520 * m, 0, Math.PI * 2); ctx.stroke(); });
         });
         drawHud(t);
+        uiFrame(ctx);   // v148 보라 테두리
         ctx.restore();
       }
       function drawBossNow() {
@@ -850,32 +918,41 @@
         drawBoss(ctx, boss, def, gameT, ang);
       }
       function drawHud(t) {
-        ctx.fillStyle = 'rgba(11,14,34,.55)'; ctx.fillRect(0, 0, W, 26);
+        // v148 위: 1P(빨강) · 점수(금빛) · STAGE (어두운 띠 없이 테두리 글자)
         const p0 = P[0], p1 = P[1];
-        if (p0) S.text(ctx, '1P ' + fmtScore(p0.score), 8, 13, 13, '#FFB0B0', 'left');
-        if (p1) S.text(ctx, '2P ' + fmtScore(p1.score), W - 8, 13, 13, '#9FD8FF', 'right');
-        S.text(ctx, 'STAGE ' + stage, W / 2, 13, 13, '#FFE48A');
+        if (p0) { const w = otext(ctx, '1P', 18, 30, 22, ['#FF8A6A', '#D8201A'], 'left', 5); otext(ctx, fmtScore(p0.score), 18 + w + 8, 30, 21, ['#FFFFFF', '#FFF2C8', '#E8B84A'], 'left', 5); }
+        if (p1) { const w = otext(ctx, fmtScore(p1.score), W - 18, 30, 21, ['#FFFFFF', '#E6F4FF', '#7FB8F0'], 'right', 5); otext(ctx, '2P', W - 18 - w - 8, 30, 22, ['#9FD8FF', '#2F6BE0'], 'right', 5); }
+        otext(ctx, 'STAGE ' + stage, p1 ? W / 2 : 330, 30, 16, ['#F2F8FF', '#9FC2E8'], 'center', 4);
         // 보스 체력
         if (boss && boss.max) {
           const def = stageOf(stage).boss;
-          S.bar(ctx, 60, 36, W - 120, 8, boss.hp / boss.max, boss.hp < boss.max * 0.5 ? '#FF5A5F' : '#FF9A3D');
-          S.text(ctx, def.name, W / 2, 56, 12, '#FFFFFF');
+          S.bar(ctx, 60, 50, W - 120, 8, boss.hp / boss.max, boss.hp < boss.max * 0.5 ? '#FF5A5F' : '#FF9A3D');
+          otext(ctx, def.name, W / 2, 70, 13, '#FFFFFF', 'center', 3);
         }
-        // 아래: 목숨 · 폭탄 · 파워
+        // 아래: 변신 · P 카드 4장 · 목숨 (2P 는 오른쪽에 거울처럼) · 폭탄
+        const two = P.length > 1;
         P.forEach((p, i) => {
-          const right = i === 1, x0 = right ? W - 10 : 10, dir = right ? -1 : 1, y = H - 16;
-          ctx.save(); ctx.globalAlpha = 0.9;
-          for (let k = 0; k < Math.min(6, p.lives); k++) { const im = spr('p' + p.slot); ctx.drawImage(im, x0 + dir * (k * 15) - (right ? 13 : 0), y - 8, 13, 15); }
-          for (let k = 0; k < Math.min(6, p.bombs); k++) { const bx = x0 + dir * (k * 15) - (right ? 12 : 0); ctx.fillStyle = '#1D2340'; ctx.fillRect(bx, y - 28, 12, 12); ctx.fillStyle = '#3DDC84'; ctx.fillRect(bx + 1, y - 27, 10, 10); ctx.fillStyle = '#fff'; ctx.font = '700 9px Galmuri11, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('B', bx + 6, y - 21); }
-          S.text(ctx, 'P' + '▮'.repeat(p.power) + '▯'.repeat(4 - p.power), x0 + dir * 2, y - 42, 11, '#FFB070', right ? 'right' : 'left');
-          if (!p.out) {   // v147 변신 상태
-            const key = touch || !p.local ? '' : P.length > 1 && !online() ? (p.slot ? ' ,' : ' H') : ' C', cs = Math.ceil(p.tcd);
-            const tx = p.fm === 2 ? '로봇 ' + Math.ceil(p.ft) + '초' : p.fm ? '변신 중…' : p.tcd > 0 ? '변신 ' + Math.floor(cs / 60) + ':' + String(cs % 60).padStart(2, '0') : '변신 준비!' + key;
-            ctx.font = '700 12px Galmuri11, sans-serif'; const tw = ctx.measureText(tx).width + 10;
-            ctx.fillStyle = 'rgba(11,14,34,.72)'; ctx.fillRect(right ? x0 - tw + 3 : x0 - 3, y - 67, tw, 18);
-            S.text(ctx, tx, x0 + dir * 2, y - 58, 12, p.fm ? '#FFD23F' : p.tcd > 0 ? '#9FD8FF' : '#3DDC84', right ? 'right' : 'left');
+          const right = i === 1, dir = right ? -1 : 1, x0 = right ? W - 18 : 18, al = right ? 'right' : 'left';
+          ctx.save();
+          if (p.out) { otext(ctx, p.left ? '나감' : 'GAME OVER', x0, H - 82, 15, '#FF8A8A', al, 4); ctx.restore(); return; }
+          // 변신
+          const key = touch || !p.local ? '' : two && !online() ? (p.slot ? ',' : 'H') : 'C', cs = Math.ceil(p.tcd);
+          if (p.fm === 2) otext(ctx, '로봇 ' + Math.ceil(p.ft) + '초', x0, H - 82, 17, ['#FFF2A8', '#FFB02A'], al, 4);
+          else if (p.fm) otext(ctx, '변신 중…', x0, H - 82, 17, ['#FFF2A8', '#FFB02A'], al, 4);
+          else if (p.tcd > 0) otext(ctx, '변신 ' + Math.floor(cs / 60) + ':' + String(cs % 60).padStart(2, '0'), x0, H - 82, 16, ['#E6F4FF', '#7FB8F0'], al, 4);
+          else { const w = otext(ctx, '변신 준비!', x0, H - 82, 17, ['#FFE48A', '#FF8A1A'], al, 4); if (key) uiBadge(ctx, x0 + dir * (w + 16), H - 82, key, t); }
+          // P 카드 (P 를 먹은 만큼 P 카드, 나머지는 노랑 카드)
+          const pc = Math.max(0, Math.min(4, p.power - 1));
+          uiPIcon(ctx, x0 + dir * 9, H - 52, t);
+          for (let k = 0; k < 4; k++) uiCard(ctx, right ? x0 - 42 - k * 23 - 19 : x0 + 23 + k * 23, H - 64, k < pc, t);
+          // 목숨
+          for (let k = 0; k < Math.min(6, p.lives); k++) { const im = spr('p' + p.slot); ctx.drawImage(im, right ? x0 - 15 - k * 18 : x0 + k * 18, H - 33, 15, 15); }
+          // 폭탄: 혼자 = 오른쪽 아래(휴대폰은 폭탄 버튼 왼쪽) · 둘이서 = 카드 옆
+          const nb = Math.min(6, p.bombs);
+          for (let k = 0; k < nb; k++) {
+            const bx = two ? (right ? W - 172 - k * 28 : 158 + k * 28) : (touch ? W - 104 - k * 28 : W - 30 - k * 28);
+            uiBomb(ctx, bx, H - 30, t);
           }
-          if (p.out) S.text(ctx, p.left ? '나감' : 'GAME OVER', x0 + dir * 40, y - 60, 12, '#FF8A8A', right ? 'right' : 'left');
           ctx.restore();
         });
         if (touch && phase !== 'idle' && phase !== 'over') {

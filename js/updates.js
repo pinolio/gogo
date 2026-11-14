@@ -24,6 +24,8 @@
     { g: 'sky', at: '2026-11-14 21:50', t: '적·보스 10종·아이템 새 그림' },
     { g: 'sky', at: '2026-11-14 23:00', t: '로봇 변신(C) · Z 총 · X 폭탄' },
     { g: 'sky', at: '2026-11-14 23:00', t: '1~10스테이지 배경 모두 새 그림' },
+    { g: 'sky', at: '2026-11-14 23:30', t: '화면 새 단장 · P 카드 4장' },
+    { g: '*', at: '2026-11-14 23:30', t: '⛶ 전체 화면 버튼' },
     // 블록 대전
     { g: 'battle', at: '2026-11-14 12:45', t: '블록이 바닥에 닿고 0.2초 뒤에 붙어요' },
     // 상점
@@ -46,9 +48,10 @@
     if (six > now) six -= 24 * 3600e3;
     return six;
   }
+  const GAMES_ONLY = g => !!(window.GoGames && window.GoGames[g]);   // g: '*' = 모든 게임 화면에 같이 보임 (상점·메이커 빼고)
   function items(g, now) {
     const end = lastSix(now), start = end - 48 * 3600e3;
-    return LIST.filter(u => u.g === g).map(u => Object.assign({ ms: kst(u.at) }, u))
+    return LIST.filter(u => u.g === g || (u.g === '*' && g && GAMES_ONLY(g))).map(u => Object.assign({ ms: kst(u.at) }, u))
       .filter(u => u.ms >= start && u.ms < end).sort((a, b) => b.ms - a.ms);
   }
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

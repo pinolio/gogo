@@ -1655,3 +1655,21 @@ a.nm-t:hover { text-decoration: underline; }
 .gu-strip small { font-size: 12.5px; font-weight: 700; }
 .gu-strip .gu-x { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 2px solid #1D2340; background: #FFFFFF; color: #1D2340; font-weight: 700; cursor: pointer; }
 @media (max-width: 640px) { .gu-strip { font-size: 14px; } .gu-strip .gu-it { font-size: 12.5px; } }
+
+/* v148 모든 게임 전체 화면 (js/fullscreen.js) — 그림 비율(--fsar = 가로/세로)은 그대로 두고 화면에 꽉 차게 */
+.fs-row { display: flex; justify-content: flex-end; margin-top: 6px; }
+.fs-btn { background: #FFD23F; color: #1D2340; border: 2px solid #1D2340; border-radius: 8px; font: 700 13px/1 inherit; padding: 6px 12px; cursor: pointer; box-shadow: 0 2px 0 #1D2340; }
+.fs-btn:hover { background: #FFE48A; }
+.fs-in { display: none; }
+.cabinet:fullscreen, .cabinet:-webkit-full-screen, .cabinet.fs-max {
+  width: 100vw; height: 100vh; height: 100dvh; max-width: none; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none;
+  background: #05081A; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.cabinet.fs-max { position: fixed; inset: 0; z-index: 9999; }
+html.fs-lock, html.fs-lock body { overflow: hidden; }
+.cabinet:fullscreen .screen, .cabinet:-webkit-full-screen .screen, .cabinet.fs-max .screen {
+  width: min(100vw, calc(100vh * var(--fsar, 1))); width: min(100vw, calc(100dvh * var(--fsar, 1))); max-width: none; flex: none; border: 0; border-radius: 0;
+}
+.cabinet:fullscreen .fs-in, .cabinet:-webkit-full-screen .fs-in, .cabinet.fs-max .fs-in {
+  display: block; position: absolute; top: 10px; right: 10px; z-index: 30; background: #FFD23F; color: #1D2340; border: 2px solid #1D2340; border-radius: 8px; font: 700 13px/1 sans-serif; padding: 6px 10px; cursor: pointer; opacity: .85;
+}
