@@ -1160,6 +1160,7 @@
     else if (h === 'my') renderMy();
     else renderHome();
     window.scrollTo(0, 0);
+    if (window.GoUpdates) window.GoUpdates.show(h === 'home' ? null : h.split('/')[0]);   // v147 게임별 업데이트 띠 (js/updates.js)
   }
 
   /* ---------- 전적 초기화 (게임별, 화면 안에서 한 번 더 확인) ---------- */

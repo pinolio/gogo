@@ -1642,3 +1642,16 @@ a.nm-t:hover { text-decoration: underline; }
 .me-samples button:hover { background: #FFF6C2; transform: translateY(-1px); }
 .me-samples canvas { width: 100%; height: auto; aspect-ratio: 50 / 34; border-radius: 8px; border: 2px solid #1D2340; background: #6DB85C; }
 .me-samples b { font-size: 14px; } .me-samples small { font-size: 12px; color: #3A4270; }
+
+/* v147 게임별 업데이트 띠 (js/updates.js) — 노랑 바탕 + 남색 글자 */
+.gu-strip { position: fixed; top: 64px; left: 0; right: 0; margin: 0 auto; width: max-content; z-index: 9000; transform: translateY(-14px); opacity: 0; transition: opacity .25s, transform .25s;
+  display: flex; align-items: center; gap: 10px; max-width: min(92vw, 760px); padding: 9px 12px 9px 14px; border-radius: 12px;
+  background: linear-gradient(180deg, #FFE27A, #FFC93C); color: #1D2340; border: 2px solid #1D2340; box-shadow: 0 6px 0 rgba(29,35,64,.35), 0 10px 24px rgba(0,0,0,.25); font-size: 15px; line-height: 1.4; }
+.gu-strip.on { opacity: 1; transform: translateY(0); }
+.gu-strip .gu-ic { font-size: 20px; }
+.gu-strip .gu-tx { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.gu-strip .gu-tx b { margin-right: 2px; }
+.gu-strip .gu-it { padding: 1px 8px; border-radius: 999px; background: #FFFFFF; border: 1.5px solid #1D2340; font-size: 13.5px; }
+.gu-strip small { font-size: 12.5px; font-weight: 700; }
+.gu-strip .gu-x { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 2px solid #1D2340; background: #FFFFFF; color: #1D2340; font-weight: 700; cursor: pointer; }
+@media (max-width: 640px) { .gu-strip { font-size: 14px; } .gu-strip .gu-it { font-size: 12.5px; } }

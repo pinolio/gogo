@@ -3,7 +3,7 @@
  *  - 혼자(쉬움·보통·어려움) · 한 기기 둘이서(협동) · 온라인 둘이서(협동), 최대 2명
  *  - 스테이지 10개. 스테이지마다 적 편대가 몰려오다가 마지막에 보스가 나옴. 보스를 무찌르면 다음 스테이지
  *  - 스테이지가 올라갈수록 적 총알이 빨라짐 (settings.js 의 bulletBase · bulletStep)
- *  - 총알은 저절로 나감. 빨간(주황) 편대를 모두 잡거나 폭격기를 잡으면 P(파워)·B(폭탄)·★(점수) 아이템
+ *  - v147 총알은 Z 를 누르는 동안(휴대폰은 저절로) · C = 로봇 변신 10초(돌아온 뒤 2분 쉼) · 비행기 = 일직선 총알+P 미사일, 로봇 = 부채꼴. 빨간(주황) 편대를 모두 잡거나 폭격기를 잡으면 P(파워)·B(폭탄)·★(점수) 아이템
  *  - 폭탄: 화면의 적 총알을 모두 지우고 적에게 큰 피해. 맞으면 목숨 -1, 파워 -1 (잠깐 무적)
  *  - v46: 비행기·적·보스 15개 = Meshy 3D 를 위에서 찍은 그림(img/). 그림을 못 받으면 예전 도트 그림으로
  *  - 온라인: 방장 기기가 적·총알·점수를 계산해서 보냄(초당 10번). 손님은 자기 비행기를 직접 움직이고,
@@ -19,16 +19,16 @@
   /* ---------- 스테이지 · 보스 ---------- */
   const ALLP = ['aimed', 'fan', 'ring', 'spiral', 'rain', 'wall', 'burst'];
   const STAGES = [
-    { name: '푸른 바다', bg: 'ocean', water: true, boss: { name: '회색 독수리', type: 'plane', color: '#7C8AA6', hw: 96, hh: 48, guns: [[-52, 12], [52, 12], [0, 40]], pats: ['aimed', 'fan'] } },
-    { name: '산호섬', bg: 'islands', water: true, boss: { name: '쌍둥이 매', type: 'plane', color: '#3E8F6E', hw: 112, hh: 52, guns: [[-74, 14], [74, 14], [-24, 36], [24, 36]], pats: ['fan', 'aimed', 'ring'] } },
-    { name: '항구 도시', bg: 'coast', water: true, boss: { name: '철갑 포함', type: 'ship', color: '#5B6678', hw: 62, hh: 118, guns: [[0, -64], [0, -14], [0, 36], [0, 84]], pats: ['ring', 'aimed', 'rain'] } },
-    { name: '사막 협곡', bg: 'desert', boss: { name: '모래 전갈 전차', type: 'tank', color: '#B5833A', hw: 86, hh: 74, guns: [[0, 30], [-56, -16], [56, -16]], pats: ['fan', 'spiral', 'aimed'] } },
-    { name: '정글 강', bg: 'jungle', boss: { name: '정글 비행정', type: 'plane', color: '#3A6B34', hw: 140, hh: 54, guns: [[-96, 10], [96, 10], [-44, 26], [44, 26], [0, 44]], pats: ['spiral', 'ring', 'rain', 'aimed'] } },
-    { name: '눈 덮인 산맥', bg: 'snow', boss: { name: '눈보라 포대', type: 'tank', color: '#7F93A8', hw: 100, hh: 80, guns: [[0, 34], [-64, -18], [64, -18], [-30, 50], [30, 50]], pats: ['wall', 'spiral', 'fan', 'aimed'] } },
-    { name: '화산 지대', bg: 'lava', boss: { name: '용암 거미 요새', type: 'fortress', color: '#7A2E2E', hw: 110, hh: 84, guns: [[0, 40], [-70, 0], [70, 0], [-40, -44], [40, -44]], pats: ['spiral', 'rain', 'ring', 'burst'] } },
-    { name: '밤바다', bg: 'night', water: true, boss: { name: '그림자 전함', type: 'ship', color: '#39425E', hw: 76, hh: 140, guns: [[0, -90], [0, -40], [0, 10], [0, 60], [0, 108]], pats: ['fan', 'spiral', 'wall', 'burst', 'aimed'] } },
-    { name: '폭풍 구름', bg: 'storm', boss: { name: '천둥 비행선', type: 'airship', color: '#6B5BA8', hw: 132, hh: 70, guns: [[-80, 30], [80, 30], [0, 66], [-40, 50], [40, 50]], pats: ['spiral', 'ring', 'rain', 'burst', 'wall'] } },
-    { name: '하늘 요새', bg: 'sky', boss: { name: '하늘 요새 고고', type: 'fortress', color: '#C8463C', hw: 152, hh: 100, guns: [[0, 56], [-100, 10], [100, 10], [-56, 40], [56, 40], [-120, -40], [120, -40]], pats: ALLP } }
+    { name: '푸른 바다', bg: 'ocean', pic: 'bg1', water: true, boss: { name: '회색 독수리', type: 'plane', color: '#7C8AA6', hw: 96, hh: 48, guns: [[-52, 12], [52, 12], [0, 40]], pats: ['aimed', 'fan'] } },
+    { name: '산호섬', bg: 'islands', pic: 'bg2', water: true, boss: { name: '쌍둥이 매', type: 'plane', color: '#3E8F6E', hw: 112, hh: 52, guns: [[-74, 14], [74, 14], [-24, 36], [24, 36]], pats: ['fan', 'aimed', 'ring'] } },
+    { name: '항구 도시', bg: 'coast', pic: 'bg3', water: true, boss: { name: '철갑 포함', type: 'ship', color: '#5B6678', hw: 62, hh: 118, guns: [[0, -64], [0, -14], [0, 36], [0, 84]], pats: ['ring', 'aimed', 'rain'] } },
+    { name: '사막 협곡', bg: 'desert', pic: 'bg4', boss: { name: '모래 전갈 전차', type: 'tank', color: '#B5833A', hw: 86, hh: 74, guns: [[0, 30], [-56, -16], [56, -16]], pats: ['fan', 'spiral', 'aimed'] } },
+    { name: '정글 강', bg: 'jungle', pic: 'bg5', boss: { name: '정글 비행정', type: 'plane', color: '#3A6B34', hw: 140, hh: 54, guns: [[-96, 10], [96, 10], [-44, 26], [44, 26], [0, 44]], pats: ['spiral', 'ring', 'rain', 'aimed'] } },
+    { name: '눈 덮인 산맥', bg: 'snow', pic: 'bg6', boss: { name: '눈보라 포대', type: 'tank', color: '#7F93A8', hw: 100, hh: 80, guns: [[0, 34], [-64, -18], [64, -18], [-30, 50], [30, 50]], pats: ['wall', 'spiral', 'fan', 'aimed'] } },
+    { name: '화산 지대', bg: 'lava', pic: 'bg7', boss: { name: '용암 거미 요새', type: 'fortress', color: '#7A2E2E', hw: 110, hh: 84, guns: [[0, 40], [-70, 0], [70, 0], [-40, -44], [40, -44]], pats: ['spiral', 'rain', 'ring', 'burst'] } },
+    { name: '밤바다', bg: 'night', pic: 'bg8', water: true, boss: { name: '그림자 전함', type: 'ship', color: '#39425E', hw: 76, hh: 140, guns: [[0, -90], [0, -40], [0, 10], [0, 60], [0, 108]], pats: ['fan', 'spiral', 'wall', 'burst', 'aimed'] } },
+    { name: '폭풍 구름', bg: 'storm', pic: 'bg9', boss: { name: '천둥 비행선', type: 'airship', color: '#6B5BA8', hw: 132, hh: 70, guns: [[-80, 30], [80, 30], [0, 66], [-40, 50], [40, 50]], pats: ['spiral', 'ring', 'rain', 'burst', 'wall'] } },
+    { name: '하늘 요새', bg: 'sky', pic: 'bg10', boss: { name: '하늘 요새 고고', type: 'fortress', color: '#C8463C', hw: 152, hh: 100, guns: [[0, 56], [-100, 10], [100, 10], [-56, 40], [56, 40], [-120, -40], [120, -40]], pats: ALLP } }
   ];
   const stageOf = s => STAGES[Math.max(0, Math.min(STAGES.length - 1, s - 1))];
 
@@ -50,9 +50,9 @@
   const SMALL = ['...ooo', '...obb', 'oo.obb', 'obooob', 'obbbbb', 'ooobbc', '...obb', '....ob', '.....o'];
   const BOMBER = ['......ooo', '......obb', 'ooooooobb', 'obbbbbbbb', 'obbdbbbbb', 'ooobbbbbc', '..odo.obb', '..ooo.obb', '......obb', '.......ob', '........o'];
   /* v46 Meshy 그림 (img/*.png — Meshy 3D 비행기·보스 15개를 위에서 찍어 도트로). 못 불러오면 아래 도트 그림 */
-  const IMGDIR = 'games/shooting/sky/img/', IMGV = 46, IMG = {};
+  const IMGDIR = 'games/shooting/sky/img/', IMGV = 147, IMG = {};
   function img(n) { let i = IMG[n]; if (!i) { i = IMG[n] = new Image(); i.src = IMGDIR + n + '.png?v=' + IMGV; } return i.complete && i.naturalWidth ? i : null; }
-  ['p0', 'p1', 'small', 'red', 'dive', 'bomber', 'big'].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => 'boss' + n)).forEach(img);   // 미리 받기
+  ['p0', 'p1', 'p0_tf', 'p1_tf', 'p0_robot', 'p1_robot', 'small', 'red', 'dive', 'bomber', 'big', 'tank', 'boat', 'item_p', 'item_b', 'item_star'].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => 'boss' + n)).forEach(img);   // 미리 받기
   const SPR = {};
   function spr(name) {
     const mi = img(name); if (mi) return mi;
@@ -71,6 +71,30 @@
   }
   // 적 총알 그림 (k0 분홍 작은 알 · k1 주황 큰 알 · k2 하늘색 바늘)
   const BUL = {};
+  // v147 선생님 그림을 보고 그린 내 총알(금빛 탄 + 빛 꼬리) · 미사일(흰 몸통 + 빨간 머리·날개). 2P 는 파란색
+  const SHOTC = {};
+  function shotImg(kind, o) {
+    const key = kind + o; if (SHOTC[key]) return SHOTC[key];
+    const c = document.createElement('canvas'), g = c.getContext('2d'), R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+    if (kind === 'b') {
+      c.width = 10; c.height = 24;
+      const P = o ? { glow: 'rgba(120,200,255,', edge: '#1F5FB8', body: '#5FB6FF', hi: '#D8F0FF' } : { glow: 'rgba(255,200,40,', edge: '#B8600A', body: '#FFC232', hi: '#FFF6C8' };
+      for (let y = 12; y < 24; y++) { const a = 0.55 * (1 - (y - 12) / 12); R(2, y, 6, 1, P.glow + (a * 0.5) + ')'); R(4, y, 2, 1, P.glow + a + ')'); }   // 빛 꼬리
+      R(1, 1, 8, 13, P.glow + '0.28)'); R(0, 3, 10, 9, P.glow + '0.18)');   // 둘레 빛
+      R(3, 2, 4, 11, P.edge); R(4, 1, 2, 1, P.edge);                      // 테두리
+      R(4, 3, 2, 9, P.body); R(4, 2, 2, 1, P.hi); R(4, 3, 1, 8, P.hi);     // 몸통 · 반짝
+      R(3, 12, 4, 1, P.edge);
+    } else {
+      c.width = 10; c.height = 22;
+      const red = o ? '#2F6BE0' : '#E0402E', dk = o ? '#1C3F8A' : '#8E2418', wh = '#F4F8FF', sh = '#B8CCE4';
+      R(4, 0, 2, 1, dk); R(3, 1, 4, 2, red); R(4, 1, 1, 2, '#FF9A8A');      // 머리
+      R(2, 3, 6, 1, dk); R(3, 4, 4, 11, wh); R(6, 4, 1, 11, sh); R(2, 4, 1, 11, dk); R(7, 4, 1, 11, dk);   // 몸통
+      R(3, 9, 4, 1, red);                                                 // 띠
+      R(0, 13, 3, 4, red); R(7, 13, 3, 4, red); R(0, 16, 3, 1, dk); R(7, 16, 3, 1, dk);   // 날개
+      R(3, 15, 4, 2, '#1D2340');                                          // 분사구
+    }
+    return (SHOTC[key] = c);
+  }
   function bulletImg(k) {
     if (BUL[k]) return BUL[k];
     const r = k === 1 ? 7 : k === 2 ? 4 : 5, c = document.createElement('canvas'); c.width = c.height = r * 2 + 4;
@@ -134,11 +158,17 @@
     if (theme === 'sky') { for (let i = 0; i < 22; i++) { const x = r() * W, y = r() * H; wrap(() => blob(x, y, 30 + r() * 40, i % 3 ? '#8FA8EE' : '#F2B8C8', 6)); } }
     return (BGC[theme] = c);
   }
+  const BGP = {};
+  function bgPic(n) { let i = BGP[n]; if (!i) { i = BGP[n] = new Image(); i.src = IMGDIR + n + '.jpg?v=' + IMGV; } return i.complete && i.naturalWidth ? i : null; }
+  STAGES.forEach(t => t.pic && bgPic(t.pic));   // 미리 받기
   const CLOUDS = Array.from({ length: 6 }, (_, i) => ({ x: (i * 157) % W, y: (i * 233) % H, s: 30 + (i * 37) % 40 }));
   function drawBg(ctx, stage, scroll) {
-    const t = bgTile(stageOf(stage).bg), off = scroll % H;
-    ctx.drawImage(t, 0, off - H); ctx.drawImage(t, 0, off);
-    const theme = stageOf(stage).bg;
+    const st = stageOf(stage), off = scroll % H;
+    const pic = st.pic ? bgPic(st.pic) : null; /* v147 선생님 배경 그림(없으면 코드 배경) */
+    const t = pic || bgTile(st.bg);
+    ctx.drawImage(t, 0, off - H, W, H); ctx.drawImage(t, 0, off, W, H);
+    if (pic) return; /* 그림에 구름이 이미 있어 코드 구름은 그리지 않음 */
+    const theme = st.bg;
     ctx.save(); ctx.globalAlpha = theme === 'storm' ? 0.35 : 0.2; ctx.fillStyle = theme === 'storm' ? '#1A1E36' : '#FFFFFF';
     CLOUDS.forEach(c => {
       const y = ((c.y + scroll * 1.8) % (H + 200)) - 100;
@@ -149,14 +179,24 @@
   }
 
   /* ---------- 그리기: 비행기 · 적 · 보스 ---------- */
-  function drawPlane(ctx, slot, x, y, blink, t) {
+  function drawPlane(ctx, slot, x, y, blink, t, fm) {
     if (blink && Math.floor(t * 12) % 2) return;
+    const fi = fm ? img('p' + slot + (fm === 2 ? '_robot' : '_tf')) : null;   // v147 변신: 1·3 = 변신 중, 2 = 로봇
+    if (fi) { ctx.drawImage(fi, Math.round(x - fi.width / 2), Math.round(y - fi.height / 2)); return; }
     const im = spr('p' + slot);
     ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(y - im.height / 2));
     ctx.fillStyle = Math.floor(t * 20) % 2 ? '#FFD23F' : '#FF9A3D';   // 엔진 불꽃
     ctx.fillRect(Math.round(x - 2), Math.round(y + im.height / 2 - 1), 4, 4 + (Math.floor(t * 20) % 2) * 2);
   }
   function drawGround(ctx, e, water, t) {
+    const gi = img(water ? 'boat' : 'tank');   // v147 선생님 그림 (전차 = 포신이 오른쪽 → 비행기 쪽으로 통째로 돌림 · 배 = 그대로)
+    if (gi) {
+      ctx.save(); ctx.translate(Math.round(e.x), Math.round(e.y));
+      if (!water) ctx.rotate((e.aim || 0) + Math.PI / 2);
+      ctx.drawImage(gi, -Math.round(gi.width / 2), -Math.round(gi.height / 2));
+      if (e.flash > 0) { ctx.globalAlpha = 0.6; ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(gi, -Math.round(gi.width / 2), -Math.round(gi.height / 2)); }
+      ctx.restore(); return;
+    }
     ctx.save(); ctx.translate(Math.round(e.x), Math.round(e.y));
     if (water) {
       ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(-10, 20, 20, 10);
@@ -244,6 +284,13 @@
   }
   function drawItem(ctx, it, t) {
     const x = Math.round(it.x), y = Math.round(it.y), bob = Math.sin(t * 6 + it.id) * 2;
+    const ii = img(it.k === 'P' ? 'item_p' : it.k === 'B' ? 'item_b' : 'item_star');   // v147 선생님 그림 (P 는 반짝반짝)
+    if (ii) {
+      ctx.save(); ctx.translate(x, y + bob);
+      ctx.drawImage(ii, -Math.round(ii.width / 2), -Math.round(ii.height / 2));
+      if (it.k === 'P' && Math.floor(t * 6) % 2) { ctx.globalAlpha = 0.45; ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(ii, -Math.round(ii.width / 2), -Math.round(ii.height / 2)); }
+      ctx.restore(); return;
+    }
     ctx.save(); ctx.translate(x, y + bob);
     if (it.k === 'star') {
       ctx.fillStyle = '#1D2340'; ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? 6 : 13; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); ctx.fill();
@@ -295,21 +342,41 @@
 
       /* ---------- 조작 ---------- */
       const KEYS = {
-        KeyA: 'k0.left', KeyD: 'k0.right', KeyW: 'k0.up', KeyS: 'k0.down', KeyG: 'k0.bomb', Space: 'k0.bomb', KeyB: 'k0.bomb', KeyF: 'k0.bomb',
-        ArrowLeft: 'k1.left', ArrowRight: 'k1.right', ArrowUp: 'k1.up', ArrowDown: 'k1.down', Enter: 'k1.bomb', NumpadEnter: 'k1.bomb', Numpad0: 'k1.bomb', Slash: 'k1.bomb', ShiftRight: 'k1.bomb', Period: 'k1.bomb',
+        // v147 키 3개: 총(누르는 동안) · 폭탄 · 변신  — 혼자: Z X C / 둘이서 1P: F G H · 2P: / . ,
+        KeyA: 'k0.left', KeyD: 'k0.right', KeyW: 'k0.up', KeyS: 'k0.down',
+        KeyZ: 'k0.fire', KeyX: 'k0.bomb', KeyC: 'k0.tf', KeyF: 'k0.fire', KeyG: 'k0.bomb', KeyH: 'k0.tf', Space: 'k0.bomb', KeyB: 'k0.bomb',
+        ArrowLeft: 'k1.left', ArrowRight: 'k1.right', ArrowUp: 'k1.up', ArrowDown: 'k1.down',
+        Slash: 'k1.fire', Period: 'k1.bomb', Comma: 'k1.tf', Numpad0: 'k1.fire', NumpadEnter: 'k1.bomb', NumpadDecimal: 'k1.tf', Enter: 'k1.bomb', ShiftRight: 'k1.bomb',
         KeyP: 'pause', Escape: 'pause'
       };
       const input = S.keys(KEYS, a => onKey(a));
       hooks.onTurn({ text: '출격 방식을 골라 주세요', side: -1 });
       const touch = S.touchDevice();
-      const BOMB_BTN = { x: W - 50, y: H - 60, r: 34 };
+      const BOMB_BTN = { x: W - 50, y: H - 60, r: 34 }, TF_BTN = { x: W - 50, y: H - 140, r: 30 };
+      const TF_ANIM = 0.5, tfSec = () => C().tfSec || 10, tfCd = () => C().tfCool || 120;   // v147 변신: 0.5초 변신 → 로봇 10초 → 0.5초 → 비행기, 돌아온 뒤 2분 쉬기
       const ctl = (p, k) => p.ks.some(q => input.down['k' + q + '.' + k]);
       function onKey(a) {
         if (a === 'pause') { if (!online()) togglePause(); return; }
         if (phase === 'idle' || phase === 'over' || phase === 'paused') return;
-        const m = /^k(\d)\.bomb$/.exec(a); if (!m) return;
-        const p = P.find(q => q.local && q.ks.includes(+m[1])); if (p) tryBomb(p);
+        const m = /^k(\d)\.(bomb|tf)$/.exec(a); if (!m) return;
+        const p = P.find(q => q.local && q.ks.includes(+m[1])); if (!p) return;
+        if (m[2] === 'tf') tryTf(p); else tryBomb(p);
       }
+      // v147 변신 (모양은 각자 기기가 정하고, 온라인은 pos·상태로 알려 줌)
+      function tryTf(p) {
+        if (!p.alive || p.fm || p.tcd > 0 || phase === 'clear') return;
+        p.fm = 1; p.ft = TF_ANIM;
+      }
+      function stepForm(p, dt) {
+        if (p.tcd > 0) p.tcd = Math.max(0, p.tcd - dt);
+        if (!p.fm) return;
+        p.ft -= dt; if (p.ft > 0) return;
+        if (p.fm === 1) { p.fm = 2; p.ft = tfSec(); }
+        else if (p.fm === 2) { p.fm = 3; p.ft = TF_ANIM; }
+        else { p.fm = 0; p.ft = 0; p.tcd = tfCd(); }
+      }
+      function formReset(p) { if (p.fm) { p.fm = 0; p.ft = 0; p.tcd = tfCd(); } }   // 비행기가 떨어지면 바로 비행기로 · 쉬는 시간 시작
+      const wantFire = p => p.local ? (touch || ctl(p, 'fire')) : !!p.firing;   // 휴대폰은 저절로 쏨
       function tryBomb(p) {
         if (!isHost()) { if (p.alive && p.bombs > 0) { send({ k: 'act', a: 'bomb' }); p.bombs--; net.bombPend = performance.now(); } return; }
         doBomb(p);
@@ -323,6 +390,7 @@
         const [x, y] = gpos(e);
         const me = P.find(p => p.mine);
         if (touch && (x - BOMB_BTN.x) ** 2 + (y - BOMB_BTN.y) ** 2 <= (BOMB_BTN.r + 8) ** 2) { if (me) tryBomb(me); e.preventDefault(); return; }
+        if (touch && (x - TF_BTN.x) ** 2 + (y - TF_BTN.y) ** 2 <= (TF_BTN.r + 8) ** 2) { if (me) tryTf(me); e.preventDefault(); return; }
         drag = { id: e.pointerId, x, y }; e.preventDefault();
         try { canvas.setPointerCapture(e.pointerId); } catch (er) { /* noop */ }
       };
@@ -339,7 +407,7 @@
 
       /* ---------- 사람(비행기) ---------- */
       function mkPlayer(slot, name, ks, mine, local) {
-        return { slot, name, ks, mine, local, x: spawnX(slot), y: H - 70, alive: true, out: false, lives: lives0(), bombs: bombs0(), power: 1, score: 0, inv: 2.5, cd: 0, rsp: 0, dc: 0, tx: null, ty: null, pend: 0 };
+        return { slot, name, ks, mine, local, x: spawnX(slot), y: H - 70, alive: true, out: false, lives: lives0(), bombs: bombs0(), power: 1, score: 0, inv: 2.5, cd: 0, mcd: 0, rsp: 0, dc: 0, tx: null, ty: null, pend: 0, fm: 0, ft: 0, tcd: 0, firing: false };
       }
       const spawnX = slot => (P.length > 1 || (mode !== 'ai') ? W / 2 + (slot ? 56 : -56) : W / 2);
       const alivePlayers = () => P.filter(p => p.alive);
@@ -350,7 +418,7 @@
       }
       function killPlayer(p) {
         if (!p.alive || p.inv > 0) return;
-        p.alive = false; p.lives--; p.dc++; p.rsp = 1.4;
+        p.alive = false; p.lives--; p.dc++; p.rsp = 1.4; formReset(p);
         boom(p.x, p.y, 3);
         if (p.power > 1) { dropItem(p.x, p.y - 20, 'P'); p.power--; }
         if (p.lives <= 0) { p.out = true; p.lives = 0; }
@@ -517,9 +585,19 @@
       }
       function fire(p, dt, list, real) {
         if (!p.alive) return;
-        p.cd -= dt; if (p.cd > 0) return; p.cd = 0.09;
+        p.cd -= dt; p.mcd -= dt;
+        if (!wantFire(p) || p.fm === 1 || p.fm === 3) return;   // v147 Z 를 누르는 동안만 · 변신하는 0.5초는 쉼
         const x = p.x, y = p.y - 14, v = -900, add = (dx, ang) => list.push({ x: x + dx, y, vx: Math.sin(ang || 0) * -v, vy: Math.cos(ang || 0) * v, o: p.slot, real });
         const pw = p.power;
+        if (p.fm !== 2) {   // v147 비행기: 일직선 총알 2줄 + P 단계마다 옆 미사일 한 쌍씩 (P2 = 1쌍 · P3 = 2쌍 · P4 = 3쌍)
+          if (p.cd <= 0) { p.cd = 0.09; add(-5); add(5); }
+          if (pw >= 2 && p.mcd <= 0) {
+            p.mcd = 0.34;
+            for (let k = 1; k < Math.min(4, pw); k++) [-1, 1].forEach(sd => list.push({ x: x + sd * (9 + k * 11), y: y + 10, vx: 0, vy: -620, o: p.slot, real, d: 3, m: 1 }));
+          }
+          return;
+        }
+        if (p.cd > 0) return; p.cd = 0.09;   // 로봇: 부채꼴 (예전과 같음)
         if (pw <= 1) { add(-5); add(5); }
         else if (pw === 2) { add(-8); add(0); add(8); }
         else if (pw === 3) { add(-12); add(-4); add(4); add(12); add(-10, -0.14); add(10, 0.14); }
@@ -531,6 +609,7 @@
         P.forEach(p => {
           if (p.inv > 0) p.inv -= dt;
           if (!p.alive && !p.out) { p.rsp -= dt; if (p.rsp <= 0) respawn(p); }
+          if (p.local) { stepForm(p, dt); p.firing = wantFire(p); }
           movePlayer(p, dt);
           if (phase === 'play' || phase === 'warning' || phase === 'boss') fire(p, dt, SHOT, true);
         });
@@ -560,8 +639,8 @@
         const def = boss ? stageOf(stage).boss : null;
         SHOT = SHOT.filter(s => {
           if (s.y < -20 || s.x < -20 || s.x > W + 20) return false;
-          for (const e of E) { if (!e.dead && Math.abs(s.x - e.x) < e.r + 3 && Math.abs(s.y - e.y) < e.r + 8) { hurtEnemy(e, 1, s.o); spark(s.x, s.y); return false; } }
-          if (boss && boss.hp > 0 && Math.abs(s.x - boss.x) < def.hw * 0.9 && Math.abs(s.y - boss.y) < def.hh * 0.8) { if (boss.t >= 2.6) { hurtBoss(1, s.o); spark(s.x, s.y); } return false; }
+          for (const e of E) { if (!e.dead && Math.abs(s.x - e.x) < e.r + 3 && Math.abs(s.y - e.y) < e.r + 8) { hurtEnemy(e, s.d || 1, s.o); spark(s.x, s.y); return false; } }
+          if (boss && boss.hp > 0 && Math.abs(s.x - boss.x) < def.hw * 0.9 && Math.abs(s.y - boss.y) < def.hh * 0.8) { if (boss.t >= 2.6) { hurtBoss(s.d || 1, s.o); spark(s.x, s.y); } return false; }
           return true;
         });
         // 비행기가 맞았는지 (온라인 손님 비행기는 손님 기기가 판단)
@@ -610,7 +689,7 @@
         phase = 'intro'; phaseT = 2.6; st = 0; sinceP = 8; sweeps = 0; E = []; B = []; IT = []; boss = null;
         const mul = (1 + (C().bulletStep == null ? 0.12 : C().bulletStep) * (stage - 1));
         say('STAGE ' + stage + ' · ' + stageOf(stage).name, 2.6, '#FFFFFF');
-        msg.sub = stage > 1 ? '적 총알 속도 ×' + mul.toFixed(2) : '총알은 저절로 나가요 · 폭탄으로 위기 탈출!';
+        msg.sub = stage > 1 ? '적 총알 속도 ×' + mul.toFixed(2) : touch ? '총알은 저절로 나가요 · 변신하면 10초 동안 로봇!' : 'Z 를 누르고 있으면 총 · C 로 10초 로봇 변신!';
         status();
       }
       function status() {
@@ -643,7 +722,7 @@
         const b = []; B.forEach(q => b.push(q.x | 0, q.y | 0, q.vx | 0, q.vy | 0, q.k));
         send({
           k: 'st', ph: phase, s: stage, tt: Math.round(st * 10) / 10, cl: cleared,
-          p: P.map(p => [p.x | 0, p.y | 0, p.alive ? 1 : 0, p.lives, p.bombs, p.power, p.score, p.inv > 0 ? 1 : 0, p.out ? 1 : 0, p.dc]),
+          p: P.map(p => [p.x | 0, p.y | 0, p.alive ? 1 : 0, p.lives, p.bombs, p.power, p.score, p.inv > 0 ? 1 : 0, p.out ? 1 : 0, p.dc, p.fm, p.firing ? 1 : 0, Math.ceil(p.fm ? p.ft : p.tcd)]),
           e: E.map(e => [e.id, TYPES.indexOf(e.type), e.x | 0, e.y | 0, (e.vx_ || 0) | 0, (e.vy_ || 0) | 0, e.flash > 0 ? 1 : 0, e.red ? 1 : 0, e.water ? 1 : 0, Math.round((e.aim || 0) * 100)]),
           b, i: IT.map(it => [it.id, IK.indexOf(it.k), it.x | 0, it.y | 0]),
           bo: boss ? [boss.x | 0, boss.y | 0, Math.max(0, Math.round(boss.hp)), boss.max, boss.flash > 0 ? 1 : 0, Math.round(boss.t * 10) / 10] : 0,
@@ -660,10 +739,10 @@
         m.p.forEach((a, i) => {
           const p = P[i]; if (!p) return;
           p.lives = a[3]; p.power = a[5]; p.score = a[6]; p.out = !!a[8];
-          if (!p.mine) { p.tx = a[0]; p.ty = a[1]; if (!p.alive && a[2]) { p.x = a[0]; p.y = a[1]; } p.alive = !!a[2]; p.inv = a[7] ? 1 : 0; p.bombs = a[4]; return; }
+          if (!p.mine) { p.tx = a[0]; p.ty = a[1]; if (!p.alive && a[2]) { p.x = a[0]; p.y = a[1]; } p.alive = !!a[2]; p.inv = a[7] ? 1 : 0; p.bombs = a[4]; p.fm = a[10] || 0; p.firing = !!a[11]; if (p.fm) p.ft = a[12] || 0; else p.tcd = a[12] || 0; return; }
           // 내 비행기: 자리는 내가 정하고, 살아 있는지·목숨만 방장 기준
           if (!n.bombPend || performance.now() - n.bombPend > 800) p.bombs = a[4];
-          if (a[9] !== p.dc) { p.dc = a[9]; p.alive = false; p.pend = 0; }
+          if (a[9] !== p.dc) { p.dc = a[9]; p.alive = false; p.pend = 0; formReset(p); }
           else if (p.pend && !a[2]) { p.pend = 0; }
           else if (p.pend && performance.now() - p.pend > 1500) { p.pend = 0; p.alive = true; }   // 방장이 안 맞았다고 함 → 계속
           if (!p.alive && !p.pend && a[2]) { p.alive = true; p.x = spawnX(p.slot); p.y = H - 70; p.inv = 2.5; }
@@ -692,9 +771,12 @@
         const me = P.find(p => p.mine);
         if (me) {
           if (me.inv > 0) me.inv -= dt;
+          stepForm(me, dt); const fw = wantFire(me);
+          if (fw !== me.firing || net.lastFm !== me.fm) net.lastPos = 0;   // 쏘기·변신이 바뀌면 바로 알림
+          me.firing = fw; net.lastFm = me.fm;
           movePlayer(me, dt);
-          if (me.alive && !me.pend && me.inv <= 0 && phase !== 'clear' && phase !== 'intro' && hitCheck(me)) { me.pend = performance.now(); me.alive = false; me.inv = 2.5; send({ k: 'hit' }); boom(me.x, me.y, 3, true); }
-          if (performance.now() - net.lastPos > POS_MS && me.alive) { net.lastPos = performance.now(); send({ k: 'pos', x: Math.round(me.x), y: Math.round(me.y) }); }
+          if (me.alive && !me.pend && me.inv <= 0 && phase !== 'clear' && phase !== 'intro' && hitCheck(me)) { me.pend = performance.now(); me.alive = false; me.inv = 2.5; send({ k: 'hit' }); boom(me.x, me.y, 3, true); formReset(me); }
+          if (performance.now() - net.lastPos > POS_MS && me.alive) { net.lastPos = performance.now(); send({ k: 'pos', x: Math.round(me.x), y: Math.round(me.y), fm: me.fm, f: me.firing ? 1 : 0, t: Math.ceil(me.fm ? me.ft : me.tcd) }); }
         }
         P.forEach(p => { if (!p.mine && p.tx != null) { const k = Math.min(1, dt * 12); p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; } });
         // 적: 받은 자리에서 속도대로 조금씩 앞으로 + 부드럽게
@@ -727,11 +809,21 @@
         E.forEach(e => { if (e.type !== 'ground') drawEnemy(ctx, e); });
         if (boss && !(stageOf(stage).boss.type === 'ship' || stageOf(stage).boss.type === 'tank')) drawBossNow();
         // 내 총알
-        SHOT.forEach(s => { ctx.fillStyle = s.o ? '#9FD8FF' : '#FFE48A'; ctx.fillRect(Math.round(s.x - 2), Math.round(s.y - 8), 4, 14); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(Math.round(s.x - 1), Math.round(s.y - 7), 2, 6); });
+        SHOT.forEach(s => {
+          if (s.m) {   // v147 비행기 옆 미사일 (그림 + 불꽃·연기)
+            const x = Math.round(s.x), y = Math.round(s.y), im = shotImg('m', s.o ? 1 : 0), f = Math.floor(gameT * 24) % 2;
+            ctx.fillStyle = 'rgba(220,235,255,.35)'; ctx.fillRect(x - 1, y + 13, 2, 10);
+            ctx.fillStyle = f ? '#FFD23F' : '#FF7A2A'; ctx.fillRect(x - 2, y + 8, 4, 5 + f * 3);
+            ctx.fillStyle = '#FFF6C8'; ctx.fillRect(x - 1, y + 8, 2, 3);
+            ctx.drawImage(im, x - 5, y - 13);
+            return;
+          }
+          ctx.drawImage(shotImg('b', s.o ? 1 : 0), Math.round(s.x) - 5, Math.round(s.y) - 10);   // v147 금빛 총알
+        });
         // 비행기
         P.forEach(p => {
           if (!p.alive) return;
-          drawPlane(ctx, p.slot, p.x, p.y, p.inv > 0, t);
+          drawPlane(ctx, p.slot, p.x, p.y, p.inv > 0, t, p.fm);
           if (P.length > 1 || online()) S.text(ctx, p.slot ? '2P' : '1P', p.x, p.y + 26, 11, p.slot ? '#9FD8FF' : '#FFB0B0');
           if (p.mine || p.local) { ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2); ctx.fill(); }
         });
@@ -776,6 +868,13 @@
           for (let k = 0; k < Math.min(6, p.lives); k++) { const im = spr('p' + p.slot); ctx.drawImage(im, x0 + dir * (k * 15) - (right ? 13 : 0), y - 8, 13, 15); }
           for (let k = 0; k < Math.min(6, p.bombs); k++) { const bx = x0 + dir * (k * 15) - (right ? 12 : 0); ctx.fillStyle = '#1D2340'; ctx.fillRect(bx, y - 28, 12, 12); ctx.fillStyle = '#3DDC84'; ctx.fillRect(bx + 1, y - 27, 10, 10); ctx.fillStyle = '#fff'; ctx.font = '700 9px Galmuri11, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('B', bx + 6, y - 21); }
           S.text(ctx, 'P' + '▮'.repeat(p.power) + '▯'.repeat(4 - p.power), x0 + dir * 2, y - 42, 11, '#FFB070', right ? 'right' : 'left');
+          if (!p.out) {   // v147 변신 상태
+            const key = touch || !p.local ? '' : P.length > 1 && !online() ? (p.slot ? ' ,' : ' H') : ' C', cs = Math.ceil(p.tcd);
+            const tx = p.fm === 2 ? '로봇 ' + Math.ceil(p.ft) + '초' : p.fm ? '변신 중…' : p.tcd > 0 ? '변신 ' + Math.floor(cs / 60) + ':' + String(cs % 60).padStart(2, '0') : '변신 준비!' + key;
+            ctx.font = '700 12px Galmuri11, sans-serif'; const tw = ctx.measureText(tx).width + 10;
+            ctx.fillStyle = 'rgba(11,14,34,.72)'; ctx.fillRect(right ? x0 - tw + 3 : x0 - 3, y - 67, tw, 18);
+            S.text(ctx, tx, x0 + dir * 2, y - 58, 12, p.fm ? '#FFD23F' : p.tcd > 0 ? '#9FD8FF' : '#3DDC84', right ? 'right' : 'left');
+          }
           if (p.out) S.text(ctx, p.left ? '나감' : 'GAME OVER', x0 + dir * 40, y - 60, 12, '#FF8A8A', right ? 'right' : 'left');
           ctx.restore();
         });
@@ -784,6 +883,10 @@
           ctx.save(); ctx.globalAlpha = me && me.bombs > 0 ? 0.75 : 0.35; ctx.fillStyle = '#1A1F3D'; ctx.beginPath(); ctx.arc(BOMB_BTN.x, BOMB_BTN.y, BOMB_BTN.r, 0, Math.PI * 2); ctx.fill();
           ctx.strokeStyle = '#3DDC84'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
           S.text(ctx, '폭탄', BOMB_BTN.x, BOMB_BTN.y, 15, '#FFFFFF');
+          const ready = me && me.alive && !me.fm && me.tcd <= 0;   // v147 변신 버튼
+          ctx.save(); ctx.globalAlpha = ready ? 0.8 : 0.4; ctx.fillStyle = '#1A1F3D'; ctx.beginPath(); ctx.arc(TF_BTN.x, TF_BTN.y, TF_BTN.r, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#FFD23F'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+          S.text(ctx, me && me.fm === 2 ? Math.ceil(me.ft) + '초' : me && me.tcd > 0 ? Math.ceil(me.tcd) + '' : '변신', TF_BTN.x, TF_BTN.y, 14, '#FFFFFF');
         }
         if (msg && msg.until > gameT) {
           const blink = msg.text.startsWith('WARNING') ? Math.floor(t * 4) % 2 === 0 : true;
@@ -798,8 +901,11 @@
           S.text(ctx, '일시정지', W / 2, H / 2 - 10, 28, '#FFFFFF');
           S.text(ctx, touch ? '화면을 누르면 계속' : 'P 키 또는 화면을 누르면 계속', W / 2, H / 2 + 26, 14, '#FFE48A');
         }
-        if (phase === 'intro' && stage === 1 && P.length && !online() && !touch) S.text(ctx, P.length > 1 ? '1P: W A S D · G 폭탄   |   2P: 방향키 · 엔터 폭탄' : '이동: 방향키 또는 W A S D · 폭탄: 스페이스', W / 2, H - 120, 13, '#FFFFFF');
-        if (phase === 'intro' && stage === 1 && touch) S.text(ctx, '화면을 끌어서 이동 · 오른쪽 아래 폭탄', W / 2, H - 120, 14, '#FFFFFF');
+        if (phase === 'intro' && stage === 1 && P.length && !touch) {
+          if (P.length > 1 && !online()) { S.text(ctx, '1P: W A S D 이동 · F 총 · G 폭탄 · H 변신', W / 2, H - 138, 13, '#FFFFFF'); S.text(ctx, '2P: 방향키 이동 · / 총 · . 폭탄 · , 변신', W / 2, H - 118, 13, '#FFFFFF'); }
+          else S.text(ctx, '이동: 방향키 · Z 총(누르고 있기) · X 폭탄 · C 변신', W / 2, H - 120, 13, '#FFFFFF');
+        }
+        if (phase === 'intro' && stage === 1 && touch) S.text(ctx, '화면을 끌어서 이동 · 총은 저절로 · 오른쪽 아래 폭탄·변신', W / 2, H - 120, 13, '#FFFFFF');
       }
 
       function loop(ts) {
@@ -827,7 +933,11 @@
         killBoss() { if (boss) hurtBoss(boss.hp + 1, 0); },
         god(on) { P.forEach(p => { p.inv = on ? 9999 : 0; }); },
         stage(n) { stage = n; startStage(); },
-        power(n) { P.forEach(p => { p.power = n; }); }
+        power(n) { P.forEach(p => { p.power = n; }); },
+        tf(i) { const p = P[i || 0]; if (p) { p.tcd = 0; tryTf(p); } },   // v147 시험용
+        form: () => P.map(p => ({ fm: p.fm, ft: Math.round(p.ft * 10) / 10, tcd: Math.round(p.tcd), firing: p.firing })),
+        drop(k, x, y) { dropItem(x == null ? W / 2 : x, y == null ? 300 : y, k); },   // v147 시험용
+        bg(n, scroll) { const c = document.createElement('canvas'); c.width = W; c.height = H; drawBg(c.getContext('2d'), n, scroll || 0); return c.toDataURL(); }   // v147 지도 보기용
       };
 
       return {
@@ -865,7 +975,7 @@
           }
           if (net.host) {
             const p = P.find(q => !q.mine); if (!p) return;
-            if (m.k === 'pos') { p.tx = m.x; p.ty = m.y; if (!p.alive) { p.x = m.x; p.y = m.y; } }
+            if (m.k === 'pos') { p.tx = m.x; p.ty = m.y; if (!p.alive) { p.x = m.x; p.y = m.y; } p.fm = m.fm || 0; p.firing = !!m.f; if (p.fm) p.ft = m.t || 0; else p.tcd = m.t || 0; }
             else if (m.k === 'hit') { if (p.alive) { p.inv = 0; killPlayer(p); } }
             else if (m.k === 'act' && m.a === 'bomb') doBomb(p);
             else if (m.k === 'quit') { p.out = true; p.left = true; p.alive = false; p.lives = 0; }

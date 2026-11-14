@@ -740,7 +740,7 @@
       function applyTrade() {
         const T = G.trade; if (!T) return;
         const ok = Object.keys(T.mine.items).every(id => count(id) >= T.mine.items[id]) && S.gold >= T.mine.gold;
-        if (!ok) { say('가방이 바뀌어서 거래를 할 수 없어요', 3); endTrade(true); return; }
+        if (!ok) { say('가방이 바뀌어서 거래를 할 수 없어요', 3); endTrade(true); return false; }
         Object.keys(T.mine.items).forEach(id => { if (T.mine.items[id] > 0) takeItem(id, T.mine.items[id]); });
         S.gold -= T.mine.gold;
         Object.keys(T.mine.items).forEach(id => { if (id.startsWith('g:') && !count(id)) delete S.gear[id.slice(2)]; });
@@ -753,7 +753,24 @@
         const nick = T.nick; G.trade = null; save(true); markDirty(true);
         if (pane === 'trade') { pane = null; panel.hidden = true; G.paused = false; }
         say(`${nick}님과 거래 완료!`, 3); Fx.coins(G.px, G.py - 30, 8);
+        return true;
       }
+      /* v146 거래 마무리 2단계 (복사 버그 고침 — 전에는 먼저 확인한 쪽이 바로 바꾸고 상대에게 알렸는데, 그 사이 상대가 올린 것을 바꾸거나 물건을 쓰면
+       *  상대만 실패해서 물건이 두 배가 됐음)
+       *  ① 번호가 작은 쪽: 바로 바꾸지 않고 commit(열쇠)만 보내고 잠금(T.pend) — 잠긴 동안 올리기·빼기·확인 풀기·취소 막음
+       *  ② 받은 쪽: 내 확인 + 열쇠 같음 + 내 가방에 물건이 그대로면 먼저 바꾸고 done(열쇠) · 아니면 abort
+       *  ③ 번호가 작은 쪽: done 을 받으면 그때 바꿈 · abort 나 8초 동안 답이 없으면 잠금을 풀고 '다시 확인' */
+      function tradeCommit() {
+        const T = G.trade; if (!T || T.pend) return;
+        T.pend = tradeKey(); T.pendT = 0; net.trade({ k: 'commit', to: T.with, key: T.pend });
+        if (pane === 'trade') renderPanel();
+      }
+      function tradeUnlock(msg) {
+        const T = G.trade; if (!T) return;
+        T.pend = null; T.myOk = false; T.theirOk = false; if (msg) say(msg, 3);
+        if (pane === 'trade') renderPanel();
+      }
+      const tradeLocked = () => { if (G.trade && G.trade.pend) { say('교환하는 중이에요… 잠시만 기다려 주세요', 1.6); return true; } return false; };
       function onTrade(m, p) {
         const T = G.trade, nick = p.nick || '상대';
         if (DUEL_MSG.includes(m.k)) { onDuel(m, p); return; }   // v143 결투
@@ -766,9 +783,16 @@
         if (m.k === 'yes' && T.state === 'wait') { startTrade(m.cid, nick); return; }
         if (m.k === 'cancel') { say(`${nick}님이 거래를 취소했어요`, 2.6); endTrade(false); return; }
         if (m.k === 'offer') { T.theirs = cleanOffer(m); T.myOk = false; T.theirOk = false; if (pane === 'trade') renderPanel(); return; }
-        if (m.k === 'ok') { T.theirOk = m.key === tradeKey(); if (T.myOk && T.theirOk && Hub.clientId < T.with) { net.trade({ k: 'commit', to: T.with, key: tradeKey() }); applyTrade(); return; } if (pane === 'trade') renderPanel(); return; }
+        if (m.k === 'ok') { T.theirOk = m.key === tradeKey(); if (T.myOk && T.theirOk && Hub.clientId < T.with) { tradeCommit(); return; } if (pane === 'trade') renderPanel(); return; }
         if (m.k === 'unok') { T.theirOk = false; if (pane === 'trade') renderPanel(); return; }
-        if (m.k === 'commit') { if (T.myOk && m.key === tradeKey()) applyTrade(); return; }
+        if (m.k === 'commit') {   // v146 받은 쪽이 먼저 바꾸고 done
+          const cid = T.with;
+          if (T.myOk && m.key === tradeKey() && !T.pend) { if (applyTrade()) net.trade({ k: 'done', to: cid, key: m.key }); }
+          else { net.trade({ k: 'abort', to: cid }); tradeUnlock('거래 내용이 바뀌어서 다시 확인해 주세요'); }
+          return;
+        }
+        if (m.k === 'done') { if (T.pend && m.key === T.pend) { T.pend = null; applyTrade(); } return; }
+        if (m.k === 'abort') { tradeUnlock('거래 내용이 바뀌어서 다시 확인해 주세요'); return; }
       }
       /* ---------- v143 1:1 결투 (선생님 11/13 "두 캐릭이 서로 결투 신청 · 동의하면 결투장으로 이동 · 3초 뒤 결투 · 골드 배팅 · 승자가 다 가져감 · 승패 기록") ----------
        *  거래처럼 사람을 누르거나(F) → 거래·결투 창에서 '결투 신청' (배팅 골드 = 둘 다 같은 금액, 0 = 친선전)
@@ -1568,6 +1592,7 @@
         S.play += dt; G.saveT += dt; G.srvT += dt; if (msgT > 0 && (msgT -= dt) <= 0) msgEl.hidden = true;
         G.atkCd -= dt; G.inv -= dt; G.lastHit += dt;
         duelTick(dt);   // v143 결투
+        if (G.trade && G.trade.pend && (G.trade.pendT += dt) > 8) tradeUnlock('상대의 답이 없어요. 다시 확인을 눌러 주세요');   // v146
         if (G.pst) {   // v87 내 상태 효과 시간
           const P = G.pst; ['slow', 'stun', 'stunImm', 'curse'].forEach(k2 => { if (P[k2] > 0) P[k2] -= dt; });
           if (P.burn) { P.burn.t -= dt; P.burn.tick -= dt; if (P.burn.tick <= 0 && !G.dead) { P.burn.tick = 0.5; const bd = Math.max(1, Math.round(P.burn.dps * 0.5)); S.hp -= bd; G.texts.push({ x: G.px + rand(-6, 6), y: G.py - 60, text: '-' + bd, color: '#FF8A3D', t: 0, dmg: true }); if (S.hp <= 0) { S.hp = 0; die(); } } if (P.burn && P.burn.t <= 0) P.burn = null; }
@@ -2291,7 +2316,7 @@
       function closePanel() {
         if (pane === 'dead') return;
         const wasDoor = ['potion', 'school', 'chief', 'castle'].includes(pane);
-        if (pane === 'trade' && G.trade) { endTrade(true); say('거래를 취소했어요', 2); return; }
+        if (pane === 'trade' && G.trade) { if (tradeLocked()) return; endTrade(true); say('거래를 취소했어요', 2); return; }
         if (pane === 'tradeIn' && paneArg) net.trade({ k: 'no', to: paneArg.cid });
         if (pane === 'duelIn' && paneArg) net.trade({ k: 'dno', to: paneArg.cid });   // v143 결투 거절
         const was = pane; pane = null; panel.hidden = true; G.paused = false;
@@ -2457,7 +2482,7 @@
           const bag = S.inv.filter(x => count(x.id) - (T.mine.items[x.id] || 0) > 0);
           h += `<p class="sub" style="margin-top:10px">내 가방 — 눌러서 올리기 (입고 있는 장비는 못 올려요)</p><div class="rg-grid">${bag.map(x => { const left = x.n - (T.mine.items[x.id] || 0), it = ITEMS[x.id]; return `<button type="button" class="rg-cell${it.rare ? ' rare' : ''}" data-tradd="${x.id}" title="${it.name}"><img src="${P.itemImg(x.id)}" alt="${it.name}">${left > 1 ? `<span class="n">${left}</span>` : ''}</button>`; }).join('') || '<span class="rg-trempty">올릴 물건이 없어요</span>'}</div>`;
           const room = roomFor(T.theirs, T.mine);
-          h += `<div class="rg-srvact" style="align-items:center"><button type="button" class="rg-mini${T.myOk ? ' on' : ''}" data-trok ${room ? '' : 'disabled'}>${T.myOk ? '확인함 (다시 누르면 풀기)' : '확인'}</button><span class="sub" style="margin:0">${!room ? `가방이 모자라요 (${bagMax()}칸) — 약방에서 가방을 늘리거나 물건을 정리해요` : T.myOk && T.theirOk ? '교환하는 중…' : T.myOk ? '상대가 확인하면 바뀌어요' : T.theirOk ? '상대는 확인했어요. 내용을 보고 확인을 눌러요' : '둘 다 확인을 누르면 바뀌어요'}</span></div>`;
+          h += `<div class="rg-srvact" style="align-items:center"><button type="button" class="rg-mini${T.myOk ? ' on' : ''}" data-trok ${room && !T.pend ? '' : 'disabled'}>${T.myOk ? '확인함 (다시 누르면 풀기)' : '확인'}</button><span class="sub" style="margin:0">${!room ? `가방이 모자라요 (${bagMax()}칸) — 약방에서 가방을 늘리거나 물건을 정리해요` : T.myOk && T.theirOk ? '교환하는 중…' : T.myOk ? '상대가 확인하면 바뀌어요' : T.theirOk ? '상대는 확인했어요. 내용을 보고 확인을 눌러요' : '둘 다 확인을 누르면 바뀌어요'}</span></div>`;
         } else if (k === 'rebirth') {   // v131 환생 확인 창
           const n = S.reb || 0, max = D.REBIRTH.max, ok = S.rebReady && n < max, B = D.REBIRTH.bonus;
           h = head('♻ 환생', paneArg && paneArg.first ? '오도전륜대왕을 이기고 명부를 되찾았어요! 이제 환생할 수 있어요.' : `환생 ${n} / ${max}번 · 저승 마지막 관문(10-5)을 깰 때마다 한 번씩 환생할 수 있어요`);
@@ -2613,7 +2638,7 @@
       panel.addEventListener('input', e => { const t = e.target; if (t && t.dataset && t.dataset.xin) xchgCalc(t.dataset.xin); });   // v145 교환 숫자
       panel.addEventListener('change', e => {
         const t = e.target;
-        if (t.matches('[data-trgold]')) { const T = G.trade; if (!T) return; T.mine.gold = clamp(Math.floor(+t.value || 0), 0, S.gold); sendOffer(); renderPanel(); return; }
+        if (t.matches('[data-trgold]')) { const T = G.trade; if (!T || tradeLocked()) { if (T) t.value = T.mine.gold; return; } T.mine.gold = clamp(Math.floor(+t.value || 0), 0, S.gold); sendOffer(); renderPanel(); return; }
         if (t.matches('[data-hide]')) { S.hide = t.checked; markDirty(); if (net) net.retrack(); renderPanel(); }
         else if (t.matches('[data-fa]')) { tab.fa = t.value; if (tab.fb === t.value || (SKILLS[tab.fb] && SKILLS[tab.fb].el === SKILLS[t.value].el)) tab.fb = null; renderPanel(); }
         else if (t.matches('[data-fb]')) { tab.fb = t.value; renderPanel(); }
@@ -2698,10 +2723,10 @@
           net.trade({ k: 'dyes', to: pp.cid }); pane = null; panel.hidden = true; G.paused = false; say('결투를 수락했어요! 곧 결투장으로 이동해요…', 2.6); return;
         }
         else if (d.dno) { net.trade({ k: 'dno', to: d.dno }); pane = null; panel.hidden = true; G.paused = false; return; }
-        else if ('trcancel' in d) { endTrade(true); say('거래를 취소했어요', 2); return; }
-        else if (d.tradd) { const T = G.trade; if (!T) return; const id = d.tradd; if (count(id) - (T.mine.items[id] || 0) > 0 && Object.keys(T.mine.items).filter(q => T.mine.items[q] > 0).length < 12) { T.mine.items[id] = (T.mine.items[id] || 0) + 1; sendOffer(); } }
-        else if (d.trdel) { const T = G.trade; if (!T) return; T.mine.items[d.trdel] = Math.max(0, (T.mine.items[d.trdel] || 0) - 1); sendOffer(); }
-        else if ('trok' in d) { const T = G.trade; if (!T) return; T.myOk = !T.myOk; if (T.myOk) { net.trade({ k: 'ok', to: T.with, key: tradeKey() }); if (T.theirOk && Hub.clientId < T.with) { net.trade({ k: 'commit', to: T.with, key: tradeKey() }); applyTrade(); return; } } else net.trade({ k: 'unok', to: T.with }); }
+        else if ('trcancel' in d) { if (tradeLocked()) return; endTrade(true); say('거래를 취소했어요', 2); return; }
+        else if (d.tradd) { const T = G.trade; if (!T || tradeLocked()) return; const id = d.tradd; if (count(id) - (T.mine.items[id] || 0) > 0 && Object.keys(T.mine.items).filter(q => T.mine.items[q] > 0).length < 12) { T.mine.items[id] = (T.mine.items[id] || 0) + 1; sendOffer(); } }
+        else if (d.trdel) { const T = G.trade; if (!T || tradeLocked()) return; T.mine.items[d.trdel] = Math.max(0, (T.mine.items[d.trdel] || 0) - 1); sendOffer(); }
+        else if ('trok' in d) { const T = G.trade; if (!T || tradeLocked()) return; T.myOk = !T.myOk; if (T.myOk) { net.trade({ k: 'ok', to: T.with, key: tradeKey() }); if (T.theirOk && Hub.clientId < T.with) { tradeCommit(); return; } } else net.trade({ k: 'unok', to: T.with }); }
         else if (d.fgsel) { tab.fgSel = d.fgsel; tab.fgAsk = null; tab.fgRes = null; }
         else if (d.fgask) { tab.fgAsk = d.fgask; tab.fgRes = null; }
         else if ('fgno' in d) { tab.fgAsk = null; }
