@@ -681,11 +681,12 @@
    *  type: potion(포션 가게) · school(마법 학교) · chief(이장 집) · castle(성, 마지막 마을)
    *  x, y, w, h = 칸 (마을 지도 36 × 22) · door = 문 칸 (건물 아래 가운데) */
   const BUILDINGS = [
-    { type: 'potion', name: '약방', x: 5, y: 4, w: 6, h: 4, roof: '#D2343A' },
-    { type: 'school', name: '도술 서원', x: 25, y: 4, w: 7, h: 4, roof: '#7E4DE0' },
-    { type: 'chief', name: '이장 댁', x: 6, y: 13, w: 6, h: 4, roof: '#3E9E58' }
+    { type: 'potion', name: '약방', x: 4, y: 5, w: 7, h: 4, roof: '#D2343A' },   // v144 선생님 그림으로 바꾸며 크게 (예전 x5 y4 6×4)
+    { type: 'school', name: '도술 서원', x: 22, y: 5, w: 11, h: 4, roof: '#7E4DE0' },   // v144 (예전 x25 y4 7×4)
+    { type: 'chief', name: '이장 댁', x: 4, y: 15, w: 9, h: 4, roof: '#3E9E58' },   // v144 (예전 x6 y13 6×4)
+    { type: 'train', name: '훈련장', x: 13, y: 6, w: 5, h: 3, roof: '#C8402A' }   // v144 훈련장 (허수아비 10초 딜량) · 그림 bld_train.png 은 임시 — 선생님 그림이 오면 바꿈
   ];
-  const CASTLE = { type: 'castle', name: '도원수 진영', x: 23, y: 12, w: 10, h: 6, roof: '#5A5A70' };
+  const CASTLE = { type: 'castle', name: '도원수 진영', x: 23, y: 14, w: 10, h: 6, roof: '#5A5A70' };   // v144 새 성 그림 · 커진 서원과 안 겹치게 2칸 아래로 (예전 y12)
 
   /* ---------------- 사람(NPC) · v41 ----------------
    *  av = 사이트 아바타 옷 그대로 (avatar/avatar.js 의 아이템 id) → 플레이어와 같은 그림체

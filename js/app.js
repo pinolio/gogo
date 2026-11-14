@@ -290,13 +290,16 @@
     await Promise.all(live.map(async g => {
       const foot = $(`[data-foot="${g.id}"]`, grid);
       try {
-        if (SET.get(g.id) && SET.get(g.id).rebRank) {   // v134 RPG 카드: 1·2위 + 환생 1위
-          const [tops0, rb] = await Promise.all([Hub.leaderboard(g.id, 2), Hub.extraTop ? Hub.extraTop(g.id, 'reb').catch(() => null) : Promise.resolve(null)]);
+        if (SET.get(g.id) && SET.get(g.id).rebRank) {   // v144 RPG 카드 3줄: 스테이지 1위(가장 멀리 · 같으면 먼저 깬 사람) · 환생 1위 · 10초 딜 1위
+          const xt = k => (Hub.extraTop ? Hub.extraTop(g.id, k).catch(() => null) : Promise.resolve(null));
+          const [tops0, rb, dp] = await Promise.all([Hub.leaderboard(g.id, 1), xt('reb'), xt('dps')]);
           const tops = (tops0 || []).filter(t => t && t.best_score > 0);
           if (!foot.isConnected) return;
+          const kf = v => { v = Math.round(v || 0); return v >= 1e12 ? Math.floor(v / 1e11) / 10 + '조' : v >= 1e8 ? Math.floor(v / 1e7) / 10 + '억' : v >= 1e4 ? Math.floor(v / 1e3) / 10 + '만' : fmt(v); };
           foot.classList.add('rec3');
-          foot.innerHTML = ['🥇', '🥈'].map((m, i) => recLine('r-rank', `<i>${m} </i>${i + 1}위`, tops[i] && tops[i].nickname, tops[i] ? sfmt(g.id, tops[i].best_score) : '-')).join('')
-            + recLine('r-rank r-reb', '<i>♻ </i>환생 1위', rb && rb.nickname, rb ? rb.value + '회' : '-');
+          foot.innerHTML = recLine('r-rank', '<i>🏆 </i>스테이지 1위', tops[0] && tops[0].nickname, tops[0] ? sfmt(g.id, tops[0].best_score) : '-')
+            + recLine('r-rank r-reb', '<i>♻ </i>환생 1위', rb && rb.nickname, rb ? rb.value + '회' : '-')
+            + recLine('r-rank r-dps', '<i>🎯 </i>10초 딜 1위', dp && dp.nickname, dp ? kf(dp.value) + '/초' : '-');
           return;
         }
         if (SET.get(g.id) && SET.get(g.id).cardOld) {

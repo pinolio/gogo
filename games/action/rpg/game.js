@@ -92,7 +92,7 @@
   function newSave() {
     const s = { v: SAVE_V, lv: 1, exp: 0, gold: 50, hp: 0, mp: 0, map: 'v1', x: null, y: null, home: 'v1',
       inv: [{ id: 'hp1', n: 5 }, { id: 'mp1', n: 3 }, { id: 'scroll', n: 1 }], eq: {}, gear: {}, hide: false,
-      stat: { str: 0, dex: 0, int: 0, vit: 0, res: 0 }, statV: 2, sp: 0, skills: ['magicarrow'], slots: ['magicarrow', null, null, null], fslots: [null, null, null, null], visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0, reb: 0, rebReady: false, toonSeen: [] };
+      stat: { str: 0, dex: 0, int: 0, vit: 0, res: 0 }, statV: 2, sp: 0, skills: ['magicarrow'], slots: ['magicarrow', null, null, null], fslots: [null, null, null, null], visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0, reb: 0, rebReady: false, toonSeen: [], dpsBest: 0 };
     return s;
   }
   const statMax = s => D.STAT.max + ((s && s.reb) || 0) * D.REBIRTH.statUp;   // v131 스탯 한 가지 최대치 (환생마다 +10)
@@ -125,6 +125,7 @@
     const st = s.stat && typeof s.stat === 'object' && oldStatV === 2 ? s.stat : {}; if (oldStatV !== 2) { s.statV = 2; if (s.lv > 1) s.statReset = true; }
     s.reb = clamp(Math.floor(+s.reb || 0), 0, D.REBIRTH.max);
     s.stat = {}; D.STAT.keys.forEach(k => { s.stat[k] = clamp(Math.floor(+st[k] || 0), 0, statMax(s)); });
+    s.dpsBest = clamp(Math.round(+s.dpsBest || 0), 0, 1e13);   // v144 훈련장 10초 평균 딜량 최고값 (최대 10조)
     s.reb = clamp(Math.floor(+s.reb || 0), 0, D.REBIRTH.max); s.rebReady = !!s.rebReady;   // v131 환생 횟수 · 이번에 환생할 수 있는지(10-5를 깸)
     const total = (s.lv - 1) * (CFG.statPerLevel || 2) + s.reb * D.REBIRTH.bonus, used = D.STAT.keys.reduce((a, k) => a + s.stat[k], 0);
     if (used > total) { D.STAT.keys.forEach(k => { s.stat[k] = 0; }); s.sp = total; } else s.sp = total - used;
@@ -585,6 +586,7 @@
         G.map = room; G.room = { type: b.type, back, village: S.map }; G.npcs = room.npcs.map(n => Object.assign({}, n)); G.onNpc = null;
         G.mons = []; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
         G.px = room.startL.x; G.py = room.startL.y; G.fx = 0; G.fy = -1; G.onDoor = null; G.keys = {};
+        if (room.M.train) { trainStart(room); return; }   // v144 훈련장
         const main = G.npcs.find(n => !n.guard);
         G.title = null; say(main ? `${main.def.name}에게 가까이 가면 이야기할 수 있어요` : room.M.name, 2.6);
         netRoom();
@@ -883,8 +885,86 @@
         else if (sk.kind === 'shield' && !Fx.shieldCast(p.x, p.y - 28, sk.id)) Fx.burst(p.x, p.y - 28, 16, Fx.pal(els[0]), { min: 60, max: 140, shape: 'star', lmin: 0.4, lmax: 0.7 });
         Fx.use(null);
       }
+      /* ---------- v144 훈련장: 가운데 허수아비를 때려 '지난 10초 평균 딜량'(합 ÷ 10) 을 잼 ----------
+       *  허수아비 = G.mons 안의 몬스터 자리(m.dummy) → 마법·평타·불타기 피해가 그대로 들어옴 · 체력 안 줄고 죽지 않음
+       *  내 최고값 S.dpsBest (최대 10조) → 랭킹 기록 extra.dps (메인 카드 '10초 딜 1위') */
+      const DPS_WIN = 10, DPS_MAX = 1e13;
+      function trainStart(room) {
+        G.room.train = true;
+        const d = room.dummy;
+        G.mons = [{ dummy: true, def: { name: '허수아비', colors: { d: '#FFD23F' } }, name: '허수아비', lvl: S.lv, x: d.x, y: d.y, hx: d.x, hy: d.y, r: 18, spr: { w: 48, h: 84 }, mdef: 0, hp: 1, max: 1,
+          dead: false, flash: 0, cd: 99, wx: 0, wy: 0, wob: 0, wobV: 0, burn: null, slow: 0, stun: 0, curse: 0, kind: 'dummy' }];
+        G.dps = { hits: [], cur: 0, first: 0, best0: S.dpsBest || 0, dirty: false, lastUp: 0, top: G.dpsTop || null };
+        G.title = { t: 0, text: '🎯 훈련장', sub: '허수아비를 때려 10초 평균 딜량을 재 보세요' };
+        say('마법·평타로 허수아비를 때려 보세요 · 지난 10초 동안 준 피해 ÷ 10 = 10초 평균 딜량', 4);
+        if (Hub.extraTop) Hub.extraTop(GAME, 'dps').then(t => { if (G.dps) G.dps.top = t; }).catch(() => {});
+        netRoom();
+      }
+      function dpsAdd(dmg) {
+        const P2 = G.dps; if (!P2) return;
+        const t = performance.now() / 1000; if (!P2.hits.length && !P2.first) P2.first = t;
+        P2.hits.push([t, dmg]);
+      }
+      function dpsTick() {   // 매 프레임: 10초 지난 타격 빼고 평균 · 최고값 바뀌면 저장
+        const P2 = G.dps; if (!P2) return;
+        const t = performance.now() / 1000;
+        while (P2.hits.length && t - P2.hits[0][0] > DPS_WIN) P2.hits.shift();
+        if (!P2.hits.length) P2.first = 0;
+        const sum = P2.hits.reduce((a, h) => a + h[1], 0);
+        P2.cur = Math.min(DPS_MAX, Math.round(sum / DPS_WIN));
+        if (P2.cur > (S.dpsBest || 0)) { S.dpsBest = P2.cur; P2.dirty = true; P2.lastUp = t; G.dirty = true; }
+        if (P2.dirty && t - P2.lastUp > 5) { P2.dirty = false; save(true); submitRank(0, true); }   // 5초 동안 안 오르면 기록
+      }
+      function dummyHit(m, dmg, crit, weakHit, els) {
+        m.flash = 0.12; m.wobV += (m.x < G.px ? -1 : 1) * (crit ? 7 : 4);
+        dpsAdd(dmg);
+        const elc = els && els.length ? Fx.pal(els[0])[1] : '#FFFFFF';
+        G.texts.push({ x: m.x + rand(-10, 10), y: m.y - m.spr.h - 4, text: (crit ? '치명! ' : '') + fmtN(dmg), color: crit ? '#FFD23F' : elc, t: 0, big: crit, dmg: true });
+        Fx.hit(m.x, m.y - m.spr.h / 2, els, crit);
+        (els || []).forEach(e => { const fx = ELEM[e].fx; if (fx === 'burn') m.burn = { t: 3, dps: dmg * 0.12, tick: 0.5 }; else if (fx === 'slow') m.slow = 2.5; else if (fx === 'curse') m.curse = 4; else if (fx === 'holy') S.hp = Math.min(ST.hp, S.hp + Math.max(1, Math.round(dmg * 0.03))); });
+        return dmg;
+      }
+      function dummyTick(m, dt) {
+        m.flash -= dt; if (m.curse > 0) m.curse -= dt; if (m.slow > 0) m.slow -= dt; m.stun = 0;
+        m.wobV += -m.wob * 60 * dt; m.wobV *= Math.pow(0.02, dt); m.wob += m.wobV * dt * 6; m.wob = clamp(m.wob, -14, 14);   // 맞으면 흔들흔들
+        if (m.burn) { m.burn.t -= dt; m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 0.5; const bd = Math.max(1, Math.round(m.burn.dps * 0.5)); dpsAdd(bd); float(m.x, m.y - m.spr.h, fmtN(bd), '#FF9A3D'); } if (m.burn.t <= 0) m.burn = null; }
+        dpsTick();
+      }
+      function drawDummy(c, m, now) {   // 나무 기둥 + 짚 몸통 + 자루 머리 + 가슴 과녁 (맞으면 하얗게 번쩍 · 흔들림)
+        const x = m.x, y = m.y, K2 = '#1D2340', fl = m.flash > 0;
+        c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(x, y, 26, 8, 0, 0, 7); c.fill();
+        c.fillStyle = K2; c.fillRect(x - 20, y - 8, 40, 10); c.fillStyle = '#7A4A28'; c.fillRect(x - 18, y - 6, 36, 6);   // 받침
+        c.save(); c.translate(x, y - 6); c.rotate(m.wob * Math.PI / 180);
+        const R = (a, b, w, h, col) => { c.fillStyle = fl ? '#FFFFFF' : col; c.fillRect(a, b, w, h); };
+        R(-4, -80, 8, 80, K2); R(-2, -78, 4, 78, '#9A6338');   // 기둥
+        R(-30, -62, 60, 8, K2); R(-28, -60, 56, 4, '#B07A48');   // 팔
+        [-30, 26].forEach(a => { R(a - 2, -66, 8, 16, K2); R(a, -64, 4, 12, '#E8C878'); });   // 손 짚
+        R(-17, -58, 34, 44, K2); R(-15, -56, 30, 40, '#E8C878'); for (let i = -12; i < 14; i += 6) R(i, -54, 2, 36, '#C8A050');   // 짚 몸통
+        R(-15, -46, 30, 3, '#8A5A36'); R(-15, -26, 30, 3, '#8A5A36');   // 새끼줄
+        if (!fl) { [[10, '#FFFFFF'], [7, '#D2343A'], [4, '#FFFFFF'], [2, '#D2343A']].forEach(([r, col]) => { c.fillStyle = col; c.beginPath(); c.arc(0, -36, r, 0, 7); c.fill(); }); }
+        c.fillStyle = K2; c.beginPath(); c.arc(0, -72, 13, 0, 7); c.fill(); c.fillStyle = fl ? '#FFFFFF' : '#F2E6CC'; c.beginPath(); c.arc(0, -72, 11, 0, 7); c.fill();   // 자루 머리
+        if (!fl) { R(-6, -76, 3, 3, K2); R(3, -76, 3, 3, K2); R(-4, -68, 8, 2, K2); R(-11, -84, 22, 4, '#D2343A'); }   // 얼굴 · 머리띠
+        c.restore();
+        if (m.burn && Math.random() < 0.4) Fx.emit({ x: x + rand(-14, 14), y: y - rand(10, 70), vx: rand(-10, 10), vy: rand(-80, -40), life: 0.5, size: rand(3, 5), color: pick(['#FFE45C', '#FF9A3D', '#E8402A']), shape: 'glow', add: true });
+      }
+      const kfmt = v => { v = Math.round(v || 0); if (v >= 1e12) return (Math.floor(v / 1e11) / 10) + '조'; if (v >= 1e8) return (Math.floor(v / 1e7) / 10) + '억'; if (v >= 1e4) return (Math.floor(v / 1e3) / 10) + '만'; return fmtN(v); };
+      function drawTrainHud(c) {   // 오른쪽 위: 지난 10초 평균 · 내 최고 · 전체 1위
+        const P2 = G.dps; if (!P2 || !G.room || !G.room.train) return;
+        const w = 330, h = 96, x = W - w - 12, y = 12, t = performance.now() / 1000;   // 오른쪽 위 (가운데 창 풍경이 보이게)
+        panelBox(c, x, y, w, h, 12);
+        c.textBaseline = 'middle'; c.textAlign = 'left';
+        c.font = '14px "Jua", "Malgun Gothic", sans-serif'; c.fillStyle = '#9AE6FF';
+        const secs = P2.first ? Math.min(DPS_WIN, t - P2.first) : 0;
+        c.fillText(P2.first ? `🎯 지난 10초 평균 딜량 (${secs < DPS_WIN ? secs.toFixed(1) + '초째' : '10초 꽉 참'})` : '🎯 허수아비를 때리면 재기 시작해요', x + 16, y + 18);
+        c.font = '28px "Jua", "Malgun Gothic", sans-serif'; c.fillStyle = '#FFFFFF'; c.fillText(fmtN(P2.cur) + ' /초', x + 16, y + 48);
+        c.font = '14px "Jua", "Malgun Gothic", sans-serif'; c.fillStyle = '#FFD23F'; c.fillText(`🏅 내 최고 ${kfmt(S.dpsBest)}/초` + (S.dpsBest > P2.best0 ? '  ✨ 새 기록!' : ''), x + 16, y + 78);
+        c.textAlign = 'right'; c.fillStyle = '#9AF0B0';
+        const tp = P2.top; c.fillText(tp ? `👑 1위 ${tp.nickname} ${kfmt(Math.max(tp.value, 0))}` : '👑 1위 아직 없음', x + w - 14, y + 78);
+        if (P2.cur >= DPS_MAX) { c.fillStyle = '#FF9AA0'; c.fillText('최대 10조!', x + w - 14, y + 48); }
+      }
       function leaveRoom() {
         const r = G.room; if (!r) return;
+        if (r.train && G.dps) { if (G.dps.dirty || (S.dpsBest || 0) > G.dps.best0) { G.dps.dirty = false; save(true); submitRank(0, true); } G.dpsTop = G.dps.top; G.dps = null; }
         enter(r.village, r.back, true);
         G.onDoor = G.map.doors.find(d => d.type === r.type) || null; G.fx = 0; G.fy = 1;
       }
@@ -1065,6 +1145,7 @@
         if (m.el) { if ((els || []).includes(m.el)) dmg *= D.HELL.resist; if ((els || []).includes(D.HELL.weak[m.el])) { dmg *= D.HELL.weakMul; weakHit = true; } }   // v69 저승 몬스터 속성: 같은 원소 ×0.7 · 약점 ×1.3
         const crit = Math.random() < ST.crit / 100; if (crit) dmg *= ST.critD || D.STAT.critDmg;
         dmg = Math.max(1, Math.round(dmg));
+        if (m.dummy) return dummyHit(m, dmg, crit, weakHit, els);   // v144 훈련장 허수아비
         m.hp -= dmg; m.flash = 0.12; m.aggro = true; m.knock = (m.x < G.px ? -1 : 1) * (crit ? 6 : 3);
         const elc = els && els.length ? Fx.pal(els[0])[1] : '#FFFFFF';
         G.texts.push({ x: m.x + rand(-8, 8), y: m.y - m.spr.h - 4, text: (crit ? '치명! ' : '') + (weakHit ? '약점! ' : '') + dmg, color: crit ? '#FFD23F' : elc, t: 0, big: crit, dmg: true });
@@ -1184,7 +1265,8 @@
         const sk = skill(id); if (!sk) return;
         if (G.pst && G.pst.stun > 0) return;   // v87 기절 중엔 마법 못 씀
         if (G.duel && G.duel.st !== 'fight') return;   // v143 결투 시작 전·끝난 뒤
-        if (G.map.M.kind !== 'field' && sk.kind !== 'heal' && sk.kind !== 'shield') { say(G.room ? '건물 안에서는 공격 마법을 쓸 수 없어요' : '마을에서는 공격 마법을 쓸 수 없어요'); return; }
+        if (G.map.M.kind !== 'field' && !G.map.M.train && sk.kind !== 'heal' && sk.kind !== 'shield') {   // v144 훈련장은 공격 마법 됨
+          say(G.room ? '건물 안에서는 공격 마법을 쓸 수 없어요' : '마을에서는 공격 마법을 쓸 수 없어요'); return; }
         if ((G.cds[id] || 0) > 0) return;
         if (S.mp < sk.mp) { say('마나가 부족해요 (X: 마나 포션)'); return; }
         S.mp -= sk.mp; G.cds[id] = sk.cd; Fx.castCircle(G.px, G.py, sk.els, !!sk.fusion); G.poseK = 'c'; G.poseUntil = performance.now() + 380;   // v79 마법 동작
@@ -1229,7 +1311,7 @@
         const [dx, dy] = aimDir(staff ? 150 : 70);
         G.face = dx < 0 ? -1 : 1;
         Fx.slash(G.px, G.py - 24, dx, dy, staff);
-        if (G.map.M.kind !== 'field') return;
+        if (G.map.M.kind !== 'field' && !G.map.M.train) return;
         if (staff) { G.shots.push({ x: G.px, y: G.py - 24, vx: dx * 380, vy: dy * 380, life: 0.42, dmg: ST.atk * 0.6 + ST.mag * 0.5, els: [], look: ['light'], pierce: false, hit: new Set(), r: 7, color: '#C8A8FF', color2: '#FFFFFF', mine: true }); return; }
         G.mons.forEach(m => {
           if (m.dead) return; const mx = m.x - G.px, my = m.y - m.spr.h / 2 - (G.py - 24), d = Math.hypot(mx, my);
@@ -1382,6 +1464,7 @@
         // 몬스터
         G.mons.forEach(m => {
           if (m.pvp) return;   // v143 결투 상대 자리 (움직임은 상대 위치)
+          if (m.dummy) { dummyTick(m, dt); return; }   // v144 허수아비
           if (m.dead) { if (m.noRespawn) return; if ((m.respawn -= dt) <= 0) { const n = makeMon(m.def, m.lvl, m.boss); Object.assign(m, n); } return; }
           m.flash -= dt; m.cd -= dt; if (m.lunge > 0) m.lunge -= dt; if (m.knock) m.knock *= Math.pow(0.001, dt);
           if (m.burn) { m.burn.t -= dt; m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 0.5; m.hp -= Math.max(1, Math.round(m.burn.dps * 0.5)); float(m.x, m.y - m.spr.h, Math.max(1, Math.round(m.burn.dps * 0.5)), '#FF9A3D'); if (m.hp <= 0) { killMon(m); return; } } if (m.burn.t <= 0) m.burn = null; }
@@ -1592,9 +1675,10 @@
         }
         const alt = (o.alt2 && img79(o.alt2)) || (o.alt && imgOk(o.alt)), bim = o.b && imgOk('bld_' + o.b.type);
         if (bim) {
-          const b = o.b, ww = b.w * TS + (b.type === 'castle' ? 90 : 34), hh = bim.naturalHeight * ww / bim.naturalWidth, cx0 = (b.x + b.w / 2) * TS, by = (b.y + b.h) * TS + 6;
+          const b = o.b, ww = b.w * TS + (b.type === 'castle' ? 150 : 34),   // v144 성 +150 (world.js castleGeo 와 같게)
+          hh = bim.naturalHeight * ww / bim.naturalWidth, cx0 = (b.x + b.w / 2) * TS, by = (b.y + b.h) * TS + 6;
           c.drawImage(bim, Math.round(cx0 - ww / 2), Math.round(by - hh), Math.round(ww), Math.round(hh));
-          const label = b.type === 'castle' ? '도원수 진영 · 퀘스트' : b.name; c.font = '13px "Jua", "Malgun Gothic", sans-serif'; const lw = c.measureText(label).width + 20, ly = by - hh - 4;
+          const label = b.type === 'castle' ? '도원수 진영 · 퀘스트' : b.name; c.font = '13px "Jua", "Malgun Gothic", sans-serif'; const lw = c.measureText(label).width + 20, ly = Math.max(by - hh - 4, 16);   // v144 큰 서원 그림은 지도 맨 위에 닿아 이름표가 잘리지 않게
           c.fillStyle = 'rgba(10,14,36,.82)'; c.fillRect(cx0 - lw / 2, ly - 11, lw, 22); c.fillStyle = '#FFD23F'; c.fillRect(cx0 - lw / 2, ly + 10, lw, 2);
           c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = b.type === 'potion' ? '#FF9AA0' : b.type === 'school' ? '#D8B8FF' : b.type === 'chief' ? '#9AF0B0' : '#FFE45C'; c.fillText(label, cx0, ly + 1);
           return;
@@ -1700,6 +1784,7 @@
         } else c.drawImage(im, 0, 0, w, h);
       }
       function drawMon(c, m, now) {
+        if (m.dummy) return drawDummy(c, m, now);   // v144
         if (m.spr.wait) { const s2 = monSprite(m.def, m.boss ? 6 : 3); if (!s2.wait) m.spr = s2; }   // v80 Meshy 그림이 늦게 오면 바꿔 끼움
         const sp = m.spr, moving = m.aggro || Math.abs(m.wx) + Math.abs(m.wy) > 0.1, kind = rigKind(m.def);
         const ph = now / (moving ? 110 : 260) + m.hx, bounce = kind === 'blob' || kind === 'hop';   // v83 통통 튀기·찌그러지기는 슬라임·버섯·장승만
@@ -1910,7 +1995,8 @@
           c.restore();
         }
         drawDuelHud(c);   // v143 결투 HP 막대 · 3초 세기
-        if (G.touch || (G.room && !G.room.duel)) return;   // 건물 안에서는 아래 마법 칸을 숨김 (나가는 문이 보이게) · 결투장은 보임
+        drawTrainHud(c);   // v144 훈련장 딜량
+        if (G.touch || (G.room && !G.room.duel && !G.room.train)) return;   // v144 훈련장은 마법 칸 보임   // 건물 안에서는 아래 마법 칸을 숨김 (나가는 문이 보이게) · 결투장은 보임
         // 아래 가운데: 기본 마법 4칸(1~4) + 융합 마법 4칸(Q W E R) + 포션 2칸(Z X) + v125 귀환(V)
         const bw = 11 * 54 + 2 * 12 - 4, x0 = Math.round(W / 2 - bw / 2), y0 = H - 62;
         panelBox(c, x0 - 8, y0 - 8, bw + 16, 60, 12);
@@ -2009,11 +2095,11 @@
         if (server) { G.srvT = 0; G.dirty = false; return Store.push(copy); }
         return true;
       }
-      async function submitRank(pd) {
+      async function submitRank(pd, force) {
         if (!Hub.user) return;
-        const now = Date.now(); if (now - G.lastSubmit < 4000 && !pd) return; G.lastSubmit = now;
+        const now = Date.now(); if (now - G.lastSubmit < 4000 && !pd && !force) return; G.lastSubmit = now;
         const sec = Math.min(86400, Math.round(S.play - G.playMark)); G.playMark = S.play;
-        try { await Hub.submitScore({ game_id: GAME, score: rankScore(), duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills, hell: S.hell ? hellTxt(S.hell) : null, reb: S.reb || 0 } }); loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }   // v134 환생 횟수(reb)도 기록 (메인 카드 '환생 1위')
+        try { await Hub.submitScore({ game_id: GAME, score: rankScore(), duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills, hell: S.hell ? hellTxt(S.hell) : null, reb: S.reb || 0, dps: Math.min(1e13, Math.round(S.dpsBest || 0)) } }); loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }   // v134 환생 횟수(reb)도 기록 (메인 카드 '환생 1위')
       }
       function bossReward() { const p = (CFG.points && CFG.points.boss) || 0; if (p) { submitRank(p); A.toast(`보스 처치! +${p}P`); } }
       async function loadRank() {

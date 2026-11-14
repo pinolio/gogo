@@ -93,6 +93,45 @@
   function fireplace() { return spr(128, 104, p => { p(0, 0, 128, 104, K); p(3, 3, 122, 98, '#8A86A8'); for (let j = 3; j < 100; j += 12) for (let i = 3 + (j % 24 ? 0 : 10); i < 124; i += 20) p(i, j, 18, 10, '#9E9ABA'); p(0, 26, 128, 10, K); p(2, 28, 124, 6, '#6B4226'); p(26, 44, 76, 60, K); p(30, 48, 68, 56, '#2A1A14'); p(36, 92, 56, 8, '#6B4226'); p(10, 12, 12, 14, '#D2343A'); p(104, 14, 10, 12, '#3E7BD8'); p(56, 14, 16, 12, '#FFD23F'); }); }
   function mapFrame() { return spr(80, 56, p => { p(0, 0, 80, 56, K); p(3, 3, 74, 50, '#B07A48'); p(6, 6, 68, 44, '#F5E2B8'); p(12, 14, 20, 12, '#7CC66A'); p(36, 22, 26, 14, '#4FA8E8'); p(18, 32, 12, 10, '#B0804A'); p(30, 20, 30, 2, '#D2343A'); p(58, 12, 6, 6, '#D2343A'); }); }
   function herbs() { return spr(60, 34, p => { p(0, 0, 60, 3, K); for (let i = 4; i < 56; i += 12) { p(i + 3, 3, 1, 8, K); p(i, 10, 8, 18, '#3E9E45'); p(i + 1, 12, 3, 12, '#5CC85A'); p(i + 2, 26, 4, 6, '#358C3E'); } }); }
+  /* v144 훈련장 소품 */
+  function scenery(w, h, rnd) {   // 창 너머 풍경 (하늘 · 산 · 소나무 · 성곽)
+    return spr(w, h, (p, x) => {
+      p(0, 0, w, h, K); const g = x.createLinearGradient(0, 3, 0, h - 3); g.addColorStop(0, '#5AB8F5'); g.addColorStop(1, '#BDE8FF'); x.fillStyle = g; x.fillRect(3, 3, w - 6, h - 6);
+      p(12 + rnd() * (w - 60), 9, 22, 5, '#FFFFFF'); p(18 + rnd() * (w - 60), 15, 30, 5, '#FFFFFF');
+      x.fillStyle = '#5A8A6A'; x.beginPath(); x.moveTo(3, h - 16); for (let i = 0; i <= 6; i++) x.lineTo(3 + (w - 6) * i / 6, h - 26 - (i % 2 ? 16 : 4) - rnd() * 8); x.lineTo(w - 3, h - 3); x.lineTo(3, h - 3); x.fill();
+      x.fillStyle = '#3E9E58'; x.beginPath(); x.moveTo(3, h - 10); for (let i = 0; i <= 8; i++) x.lineTo(3 + (w - 6) * i / 8, h - 16 - (i % 2 ? 8 : 2)); x.lineTo(w - 3, h - 3); x.lineTo(3, h - 3); x.fill();
+      p(3, h - 9, w - 6, 6, '#B89A6A'); for (let i = 6; i < w - 10; i += 14) p(i, h - 13, 8, 5, '#B89A6A');   // 성벽
+      for (let i = 0; i < 2; i++) { const tx = 10 + rnd() * (w - 30); p(tx + 5, h - 24, 3, 14, '#6B4226'); x.fillStyle = '#2E7A3E'; x.beginPath(); x.moveTo(tx - 2, h - 20); x.lineTo(tx + 6, h - 34); x.lineTo(tx + 15, h - 20); x.fill(); }
+      p(w / 2 - 2, 3, 4, h - 6, '#7A4A28'); p(3, h / 2 - 2, w - 6, 4, '#7A4A28');   // 창살
+    });
+  }
+  function rack() {   // 무기 걸이 (창 · 칼 · 활)
+    return spr(84, 92, p => {
+      p(4, 10, 6, 82, K); p(74, 10, 6, 82, K); p(5, 11, 4, 80, '#9A6338'); p(75, 11, 4, 80, '#9A6338');
+      p(0, 20, 84, 8, K); p(2, 21, 80, 5, '#B07A48'); p(0, 66, 84, 8, K); p(2, 67, 80, 5, '#B07A48');
+      [16, 30].forEach(a => { p(a, 0, 4, 90, K); p(a + 1, 6, 2, 84, '#C89058'); p(a - 2, 0, 8, 8, '#B8C4E8'); p(a, 0, 4, 3, '#FFFFFF'); });   // 창
+      [46, 58].forEach(a => { p(a, 30, 5, 58, K); p(a + 1, 32, 3, 44, '#D9E4FF'); p(a - 3, 74, 11, 4, '#FFD23F'); p(a + 1, 78, 3, 10, '#6B4226'); });   // 칼
+      p(68, 8, 3, 76, '#7A4A28'); p(66, 8, 3, 4, K); p(66, 80, 3, 4, K);   // 활
+    });
+  }
+  function target() {   // 과녁
+    return spr(60, 80, (p, x) => {
+      p(27, 44, 6, 36, K); p(28, 45, 4, 34, '#9A6338'); p(12, 72, 36, 6, K);
+      [[28, K], [26, '#FFFFFF'], [20, '#D2343A'], [14, '#FFFFFF'], [8, '#3E7BD8'], [4, '#FFD23F']].forEach(([r, col]) => { x.fillStyle = col; x.beginPath(); x.arc(30, 28, r, 0, 7); x.fill(); });
+      p(29, 8, 2, 12, '#6B4226'); p(36, 22, 10, 2, '#6B4226');   // 꽂힌 화살
+    });
+  }
+  function drum() {   // 북
+    return spr(56, 58, (p, x) => {
+      p(6, 40, 6, 18, K); p(44, 40, 6, 18, K);
+      x.fillStyle = K; x.beginPath(); x.ellipse(28, 28, 27, 24, 0, 0, 7); x.fill(); x.fillStyle = '#D2343A'; x.beginPath(); x.ellipse(28, 28, 24, 21, 0, 0, 7); x.fill();
+      x.fillStyle = '#F5E2B8'; x.beginPath(); x.ellipse(28, 16, 22, 9, 0, 0, 7); x.fill(); x.fillStyle = '#3E7BD8'; x.beginPath(); x.arc(28, 16, 5, 0, 7); x.fill();
+      for (let i = 8; i < 50; i += 7) p(i, 32, 3, 3, '#FFD23F');
+    });
+  }
+  function stones() {   // 들돌 (힘 기르는 돌)
+    return spr(64, 34, (p, x) => { [[16, 22, 14], [42, 24, 11], [30, 12, 9]].forEach(([a, b, r]) => { x.fillStyle = K; x.beginPath(); x.ellipse(a, b, r + 2, r * 0.8 + 2, 0, 0, 7); x.fill(); x.fillStyle = '#8A86A8'; x.beginPath(); x.ellipse(a, b, r, r * 0.8, 0, 0, 7); x.fill(); x.fillStyle = '#B8B4D0'; x.beginPath(); x.ellipse(a - r * 0.3, b - r * 0.3, r * 0.4, r * 0.25, 0, 0, 7); x.fill(); }); });
+  }
   function torch() { return spr(16, 34, p => { p(5, 12, 6, 20, K); p(6, 13, 4, 18, '#6B4226'); p(2, 10, 12, 5, K); p(3, 11, 10, 3, '#8A86A8'); }); }
 
   /* ---------- 실내 바닥·벽 ---------- */
@@ -100,6 +139,7 @@
     potion: { floor: '#B07A48', floor2: '#9A6338', wall: '#E8D2A8', beam: '#7A4A28', base: '#8A5A36', kind: 'wood', light: '#FFD9A0' },
     school: { floor: '#5A5480', floor2: '#4A4470', wall: '#3E3870', beam: '#2A2650', base: '#2A2650', kind: 'stone', light: '#C8A8FF' },
     chief: { floor: '#A8743E', floor2: '#946434', wall: '#D9C08F', beam: '#6B4226', base: '#6B4226', kind: 'wood', light: '#FFC878' },
+    train: { floor: '#C8935A', floor2: '#B07A48', wall: '#E8D2A8', beam: '#6B4226', base: '#5A3A1E', kind: 'wood', light: '#FFE2A8' },   // v144 훈련장
     castle: { floor: '#D8D4E0', floor2: '#BCB6CC', wall: '#6A6478', beam: '#4A4458', base: '#3A3448', kind: 'marble', light: '#FFE9A8' }
   };
   function paintRoom(map, st) {
@@ -222,6 +262,20 @@
       put(chair(), 0, 9 * TS, { cx: 2.4 * TS }); put(chair(), 0, 9 * TS, { cx: 7.6 * TS }); solid(2, 8, 1, 1); solid(7, 8, 1, 1);
       put(chest(), 1, 12 * TS); solid(1, 11, 1, 1); put(plant(), 24, 12 * TS + 4); solid(24, 11, 1, 1); put(plant(), 6, 4 * TS + 4); solid(6, 3, 1, 1);
       put(barrel(), 3, 13 * TS); solid(3, 12, 1, 1); put(crate(), 22, 12 * TS + 2); solid(22, 11, 1, 1);
+    } else if (type === 'train') {   // v144 훈련장: 창 너머 풍경 · 무기 걸이 · 과녁 · 북 · 가운데 허수아비(game.js 가 몬스터 자리로 세움)
+      M.train = true;
+      [5, 13, 21].forEach(cx => wall(scenery(150, 70, rnd), cx * TS, 2.55 * TS));
+      [[9, '#D2343A'], [17, '#3E7BD8']].forEach(([cx, col]) => wall(banner(col), cx * TS, 2.7 * TS));
+      put(rack(), 0, 6 * TS + 6, { cx: 2.6 * TS }); solid(1, 4, 3, 2);
+      put(rack(), 0, 6 * TS + 6, { cx: 23.4 * TS }); solid(22, 4, 3, 2);
+      put(target(), 0, 11 * TS, { cx: 2.5 * TS }); solid(2, 10, 1, 1);
+      put(target(), 0, 11 * TS, { cx: 23.5 * TS }); solid(23, 10, 1, 1);
+      put(drum(), 0, 13.6 * TS, { cx: 3 * TS }); solid(2, 12, 2, 2);
+      put(stones(), 0, 13.5 * TS, { cx: 22.8 * TS }); solid(22, 12, 2, 2);
+      put(barrel(), 5, 5 * TS + 4); solid(5, 4, 1, 1); put(barrel(), 20, 5 * TS + 4); solid(20, 4, 1, 1);
+      map.rug = { x: 7 * TS, y: 4.5 * TS, w: 12 * TS, h: 8 * TS, col: '#3E7BD8', col2: '#FFD23F' };
+      set(12, 8, 4); set(13, 8, 4);   // 허수아비 받침: 4 = 못 걸어 들어가지만 마법은 지나감 (13 × TS, 9 × TS 에 섬)
+      map.dummy = { x: 13 * TS, y: 9 * TS - 2 };
     } else {   // castle
       [[3, '#B0202A'], [7.5, '#3E4AC0'], [18.5, '#3E4AC0'], [23, '#B0202A']].forEach(([cx, col]) => wall(banner(col), cx * TS, 2.7 * TS));
       wall(stained(), 13 * TS, 2.1 * TS);

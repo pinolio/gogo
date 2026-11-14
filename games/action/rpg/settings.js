@@ -9,7 +9,7 @@
  */
 GoSettings.register({
   cardOld: true,   // v75: 카드 아래 기록은 예전(1위 · 내 최고) 그대로
-  rebRank: true,   // v134 메인 카드: 1·2위 + 환생 1위 (기록 extra.reb, 같은 횟수면 먼저 한 사람)
+  rebRank: true,   // v144 메인 카드 3줄: 스테이지 1위 · 환생 1위(extra.reb) · 10초 딜 1위(extra.dps, 훈련장) — 같은 값이면 먼저 낸 사람
   id: 'rpg',
   name: 'skillcom RPG',
   category: 'action',

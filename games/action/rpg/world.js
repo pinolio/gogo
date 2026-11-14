@@ -44,12 +44,13 @@
   /* v128 던전 입구 그림 (선생님 시안 · img/v79/dg_*.png, 칸에 맞춘 그림) · t: X 막힘(칸 10) · D 입구(칸 13, 지나감 · 나중에 다른 맵으로) · r 둘레(칸 12) · . 빈칸 */
   const DUNGEON = {"dg_cave":{"w":224,"h":160,"t":["..rXr..",".rXXXr.","rXXXXXr","rXXDXXr",".XXDXX."]},"dg_ruin":{"w":192,"h":192,"t":["......",".rXXr.",".XXXX.","XXXXXX","XXDXXX","rXDrXX"]}}, DUNGEON_KEYS = ['dg_cave', 'dg_ruin'];
   const POND = {"pond_s":{"w":81,"h":75,"t":["rr.","rWr","..."]},"pond_m":{"w":166,"h":129,"t":[".rrrr.","rWWWr.","rWWWr.","rrWr..","......"]},"pond_l":{"w":206,"h":189,"t":[".rrrrr.","rrWWWr.","rWWWWWr","rWWWWWr","rrWWWr.","rrrrrr."]}}, POND_KEYS = ['pond_s', 'pond_m', 'pond_l'], POND_REG = [0, 1, 2, 3, 4, 7];
-  /* v130 성(도원수 진영) 그림 bld_castle.png (820×673) 의 문 자리 → 지도 좌표 (game.js drawObj 와 같은 크기·자리)
+  /* v144 성 그림을 선생님 그림(bld_castle.png 820×640)으로 바꿈 · 그림 폭 = 칸 폭 + 150 (예전 820×673 · +90)
+   * v130 성(도원수 진영) 그림 의 문 자리 → 지도 좌표 (game.js drawObj 와 같은 크기·자리)
    *  A·B = 두 낮은 담 사이 통로가 성벽에 닿는 왼쪽·오른쪽 끝 · u = 통로가 뻗는 쪽(왼쪽 아래, 낮은 담과 나란히) · 박석 길과 들어가는 칸(문 칸)을 여기에 맞춤 */
   function castleGeo(b) {
-    const ww = b.w * TS + 90, s = ww / 820, L = (b.x + b.w / 2) * TS - ww / 2, T = (b.y + b.h) * TS + 6 - 673 * s;
+    const ww = b.w * TS + 150, s = ww / 820, L = (b.x + b.w / 2) * TS - ww / 2, T = (b.y + b.h) * TS + 6 - 640 * s;
     const P = (ix, iy) => [L + ix * s, T + iy * s];
-    return { A: P(172, 522), B: P(500, 545), u: [-142 * s, 63 * s] };   // A·B = 양쪽 낮은 담 사이 통로 안쪽 끝(성벽 밑)
+    return { A: P(300, 527), B: P(420, 535), u: [-142 * s, 63 * s] };   // v144 새 그림의 문 아래 양 끝   // A·B = 양쪽 낮은 담 사이 통로 안쪽 끝(성벽 밑)
   }
   /* v132 대왕 결전장: 선생님 그림 한 장(960×544 = 30×17칸)을 통째로 바닥으로 쓰는 지도 (지금 1-5 진광대왕 전)
    *  walk: [줄, 왼쪽 칸, 오른쪽 칸] 지나갈 수 있는 칸 (나머지 = 용암·벽 → 막힘, 칸 10) · start: 들어오는 자리(아래 가운데 좁은 길) · boss: 대왕이 서는 자리(위 해골 철문 앞) */
@@ -287,7 +288,7 @@
       for (let x = fx0 - 1; x <= fx0 + 3; x++) set(x, fy0 + 3, 1);
       map.forge = { x: fx0, y: fy0, w: 3, h: 2 };
       // v85 역참 (4×2 칸, 오른쪽 아래 · 마지막 마을은 왼쪽 아래) + 역참지기 자리 + 길
-      const st = R.castle ? { x: 1, y: 19, w: 4, h: 2, nx: 5.6, path: 5 } : { x: 30, y: 19, w: 4, h: 2, nx: 29.4, path: 29 };
+      const st = R.castle ? { x: 13, y: 20, w: 6, h: 2, nx: 19.6, path: 19 } : { x: 29, y: 20, w: 6, h: 2, nx: 27.6, path: 28 };   // v144 새 그림으로 크게 (예전 4×2, y19)
       for (let y = st.y - 2; y <= st.y + st.h; y++) for (let x = st.x - 1; x <= st.x + st.w; x++) if ([2, 3, 5].includes(at(x, y))) set(x, y, 0);
       for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) set(x, y, 11);
       for (let y = R.castle ? mid + 2 : fy0 + 3; y <= st.y + st.h; y++) set(st.path, y, 1);
@@ -385,10 +386,10 @@
    *  소품은 칸 10(지나갈 수 없음)으로 막고 그림은 map.objs 로 (사람과 앞뒤 순서 맞춤)
    *  병사·다친 병사·군의관 자리는 map.army → room.js villagers() 가 사람(NPC)으로 만듦 */
   const CAMP_PROPS = [   // n 그림 · x,y 왼쪽 위 칸 · fw,fh 막는 칸 · pw 그림 폭(px)
-    { n: 'prop_tent', x: 13, y: 4, fw: 3, fh: 2, pw: 118 }, { n: 'prop_flags', x: 20, y: 5, fw: 2, fh: 1, pw: 78 },
-    { n: 'prop_beacon', x: 1, y: 5, fw: 2, fh: 2, pw: 78 }, { n: 'prop_shield', x: 33, y: 5, fw: 2, fh: 1, pw: 74 },
-    { n: 'prop_cart', x: 3, y: 19, fw: 3, fh: 2, pw: 104 }, { n: 'prop_jars', x: 13, y: 19, fw: 2, fh: 2, pw: 80 },
-    { n: 'prop_cannon', x: 22, y: 19, fw: 3, fh: 2, pw: 108 }, { n: 'prop_fence', x: 8, y: 21, fw: 3, fh: 1, pw: 100 }
+    { n: 'prop_tent', x: 22, y: 14, fw: 3, fh: 2, pw: 118 }, { n: 'prop_flags', x: 19, y: 5, fw: 2, fh: 1, pw: 78 },   // v144 훈련장 자리 → 천막 (13,4)→(22,14) · 깃발 x20→19 · 방패 (33,5)→(1,13) · 수레 (3,19)→(8,21) · 울타리 x8→12 · 항아리 x13→15 (커진 건물 자리)
+    { n: 'prop_beacon', x: 1, y: 5, fw: 2, fh: 2, pw: 78 }, { n: 'prop_shield', x: 1, y: 13, fw: 2, fh: 1, pw: 74 },
+    { n: 'prop_cart', x: 8, y: 21, fw: 3, fh: 2, pw: 104 }, { n: 'prop_jars', x: 15, y: 19, fw: 2, fh: 2, pw: 80 },
+    { n: 'prop_cannon', x: 22, y: 19, fw: 3, fh: 2, pw: 108 }, { n: 'prop_fence', x: 12, y: 21, fw: 3, fh: 1, pw: 100 }
   ];
   function armyCamp(map, rnd) {
     const { at, set, w, h } = map, last = !!map.R.castle;
@@ -958,13 +959,13 @@
    *  img/ 폴더의 그림을 불러 두었다가 있으면 쓰고, 없으면(또는 늦으면) 코드로 그린 그림을 씀
    *  bld_potion·bld_school·bld_chief·bld_castle / boss_r0~8 / mon_r0~8 (9칸 × 64px) / obj_r0~8_1·2 / key.jpg */
   const RIMG = {}, IMG_DIR = 'games/action/rpg/img/';
-  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw', 'ic_st', 'ic_hm', 'ic_ar', 'ic_rg', 'ic_bt', 'ic_pot', 'ic_hm_b', 'ic_hm_s', 'ic_ar_b', 'ic_ar_s', 'ic_bt_b', 'ic_bt_s'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
+  const IMG_LIST = ['bld_potion', 'bld_school', 'bld_chief', 'bld_castle', 'bld_forge', 'bld_station', 'bld_fountain', 'bld_train', 'fx_enh_ok', 'fx_enh_break', 'ic_leg_sw', 'ic_leg_ar', 'ic_sw', 'ic_st', 'ic_hm', 'ic_ar', 'ic_rg', 'ic_bt', 'ic_pot', 'ic_hm_b', 'ic_hm_s', 'ic_ar_b', 'ic_ar_s', 'ic_bt_b', 'ic_bt_s'].concat([0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap(i => ['boss_r' + i, 'mon_r' + i, 'obj_r' + i + '_1', 'obj_r' + i + '_2']));
   let imgPromise = null;
   function loadImages(timeoutMs) {
     if (!imgPromise) imgPromise = Promise.all(IMG_LIST.concat(['key']).map(n => new Promise(res => {
       const im = new Image(); im.decoding = 'async';
       im.onload = () => { RIMG[n] = im; res(); }; im.onerror = () => res();
-      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : n === 'ic_bt' ? '?v=101' : n === 'ic_pot' ? '?v=102' : /^ic_(hm|ar|bt)_[bs]$/.test(n) ? '?v=107' : /^bld_(potion|school|chief|castle|station|fountain)$/.test(n) ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
+      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : n === 'ic_bt' ? '?v=101' : n === 'ic_pot' ? '?v=102' : /^ic_(hm|ar|bt)_[bs]$/.test(n) ? '?v=107' : /^bld_(potion|school|chief|castle|station|train)$/.test(n) ? '?v=144' : n === 'bld_fountain' ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
     })));
     [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(i => ['_ground', '_path', '_water'].forEach(k => img79('r' + i + k)));   // v80 재질은 미리 (기다리지는 않음)
     return Promise.race([imgPromise, new Promise(r => setTimeout(r, timeoutMs || 6000))]);
