@@ -309,7 +309,10 @@
     // v80 조선 병사·다친 병사·군의관 (world.js armyCamp 가 정한 자리 · 그림은 data.js ARMY)
     const army = (map.army || []).filter(q => D.ARMY && D.ARMY[q.k]).map((q, i) => ({ key: 'a' + i, def: D.ARMY[q.k], x: q.x * TS, y: q.y * TS, hx: q.x * TS, hy: q.y * TS,
       face: i % 2 ? -1 : 1, ph: i * 1.7, wt: 0.5 + i * 0.4, vx: 0, vy: 0, range: q.range || 0, spd: q.spd, still: !!q.still, walker: !q.still, guard: !!q.still }));
-    return folk.concat(army);
+    // v149 구리마을: 광개토대왕 이야기하는 사람 6명 (data.js GURI)
+    const gu = D.GURI && r === D.GURI.region && map.M.kind === 'village' ? D.GURI.folk.map((d0, i) => ({ key: 'g' + i, def: d0, x: d0.at[0] * TS, y: d0.at[1] * TS, hx: d0.at[0] * TS, hy: d0.at[1] * TS,
+      face: i % 2 ? -1 : 1, ph: i * 1.3, wt: 0.8 + i * 0.5, vx: 0, vy: 0, range: d0.range, spd: 22, walker: true })) : [];
+    return folk.concat(army, gu);
   }
 
   Object.assign(P, { getRoom, npcSprite, npcPortrait, villagers, ROOM_W: RW, ROOM_H: RH });

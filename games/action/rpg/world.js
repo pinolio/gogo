@@ -120,12 +120,12 @@
     Object.keys(LINKS).forEach(k => { delete LINKS[k]; });
     Object.keys(mapCache).forEach(k => { delete mapCache[k]; });
     const list = [];
-    (rows || []).forEach(r => {
+    (rows || []).concat(D.SASIN && D.SASIN.on ? D.SASIN.rows : []).forEach(r => {   // v150 숨은 던전 '사신의 땅' 20장은 늘 함께 등록
       const d = r && r.data, w = d && +d.w, h = d && +d.h;
       if (!d || !(w >= 20 && w <= 80 && h >= 14 && h <= 60) || !Array.isArray(d.t) || d.t.length !== w * h) return;
       if (!/^[a-z0-9_-]{2,40}$/.test(r.id) || MAPBY[r.id]) return;   // 게임에 원래 있는 맵 아이디(f1·v1…)는 덮어쓰지 않음
       if (!d.pub && !admin) return;
-      const mo = d.mons || {}, region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1), LV = v => clamp(Math.floor(+v || 1), 1, D.MAX_LV);
+      const mo = d.mons || {}, region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1), LV = v => clamp(Math.floor(+v || 1), 1, d.sx ? 400 : D.MAX_LV);   /* v150 사신의 땅 Lv.150 */
       let list = [], boss = null, bossLv = 1;
       if (Array.isArray(mo.list)) {   // v143 몬스터마다 레벨·마릿수 (합쳐서 30마리까지)
         let left = 30;
@@ -142,13 +142,14 @@
       const M = { id: r.id, kind: 'field', custom: true, test: !d.pub, region, name: String(r.name || r.id).slice(0, 30), rec: lvs.length ? Math.max(...lvs) : 1, boss: !!boss,
         monList: list.map(e => ({ mon: e.mon, lv: e.lv, n: e.n, old: !!e.old })), bossMon: boss ? boss.mon : null, bossLv,
         lvMin: lvs.length ? Math.min(...lvs) : 1, dropR: first ? first.region : region, dropNo: first ? first.no : 1, def: d };
+      if (d.sx) { M.sx = d.sx; M.solo = !!d.solo; M.tex = d.tex; M.rec = M.lvMin = +d.rec || M.rec; }   // v150 사신의 땅
       CUSTOM[M.id] = M; MAPBY[M.id] = M; list.push(M);
     });
     const add = (to, L) => { (LINKS[to] = LINKS[to] || []).push(L); };
     const back = T => T && T.kind === 'field' && !T.hell;   // 돌아오는 길을 뚫을 수 있는 맵 (사냥터·특별 지역)
     list.forEach(M => {
       const ex = M.def.exits || {};
-      Object.keys(ex).forEach(s => { const T = MAPBY[ex[s]]; if (!OPP[s] || !back(T) || T.id === M.id) return; if (T.custom && (T.def.exits || {})[OPP[s]] === M.id) return; add(T.id, { side: OPP[s], to: M.id }); });
+      Object.keys(ex).forEach(s => { const T = MAPBY[ex[s]]; if (!OPP[s] || !back(T) || T.id === M.id || M.def.noBack) return; if (T.custom && (T.def.exits || {})[OPP[s]] === M.id) return; add(T.id, { side: OPP[s], to: M.id }); });
       (M.def.dungeons || []).forEach(dg => { const T = MAPBY[dg.to]; if (!back(T) || T.id === M.id) return; if (T.custom && (T.def.exits || {}).d === M.id) return; add(T.id, { side: 'd', to: M.id, dg: true }); });
     });
     return list.map(M => M.id);
@@ -242,6 +243,37 @@
     mapCache[id] = map; const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
     return map;
   }
+  // v150 글씨 새긴 바위 (18번 사냥터 숨은 입구 옆) — 푸른 돌 · 빛나는 새김 글씨
+  let rockC = null;
+  let steleC = null;
+  function steleSprite() {   // v149 광개토대왕비 (임시 · 선생님 그림이 오면 game.js 가 그림으로 그림): 네모난 큰 돌비석 + 빼곡한 글씨 줄
+    if (steleC) return steleC;
+    const [c, x] = mk(70, 132);
+    x.fillStyle = 'rgba(0,0,0,.3)'; x.beginPath(); x.ellipse(35, 126, 32, 6, 0, 0, Math.PI * 2); x.fill();
+    x.fillStyle = '#1D2340'; x.fillRect(4, 112, 62, 16); x.fillStyle = '#6E6A60'; x.fillRect(6, 114, 58, 12); x.fillStyle = '#8C8776'; x.fillRect(6, 114, 58, 3);
+    x.fillStyle = '#1D2340'; x.beginPath(); x.moveTo(12, 116); x.lineTo(9, 14); x.lineTo(20, 4); x.lineTo(52, 3); x.lineTo(61, 14); x.lineTo(58, 116); x.closePath(); x.fill();
+    const g = x.createLinearGradient(10, 0, 60, 0); g.addColorStop(0, '#9A957F'); g.addColorStop(0.55, '#7F7A66'); g.addColorStop(1, '#5E5A4C');
+    x.fillStyle = g; x.beginPath(); x.moveTo(14, 114); x.lineTo(12, 15); x.lineTo(21, 7); x.lineTo(50, 6); x.lineTo(58, 15); x.lineTo(56, 114); x.closePath(); x.fill();
+    x.fillStyle = 'rgba(40,36,28,.55)'; for (let col = 0; col < 5; col++) for (let row = 0; row < 20; row++) if ((col * 7 + row * 3) % 11 !== 0) x.fillRect(18 + col * 7, 18 + row * 4.6, 4, 2.4);
+    x.fillStyle = 'rgba(90,130,70,.55)'; [[14, 40, 5, 9], [50, 70, 6, 12], [16, 95, 7, 10], [44, 20, 5, 6]].forEach(([a, b, w, h]) => x.fillRect(a, b, w, h));   // 이끼
+    x.fillStyle = 'rgba(255,255,255,.25)'; x.fillRect(14, 16, 2, 96);
+    return (steleC = c);
+  }
+  function rockSprite() {
+    if (rockC) return rockC;
+    const [c, x] = mk(78, 96);
+    x.fillStyle = 'rgba(0,0,0,.3)'; x.beginPath(); x.ellipse(39, 88, 34, 7, 0, 0, Math.PI * 2); x.fill();
+    const path = () => { x.beginPath(); x.moveTo(12, 88); x.lineTo(8, 40); x.quadraticCurveTo(10, 10, 38, 6); x.quadraticCurveTo(66, 8, 70, 38); x.lineTo(66, 88); x.closePath(); };
+    const g = x.createLinearGradient(0, 0, 78, 0); g.addColorStop(0, '#2E3858'); g.addColorStop(0.45, '#56628A'); g.addColorStop(1, '#262E4A');
+    path(); x.fillStyle = g; x.fill(); x.lineWidth = 3; x.strokeStyle = '#141833'; x.stroke();
+    x.fillStyle = 'rgba(159,184,240,.35)'; x.beginPath(); x.moveTo(16, 42); x.quadraticCurveTo(18, 16, 38, 11); x.lineTo(36, 18); x.quadraticCurveTo(22, 24, 22, 44); x.closePath(); x.fill();
+    x.fillStyle = '#3E6A5A'; [[14, 80, 10, 5], [52, 82, 12, 4], [60, 30, 6, 4]].forEach(([a, b, ww, hh]) => x.fillRect(a, b, ww, hh));   // 이끼
+    x.shadowColor = '#9AE6FF'; x.shadowBlur = 6; x.strokeStyle = '#9AE6FF'; x.lineWidth = 2;   // 새김 글씨 (빛)
+    [[26, 26], [26, 42], [26, 58]].forEach(([a, b], i) => { x.beginPath(); x.moveTo(a, b); x.lineTo(a + 8, b); x.moveTo(a + 4, b - 5); x.lineTo(a + 4, b + 6); if (i !== 1) { x.moveTo(a + 1, b + 4); x.lineTo(a + 7, b + 4); } x.stroke(); });
+    [[44, 26], [44, 42], [44, 58]].forEach(([a, b], i) => { x.beginPath(); x.moveTo(a, b - 4); x.lineTo(a + 8, b - 4); x.lineTo(a + 8, b + 5); x.moveTo(a, b + 1); x.lineTo(a + 6, b + 1); if (i === 2) { x.moveTo(a + 2, b + 6); x.lineTo(a + 8, b + 6); } x.stroke(); });
+    x.shadowBlur = 0;
+    return (rockC = c);
+  }
   function getMap(id) {
     if (mapCache[id]) return mapCache[id];
     if (ARENA[id]) return arenaMap(id);
@@ -277,6 +309,7 @@
           for (let x = b.x - 2; x <= b.x + b.w + 1; x++) set(x, yb, 1);
         }
       });
+      if (D.GURI && M.region === D.GURI.region) { const g = D.GURI.stele; set(g.tx, g.ty, 3); set(g.tx + 1, g.ty, 3); map.gStele = { tx: g.tx, ty: g.ty, x: (g.tx + 1) * TS, y: (g.ty + 1) * TS, text: g.text, name: g.name, img: g.img }; }   // v149 구리마을 광개토대왕비 (선생님 그림이 오면 그림)
       if (!R.castle) { set(17, 14, 8); set(18, 14, 8); set(17, 15, 8); set(18, 15, 8); for (let x = 15; x <= 20; x++) { set(x, 13, 1); set(x, 16, 1); } for (let y = 13; y <= 16; y++) { set(15, y, 1); set(20, y, 1); } for (let y = mid + 2; y < 13; y++) set(17, y, 1); }
       // 나무 몇 그루 · 꽃
       for (let i = 0; i < 70; i++) { const x = 1 + Math.floor(rnd() * (w - 2)), y = 1 + Math.floor(rnd() * (h - 2)); if (at(x, y) === 0 && Math.abs(y - mid) > 2 && !nearDoor(map, x, y)) set(x, y, rnd() < 0.35 ? 2 : 5); }
@@ -345,6 +378,15 @@
     }
     map.startL = { x: 2.5 * TS, y: (mid + 1) * TS };
     map.startR = { x: (w - 2.5) * TS, y: (mid + 1) * TS };
+    // v150 18번 사냥터 위쪽: 숨은 던전 입구(dg_ruin) + 글씨 새긴 바위 — 길은 따로 안 뚫고 입구 아래만 풀밭으로 비움
+    if (D.SASIN && D.SASIN.on && id === D.SASIN.gateMap) {
+      const DG = DUNGEON.dg_ruin, x0 = (w >> 1) - 3, y0 = 1, di = 2;
+      DG.t.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'X') set(x0 + i, y0 + j, 10); else if (ch === 'D') set(x0 + i, y0 + j, 13); else if (ch === 'r') set(x0 + i, y0 + j, 12); }));
+      for (let y = y0 + DG.t.length; y < h - 2 && at(x0 + di, y) !== 1; y++) for (let x = x0 + di - 1; x <= x0 + di + 1; x++) if (SOLID[at(x, y)] || at(x, y) === 4) set(x, y, 0);
+      map.dgs = [{ k: 'dg_ruin', x: x0, y: y0, to: D.SASIN.entry, sx: true }];
+      const rx = x0 + 8, ry = y0 + 3; set(rx, ry + 1, 3); set(rx + 1, ry + 1, 3); for (let y = ry - 1; y <= ry + 3; y++) for (let x = rx - 1; x <= rx + 2; x++) if (at(x, y) === 2 || (at(x, y) === 3 && y !== ry + 1)) set(x, y, 0);
+      map.sxRock = { tx: rx, ty: ry, x: (rx + 1) * TS, y: (ry + 2) * TS, text: D.SASIN.rock };
+    }
     // 갈 수 없는 빈칸은 막기 (몬스터가 갇히지 않게) + 몬스터가 나올 칸 목록
     const seen = new Uint8Array(w * h), q = [[2, mid]]; seen[mid * w + 2] = 1;
     while (q.length) {
@@ -357,6 +399,8 @@
       if (M.kind === 'field' && xx > 6 && xx < w - 7 && v !== 7) map.spawns.push({ x: (xx + 0.5) * TS, y: (yy + 0.8) * TS });
     }
     map.ground = paintGround(map);
+    if (map.gStele) { const R2 = map.gStele, sp = steleSprite(); map.objs.push({ sign: true, stele: true, img: sp, x: R2.x - sp.width / 2, y: R2.y - sp.height + 6, sy: R2.y }); }
+    if (map.sxRock) { const R2 = map.sxRock, sp = rockSprite(); map.objs.push({ sign: true, img: sp, x: R2.x - sp.width / 2, y: R2.y - sp.height + 6, sy: R2.y }); }
     mapCache[id] = map;
     // 그림이 큰 지도(사냥터 1장 ≈ 7MB)가 쌓이지 않게 최근 4개만 남김 (다시 들어가면 같은 모양으로 다시 만듦)
     const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
@@ -989,107 +1033,16 @@
   function texOf(map) {
     const M = map.M;
     if (M.hell) { const g = 'hellfloor' + M.gate, wt = M.gate === 3 ? 'r5_water' : M.gate === 6 ? 'r2_water' : 'r8_water'; return [g, g, wt]; }
+    if (M.tex) return [M.tex + '_ground', M.tex + '_path', M.tex + '_water'];   // v150 사신의 땅 바닥
     const r = 'r' + M.region; return [r + '_ground', r + '_path', r + '_water'];
   }
 
   /* ================= 그림 조각 (몬스터 · 아바타 + 장비) ================= */
   const monCache = {};
   // 몬스터: 12×12 도트 → 위쪽이 비면 밝게, 아래쪽이 비면 어둡게 (입체감) + 반짝임 점
-  /* ---------------- v69 저승 몬스터 도트 그림 (작게 그린 뒤 2배로 키움 · 테두리 자동) ----------------
-   *  Meshy 그림으로 바꾸기 전까지 쓰는 손 도트. 일반 몬스터 24×24 · 보스 40×40 칸 */
-  function hellPainter(N) {
-    const g = Array.from({ length: N }, () => Array(N).fill(null));
-    const px = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < N && y < N) g[y][x] = c; };
-    const r = (x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(x + i, y + j, c); };
-    const e = (cx, cy, rx, ry, c) => { for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) if (((x - cx) / (rx + 0.35)) ** 2 + ((y - cy) / (ry + 0.35)) ** 2 <= 1) px(x, y, c); };
-    const ln = (x0, y0, x1, y1, c, w) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) || 1; for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * i / n; if (w > 1) r(x - (w >> 1), y - (w >> 1), w, w, c); else px(x, y, c); } };
-    const tri = (x0, y0, x1, y1, x2, y2, c) => { const minY = Math.min(y0, y1, y2), maxY = Math.max(y0, y1, y2); for (let y = minY; y <= maxY; y++) for (let x = Math.min(x0, x1, x2); x <= Math.max(x0, x1, x2); x++) { const d = (ax, ay, bx, by) => (bx - ax) * (y - ay) - (by - ay) * (x - ax); const a = d(x0, y0, x1, y1), b = d(x1, y1, x2, y2), cc = d(x2, y2, x0, y0); if ((a >= 0 && b >= 0 && cc >= 0) || (a <= 0 && b <= 0 && cc <= 0)) px(x, y, c); } };
-    return { N, g, px, r, e, ln, tri };
-  }
-  const HELL_ART = {
-    // 칼산 망령: 칼에 꿰인 채 떠도는 창백한 혼 (붉은 눈 · 너덜너덜한 아랫자락 · 몸을 꿰뚫은 부러진 칼)
-    h_wraith(p) {
-      const { r, e, ln, px } = p;
-      for (let x = 5; x <= 18; x++) r(x, 13, 1, 6 + ((x * 7) % 4), x % 2 ? '#9AA8D8' : '#B4C2EA');           // 너덜너덜한 자락
-      e(12, 10, 7, 7, '#C8D4F2'); e(14.5, 11.5, 4, 5, '#9EACDA'); e(9, 7, 2.5, 2.5, '#EEF2FF');           // 몸 · 그늘 · 빛
-      r(4, 11, 2, 5, '#B4C2EA'); r(19, 11, 2, 5, '#9EACDA'); px(4, 16, '#9AA8D8'); px(20, 16, '#8A98C8');   // 흐느적거리는 팔
-      r(8, 8, 3, 3, '#1A0A1E'); r(14, 8, 3, 3, '#1A0A1E'); px(9, 9, '#FF3A3A'); px(15, 9, '#FF3A3A'); px(9, 8, '#FF8A8A'); px(15, 8, '#FF8A8A');
-      r(10, 13, 5, 2, '#2A1830'); px(11, 13, '#E8ECF8'); px(13, 13, '#E8ECF8');                            // 벌린 입
-      ln(2, 21, 21, 2, '#C8CCD8', 1); ln(3, 21, 21, 3, '#8A90A8', 1); px(20, 2, '#FFFFFF');                 // 꿰뚫은 칼날
-      r(1, 19, 4, 2, '#7A4A20'); r(2, 18, 2, 4, '#5A3010'); px(2, 22, '#FFD23F');                          // 칼자루 · 술
-      for (let i = 0; i < 4; i++) px(6 + i * 4, 21 + (i % 2), '#E0E8FF');                                     // 흩날리는 혼불
-    },
-    // 칼 든 원혼: 녹슨 갑옷을 입은 해골 병사, 이 빠진 칼을 치켜듦
-    h_soldier(p) {
-      const { r, e, ln, px } = p;
-      e(11, 5, 4, 4, '#E8E0CC'); e(12.5, 6, 2, 3, '#C8BEA4'); r(8, 1, 7, 2, '#3A2A20'); r(7, 2, 9, 1, '#5A4030');   // 해골 · 투구
-      r(9, 5, 2, 2, '#1A0A10'); r(12, 5, 2, 2, '#1A0A10'); px(9, 5, '#FF4A3A'); px(12, 5, '#FF4A3A'); r(10, 8, 3, 1, '#2A1A14');
-      r(7, 10, 9, 7, '#6A4A3A'); r(7, 10, 9, 1, '#8A6A50'); for (let y = 11; y < 17; y += 2) r(8, y, 7, 1, '#4A3020');   // 찢어진 갑옷 (미늘)
-      r(10, 11, 3, 5, '#D8D0BC'); px(11, 12, '#A89E88'); px(11, 14, '#A89E88');                                // 갈비뼈
-      r(5, 10, 2, 5, '#D8D0BC'); r(16, 9, 2, 3, '#D8D0BC');                                                   // 팔뼈
-      ln(17, 9, 21, 1, '#B8BCC8', 2); px(20, 2, '#FFFFFF'); px(19, 5, '#7A808C'); r(16, 9, 3, 2, '#5A3A20');   // 이 빠진 칼
-      r(8, 17, 3, 5, '#D8D0BC'); r(12, 17, 3, 5, '#D8D0BC'); r(7, 21, 4, 2, '#4A3020'); r(12, 21, 4, 2, '#4A3020'); // 다리뼈 · 짚신
-      r(6, 16, 11, 2, '#8A2A2A');                                                                             // 붉은 허리띠
-    },
-    // 우두 옥졸: 소머리 옥졸. 굽은 뿔 · 코뚜레 · 근육질 몸 · 가시 박힌 쇠몽둥이 · 쇠사슬
-    h_ox(p) {
-      const { r, e, ln, px, tri } = p;
-      ln(9, 9, 4, 3, '#E8DCC0', 3); ln(4, 3, 6, 1, '#FFF4DC', 2); ln(29, 9, 34, 3, '#E8DCC0', 3); ln(34, 3, 32, 1, '#FFF4DC', 2);   // 뿔
-      e(19, 11, 9, 7, '#7A3A26'); e(19, 15, 6, 5, '#9A5A40'); e(16, 8, 3, 2, '#9A5A40');                    // 소머리 · 주둥이
-      r(13, 9, 3, 3, '#FFD23F'); r(23, 9, 3, 3, '#FFD23F'); px(14, 10, '#C80A0A'); px(24, 10, '#C80A0A');     // 노란 눈
-      r(16, 15, 2, 2, '#2A1008'); r(21, 15, 2, 2, '#2A1008'); e(19.5, 18, 2.5, 1.5, '#C8C8D0'); px(19, 19, '#8A8A98');   // 콧구멍 · 코뚜레
-      e(9, 12, 3, 2, '#5A2618'); e(29, 12, 3, 2, '#5A2618');                                                   // 귀
-      e(19, 27, 11, 8, '#8A4430'); e(16, 24, 4, 3, '#A85A40'); e(23, 24, 4, 3, '#A85A40'); r(17, 28, 5, 4, '#7A3826');   // 가슴 근육
-      e(6, 25, 4, 6, '#8A4430'); e(32, 25, 4, 6, '#7A3826');                                                   // 팔
-      r(9, 32, 20, 4, '#3A2A50'); r(9, 32, 20, 1, '#FFD23F'); tri(14, 36, 24, 36, 19, 39, '#2A1A40');         // 허리띠 · 앞치마
-      r(11, 36, 5, 4, '#7A3826'); r(22, 36, 5, 4, '#7A3826');                                                  // 다리
-      ln(34, 28, 38, 6, '#5A5A6A', 3); e(37.5, 7, 2.5, 4, '#4A4A58'); for (let i = 0; i < 4; i++) { px(35, 4 + i * 2, '#C8C8D8'); px(39, 5 + i * 2, '#C8C8D8'); }   // 가시 쇠몽둥이
-      for (let i = 0; i < 6; i++) px(4 + i, 30 + (i % 2), i % 2 ? '#9A9AA8' : '#C8C8D8');                       // 쇠사슬
-    },
-    // 도산 판관: 사모(날개 달린 검은 관모) · 녹색 관복 · 흉배 · 붉은 명부와 붓 · 긴 수염
-    h_judge(p) {
-      const { r, e, ln, px } = p;
-      r(14, 2, 12, 6, '#1A1A24'); r(15, 1, 10, 2, '#2A2A38'); r(8, 4, 6, 2, '#1A1A24'); r(26, 4, 6, 2, '#1A1A24'); px(8, 4, '#3A3A4A'); px(31, 4, '#3A3A4A');   // 사모와 날개
-      e(20, 11, 6, 5, '#F0D2A8'); e(22, 12, 3, 4, '#D8B48C'); r(16, 10, 3, 1, '#1A0A0A'); r(22, 10, 3, 1, '#1A0A0A'); r(15, 8, 4, 1, '#3A2A20'); r(22, 8, 4, 1, '#3A2A20');   // 얼굴 · 성난 눈썹
-      px(17, 10, '#FF3A3A'); px(23, 10, '#FF3A3A');
-      for (let i = 0; i < 6; i++) r(17 + i, 15, 1, 6 + (i % 3), '#2A2A30');                                    // 긴 수염
-      e(20, 28, 12, 10, '#2E7A4A'); e(24, 28, 6, 9, '#22603A'); e(14, 24, 4, 4, '#3E9A5E');                   // 관복
-      r(15, 23, 10, 8, '#1E3A8A'); r(16, 24, 8, 6, '#2E5AC8'); e(20, 27, 2.5, 2, '#FFD23F'); px(20, 27, '#FF8A3D');   // 흉배 (학 무늬 자리에 금빛)
-      r(9, 34, 22, 3, '#22603A'); r(13, 31, 14, 2, '#C8A040'); px(20, 32, '#FFF4C0');                         // 각대(허리띠)
-      e(7, 25, 3, 6, '#2E7A4A'); e(33, 25, 3, 6, '#22603A');                                                   // 넓은 소매
-      r(1, 22, 7, 9, '#B8302A'); r(2, 23, 5, 7, '#E8D8B0'); for (let y = 24; y < 30; y += 2) r(3, y, 3, 1, '#5A3A20');   // 붉은 명부
-      ln(33, 30, 38, 20, '#7A4A20', 2); r(37, 18, 2, 3, '#1A1A1A');                                            // 붓
-      r(14, 37, 5, 3, '#1A1A24'); r(22, 37, 5, 3, '#1A1A24');                                                  // 목화(신)
-    },
-    // 진광대왕: 면류관(구슬 줄) · 붉은 곤룡포 · 금빛 용 흉배 · 홀 · 등 뒤로 솟은 칼산
-    h_king1(p) {
-      const { r, e, ln, px, tri } = p;
-      for (let i = 0; i < 7; i++) tri(2 + i * 6, 22, 6 + i * 6, 22, 4 + i * 6, 6 + (i % 2) * 5, i % 2 ? '#8A90A8' : '#B8BCC8');   // 뒤 칼산
-      for (let i = 0; i < 7; i++) px(4 + i * 6, 7 + (i % 2) * 5, '#FFFFFF');
-      r(11, 3, 18, 3, '#1A1A24'); r(10, 2, 20, 1, '#FFD23F'); for (let i = 0; i < 9; i++) { const x = 11 + i * 2; r(x, 6, 1, 4, i % 2 ? '#FF3A3A' : '#FFD23F'); }   // 면류관 · 구슬 줄
-      r(15, 6, 10, 2, '#C8A040');
-      e(20, 12, 6, 5, '#F0C8A0'); e(22.5, 13, 3, 4, '#D8A880'); r(16, 11, 3, 2, '#1A0A0A'); r(22, 11, 3, 2, '#1A0A0A'); px(17, 11, '#FFD23F'); px(23, 11, '#FFD23F');   // 얼굴 · 금빛 눈
-      r(15, 9, 4, 1, '#2A1A10'); r(22, 9, 4, 1, '#2A1A10');
-      for (let i = 0; i < 8; i++) r(16 + i, 16, 1, 5 + (i % 3) * 2, '#1A1A20');                               // 수염
-      e(20, 30, 14, 10, '#C8302A'); e(26, 30, 7, 9, '#9A1E1A'); e(13, 26, 5, 4, '#E04A3A');                   // 곤룡포
-      e(20, 27, 5, 5, '#FFD23F'); e(20, 27, 4, 4, '#E8A020'); ln(17, 25, 23, 29, '#FFF4C0', 1); ln(17, 29, 23, 25, '#C86A10', 1); px(20, 27, '#FF3A3A');   // 금빛 용 보(흉배)
-      r(7, 34, 26, 3, '#7A1414'); r(11, 33, 18, 2, '#FFD23F'); for (let i = 0; i < 5; i++) px(13 + i * 3, 33, '#3AA8F5');   // 옥대
-      e(5, 27, 4, 7, '#C8302A'); e(35, 27, 4, 7, '#9A1E1A'); e(5, 33, 2, 2, '#F0C8A0'); e(35, 33, 2, 2, '#D8A880');   // 소매 · 손
-      ln(35, 33, 38, 14, '#E8DCC0', 2); px(38, 13, '#FFFFFF');                                                 // 홀(笏)
-      r(12, 37, 6, 3, '#1A1A24'); r(22, 37, 6, 3, '#1A1A24'); r(12, 37, 6, 1, '#FFD23F'); r(22, 37, 6, 1, '#FFD23F');
-    }
-  };
-  function hellSprite(mon, scale) {
-    const big = scale >= 6, N = big ? 40 : 24, P = hellPainter(N); HELL_ART[mon.art](P);
-    const g = P.g, filled = (x, y) => x >= 0 && y >= 0 && x < N && y < N && g[y][x] && g[y][x] !== '#140A12';
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (!g[y][x] && (filled(x - 1, y) || filled(x + 1, y) || filled(x, y - 1) || filled(x, y + 1))) g[y][x] = '#140A12';   // 검붉은 테두리
-    const k = 2, [c, x] = mk(N * k, N * k);
-    for (let y = 0; y < N; y++) for (let i = 0; i < N; i++) if (g[y][i]) { x.fillStyle = g[y][i]; x.fillRect(i * k, y * k, k, k); }
-    const [c2, x2] = mk(N * k, N * k); x2.drawImage(c, 0, 0); x2.globalCompositeOperation = 'source-in'; x2.fillStyle = '#FFFFFF'; x2.fillRect(0, 0, c2.width, c2.height);
-    return { img: c, flash: c2, w: N * k, h: N * k };
-  }
+  /* v149 선생님 11/15: 옛 도트 몬스터 그림(12×12 모양 · 저승 손 도트)은 모두 지움 — 몬스터는 그림 파일만 씀 (그림을 불러오는 동안은 투명하게 두었다가 바꿔 끼움) */
   /* v80 Meshy 2차 몬스터: 왜군(mon.img79) · 저승(mon.img) · 지역 보스(boss_r) — 그림 높이를 맞춰 줄임
-   *  그림을 아직 못 불러왔으면 옛 그림(도트)을 wait 표시와 함께 돌려줌 → game.js drawMon 이 다 불러오면 바꿔 끼움 */
+   *  그림을 아직 못 불러왔으면 투명한 빈 그림을 wait 표시와 함께 돌려줌 → game.js drawMon 이 다 불러오면 바꿔 끼움 (v149 옛 도트 지움) */
   function imgSprite(im, H) {
     const w = Math.max(1, Math.round(im.naturalWidth * H / im.naturalHeight)), [c, x] = mk(w, H);
     x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(im, 0, 0, w, H);
@@ -1097,10 +1050,10 @@
     return { img: c, flash: c2, w, h: H, meshy: true };
   }
   function monSprite(mon, scale) {
-    const key = mon.name + scale; if (monCache[key]) return monCache[key];
+    const key = mon.name + scale + (mon.bh ? '@' + mon.bh : ''); if (monCache[key]) return monCache[key];   // v150 같은 보스라도 크기(bh)가 다르면 따로
     const boss = scale >= 6, nm = mon.img79 || mon.img || (boss && mon.ri != null && !mon.dot ? 'boss_r' + mon.ri : null);
     if (nm) {
-      const H = !boss ? (mon.h || 64) : /_king$|^boss_r/.test(nm) ? 150 : 124, im = img79(nm);
+      const H = !boss ? (mon.h || 64) : mon.bh || (/_king$|^boss_r/.test(nm) ? 150 : 124), im = img79(nm);   // v150 bh = 보스 그림 높이 따로
       if (im) return (monCache[key] = imgSprite(im, H));
       const wk = key + '~wait'; if (monCache[wk]) return monCache[wk];
       img79(nm, () => {});
@@ -1110,7 +1063,6 @@
   }
   function monSpriteOld(mon, scale, key) {
     if (monCache[key]) return monCache[key];
-    if (mon.art && HELL_ART[mon.art]) return (monCache[key] = hellSprite(mon, scale));   // v69 저승 몬스터
     // Meshy 그림이 있으면 그것을 씀 (보스: boss_r, 일반: mon_r 의 k번째 칸)
     const boss = scale >= 6, im = mon.ri != null && !mon.dot ? imgOk(boss ? 'boss_r' + mon.ri : 'mon_r' + mon.ri) : null;
     if (im && (boss || mon.k < 9)) {
@@ -1124,21 +1076,9 @@
         return (monCache[key] = { img: c, flash: c2, w: cw, h: ch, meshy: true });
       }
     }
-    const sh = D.SHAPES[mon.shape] || D.SHAPES.slime, C = Object.assign({ e: '#FFFFFF', k: '#1D2340' }, mon.colors);
-    const [c, x] = mk(12 * scale, 12 * scale), at = (i, j) => (sh[j] && sh[j][i]) || '.';
-    const empty = ch => ch === '.' || ch === 'k';
-    sh.forEach((row, j) => { for (let i = 0; i < 12; i++) {
-      const ch = row[i]; if (ch === '.' || !C[ch]) continue;
-      let col = C[ch];
-      if (ch === 'a' || ch === 'b' || ch === 'c' || ch === 'd') {
-        if (empty(at(i, j - 1))) col = shade(col, 0.22); else if (empty(at(i, j + 1)) || empty(at(i + 1, j))) col = shade(col, -0.18);
-      }
-      x.fillStyle = col; x.fillRect(i * scale, j * scale, scale, scale);
-      if (ch === 'a' && scale >= 3 && empty(at(i, j - 1)) && empty(at(i - 1, j))) { x.fillStyle = 'rgba(255,255,255,.7)'; x.fillRect(i * scale + 1, j * scale + 1, Math.max(1, scale / 3), Math.max(1, scale / 3)); }
-    } });
-    // 흰 깜빡임용 (맞았을 때)
-    const [c2, x2] = mk(12 * scale, 12 * scale); x2.drawImage(c, 0, 0); x2.globalCompositeOperation = 'source-in'; x2.fillStyle = '#FFFFFF'; x2.fillRect(0, 0, c2.width, c2.height);
-    return (monCache[key] = { img: c, flash: c2, w: 12 * scale, h: 12 * scale });
+    // v149 그림을 아직 못 불러왔으면 투명한 빈 그림 (cache 안 함 · wait → game.js 가 다시 물어봄)
+    const n = scale >= 6 ? 150 : 48, [c] = mk(n, n);
+    return { img: c, flash: c, w: n, h: n, wait: true, blank: true };
   }
 
   // 장비 그림 (아바타 칸 좌표 · 18 × 29 · 테두리 1칸 포함)
@@ -1358,5 +1298,6 @@
     return `<span class="rg-icw"><img class="rg-ic${it.rare ? ' rare' : ''}" style="--c:${t.color};--g:${t.gem}${(it.slot === 'weapon' && WP_IC[it.look] && imgOk(WP_IC[it.look])) || (SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot])) || (it.stack && imgOk('ic_pot')) ? ';image-rendering:auto' : ''}" src="${itemImg(id)}" alt="">${it.en ? `<b class="rg-en">+${it.en}</b>` : ''}</span>`;
   }
 
+  registerCustom([]);   // v150 사신의 땅 20장은 서버 지도 목록이 없어도(체험 모드) 늘 있게
   window.__GoRPGParts = { registerCustom, arrivePos, gateAt, gatePos, dungeonAt, CUSTOM, previewMap, drawMapObj, texOf, POND, DUNGEON, DUNGEON_KEYS, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
 })();

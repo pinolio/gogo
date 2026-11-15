@@ -24,7 +24,7 @@
   const REGIONS = [
     { name: '솔뫼 마을', short: '솔뫼', ground: ['#7CC66A', '#6DB85C'], path: '#D8C08A', block: 'tree', block2: 'rock', deco: ['#FFE45C', '#FF8AB0', '#FFFFFF'], water: '#4FA8E8', sky: '#BFE6FB',
       fields: ['보리밭 들판', '토끼 언덕', '민들레 둑길', '개울 빨래터', '버섯 솔숲', '숯막 터', '이끼 굴 어귀', '장승 고개', '돌다리 밑', '큰 슬라임 둥지'] },
-    { name: '대숲 마을', short: '대숲', ground: ['#4E9E58', '#438F4D'], path: '#B99A66', block: 'pine', block2: 'rock', deco: ['#B8F28A', '#FFD23F', '#9AE6FF'], water: '#3A8FD0', sky: '#A9DCC0',
+    { name: '구리마을', short: '구리', ground: ['#4E9E58', '#438F4D'], path: '#B99A66', block: 'pine', block2: 'rock', deco: ['#B8F28A', '#FFD23F', '#9AE6FF'], water: '#3A8FD0', sky: '#A9DCC0',
       fields: ['대숲 입구', '덩굴 오솔길', '반딧불 연못', '부엉이 고목', '여우 골짜기', '사냥꾼 움막', '쓰러진 고목', '왜군 척후 진지', '서낭당 터', '숲의 수호자'] },
     { name: '갈대늪 나루', short: '나루', ground: ['#5E7A4A', '#55703F'], path: '#8A7A55', block: 'deadtree', block2: 'mossrock', deco: ['#C8E08A', '#9AD8C0', '#E8D8FF'], water: '#4A7A6A', sky: '#B8C8B0',
       fields: ['젖은 갈대밭', '개구리 연못', '썩은 나무다리', '도깨비불 늪', '안개 낀 수렁', '무당집 터', '거머리 웅덩이', '뿌리 동굴', '버려진 나루터', '늪의 여왕 둥지'] },
@@ -45,220 +45,7 @@
   const recOf = (ri, k) => (ri < 8 ? ri * 10 + k + 1 : 80 + (k + 1) * 2);
   const LV_RANGE = REGIONS.map((R, ri) => [recOf(ri, 0), recOf(ri, 9)]);   // [[1,10], [11,20] … [71,80], [82,100]]
 
-  /* ---------------- 몬스터 모양 (12 × 12 도트) ----------------
-   *  a = 몸 색, b = 진한 색, c = 밝은 색, d = 무늬 색, e = 흰자, k = 검정 */
-  const SHAPES = {
-    slime: [
-      '............',
-      '............',
-      '....kkkk....',
-      '..kkccaakk..',
-      '.kcaaaaaaak.',
-      '.kaaaaaaaak.',
-      'kaaekaaekaak',
-      'kaakkaakkaak',
-      'kaaaaaaaaaak',
-      'kbaaaaaaaabk',
-      '.kbbbbbbbbk.',
-      '..kkkkkkkk..'],
-    mushroom: [
-      '...kkkkkk...',
-      '..kaaddaak..',
-      '.kaddaaadak.',
-      'kaaaaadaaaak',
-      'kdaaaaaaaddk',
-      'kkkkkkkkkkkk',
-      '...kcccck...',
-      '...kekekk...',
-      '...kcccck...',
-      '...kcccck...',
-      '..kbccccbk..',
-      '..kkkkkkkk..'],
-    bat: [
-      '............',
-      'k..........k',
-      'kk...kk...kk',
-      'kak.kaak.kak',
-      'kaakaaaakaak',
-      'kaaaekekaaak',
-      'kbaaakkaaabk',
-      '.kbaaddaabk.',
-      '..kbaaaabk..',
-      '...kk..kk...',
-      '............',
-      '............'],
-    beast: [
-      '............',
-      '.kk.....kk..',
-      '.kak...kak..',
-      '.kaakkkaak..',
-      'kaaaaaaaaak.',
-      'kaekaaaekak.',
-      'kaakaaakkakk',
-      '.kaaddaaaaak',
-      '.kaaaaaaaaak',
-      '.kbkbkkbkbk.',
-      '.kbk....kbk.',
-      '.kk......kk.'],
-    golem: [
-      '...kkkkkk...',
-      '..kccaaaak..',
-      '..kaekaeka..',
-      '..kaaaaaak..',
-      'kkkkaaaakkkk',
-      'kaabaaaabaak',
-      'kaakaddakaak',
-      'kbbkaaaakbbk',
-      'kkkkaaaakkkk',
-      '...kakkak...',
-      '..kbak.kbak.',
-      '..kkkk.kkkk.'],
-    skeleton: [
-      '...kkkkkk...',
-      '..kcccccck..',
-      '..kckkckkck.',
-      '..kcccccck..',
-      '...kckckk...',
-      '..kkccccckk.',
-      '.kckcdcckck.',
-      '.kk.kcccc.kk',
-      '....kccck...',
-      '...kck.kck..',
-      '...kck.kck..',
-      '..kkk..kkk..'],
-    ghost: [
-      '...kkkkkk...',
-      '..kccaaaak..',
-      '.kcaaaaaaak.',
-      '.kaekaaekak.',
-      '.kakkaakkak.',
-      '.kaaaddaaak.',
-      'kaaaaaaaaaak',
-      'kaaaaaaaaaak',
-      'kbaaaaaaaabk',
-      'kbabaabaabak',
-      'kk.kk.kk.kk.',
-      '............'],
-    scorpion: [
-      '........kkk.',
-      '.......kaak.',
-      '..........ak',
-      'kk.......kak',
-      'kak.kkkkkak.',
-      '.kkkaaaaak..',
-      '..kaekaekak.',
-      '.kaaaddaaaak',
-      'kbaaaaaaaabk',
-      'k.kbkbkbkb.k',
-      '..k.k.k.k...',
-      '............'],
-    plant: [
-      '.....kk.....',
-      '....kcck....',
-      '..kkkaakkk..',
-      '.kaaaaaaaak.',
-      'kaekaddaekak',
-      'kakkaaaakkak',
-      '.kaaaaaaaak.',
-      '..kkbbbbkk..',
-      'kk..kbbk..kk',
-      'kak.kbbk.kak',
-      '.kakkbbkkak.',
-      '..kkkkkkkk..'],
-    imp: [
-      'k..........k',
-      'kk..kkkk..kk',
-      '.kkkaaaakkk.',
-      '..kaaaaaak..',
-      '..kekaaekk..',
-      '..kakaakak..',
-      '.kkaaddaakk.',
-      'kaakaaaakaak',
-      'k.kaaaaaak.k',
-      '...kbaabk...',
-      '..kbk..kbk..',
-      '..kk....kk..'],
-    // ── v47 임진왜란: 왜군 (삿갓 · 갑옷) · 조선 요괴 (구미호 · 장승) — Meshy 그림 없이 도트로 그림 ──
-    //    d = 삿갓·투구색, c = 얼굴, a = 갑옷, b = 바지, e = 창끝·눈
-    ashigaru: [
-      '....kkkk...e',
-      '..kkddddkk.e',
-      'kkddddddddkb',
-      '..kccccck..b',
-      '..kckcckk..b',
-      '...kcccck..b',
-      '..kaaaaaakkb',
-      '.kaadaadaacb',
-      '.kaaaaaaak.b',
-      '..kbbbbbk..b',
-      '..kbk.kbk..b',
-      '..kk...kk...'],
-    gunner: [
-      '....kkkk....',
-      '..kkddddkk..',
-      'kkddddddddkk',
-      '..kccccck...',
-      '..kckcckk...',
-      '...kcccck...',
-      '..kaaaaaak..',
-      '.kaaaaacbbbb',
-      '.kaadaadak..',
-      '..kbbbbbk...',
-      '..kbk.kbk...',
-      '..kk...kk...'],
-    samurai: [
-      'e..kkkkkk..e',
-      'ek.kddddk.ke',
-      '.kkddddddkk.',
-      'kddkcccckddk',
-      '.k.kckkck.k.',
-      '...kcccck...',
-      '.kkaaaaaakk.',
-      'kdaaadaaaadk',
-      'kaaaaaaaaaak',
-      '.kdbbbbbbdk.',
-      '..kbbk.kbbk.',
-      '..kkk..kkk..'],
-    gumiho: [
-      '.kk....kk.kk',
-      'kaak..kaakdk',
-      'kaakkkkaakdk',
-      '.kaaaaaaakdk',
-      '.kaeaaaeakdk',
-      '.kaaacaaakdk',
-      '..kaccccakk.',
-      '..kaaaaaak..',
-      '.kaacaacaak.',
-      '.kaacaacaak.',
-      '.kbbk..kbbk.',
-      '.kkk....kkk.'],
-    jangseung: [
-      '...kkkkkk...',
-      '..kddddddk..',
-      '..kddddddk..',
-      '.kkaaaaaakk.',
-      '.kaekaaekak.',
-      '.kaaaccaaak.',
-      '.kaaccccaak.',
-      '.kakkkkkkak.',
-      '.kaekeekeak.',
-      '..kaaaaaak..',
-      '..kbbbbbbk..',
-      '..kkkkkkkk..'],
-    dragon: [
-      '.k........k.',
-      'kak..kk..kak',
-      'kaak.kaak.ak',
-      '.kaakkaakaak',
-      '..kaaaaaaak.',
-      '.kaekaaaaak.',
-      'kaakkaaddaak',
-      'kccaaaadddak',
-      '.kkaaaaaaabk',
-      '..kbaakbaak.',
-      '..kbk..kbk..',
-      '..kk....kk..']
-  };
+  /* v149 옛 도트 몬스터 모양(SHAPES 12×12)은 지움 — 몬스터 정의의 shape 이름은 움직임(RIG)·크기 구분에만 씀 */
 
   // 지역별 몬스터 10종: [이름, 모양, 몸색, 진한색, 밝은색, 무늬색, 성질]
   //  성질: 'calm' = 먼저 공격하지 않음, 'aggro' = 가까이 가면 달려옴, 'shoot' = 멀리서 쏨
@@ -473,15 +260,16 @@
   };
   /* v44 스탯 4가지 → v60 5가지 (레벨 업마다 포인트 2개 → 원하는 곳에 · 스탯마다 최대 50)
    *  힘 = 피해(기본 공격·마법 모두) · 민첩 = 이동 속도 · 지혜 = 마나 회복 · 체력 = 최대 체력
-   *  v60 저항 = 1포인트마다 물리 방어 +0.5% · 속성 방어(불·물·바람·땅·번개·빛 모두) +0.5% */
+   *  v60 저항 = 1포인트마다 물리 방어 +0.5% · 속성 방어(불·물·바람·땅·번개·빛·어둠 모두) +0.5% */
   const STAT = {
     keys: ['str', 'dex', 'int', 'vit', 'res'],
     str: { name: '힘', color: '#FF8A8E', desc: '주는 피해 +2% (기본 공격·마법 모두)', dmg: 2 },
     dex: { name: '민첩', color: '#9AF0B0', desc: '이동 속도 +0.7%', spd: 0.7 },   // v131 1% → 0.7% (환생으로 최대치가 늘어 너무 빨라지지 않게)
     int: { name: '지혜', color: '#C8A8FF', desc: '마나 회복 +4%', mpRegen: 4 },
     vit: { name: '체력', color: '#FFB86B', desc: '최대 체력 +2% (기본 체력 기준)', hpPct: 2 },
-    res: { name: '저항', color: '#7FE0F0', desc: '물리 방어 +0.5% · 속성 방어 +0.5% (불·물·바람·땅·번개·빛)', pdef: 0.5, edef: 0.5 },
-    max: 50, baseCrit: 8, critDmg: 1.6, atkCd: 0.42,
+    res: { name: '저항', color: '#7FE0F0', desc: '물리 방어 +0.5% · 속성 방어 +0.5% (불·물·바람·땅·번개·빛·어둠)', pdef: 0.5, edef: 0.5 },
+    max: Infinity, spdMax: 100, baseCrit: 8,   // v149 스탯 최대치 없앰 (선생님) · 이동 속도 효과만 최대 +100%
+    critDmg: 1.6, atkCd: 0.42,
     defCap: 75   // 물리·속성 방어 % 최대 (저항 + 장비 옵션 합)
   };
 
@@ -524,6 +312,13 @@
       add('ring', 'rg', '반지', r => ({ mp: Math.round(10 + r * 2), mag: Math.round(r * 0.5) }));
     });
   });
+  // v150 숨은 던전 '사신의 땅' 특별 장비 (설계서 6·7장) — 일반 장비처럼 하나하나 옵션이 붙음 (드랍 목록 GEAR_BASE 에는 안 넣음)
+  //  왕을 죽인 검: Lv.80 · 공격 120 (선생님 11/15) · 환생한 사람만 39번 사냥터에서 (일반 3% · 보스 30%) · 광개토대왕에게 평타·마법 ×2 (끼지 않으면 0)
+  //  광개토대왕의 반지: Lv.100 · 전설 반지(rg10)의 1.2배 · 옵션 4개 = ① 모든 속성 방어 15% 고정 ② 좋은 옵션 1개 최대치 ③④ 무작위(마이너스 가능) · 거래 안 됨(팔기만)
+  ITEMS.swKing = { id: 'swKing', slot: 'weapon', name: '왕을 죽인 검', tier: 8, rare: false, legend: false, req: 80, st: { atk: 120 }, price: Math.round(20 + 80 * 80 * 0.9), look: 'sword', kingSword: true,
+    desc: '어디선가 굴러들어온 검.', descKing: '어느 날 광개토대왕을 죽인 검.' };
+  ITEMS.rgKing = { id: 'rgKing', slot: 'ring', name: '광개토대왕의 반지', tier: 9, rare: true, legend: true, req: 100, st: { mp: Math.round(ITEMS.rg10.st.mp * 1.2), mag: Math.round(ITEMS.rg10.st.mag * 1.2) }, price: ITEMS.rg10.price * 2,
+    noTrade: true, desc: '사방신을 거느린 대왕의 반지. 잡을 때마다 하나씩.', goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'] };
 
   /* ---------------- v60 장비 옵션 (떨어질 때 무작위로 붙음) ----------------
    *  max = 가장 높은 단계(전설)에서 나올 수 있는 최댓값(%). 낮은 단계일수록 작게: max × (0.25 + 0.75 × 단계/9) × (0.2~1)
@@ -700,7 +495,7 @@
       hello: ['어서 와요! 오늘 끓인 물약이 아주 잘 됐어요.', '사냥 가기 전에 물약은 넉넉히! 쓰러지면 손해예요.', '안 쓰는 물건은 여기서 팔아도 돼요. 값은 좀 깎이지만요.'] },
     school: { name: '서원 도사 루멘', img: 'npc_school', h: 66, names: ['서원 도사 루멘', '서원 도사 청암', '서원 도사 운곡', '서원 도사 해암', '서원 도사 석봉', '서원 도사 설봉', '서원 도사 현무', '서원 도사 운학', '서원 도사 백운'], color: '#D8B8FF', av: { skin: 's1', hair: 'h_long', hat: 'hat_wizard', face: 'f_beard', top: 't_robe', bottom: 'b_ninja', shoes: 'sh_black' },
       hello: ['마법은 원소의 대화란다. 두 원소를 섞으면 새 마법이 태어나지.', '레벨이 오르면 다시 오너라. 더 강한 마법을 가르쳐 주마.', '같은 원소끼리는 섞이지 않는단다. 서로 다른 것이 만나야 새것이 되지.'] },
-    chief: { name: '이장님', img: 'npc_chief', h: 66, names: ['솔뫼 이장님', '대숲 이장님', '나루 이장님', '포구 이장님', '산성 이장님', '눈고개 이장님', '용굴 이장님', '구름절 이장님', '진영 이장님'], color: '#9AF0B0', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+    chief: { name: '이장님', img: 'npc_chief', h: 66, names: ['솔뫼 이장님', '구리 이장님', '나루 이장님', '포구 이장님', '산성 이장님', '눈고개 이장님', '용굴 이장님', '구름절 이장님', '진영 이장님'], color: '#9AF0B0', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
       hello: ['어서 오게! 여기가 자네의 귀환 장소일세.', '가 본 곳이면 어디든 보내 주지. 이동은 무료라네.', '무리하지 말게. 쓰러지면 이 집 앞에서 다시 깨어날 걸세.'] },
     castle: { name: '도원수', img: 'npc_castle', h: 70, color: '#FFE45C', av: { skin: 's1', hair: 'h_curly', hat: 'hat_emperor', face: 'f_beard', top: 't_suit', bottom: 'b_armor', shoes: 'sh_gold', back: 'bk_cape' },
       hello: ['잘 왔소. 왜성 깊은 곳에서 흑룡 이무기가 깨어나고 있소…', '왜군과 요괴가 한데 엉켜 몰려오고 있소. 힘을 길러 두시오.'] },
@@ -730,7 +525,7 @@
   };
   // v85 역참 (마을마다 하나) — 다른 마을로 한 번에 이동
   //  레벨 제한 = 가는 마을의 시작 레벨(LV_RANGE[도착][0]) 이상 · 이용료 = 거리(마을 칸 수) × 도착 마을 번호(1~9) × feeUnit G
-  //  예) 솔뫼(1) → 대숲(2) = 1 × 2 × 20 = 40G · 솔뫼 → 도원수 진영(9) = 8 × 9 × 20 = 1,440G · 도원수 진영 → 솔뫼 = 8 × 1 × 20 = 160G
+  //  예) 솔뫼(1) → 구리(2) = 1 × 2 × 20 = 40G · 솔뫼 → 도원수 진영(9) = 8 × 9 × 20 = 1,440G · 도원수 진영 → 솔뫼 = 8 × 1 × 20 = 160G
   const STATION = { name: '역참지기 바람이', img: 'npc_station', h: 64, names: ['역참지기 바람이', '역참지기 구름이', '역참지기 번개', '역참지기 질풍이', '역참지기 산들이', '역참지기 눈보라', '역참지기 돌개', '역참지기 하늬', '역참지기 회오리'], color: '#9AE6FF', feeUnit: 20, av: { skin: 's2', hair: 'h_short', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
     hello: ['어디로 모실까요? 말이 바람처럼 달립니다!', '먼 마을일수록 말을 여러 번 갈아타야 해서 값이 올라요.', '그 마을 시작 레벨이 안 되면 위험해서 못 모셔요.', '한 번에 휙! 걸어가는 것보다 훨씬 빠르지요.'],
     lines: ['히히힝~', '말 먹이를 줘야겠군.', '역참 이용하세요!'] };
@@ -742,7 +537,133 @@
 
   // v110 NPC 그림(img/v79/npc_*.png) · 같은 그림을 쓰는 마을마다 이름만 다르게 (names[마을 번호 0~8])
   const npcDef = (def, r) => (def && def.names && def.names[r] && def.names[r] !== def.name ? Object.assign({}, def, { name: def.names[r] }) : def);
+
+  /* ---------------- v149 펫 (선생님 11/15 결정 · 설계서 claude/v149-설계서_숨은던전·사방신·펫.md 8장) ----------------
+   *  이장 댁 이장이 판매 · 한 번 뽑기 PET.price G · 확률 = 등급 rate(%) · 잠긴 등급(영웅 = 사방신 넷 · 전설 = 광개토대왕)의 확률은 열린 등급에 비율대로 나눔
+   *  스탯 = 가진 펫 모두의 (등급 stat × (1 + 강화 × 0.1)) 를 힘·민첩·지혜·체력·저항 다섯 가지에 모두 더함 · 데리고 다니는 펫(보이기만)은 1마리
+   *  강화: 같은 펫 1마리를 재료로 +1 (골드 안 씀) · 최대 +10 · 성공 확률 = 장비 강화와 같음 · 실패하면 keep 확률로 그대로, 나머지는 한 단계 내려감 (부서지지 않음)
+   *  mon = 몬스터 이름 (그 몬스터 그림을 작게) · img = 따로 그림(img/v79/<img>.png, 선생님 그림이 오면 넣음) */
+  const PET_GRADE = [
+    { k: 'n', name: '일반', color: '#FFFFFF', stat: 1, rate: 40 },
+    { k: 'a', name: '고급', color: '#9AF0B0', stat: 5, rate: 30 },
+    { k: 'r', name: '희귀', color: '#7FC8FF', stat: 10, rate: 20 },
+    { k: 'h', name: '영웅', color: '#D8A8FF', stat: 20, rate: 8, lock: 'hero', lockTxt: '사방신 넷을 모두 이기면 열려요' },
+    { k: 'l', name: '전설', color: '#FFD23F', stat: 40, rate: 2, lock: 'legend', lockTxt: '광개토대왕을 이기면 열려요' }
+  ];
+  const PETS = [];
+  [['초록 슬라임', '아기 토끼버섯', '노랑 꽃잎몬', '보라 독버섯', '동굴 박쥐', '반딧불 정령', '도깨비불', '모래 슬라임', '눈 슬라임', '빛 버섯'],
+   ['숲 늑대', '구미호', '고목 골렘', '모래 늑대', '사막 전갈', '산양', '용암 도마뱀', '얼음 박쥐', '얼음 골렘', '수정 늑대'],
+   ['설산 구미호', '빙하 전갈', '보라 구미호', '자수정 용', '하늘 구미호', '깃털 그리핀', '불꽃 정령', '새끼 용', '가마솥 불망령', '번개 망령']]
+    .forEach((list, g) => list.forEach((mon, i) => PETS.push({ id: PET_GRADE[g].k + (i + 1), g, name: mon, mon })));
+  // 영웅·전설: 선생님 그림이 오기 전까지 비슷한 몬스터 그림을 임시로 (img 가 생기면 그 그림)
+  [['h1', 3, '청룡', '자수정 용', 'pet_blue', 'sx_cr'], ['h2', 3, '주작', '불꽃 정령', 'pet_red', 'sx_jj'], ['h3', 3, '백호', '수정 늑대', 'pet_white', 'sx_bh'], ['h4', 3, '현무', '빙하 전갈', 'pet_black', 'sx_hm'],
+   ['l1', 4, '광개토대왕', '왜성 수문장', 'pet_king', 'sx_king_idle']].forEach(([id, g, name, mon, img, art]) => PETS.push({ id, g, name, mon, img, art }));   // art = 선생님 그림(있으면 몬스터 그림 대신)
+  const PET = { price: 10000, max: 10, per: 0.1, keep: i => (i < 4 ? 1 : i < 7 ? 0.7 : 0.5), maxOwn: 300, scale: 0.46 };
+
+  /* ---------------- v150 숨은 던전 '사신의 땅' (설계서 claude/v149-설계서_숨은던전·사방신·펫.md 1~5장) ----------------
+   *  18번 사냥터(왜군 척후 진지) 위쪽 숨은 입구 → 환생 1번 이상만 · 혼자 하는 지도(다른 사람 안 보임) · 25칸 중 새 지도 20장
+   *  지도는 world.js 특별 지역(custom)으로 등록 (exits 로 위·아래·왼쪽·오른쪽 연결) · 바닥 = img/v79/sx*_ground·path·water.jpg
+   *  보스: 사방신 Lv.250 (자기 속성 피해 0) · 사방신 모두(넷이 한꺼번에) · 광개토대왕 Lv.400 (모든 피해 0, 왕을 죽인 검 → ×2)
+   *  img = 보스 그림 (선생님 그림이 오면 img/v79/sx_*.png 로 바꿈 · 지금은 저승 대왕 그림을 임시로) */
+  const SASIN = (() => {
+    const W2 = 40, H2 = 28, OPP2 = { u: 'd', d: 'u', l: 'r', r: 'l' };
+    // 엑셀 배치 (행 0 = 맨 위) · id · 이름 · 종류
+    const cells = [
+      ['sx_king', 3, 0, '광개토대왕의 전당', 'king'], ['sx_all', 3, 1, '사신의 회합', 'all'], ['sx_npc', 3, 2, '사신의 땅 어귀', 'npc'],
+      ['sx_cr', 0, 3, '청룡의 숲', 'cr'], ['sx_p1', 1, 3, '동쪽 신목길', 'path'], ['sx_p2', 2, 3, '푸른 비늘 고개', 'path'], ['sx_x1', 3, 3, '사신의 갈림길', 'path'], ['sx_p3', 4, 3, '붉은 깃 언덕', 'path'], ['sx_p4', 5, 3, '불새의 재 들판', 'path'], ['sx_jj', 6, 3, '주작의 화원', 'jj'],
+      ['sx_v1', 3, 4, '네 바람의 길', 'path'],
+      ['sx_bh', 0, 5, '백호의 바위산', 'bh'], ['sx_p5', 1, 5, '흰 발톱 골짜기', 'path'], ['sx_p6', 2, 5, '서쪽 쇠바위길', 'path'], ['sx_x2', 3, 5, '아래 갈림길', 'path'], ['sx_p7', 4, 5, '검은 물가', 'path'], ['sx_p8', 5, 5, '거북 등 늪', 'path'], ['sx_hm', 6, 5, '현무의 깊은 못', 'hm'],
+      ['sx_v2', 3, 6, '잊힌 비석 길', 'path'], ['sx_v3', 3, 7, '숨은 동굴 안', 'path']
+    ];
+    const at = {}; cells.forEach(c => { at[c[1] + ',' + c[2]] = c[0]; });
+    // 바닥 재질 · 지역(나무·바위 모양) — 길은 자수정 동굴(용굴), 사방신 방은 신의 색
+    const LOOK = { path: ['sx', 6], npc: ['sx', 6], all: ['sxa', 6], king: ['sxk', 8], cr: ['sxb', 1], jj: ['sxr', 8], bh: ['sxw', 5], hm: ['sxd', 2] };
+    // 길 칸 몬스터 (지금 있는 몬스터 · Lv.150 · 칸마다 2종 섞어 18마리)
+    const MOB = { sx_v3: ['f61', 'f62'], sx_v2: ['f63', 'f65'], sx_x2: ['f66', 'f67'], sx_v1: ['f71', 'f72'], sx_x1: ['f73', 'f74'],
+      sx_p1: ['f12', 'f14'], sx_p2: ['f76', 'f77'], sx_p3: ['f81', 'f82'], sx_p4: ['f83', 'f84'], sx_p5: ['f53', 'f55'], sx_p6: ['f45', 'f48'], sx_p7: ['f23', 'f24'], sx_p8: ['f26', 'f86'] };
+    function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+    function grid(id, ex, kind) {
+      const r = seeded('sx-' + id), t = new Array(W2 * H2).fill(0), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < W2 && y < H2) t[y * W2 + x] = v; }, get = (x, y) => t[y * W2 + x];
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) if (x < 2 || y < 2 || x >= W2 - 2 || y >= H2 - 2) set(x, y, r() < 0.5 ? 2 : 3);   // 테두리 두 칸
+      const cx = W2 >> 1, cy = H2 >> 1, boss = kind !== 'path';
+      // 출구 자리 비우기 + 가운데까지 길 (world.js gateSpan 과 같은 자리: 위·아래 = 가운데 열 c-3~c+2 · 왼쪽·오른쪽 = 가운데 행)
+      Object.keys(ex).forEach(sd => {
+        if (sd === 'u' || sd === 'd') { for (let x = cx - 3; x <= cx + 2; x++) for (let k = 0; k < 3; k++) set(x, sd === 'u' ? k : H2 - 1 - k, 0); for (let y = Math.min(sd === 'u' ? 0 : cy, cy); y <= (sd === 'u' ? cy : H2 - 1); y++) for (let x = cx - 1; x <= cx; x++) set(x, y, 1); }
+        else { for (let y = cy - 3; y <= cy + 2; y++) for (let k = 0; k < 3; k++) set(sd === 'l' ? k : W2 - 1 - k, y, 0); for (let x = (sd === 'l' ? 0 : cx); x <= (sd === 'l' ? cx : W2 - 1); x++) for (let y = cy - 1; y <= cy; y++) set(x, y, 1); }
+      });
+      if (boss) {   // 보스 방: 가운데 넓은 마당 (돌기둥 네 개)
+        for (let y = cy - 7; y <= cy + 6; y++) for (let x = cx - 11; x <= cx + 10; x++) if (get(x, y) !== 1) set(x, y, 0);
+        [[-9, -5], [8, -5], [-9, 4], [8, 4]].forEach(([dx, dy]) => set(cx + dx, cy + dy, 3));
+      }
+      // 바위·나무 무더기 · 물웅덩이 (길과 출구 앞은 비움)
+      const near = (x, y, d) => { for (let b = -d; b <= d; b++) for (let a = -d; a <= d; a++) if (get(clampI(x + a), clampJ(y + b)) === 1) return true; return false; };
+      const clampI = v => Math.max(0, Math.min(W2 - 1, v)), clampJ = v => Math.max(0, Math.min(H2 - 1, v));
+      for (let k = 0; k < (boss ? 6 : 14); k++) {
+        const x0 = 4 + Math.floor(r() * (W2 - 8)), y0 = 4 + Math.floor(r() * (H2 - 8)), n = 2 + Math.floor(r() * 5), v = r() < 0.5 ? 2 : 3;
+        if (boss && Math.abs(x0 - cx) < 13 && Math.abs(y0 - cy) < 9) continue;
+        for (let i = 0; i < n; i++) { const x = x0 + Math.floor(r() * 3) - 1, y = y0 + Math.floor(r() * 3) - 1; if (get(x, y) === 0 && !near(x, y, 2)) set(x, y, v); }
+      }
+      if (!boss) for (let k = 0; k < 2; k++) { const x0 = 6 + Math.floor(r() * (W2 - 12)), y0 = 5 + Math.floor(r() * (H2 - 10)); for (let y = y0 - 1; y <= y0 + 1; y++) for (let x = x0 - 2; x <= x0 + 2; x++) if (get(x, y) === 0 && !near(x, y, 2) && (Math.abs(x - x0) + Math.abs(y - y0)) < 3) set(x, y, 4); }
+      for (let y = 2; y < H2 - 2; y++) for (let x = 2; x < W2 - 2; x++) if (get(x, y) === 0 && r() < 0.05) set(x, y, 5);   // 꽃(작은 빛 풀)
+      return t;
+    }
+    const rows = cells.map(([id, cx, cy, name, kind]) => {
+      const ex = {}; [['u', 0, -1], ['d', 0, 1], ['l', -1, 0], ['r', 1, 0]].forEach(([sd, dx, dy]) => { const to = at[(cx + dx) + ',' + (cy + dy)]; if (to) ex[sd] = to; });
+      if (id === 'sx_v3') ex.d = 'f18';   // 맨 아래 → 18번 사냥터 (돌아가는 길만, 18번 쪽에는 길을 안 뚫음 · noBack)
+      const mons = kind === 'path' ? { list: MOB[id].map((f, i) => ({ f, lv: 150, n: i ? 6 : 12 })) } : {};
+      const [tex, region] = LOOK[kind];
+      return { id, name, data: { w: W2, h: H2, region, t: grid(id, ex, kind), exits: ex, mons, pub: true, noBack: id === 'sx_v3', sx: kind, tex, rec: kind === 'path' ? 150 : kind === 'king' ? 400 : kind === 'npc' ? 150 : 250, solo: true } };
+    });
+    const B = (name, img, el, imm, light, colors, say, skills) => ({ name, img, h: 150, el, immune: imm, light, shape: 'golem', colors, kind: 'boss', say, skills });
+    const boss = {
+      cr: Object.assign(B('청룡', 'sx_cr', 'thunder', 'thunder', '#FFE45C', { a: '#2FBF8F', b: '#1A6A5A', c: '#9AE6FF', d: '#5AD8FF' }, '동쪽을 지키는 푸른 용이 눈을 떴다! (번개 힘은 통하지 않는다)', ['charge', 'ring', 'fan', 'slam']),
+        { bh: 380, float: true, base: 'sx_cr_pool', baseCol: '#5AD8FF' }),   // v150 선생님 그림 (11/15) · 2배 크기 · 둥실둥실 떠다님 + 발밑 소용돌이 물
+      jj: Object.assign(B('주작', 'sx_jj', 'fire', 'fire', '#FF4A3A', { a: '#FF4A3A', b: '#8A1E22', c: '#FFD23F', d: '#FFFFFF' }, '남쪽을 지키는 붉은 새가 날개를 폈다! (불의 힘은 통하지 않는다)', ['fan', 'ring', 'charge', 'blades']),
+        { bh: 380, float: true, baseCol: '#FF9A3D' }),   // v150 선생님 그림 · 날갯짓하며 떠 있음 + 발밑 불꽃 물결
+      bh: Object.assign(B('백호', 'sx_bh', 'earth', 'earth', '#B07A45', { a: '#F0E8D8', b: '#7A6A5A', c: '#B07A45', d: '#FFFFFF' }, '서쪽을 지키는 흰 범이 으르렁거린다! (땅의 힘은 통하지 않는다)', ['charge', 'slam', 'blades', 'ring']),
+        { bh: 380, aura: true, baseCol: '#BDE8FF' }),   // v150 선생님 그림 · 땅을 딛고 섬 + 발밑 바람·번개 기운
+      hm: Object.assign(B('현무', 'sx_hm', 'water', 'water', '#3C78F0', { a: '#3A4A7A', b: '#1D2340', c: '#3C78F0', d: '#9AE6FF' }, '북쪽을 지키는 검은 거북이 깨어났다! (물의 힘은 통하지 않는다)', ['slam', 'ring', 'fan', 'blades']),
+        { bh: 380, aura: true, baseCol: '#3C78F0' }),   // v150 선생님 그림 · 땅을 딛고 섬 + 발밑 물결
+      king: Object.assign(B('광개토대왕', 'sx_king_idle', 'light', 'all', '#FFD23F', { a: '#FFD23F', b: '#8A5A10', c: '#FFFFFF', d: '#FF4A3A' }, '광개토대왕께서 일어나셨다! 어떤 공격도 통하지 않는다…', ['blades', 'ring', 'charge', 'slam', 'fan']), { noFx: true,
+        // v150 선생님 Gemini 그림 7장 (11/15) · 사방신과 같은 380px · 땅을 딛고 섬 · 칼(blades·charge·slam)=들기→내려치기 · 마법(ring·fan)=손 뻗기 · 걸을 때 두 장 번갈아 · 맞으면 잠깐 움찔
+        bh: 380, aura: true, baseCol: '#FF4A3A', ax: 234 / 417,
+        frames: { idle: 'sx_king_idle', walk: ['sx_king_walk1', 'sx_king_walk2'], atk1: 'sx_king_atk1', atk2: 'sx_king_atk2', cast: 'sx_king_cast', hit: 'sx_king_hit' } })   // v149 선생님 11/15: 넉백(움찔·밀어내기)은 안 걸림 · 상태 이상(불·느려짐·기절·저주)은 왕을 죽인 검을 끼면 걸림
+    };
+    const lv = { path: 150, god: 250, king: 400 };
+    const rock = '돌에 새겨진 글씨: 이 너머는 한 번 생을 다시 산 자만 지날 수 있다.';
+    const npc = { name: '사신의 땅 지킴이', img: 'sx_npc', h: 70, color: '#9AE6FF', av: { skin: 's2', hair: 'h_long', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black', back: 'bk_cape' },
+      lines: ['여기는 네 신이 지키는 사신의 땅이다. 동쪽 청룡, 남쪽 주작, 서쪽 백호, 북쪽 현무가 저마다 자기 땅을 지키고 있지.',
+        '청룡에게는 번개가, 주작에게는 불이, 현무에게는 물이, 백호에게는 땅의 힘이 통하지 않는다. 다른 힘으로 맞서라.',
+        '네 신을 모두 이기면 위쪽 문에 네 개의 불이 켜지고, 네 신이 한꺼번에 기다리는 방이 열린다.',
+        '그 너머에는 광개토대왕께서 계신다. 그분께는 어떤 공격도 통하지 않는다고 하지… 준비가 다 된 자만 들어가라.'] };
+    // on: false = 아직 숨김 (선생님 그림이 오면 true 로 · v150). 꺼져 있으면 지도 20장·18번 입구·39번 검 떨어짐이 모두 없음
+    return { on: false, rows, boss, lv, rock, npc, gateMap: 'f18', entry: 'sx_v3', home: 'f18', swordMap: 'f39', swordRate: { mob: 0.03, boss: 0.3 },
+      gods: ['cr', 'jj', 'bh', 'hm'], godName: { cr: '청룡', jj: '주작', bh: '백호', hm: '현무' }, fire: { cr: '#FFE45C', jj: '#FF4A3A', bh: '#B07A45', hm: '#3C78F0' } };
+  })();
   // v131 환생: 저승 10-5(오도전륜대왕)를 깨면 할 수 있음 · Lv.1 로 돌아가고 환생마다 스탯 포인트 +20 · 장비·가방·골드는 그대로 · 마법은 기본 마법만 · 스탯마다 최대치 +10 · 최대 10번 · 10-5를 깰 때마다 한 번
   const REBIRTH = { max: 10, bonus: 20, statUp: 10 };   // v131 환생마다 스탯 최대치 +10 (50 → 60 → … → 150)
-  window.GoRPGData = { npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, SHAPES, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+
+  /* v149 구리마을(마을 2, 옛 대숲 마을) — 광개토대왕 이야기를 하는 마을 사람 6명 + 광개토대왕비
+   *  그림: 선생님이 주시면 img/v79/gw_kid1·gw_kid2·gw_kid3·gw_grandpa·gw_aunt·gw_scholar·gw_stele.png 로 넣으면 저절로 바뀜
+   *  (그림이 없으면 사람 = av 아바타, 비석 = 코드로 그린 돌비석) · at = [칸 x, 칸 y] · range = 좌우로 걷는 폭(px, 0 = 가만히)
+   *  할아버지 말(18살·39살) = 숨은 던전 단서 (18번 사냥터 입구 · 39번 사냥터 왕을 죽인 검) */
+  const GURI = {
+    region: 1,
+    stele: { tx: 22, ty: 12, img: 'gw_stele', name: '광개토대왕비', text: '국강상광개토경평안호태왕… 열여덟에 왕위에 올라 영락이라 부르니, 그 은혜가 하늘에 닿고 위엄이 사해에 떨쳤다.' },
+    folk: [
+      { name: '꼬마 돌쇠', img: 'gw_kid1', h: 50, at: [7.5, 12.6], range: 50, color: '#9AE6FF', av: { skin: 's2', hair: 'h_short', top: 't_pe', bottom: 'b_shorts', shoes: 'sh_red' },
+        lines: ['할아버지가 그러는데, 옛날옛날에 땅을 엄청 넓힌 임금님이 있었대!'] },
+      { name: '꼬마 연이', img: 'gw_kid2', h: 50, at: [11.5, 12.8], range: 40, color: '#FFB0C8', av: { skin: 's2', hair: 'h_twin', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_red' },
+        lines: ['광개토대왕은 말 타고 활도 엄청 잘 쐈대. 나도 크면 그렇게 될 거야!'] },
+      { name: '꼬마 범이', img: 'gw_kid3', h: 50, at: [20.5, 13.4], range: 0, color: '#9AF0B0', av: { skin: 's3', hair: 'h_spiky', top: 't_vest', bottom: 'b_shorts', shoes: 'sh_black' },
+        lines: ['저 큰 비석 봤어? 글씨가 빼곡해서 하나도 못 읽겠어…'] },
+      { name: '이야기꾼 할아버지', img: 'gw_grandpa', h: 62, at: [24.6, 12.7], range: 0, color: '#FFE45C', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+        lines: ['광개토대왕께서는 열여덟 살에 임금이 되셨고, 서른아홉 살에 세상을 떠나셨지.'] },
+      { name: '빨래터 아주머니', img: 'gw_aunt', h: 62, at: [28.5, 13.2], range: 40, color: '#FF9AA0', av: { skin: 's2', hair: 'h_bun', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black' },
+        lines: ['강 건너에서 이끼 낀 큰 돌비석이 나왔다는 소문이 있더라고요.'] },
+      { name: '글 읽는 선비', img: 'gw_scholar', h: 64, at: [31.5, 12.6], range: 30, color: '#D8B8FF', av: { skin: 's1', hair: 'h_topknot', hat: 'hat_gat', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+        lines: ['대왕께서 돌아가신 뒤 아드님 장수왕께서 그 업적을 비석에 새기셨다네.'] }
+    ]
+  };
+  window.GoRPGData = { GURI, SASIN, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();
