@@ -240,6 +240,10 @@
     for (let yy = 1; yy < h - 1; yy++) for (let xx = 1; xx < w - 1; xx++) if (seen[yy * w + xx] && at(xx, yy) !== 13 && !nearGate(xx, yy)) map.spawns.push({ x: (xx + 0.5) * TS, y: (yy + 0.8) * TS });
     if (!map.spawns.length) map.spawns.push({ x: map.startL.x, y: map.startL.y });
     map.ground = paintGround(map);
+    if (d.art) {   // v150 사신의 땅 회합·전당: 선생님 Gemini 지도 그림을 바닥 전체에 덮음 (늦게 오면 다시 그림)
+      const art = () => { const im = img79(d.art); if (!im) return false; const g = map.ground.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(im, 0, 0, w * TS, h * TS); return true; };
+      map.reArt = () => { if (art()) map.mini = map.ground; }; if (!art()) img79(d.art, map.reArt); else map.mini = map.ground;
+    }
     mapCache[id] = map; const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
     return map;
   }
@@ -674,7 +678,7 @@
     const TX = texOf(map), NEED = TX.concat((map.ponds || []).map(p => p.k), (map.dgs || []).map(d => d.k)), ok = NEED.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
     if (!ok && !map.texWait) {   // v82 고침: 이미 받은 그림은 기다릴 수에서 빼야 함 (전에는 하나라도 먼저 받아져 있으면 영영 다시 안 그렸음)
       map.texWait = true; const need = NEED.filter(n => !img79(n)); let left = need.length;
-      const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) map.ground = paintGround(map); };
+      const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) { map.ground = paintGround(map); if (map.reArt) map.reArt(); } };
       need.forEach(n => img79(n, done));
     }
     if (ok) {   // 1) 땅 = 재질 무늬 + 큰 얼룩(밝게·어둡게)으로 단조로움 깨기
@@ -1009,7 +1013,7 @@
     if (!imgPromise) imgPromise = Promise.all(IMG_LIST.concat(['key']).map(n => new Promise(res => {
       const im = new Image(); im.decoding = 'async';
       im.onload = () => { RIMG[n] = im; res(); }; im.onerror = () => res();
-      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : n === 'ic_bt' ? '?v=101' : n === 'ic_pot' ? '?v=102' : /^ic_(hm|ar|bt)_[bs]$/.test(n) ? '?v=107' : /^bld_(potion|school|chief|castle|station|train)$/.test(n) ? '?v=144' : n === 'bld_fountain' ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
+      im.src = IMG_DIR + n + (n === 'key' ? '.jpg' : '.png') + (n === 'ic_sw' ? '?v=99' : /^ic_(st|hm|ar|rg)$/.test(n) ? '?v=100' : n === 'ic_bt' ? '?v=101' : n === 'ic_pot' ? '?v=102' : /^ic_(hm|ar|bt)_[bs]$/.test(n) ? '?v=107' : n === 'bld_train' ? '?v=150' : /^bld_(potion|school|chief|castle|station)$/.test(n) ? '?v=144' : n === 'bld_fountain' ? '?v=86' : '?v=40');   // v84 마을 건물 그림 새로
     })));
     [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(i => ['_ground', '_path', '_water'].forEach(k => img79('r' + i + k)));   // v80 재질은 미리 (기다리지는 않음)
     return Promise.race([imgPromise, new Promise(r => setTimeout(r, timeoutMs || 6000))]);
@@ -1049,11 +1053,12 @@
     const [c2, x2] = mk(w, H); x2.drawImage(c, 0, 0); x2.globalCompositeOperation = 'source-in'; x2.fillStyle = '#FFFFFF'; x2.fillRect(0, 0, w, H);
     return { img: c, flash: c2, w, h: H, meshy: true };
   }
+  const RB_ART = [0, 1, 2, 3, 4, 5, 6, 7, 8];   // v150 Gemini 새 그림이 들어간 지역 보스 번호 (rb{n}_idle·atk·cast·hit.png)
   function monSprite(mon, scale) {
     const key = mon.name + scale + (mon.bh ? '@' + mon.bh : ''); if (monCache[key]) return monCache[key];   // v150 같은 보스라도 크기(bh)가 다르면 따로
-    const boss = scale >= 6, nm = mon.img79 || mon.img || (boss && mon.ri != null && !mon.dot ? 'boss_r' + mon.ri : null);
+    const boss = scale >= 6, nm = mon.img79 || mon.img || (boss && mon.ri != null && !mon.dot ? (RB_ART.includes(mon.ri) ? 'rb' + mon.ri + '_idle' : 'boss_r' + mon.ri) : null);   // v150 지역 보스 새 그림(rb) 이 있으면 그것
     if (nm) {
-      const H = !boss ? (mon.h || 64) : mon.bh || (/_king$|^boss_r/.test(nm) ? 150 : 124), im = img79(nm);   // v150 bh = 보스 그림 높이 따로
+      const H = !boss ? (mon.h || 64) : mon.bh || (/_king$|^boss_r|^rb\d_idle$/.test(nm) ? 150 : 124), im = img79(nm);   // v150 bh = 보스 그림 높이 따로
       if (im) return (monCache[key] = imgSprite(im, H));
       const wk = key + '~wait'; if (monCache[wk]) return monCache[wk];
       img79(nm, () => {});
@@ -1261,6 +1266,10 @@
   function itemImg(id) {
     const it = D.ITEMS[id]; if (!it) return '';
     if (it.base) return itemImg(it.base);   // v60 장비 하나하나(g:…) 는 기본 장비 그림을 같이 씀
+    if (it.kingSword) {   // v150 왕을 죽인 검: 평소 허술한 검 · 광개토대왕의 전당 안에서는 화려한 검 (선생님 Gemini 그림)
+      const nm = window.GoRPGKingRoom ? 'ic_sw_king2' : 'ic_sw_king', im = imgOk(nm) || img79(nm);
+      if (im) { if (icC[nm]) return icC[nm]; const [c2, x2] = mk(80, 80); x2.drawImage(im, 0, 0, 80, 80); return (icC[nm] = c2.toDataURL()); }
+    }
     if (icC[id]) return icC[id];
     const S = 36, [c, x] = mk(S, S); x.imageSmoothingEnabled = false;
     const swI = it.slot === 'weapon' ? WP_IC[it.look] && imgOk(WP_IC[it.look]) : SLOT_IC[it.slot] && imgOk(SLOT_IC[it.slot]);   // v100 투구·갑옷·반지도   // v99 검 · v100 지팡이 19종 = 새 그림 (img/ic_sw.png · 80px 칸 19개: 1~10단계, 정예 1~9단계)
@@ -1299,5 +1308,5 @@
   }
 
   registerCustom([]);   // v150 사신의 땅 20장은 서버 지도 목록이 없어도(체험 모드) 늘 있게
-  window.__GoRPGParts = { registerCustom, arrivePos, gateAt, gatePos, dungeonAt, CUSTOM, previewMap, drawMapObj, texOf, POND, DUNGEON, DUNGEON_KEYS, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
+  window.__GoRPGParts = { RB_ART, registerCustom, arrivePos, gateAt, gatePos, dungeonAt, CUSTOM, previewMap, drawMapObj, texOf, POND, DUNGEON, DUNGEON_KEYS, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
 })();

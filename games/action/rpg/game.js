@@ -751,6 +751,7 @@
       function enter(id, side, quiet) {
         const M = MAPBY[id]; if (!M) return;
         const map = getMap(id);
+        window.GoRPGKingRoom = M.sx === 'king';   // v150 왕을 죽인 검 아이콘: 전당 안에서만 화려한 그림
         G.map = map; S.map = id; G.room = null; G.npcs = M.kind === 'village' ? villagers(map).concat(smithNpc(map), stationNpc(map), hellNpc(map)) : []; G.hellRun = null; G.onNpc = null; G.pst = null; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
         if (!quiet) G.title = { t: 0, text: M.kind === 'village' ? M.name : M.name, sub: M.custom ? `특별 지역 · 권장 Lv.${M.lvMin < M.rec ? M.lvMin + '~' + M.rec : M.rec}${M.boss ? ' · 보스' : ''}${M.test ? ' · 🔒 시험 중 (관리자만)' : ''}` : M.hell ? `저승 ${M.gate}관문 · 몬스터 Lv.${100 + (M.gate - 1) * 5 + M.stage}${M.stage >= 5 ? ' · 대왕 Lv.' + M.rec : M.stage >= 3 ? ` · ${D.HELL.kills}마리 뒤 ${M.stage === 3 ? '옥졸' : '판관'}` : ` · ${D.HELL.kills}마리 잡으면 통과`}` : M.kind === 'village' ? (D.REGIONS[M.region].castle ? '마지막 마을 · 도원수 진영' : `마을 ${M.region + 1}`) : `사냥터 ${M.no} · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}` };
         const p = side && typeof side === 'object' ? (side.from != null ? arrivePos(map, side.from) || map.startL : side) : side === 'R' ? map.startR : side === 'door' ? doorFront(map) : side === 'pos' && S.x ? { x: S.x, y: S.y } : map.startL;
@@ -1990,7 +1991,18 @@
         const R2 = map.sxRock;
         if (R2) { const d = Math.hypot(G.px - R2.x, G.py - R2.y); c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, R2.x, R2.y - 50, 46 + 6 * Math.sin(now / 400), '#9AE6FF', 0.22); c.restore(); if (d < 110) bubble(c, R2.x, R2.y - 100, R2.text, '#9AE6FF'); }
         const M = map.M; if (!M.sx) return;
-        if (M.sx === 'npc') {   // 위쪽 문 양옆 불 네 개 (청룡 노랑 · 주작 빨강 · 백호 흙색 · 현무 파랑) — 선생님 문 그림이 오면 바꿈
+        const gate = M.sx === 'npc' && img79('sx_gate');
+        if (gate) {   // v150 Gemini 문 그림 (사신 넷이 새겨진 돌문 + 화로 넷) · 잡은 신의 화로에 불
+          const k = 0.85, gw = gate.naturalWidth * k, gh = gate.naturalHeight * k, gx = (map.w >> 1) * TS - gw / 2, gy = 9 * TS - gh;
+          c.drawImage(gate, gx, gy, gw, gh);
+          [[120, 280, 'cr'], [177, 262, 'jj'], [235, 245, 'bh'], [292, 228, 'hm']].forEach(([bx, by, g], i) => {   // 화로 입구 자리 (그림 320×331 기준)
+            const x = gx + bx * k, y = gy + by * k, on = S.sasin[g], col = SX.fire[g];
+            if (on) { const f = Math.sin(now / 90 + i) * 3; c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, x, y - 14, 34 + f, col, 0.6); c.restore();
+              c.fillStyle = col; c.beginPath(); c.moveTo(x - 11, y); c.quadraticCurveTo(x - 12, y - 18 - f, x, y - 34 - f); c.quadraticCurveTo(x + 12, y - 18 + f, x + 11, y); c.closePath(); c.fill();
+              c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(x - 5, y); c.quadraticCurveTo(x - 5, y - 10, x, y - 20 - f); c.quadraticCurveTo(x + 5, y - 10, x + 5, y); c.closePath(); c.fill(); }
+            c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = '#141833'; c.strokeText(SX.godName[g], x, y + 48); c.fillStyle = on ? col : '#9AE6FF'; c.fillText(SX.godName[g], x, y + 48);
+          });
+        } else if (M.sx === 'npc') {   // 위쪽 문 양옆 불 네 개 (청룡 노랑 · 주작 빨강 · 백호 흙색 · 현무 파랑) — 문 그림을 못 불러왔을 때
           const cx = (map.w >> 1) * TS, y = 3.2 * TS;
           [[-150, 'cr'], [-110, 'jj'], [110, 'bh'], [150, 'hm']].forEach(([dx, g]) => {
             const x = cx + dx, on = S.sasin[g], col = SX.fire[g];
@@ -2168,7 +2180,7 @@
         if (m.spr.wait) { const s2 = monSprite(m.def, m.boss ? 6 : 3); if (!s2.wait) m.spr = s2; }   // v80 Meshy 그림이 늦게 오면 바꿔 끼움
         if (m.def.float || m.def.aura) return drawFloater(c, m, now);   // v150 사방신: 떠 있음(float) · 땅을 딛고 섬(aura) + 발밑 물·불·바람 기운
         const sp = m.spr, moving = m.aggro || Math.abs(m.wx) + Math.abs(m.wy) > 0.1, kind = rigKind(m.def);
-        const ph = now / (moving ? 110 : 260) + m.hx, bounce = kind === 'blob' || kind === 'hop';   // v83 통통 튀기·찌그러지기는 슬라임·버섯·장승만
+        const ph = now / (moving ? 110 : 260) + m.hx, bounce = (kind === 'blob' || kind === 'hop') && !(m.boss && rbFrames(m.def));   // v83 통통 튀기·찌그러지기는 슬라임·버섯·장승만
         const hop = bounce && moving ? Math.abs(Math.sin(ph)) * (m.boss ? 6 : 5) : 0, sq = !bounce ? 1 : moving ? 1 + Math.cos(ph * 2) * 0.05 : 1 + Math.sin(ph) * 0.04;
         const lunge = m.lunge > 0 ? Math.sin(m.lunge / 0.25 * Math.PI) * 10 : 0, la = Math.atan2(G.py - m.y, G.px - m.x);
         const w = sp.w * (2 - sq), h = sp.h * sq, bx = m.x + Math.cos(la) * lunge + (m.knock || 0), x = Math.round(bx - w / 2), y = Math.round(m.y - h - hop + Math.sin(la) * lunge * 0.5);
@@ -2177,7 +2189,13 @@
         const flip = m.aggro || Math.abs(m.wx) < 0.1 ? G.px < m.x : m.wx < 0;   // v83 돌아다닐 때는 가는 쪽을 봄
         c.save(); if (flip) { c.translate(x + w, y); c.scale(-1, 1); } else c.translate(x, y);
         const atk = m.lunge > 0 ? Math.sin(Math.min(1, m.lunge / 0.25) * Math.PI) : 0, wp = now / (m.boss ? 170 : kind === 'quad' ? 95 : 125) + m.hx * 3;
-        if (bounce) c.drawImage(m.flash > 0 ? sp.flash : sp.img, 0, 0, w, h);
+        const RF = m.boss && rbFrames(m.def);
+        if (RF) {   /* v150 지역 보스: 하는 일에 따라 그림을 바꿔 끼움 (공격·마법·맞음) + 숨 쉬듯 들썩 */
+          const fim = kingFrame(m, now, RF), fd = frameDim(fim, RF, sp), br = 1 + 0.02 * Math.sin(now / 420 + m.hx);
+          c.translate(w / 2, h); c.scale(1, br); c.drawImage(fim, -fd.w / 2, -fd.h, fd.w, fd.h);
+          if (m.flash > 0) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45; c.drawImage(fim, -fd.w / 2, -fd.h, fd.w, fd.h); }
+          if (m._fr === 'cast') { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1; Fx.drawGlow(c, 0, -fd.h * 0.55, 50 + 10 * Math.sin(now / 110), m.def.colors.d || '#FFE45C', 0.4); }
+        } else if (bounce) c.drawImage(m.flash > 0 ? sp.flash : sp.img, 0, 0, w, h);
         else rig(c, m.flash > 0 ? sp.flash : sp.img, w, h, kind, moving ? wp : now / 700 + m.hx, moving, atk);
         c.restore();
         if (m.stun > 0) for (let i = 0; i < 3; i++) { const a = now / 150 + i * 2.1; c.fillStyle = '#FFE45C'; c.fillRect(m.x + Math.cos(a) * 14 - 2, y - 6 + Math.sin(a) * 4, 4, 4); }
@@ -2194,9 +2212,17 @@
       }
       // v150 떠다니는 보스 (청룡 …): 몸은 그림 그대로 위아래로 둥실 · 살짝 기울기 · 발밑 소용돌이 그림은 일렁이며 물결 고리가 퍼짐
       /* v150 광개토대왕 그림 고르기: 칼 기술은 0.7초 들었다가 내려치고(0.3초 더 멈춤), 마법은 손을 뻗고, 움직이면 걷기 두 장, 맞으면 1.4초에 한 번 0.22초 움찔 */
-      function kingFrame(m, now) {
-        const F = m.def.frames, c = m.cast;
-        if (!m._pre) { m._pre = 1; [F.idle, F.atk1, F.atk2, F.cast, F.hit].concat(F.walk).forEach(n => img79(n)); }
+      /* v150 자세 그림 크기: 기본(idle) 그림의 높이 = 화면 높이(sp.h) 가 되는 비율로 다른 자세도 같은 비율로 키움 (자세마다 칼·불꽃 때문에 그림 크기가 다름) */
+      function frameDim(im, F, sp) {
+        const b = img79(F.idle), k = b && b.naturalHeight ? sp.h / b.naturalHeight : 0;
+        return k && im.naturalWidth ? { w: im.naturalWidth * k, h: im.naturalHeight * k } : { w: sp.w, h: sp.h };
+      }
+      /* v150 지역 보스 9마리: Gemini 그림 4장 (기본·공격·마법·맞음) — 그림이 다 들어간 지역만 RB_ART 에 적음 */
+      const RB_ART = P.RB_ART || [];
+      const rbFrames = def => def && def.kind === 'boss' && def.ri != null && !def.dot && !def.img && !def.img79 && RB_ART.includes(def.ri) ? (def._rbF || (def._rbF = { idle: 'rb' + def.ri + '_idle', atk1: 'rb' + def.ri + '_atk', atk2: 'rb' + def.ri + '_atk', cast: 'rb' + def.ri + '_cast', hit: 'rb' + def.ri + '_hit' })) : null;
+      function kingFrame(m, now, F) {
+        F = F || m.def.frames; const c = m.cast;
+        if (!m._pre) { m._pre = 1; [F.idle, F.atk1, F.atk2, F.cast, F.hit].concat(F.walk || []).forEach(n => n && img79(n)); }
         let k = 'idle';
         if (c && (c.k === 'blades' || c.k === 'charge')) k = c.t < 0.7 ? 'atk1' : 'atk2';
         else if (m.slam) k = m.slam.t < 0.6 ? 'atk1' : 'atk2';
@@ -2209,7 +2235,7 @@
         }
         if (k === 'atk2' || k === 'cast') m._hold = { k, until: now + 300 };
         m._lx = m.x; m._ly = m.y; m._fr = k;
-        const n = k === 'walk' ? F.walk[Math.floor(now / 260) % 2] : F[k];
+        const n = k === 'walk' ? (F.walk ? F.walk[Math.floor(now / 260) % 2] : F.idle) : F[k] || F.idle;
         return img79(n) || img79(F.idle) || m.spr.img;
       }
       function drawFloater(c, m, now) {
@@ -2234,10 +2260,10 @@
         const tilt = Math.sin(t * 1.1 + m.hx) * 0.035 + (m.lunge > 0 ? 0.08 * (flip ? -1 : 1) : 0);
         c.save(); c.translate(bx, by - lift); c.rotate(fly ? tilt : tilt * 0.4); c.scale(flip ? -1 : 1, breath);
         if (d.frames) {   // v150 광개토대왕: 하는 일에 따라 그림을 바꿔 끼움 (그림은 모두 같은 크기 · 발 위치 ax)
-          const fim = kingFrame(m, now), ax = sp.w * (d.ax || 0.5);
-          c.drawImage(fim, -ax, -sp.h, sp.w, sp.h);
-          if (m.flash > 0) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45; c.drawImage(fim, -ax, -sp.h, sp.w, sp.h); }
-          if (m._fr === 'cast') { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1; Fx.drawGlow(c, sp.w * 0.39, -sp.h * 0.66, 60 + 12 * Math.sin(t * 9), '#FF4A8A', 0.55); }
+          const fim = kingFrame(m, now), fd = frameDim(fim, d.frames, sp), ax = fd.w * (d.ax || 0.5);   /* v150 사방신 자세 그림은 크기가 저마다 달라서 기본 그림 비율로 맞춤 */
+          c.drawImage(fim, -ax, -fd.h, fd.w, fd.h);
+          if (m.flash > 0) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45; c.drawImage(fim, -ax, -fd.h, fd.w, fd.h); }
+          if (m._fr === 'cast') { const ca = d.castAt || [0, 0.55]; c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1; Fx.drawGlow(c, fd.w * ca[0], -fd.h * ca[1], 60 + 12 * Math.sin(t * 9), d.castCol || col, 0.55); }
         } else c.drawImage(m.flash > 0 ? sp.flash : sp.img, -sp.w / 2, -sp.h, sp.w, sp.h);
         c.restore();
         const top = by - lift - sp.h;
@@ -2442,11 +2468,13 @@
       // v125 귀환 칸: 집 그림 + 남은 시간
       function recallSlot(c, x, y, s) {
         const left = recallLeft();
-        c.fillStyle = '#0A0E24'; rr(c, x - 1, y - 1, s + 2, s + 2, 7); c.fill(); c.fillStyle = '#1F4A3A'; rr(c, x, y, s, s, 6); c.fill();
-        c.save(); c.translate(x + s / 2, y + s / 2 + 2);
+        const ric = img79('ic_recall');   /* v150 Gemini 귀환 아이콘 (소용돌이 문 + 한옥) — 못 불러오면 예전 그림 */
+        if (ric) { c.fillStyle = '#0A0E24'; rr(c, x - 1, y - 1, s + 2, s + 2, 7); c.fill(); c.drawImage(ric, x, y, s, s); if (recallLeft() <= 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.18 + 0.12 * Math.sin(performance.now() / 380); c.drawImage(ric, x, y, s, s); c.restore(); } }
+        else { c.fillStyle = '#0A0E24'; rr(c, x - 1, y - 1, s + 2, s + 2, 7); c.fill(); c.fillStyle = '#1F4A3A'; rr(c, x, y, s, s, 6); c.fill(); }
+        if (!ric) { c.save(); c.translate(x + s / 2, y + s / 2 + 2);
         c.fillStyle = '#FFD23F'; c.beginPath(); c.moveTo(-14, -2); c.lineTo(0, -15); c.lineTo(14, -2); c.closePath(); c.fill();   // 지붕
         c.fillStyle = '#F5E2B8'; c.fillRect(-10, -3, 20, 15); c.fillStyle = '#8A5A2B'; c.fillRect(-3, 3, 6, 9);                    // 벽 · 문
-        c.strokeStyle = '#0A0E24'; c.lineWidth = 2; c.strokeRect(-10, -3, 20, 15); c.restore();
+        c.strokeStyle = '#0A0E24'; c.lineWidth = 2; c.strokeRect(-10, -3, 20, 15); c.restore(); }
         if (left > 0) {
           c.save(); rr(c, x, y, s, s, 6); c.clip(); c.fillStyle = 'rgba(10,14,36,.72)'; c.beginPath(); c.moveTo(x + s / 2, y + s / 2); c.arc(x + s / 2, y + s / 2, s, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / RECALL_CD)); c.closePath(); c.fill(); c.restore();
           c.font = '15px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; const t = left >= 60 ? Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0') : String(Math.ceil(left)); c.strokeText(t, x + s / 2, y + s / 2); c.fillStyle = '#FFFFFF'; c.fillText(t, x + s / 2, y + s / 2);

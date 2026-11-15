@@ -483,7 +483,7 @@
     { type: 'potion', name: '약방', x: 4, y: 5, w: 7, h: 4, roof: '#D2343A' },   // v144 선생님 그림으로 바꾸며 크게 (예전 x5 y4 6×4)
     { type: 'school', name: '도술 서원', x: 22, y: 5, w: 11, h: 4, roof: '#7E4DE0' },   // v144 (예전 x25 y4 7×4)
     { type: 'chief', name: '이장 댁', x: 4, y: 15, w: 9, h: 4, roof: '#3E9E58' },   // v144 (예전 x6 y13 6×4)
-    { type: 'train', name: '훈련장', x: 13, y: 6, w: 5, h: 3, roof: '#C8402A' }   // v144 훈련장 (허수아비 10초 딜량) · 그림 bld_train.png 은 임시 — 선생님 그림이 오면 바꿈
+    { type: 'train', name: '훈련장', x: 13, y: 6, w: 5, h: 3, roof: '#C8402A' }   // v144 훈련장 (허수아비 10초 딜량) · v150 그림 bld_train.png = Gemini (한옥 훈련장)
   ];
   const CASTLE = { type: 'castle', name: '도원수 진영', x: 23, y: 14, w: 10, h: 6, roof: '#5A5A70' };   // v144 새 성 그림 · 커진 서원과 안 겹치게 2칸 아래로 (예전 y12)
 
@@ -591,6 +591,7 @@
         if (sd === 'u' || sd === 'd') { for (let x = cx - 3; x <= cx + 2; x++) for (let k = 0; k < 3; k++) set(x, sd === 'u' ? k : H2 - 1 - k, 0); for (let y = Math.min(sd === 'u' ? 0 : cy, cy); y <= (sd === 'u' ? cy : H2 - 1); y++) for (let x = cx - 1; x <= cx; x++) set(x, y, 1); }
         else { for (let y = cy - 3; y <= cy + 2; y++) for (let k = 0; k < 3; k++) set(sd === 'l' ? k : W2 - 1 - k, y, 0); for (let x = (sd === 'l' ? 0 : cx); x <= (sd === 'l' ? cx : W2 - 1); x++) for (let y = cy - 1; y <= cy; y++) set(x, y, 1); }
       });
+      if (kind === 'all' || kind === 'king') return t;   // v150 선생님 Gemini 지도 그림을 쓰는 방 — 테두리·출구만 (기둥·바위는 그림에 있음)
       if (boss) {   // 보스 방: 가운데 넓은 마당 (돌기둥 네 개)
         for (let y = cy - 7; y <= cy + 6; y++) for (let x = cx - 11; x <= cx + 10; x++) if (get(x, y) !== 1) set(x, y, 0);
         [[-9, -5], [8, -5], [-9, 4], [8, 4]].forEach(([dx, dy]) => set(cx + dx, cy + dy, 3));
@@ -612,21 +613,22 @@
       if (id === 'sx_v3') ex.d = 'f18';   // 맨 아래 → 18번 사냥터 (돌아가는 길만, 18번 쪽에는 길을 안 뚫음 · noBack)
       const mons = kind === 'path' ? { list: MOB[id].map((f, i) => ({ f, lv: 150, n: i ? 6 : 12 })) } : {};
       const [tex, region] = LOOK[kind];
-      return { id, name, data: { w: W2, h: H2, region, t: grid(id, ex, kind), exits: ex, mons, pub: true, noBack: id === 'sx_v3', sx: kind, tex, rec: kind === 'path' ? 150 : kind === 'king' ? 400 : kind === 'npc' ? 150 : 250, solo: true } };
+      return { id, name, data: { w: W2, h: H2, region, t: grid(id, ex, kind), exits: ex, mons, pub: true, noBack: id === 'sx_v3', sx: kind, tex, art: kind === 'all' ? 'arena_sx_all' : kind === 'king' ? 'arena_sx_king' : null, rec: kind === 'path' ? 150 : kind === 'king' ? 400 : kind === 'npc' ? 150 : 250, solo: true } };
     });
     const B = (name, img, el, imm, light, colors, say, skills) => ({ name, img, h: 150, el, immune: imm, light, shape: 'golem', colors, kind: 'boss', say, skills });
+    const SXF = k => ({ idle: 'sx_' + k, atk1: 'sx_' + k + '_atk', atk2: 'sx_' + k + '_atk', cast: 'sx_' + k + '_cast', hit: 'sx_' + k + '_hit' });   // v150 사방신 자세 그림 (Gemini · 공격·마법·맞음)
     const boss = {
       cr: Object.assign(B('청룡', 'sx_cr', 'thunder', 'thunder', '#FFE45C', { a: '#2FBF8F', b: '#1A6A5A', c: '#9AE6FF', d: '#5AD8FF' }, '동쪽을 지키는 푸른 용이 눈을 떴다! (번개 힘은 통하지 않는다)', ['charge', 'ring', 'fan', 'slam']),
-        { bh: 380, float: true, base: 'sx_cr_pool', baseCol: '#5AD8FF' }),   // v150 선생님 그림 (11/15) · 2배 크기 · 둥실둥실 떠다님 + 발밑 소용돌이 물
+        { bh: 380, float: true, base: 'sx_cr_pool', baseCol: '#5AD8FF', frames: SXF('cr') }),   // v150 선생님 그림 (11/15) · 2배 크기 · 둥실둥실 떠다님 + 발밑 소용돌이 물
       jj: Object.assign(B('주작', 'sx_jj', 'fire', 'fire', '#FF4A3A', { a: '#FF4A3A', b: '#8A1E22', c: '#FFD23F', d: '#FFFFFF' }, '남쪽을 지키는 붉은 새가 날개를 폈다! (불의 힘은 통하지 않는다)', ['fan', 'ring', 'charge', 'blades']),
-        { bh: 380, float: true, baseCol: '#FF9A3D' }),   // v150 선생님 그림 · 날갯짓하며 떠 있음 + 발밑 불꽃 물결
+        { bh: 380, float: true, baseCol: '#FF9A3D', frames: SXF('jj') }),   // v150 선생님 그림 · 날갯짓하며 떠 있음 + 발밑 불꽃 물결
       bh: Object.assign(B('백호', 'sx_bh', 'earth', 'earth', '#B07A45', { a: '#F0E8D8', b: '#7A6A5A', c: '#B07A45', d: '#FFFFFF' }, '서쪽을 지키는 흰 범이 으르렁거린다! (땅의 힘은 통하지 않는다)', ['charge', 'slam', 'blades', 'ring']),
-        { bh: 380, aura: true, baseCol: '#BDE8FF' }),   // v150 선생님 그림 · 땅을 딛고 섬 + 발밑 바람·번개 기운
+        { bh: 380, aura: true, baseCol: '#BDE8FF', frames: SXF('bh') }),   // v150 선생님 그림 · 땅을 딛고 섬 + 발밑 바람·번개 기운
       hm: Object.assign(B('현무', 'sx_hm', 'water', 'water', '#3C78F0', { a: '#3A4A7A', b: '#1D2340', c: '#3C78F0', d: '#9AE6FF' }, '북쪽을 지키는 검은 거북이 깨어났다! (물의 힘은 통하지 않는다)', ['slam', 'ring', 'fan', 'blades']),
-        { bh: 380, aura: true, baseCol: '#3C78F0' }),   // v150 선생님 그림 · 땅을 딛고 섬 + 발밑 물결
+        { bh: 380, aura: true, baseCol: '#3C78F0', frames: SXF('hm') }),   // v150 선생님 그림 · 땅을 딛고 섬 + 발밑 물결
       king: Object.assign(B('광개토대왕', 'sx_king_idle', 'light', 'all', '#FFD23F', { a: '#FFD23F', b: '#8A5A10', c: '#FFFFFF', d: '#FF4A3A' }, '광개토대왕께서 일어나셨다! 어떤 공격도 통하지 않는다…', ['blades', 'ring', 'charge', 'slam', 'fan']), { noFx: true,
         // v150 선생님 Gemini 그림 7장 (11/15) · 사방신과 같은 380px · 땅을 딛고 섬 · 칼(blades·charge·slam)=들기→내려치기 · 마법(ring·fan)=손 뻗기 · 걸을 때 두 장 번갈아 · 맞으면 잠깐 움찔
-        bh: 380, aura: true, baseCol: '#FF4A3A', ax: 234 / 417,
+        bh: 380, aura: true, baseCol: '#FF4A3A', ax: 234 / 417, castAt: [0.39, 0.66], castCol: '#FF4A8A',
         frames: { idle: 'sx_king_idle', walk: ['sx_king_walk1', 'sx_king_walk2'], atk1: 'sx_king_atk1', atk2: 'sx_king_atk2', cast: 'sx_king_cast', hit: 'sx_king_hit' } })   // v149 선생님 11/15: 넉백(움찔·밀어내기)은 안 걸림 · 상태 이상(불·느려짐·기절·저주)은 왕을 죽인 검을 끼면 걸림
     };
     const lv = { path: 150, god: 250, king: 400 };
