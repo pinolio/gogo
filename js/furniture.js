@@ -342,7 +342,7 @@
     const c = g.c, o = g.P(0, 0, 0), a = g.P(1, 0, 0), b = g.P(0, 1, 0);
     c.save(); c.beginPath(); [g.P(0, 0, 0), g.P(n, 0, 0), g.P(n, n, 0), g.P(0, n, 0)].forEach((p, k) => (k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.closePath(); c.clip();
     c.transform((a[0] - o[0]) / 32, (a[1] - o[1]) / 32, (b[0] - o[0]) / 32, (b[1] - o[1]) / 32, o[0], o[1]);
-    texFill(c, im, n * 32, n * 32, 64);
+    texFill(c, im, n * 32, n * 32, TEX_TW[flI.id] || 64);
     c.strokeStyle = 'rgba(40,30,20,.10)'; c.lineWidth = 0.8; c.beginPath(); for (let k = 1; k < n; k++) { c.moveTo(k * 32, 0); c.lineTo(k * 32, n * 32); c.moveTo(0, k * 32); c.lineTo(n * 32, k * 32); } c.stroke();   // 칸 자리 (아주 옅게)
     c.restore();
   }
@@ -424,13 +424,13 @@
     return wdImgs[key] || null;
   }
   /* v155 옷장 그림 27종 (Gemini · img/furn/<id>_c.webp 닫힘 · _o.webp 열림, 같은 크기 캔버스). WDI = [닫힌 그림의 왼쪽, 오른쪽, 아래] (캔버스 점) */
-  const WDI = {'wd_sliding':[0,209,269],'wd_vintage':[8,152,263],'wd_mirror':[6,168,270],'wd_bear':[47,215,268],'wd_boxes':[60,182,246],'wd_locker':[65,199,272],'wd_glass':[58,245,273],'wd_bandaji':[44,283,252],'wd_hanger':[0,183,266],'wd_drawer':[43,196,265],'wd_cyber':[43,192,271],'wd_bunny':[35,177,273],'wd_bamboo':[50,249,272],'wd_corner':[35,234,269],'wd_showroom':[1,205,270],'wd_retro':[45,214,231],'wd_antique':[47,225,270],'wd_plastic':[48,177,215],'wd_jewel':[36,236,261],'wd_multi':[44,261,265],'wd_study':[52,252,264],'wd_cloth':[17,204,266],'wd_magic':[50,235,268],'wd_toy':[34,218,236],'wd_pirate':[65,311,280],'wd_grid':[66,290,275],'wd_mint':[44,196,225]};
+  const WDI = {'wd_sliding':[1,345,457],'wd_vintage':[84,352,427],'wd_mirror':[6,168,270],'wd_bear':[47,215,268],'wd_boxes':[60,182,246],'wd_locker':[65,199,272],'wd_glass':[58,245,273],'wd_bandaji':[44,283,252],'wd_hanger':[0,183,266],'wd_drawer':[43,196,265],'wd_cyber':[43,192,271],'wd_bunny':[35,177,273],'wd_bamboo':[50,249,272],'wd_corner':[35,234,269],'wd_showroom':[1,205,270],'wd_retro':[45,214,231],'wd_antique':[47,225,270],'wd_plastic':[48,177,215],'wd_jewel':[36,236,261],'wd_multi':[44,261,265],'wd_study':[52,252,264],'wd_cloth':[17,204,266],'wd_magic':[50,235,268],'wd_toy':[34,218,236],'wd_pirate':[73,410,462],'wd_grid':[66,290,275],'wd_mint':[44,196,225]};
   const wdI = {};
   function wdImg2(id, open) {
     if (!WDI[id]) return null;
     const key = id + (open ? '_o' : '_c');
     let e = wdI[key];
-    if (!e) { e = wdI[key] = { im: new Image(), ok: false }; e.im.onload = () => { e.ok = true; window.dispatchEvent(new Event('gogo:img')); if (window.GoFurn && window.GoFurn.onImg) try { window.GoFurn.onImg(id); } catch (er) { /* noop */ } }; e.im.src = (window.GOGO_BASE || '') + 'img/furn/' + key + '.webp?v=155'; }
+    if (!e) { e = wdI[key] = { im: new Image(), ok: false }; e.im.onload = () => { e.ok = true; window.dispatchEvent(new Event('gogo:img')); if (window.GoFurn && window.GoFurn.onImg) try { window.GoFurn.onImg(id); } catch (er) { /* noop */ } }; e.im.src = (window.GOGO_BASE || '') + 'img/furn/' + key + '.webp?v=' + (/^wd_(sliding|pirate|vintage)_/.test(key) ? 156 : 155); }   // v156 옷장 3종 다시 그림
     return e.ok ? e.im : null;
   }
   function drawWardrobe(g, it, i, j, r, open) {
@@ -551,11 +551,11 @@
   }
 
   /* v155 벽지 · 바닥 그림 (Gemini 이음매 없는 무늬 · img/tex/<id>.webp). 벽: 무늬 한 장 = 96 (벽 3칸) · 바닥: 무늬 한 장 = 64 (바닥 2칸) */
-  const TEX = {}, TEX_FULL = { wp_wainscot: 1 };   // FULL = 벽 높이에 맞춰 한 번만 (세로로 반복 안 함)
+  const TEX = {}, TEX_FULL = { wp_wainscot: 1 }, TEX_TW = { fl_tatami: 128 };   // TEX_TW = 무늬 한 장 너비를 따로 (다다미 한 장 = 2×1칸)   // FULL = 벽 높이에 맞춰 한 번만 (세로로 반복 안 함)
   function texImg(id) {
     if (!id || !/^(wp|fl)_/.test(id)) return null;
     let e = TEX[id];
-    if (!e) { e = TEX[id] = { im: new Image(), ok: false, bad: false }; e.im.onload = () => { e.ok = true; window.dispatchEvent(new Event('gogo:img')); if (window.GoFurn && window.GoFurn.onImg) try { window.GoFurn.onImg(id); } catch (er) { /* noop */ } }; e.im.onerror = () => { e.bad = true; }; e.im.src = (window.GOGO_BASE || '') + 'img/tex/' + id + '.webp?v=155'; }
+    if (!e) { e = TEX[id] = { im: new Image(), ok: false, bad: false }; e.im.onload = () => { e.ok = true; window.dispatchEvent(new Event('gogo:img')); if (window.GoFurn && window.GoFurn.onImg) try { window.GoFurn.onImg(id); } catch (er) { /* noop */ } }; e.im.onerror = () => { e.bad = true; }; e.im.src = (window.GOGO_BASE || '') + 'img/tex/' + id + '.webp?v=' + (id === 'fl_tatami' ? 156 : 155); }
     return e.ok ? e.im : null;
   }
   // 평면(벽 면·바닥 면) 좌표에서 무늬 채우기: tw = 무늬 한 장 너비(평면 단위), H = 세로 길이(FULL 일 때)

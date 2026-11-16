@@ -113,7 +113,7 @@
 
   /* ---------- 그리기 ---------- */
   function shellCanvas(rm) {
-    const k = rm.wp + '|' + rm.fl + '|' + st.night;
+    const k = rm.wp + '|' + rm.fl + '|' + st.night + '|' + (F.texImg && F.texImg(rm.wp) ? 1 : 0) + (F.texImg && F.texImg(rm.fl) ? 1 : 0);   // v156 벽지·바닥 그림을 다 받으면 다시 그림
     if (shell && shellKey === k) return shell;
     shell = document.createElement('canvas'); shell.width = VW * S; shell.height = VH * S;
     const c = shell.getContext('2d'); c.scale(S, S); c.lineJoin = 'round';
