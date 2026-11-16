@@ -395,7 +395,7 @@
       if (part === 'b') {
         const skirt = g === 'f';
         const botY = x => { for (let y = y1; y >= y0; y--) if (inM(x, y)) return y; return -1; };
-        base((x, y, t) => { const r = (y - y0) % 4; return r === 0 ? rmp(DK, t - 0.05) : rmp(R, t * 0.85 + 0.08 + (r === 1 ? 0.12 : 0)); });
+        base((x, y, t) => { t = Math.max(side ? 0.4 : 0.2, t); const r = (y - y0) % 4; return r === 0 ? rmp(DK, t - 0.05) : rmp(R, t * 0.85 + 0.08 + (r === 1 ? 0.12 : 0)); });   // v153 옆모습 먼 다리가 너무 까맣지 않게
         over((x, y, t) => {
           if (up[y * W + x] <= 2 && y < y0 + h * 0.3) return rmp(RIM, t + 0.2 + (up[y * W + x] === 1 ? 0.12 : 0));   // 허리띠
           if (dn[y * W + x] <= 2 && y > y0 + h * 0.5) return rmp(RIM, t + 0.12);   // 발목 테
@@ -764,9 +764,10 @@
           if (r && d.data[k * 4 + 3]) { M[k] = 1; S[k] = r; if (r > mx) mx = r; }
         }
         for (let k = 0; k < S.length; k++) if (M[k]) { if (S[k] < mx * 0.22) { M[k] = 0; S[k] = 0; } else S[k] = S[k] / mx; }   // 아주 흐린 가장자리 칸은 빼기
+        if (ch === 1 && v === 's') for (let k = 0; k < S.length; k++) if (M[k] && S[k] < 0.5) S[k] = 0.5 + (S[k] - 0.22) * 0.4;   // v153 옆모습 먼 다리가 갑옷에서 너무 까맣게 보이던 것 (조금 밝게)
         if (ch === 1) {   // v153 옆모습의 먼 다리(청바지)가 cloth.png 바지 자리에 빠져 있음 → 바지 자리 줄 안의 청바지 색 칸도 바지로
           let ya = H2, yb = -1; for (let k = 0; k < M.length; k++) if (M[k]) { const yy = (k / W2) | 0; if (yy < ya) ya = yy; if (yy > yb) yb = yy; }
-          for (let yy = ya; yy <= yb; yy++) for (let xx = 0; xx < W2; xx++) { const k = yy * W2 + xx, i = k * 4, r = d.data[i], g2 = d.data[i + 1], b2 = d.data[i + 2]; if (!M[k] && d.data[i + 3] > 200 && b2 > r + 28 && b2 > g2 + 8) { M[k] = 1; S[k] = Math.min(1, 0.25 + (r + g2 + b2) / 600); } }
+          for (let yy = ya; yy <= yb; yy++) for (let xx = 0; xx < W2; xx++) { const k = yy * W2 + xx, i = k * 4, r = d.data[i], g2 = d.data[i + 1], b2 = d.data[i + 2]; if (!M[k] && d.data[i + 3] > 200 && ((b2 > r + 12 && b2 > g2 + 2) || (yy < yb - 3 && r + g2 + b2 < 200 && b2 >= r))) { M[k] = 1; S[k] = Math.min(1, 0.5 + (r + g2 + b2) / 700); } }
         }
         paintFancy(d.data, W2, H2, M, S, kind, v, g, pt);
       };
@@ -894,58 +895,111 @@
    *  p(위상, 라디안)에 따라 다리는 엉덩이 기준으로 기울이며 번갈아 들고, 팔은 다리와 반대로 오르내리고, 몸은 살짝 들썩임.
    *  img = 서 있는 그림(frame 0). 세로는 GH 칸, 가로는 GW 칸 + 양옆 여백(무기 그림 등)이 있어도 됨. (dx,dy,dw,dh) = 그릴 자리
    *  opt.arms: true(기본) 두 팔 · 'left' 왼팔만(오른손에 무기) · false 팔 안 흔듦 · opt.amp 크기(기본 1) */
+  /* v153 걷기 움직임 새로 (선생님 11/16 "아바타 움직임이 자연스럽게")
+   *  예전: 조각을 위아래로 옮기고 비스듬히 밀기만 함 → 새로: 관절(엉덩이·무릎·어깨·목)을 축으로 '돌려서' 그림
+   *  앞·뒤 모습(rig): 든 다리는 짧아지며(앞으로 내딛는 느낌) 바깥으로 살짝 · 팔은 어깨를 축으로 앞뒤로 흔듦 · 몸은 좌우로 살짝 실리고 · 머리는 반 박자 늦게 끄덕
+   *  옆모습(rigSide): 허벅지·종아리를 따로 돌려 무릎이 굽음 · 팔은 다리와 반대로 크게 흔듦 · 몸은 앞으로 조금 기울고 두 번 들썩
+   *  서 있을 때: 숨쉬기 (윗몸이 아주 조금 오르내림 · 팔이 살짝 흔들림) — opt.idle === false 면 끔
+   *  그림 하나(아바타+옷+장비가 다 그려진 것)를 조각내어 쓰므로 옷·피부·장비가 무엇이든 그대로 맞음 */
+  const legBox = new WeakMap();
+  function legCenter(im, cs, y0, y1) {   // 옆모습 다리 가운데 x (그림 점) — 그림마다 한 번만 셈
+    let v = legBox.get(im); if (v != null) return v;
+    try {
+      const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+      const ya = Math.round(y0 * cs), yb = Math.max(ya + 1, Math.round(y1 * cs)), d = x.getImageData(0, ya, im.width, yb - ya).data; let a = im.width, b = -1;
+      for (let y = 0; y < yb - ya; y++) for (let i = 0; i < im.width; i++) if (d[(y * im.width + i) * 4 + 3] > 40) { if (i < a) a = i; if (i > b) b = i; }
+      v = b < 0 ? im.width / 2 : (a + b + 1) / 2;
+    } catch (e) { v = im.width / 2; }
+    legBox.set(im, v); return v;
+  }
   function rig(ctx, img, dx, dy, dw, dh, p, mv, opt) {
     opt = opt || {};
-    if (!mv) { ctx.drawImage(img, dx, dy, dw, dh); return; }
     const cs = img.height / GH, gx = opt.padL != null ? opt.padL : (img.width / cs - GW) / 2, gxR = img.width / cs - GW - gx, kx = dw / img.width, ky = dh / img.height, A = opt.amp == null ? 1 : opt.amp;
-    const s = Math.sin(p), c2 = Math.cos(p), arms = opt.arms == null ? true : opt.arms;
-    const bob = -Math.abs(s) * 0.5 * A, HIP = 20;
+    const idle = !mv && opt.idle !== false, t = performance.now() / 1000;
+    if (!mv && !idle) { ctx.drawImage(img, dx, dy, dw, dh); return; }
+    const s = mv ? Math.sin(p) : 0, c2 = mv ? Math.cos(p) : 0, arms = opt.arms == null ? true : opt.arms, HIP = 20, SHO = 13.3, NECK = 12.6;
+    const br = idle ? Math.sin(t * 2.4) : 0;   // 숨쉬기
+    const bob = mv ? -(0.25 + 0.45 * Math.abs(s)) * A + 0.25 * A : -0.22 * (br * 0.5 + 0.5);   // 칸
+    const sway = mv ? 0.35 * s * A : 0;
     const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-    // 칸 좌표(몸 기준, 가로 0~GW) 사각형을 (ox, oy 칸) 옮기고, ay 칸 줄을 축으로 sh 만큼 기울여 그림
-    const pc = (x0, y0, x1, y1, ox, oy, sh, ay) => {
-      const sx = (x0 + gx) * cs, sy = y0 * cs, sw = (x1 - x0) * cs, shh = (y1 - y0) * cs;
-      if (sw <= 0 || shh <= 0) return;
-      ctx.save(); ctx.translate(dx, dy);
-      if (sh) { const ty = ay * cs * ky; ctx.translate(0, ty); ctx.transform(1, 0, sh, 1, 0, 0); ctx.translate(0, -ty); }
-      ctx.drawImage(img, sx, sy, sw, shh, sx * kx + ox * cs * kx, sy * ky + oy * cs * ky, sw * kx, shh * ky); ctx.restore();
+    // 조각 (칸 좌표 x0~x1, y0~y1 · 가로는 몸 기준 0~GW) 을 축(px, py 칸)을 기준으로 ang 만큼 돌리고 sx·sy 배로 늘이고 (ox, oy 칸) 옮겨 그림
+    const P = (x0, y0, x1, y1, o) => {
+      o = o || {}; const sx0 = (x0 + gx) * cs, sy0 = y0 * cs, sw = (x1 - x0) * cs, shh = (y1 - y0) * cs; if (sw <= 0 || shh <= 0) return;
+      const pX = ((o.px != null ? o.px : (x0 + x1) / 2) + gx) * cs * kx, pY = (o.py != null ? o.py : y0) * cs * ky;
+      ctx.save(); ctx.translate(dx + pX + (o.ox || 0) * cs * kx, dy + pY + (o.oy || 0) * cs * ky); if (o.ang) ctx.rotate(o.ang); if (o.sx || o.sy) ctx.scale(o.sx || 1, o.sy || 1);
+      ctx.drawImage(img, sx0, sy0, sw, shh, sx0 * kx - pX, sy0 * ky - pY, sw * kx, shh * ky); ctx.restore();
     };
-    const lL = Math.max(0, s) * 1.5 * A, lR = Math.max(0, -s) * 1.5 * A, sh = -s * 0.11 * A, sw = c2 * 0.18 * A;
-    // 다리 (몸통보다 먼저 → 든 다리 위쪽은 몸통에 가려짐)
-    pc(6, HIP, 9, HIP + 1, 0, bob - lL, sh, HIP); pc(0, HIP + 1, 9, GH, 0, bob - lL, sh, HIP);   // 몸 전체가 들썩(bob) + 든 다리
-    pc(9, HIP, 12, HIP + 1, 0, bob - lR, sh, HIP); pc(9, HIP + 1, GW, GH, 0, bob - lR, sh, HIP);
-    // 머리 · 몸통 · 양옆 여백(무기)
-    pc(-gx, 0, GW + gxR, 13, sw, bob); pc(6, 13, 12, HIP, sw * 0.6, bob);
-    if (gx > 0) pc(-gx, 13, 0, GH, sw, bob);
-    if (gxR > 0) pc(GW, 13, GW + gxR, GH, sw, bob);
-    // 팔: 왼다리가 나가면 오른팔이 올라감
-    const aL = arms ? s * 1.1 * A : 0, aR = arms === true ? -s * 1.1 * A : 0;
-    // 팔이 내려가면 어깨 줄(13번째 줄)을 늘려 빈틈을 메움
-    const arm = (x0, x1, a) => {
-      if (a > 0) { const sx = (x0 + gx) * cs; ctx.drawImage(img, sx, 13 * cs, (x1 - x0) * cs, cs, dx + sx * kx + sw * 0.6 * cs * kx, dy + (13 + bob) * cs * ky, (x1 - x0) * cs * kx, (a + 1) * cs * ky); }
-      pc(x0, 13, x1, HIP + 1, sw * 0.6, bob + a);
-    };
-    arm(0, 6, aL); arm(12, GW, aR);
+    // 다리: 든 다리는 엉덩이를 축으로 짧아지고(앞으로 내딛음) 발이 들림 · 디딘 다리는 그대로 · 엉덩이 줄은 먼저 깔아 빈틈 막기
+    const lL = mv ? Math.max(0, s) * A : 0, lR = mv ? Math.max(0, -s) * A : 0;
+    P(5.3, HIP - 1, 12.7, HIP + 1, { ox: sway * 0.6, oy: bob });
+    P(5.1, HIP, 9, GH, { px: 7.5, py: HIP, ox: sway * 0.6 - lL * 0.2, oy: bob, sy: 1 - 0.14 * lL, ang: -0.05 * lL });
+    P(9, HIP, 12.9, GH, { px: 10.5, py: HIP, ox: sway * 0.6 + lR * 0.2, oy: bob, sy: 1 - 0.14 * lR, ang: 0.05 * lR });
+    // 양옆 여백(무기 그림 등) — 몸통과 같이
+    if (gx > 0) P(-gx, 0, 0, GH, { ox: sway, oy: bob });
+    if (gxR > 0) P(GW, 0, GW + gxR, GH, { ox: sway, oy: bob });
+    // 몸통 (살짝 비틀기) → 머리 (반 박자 늦게 끄덕 · 숨쉴 때 조금 더 오르내림)
+    P(5, NECK, 13, HIP, { px: 9, py: HIP, ox: sway, oy: bob, ang: mv ? 0.025 * c2 * A : 0, sy: idle ? 1 + 0.012 * br : 1 });
+    P(-gx * 0 + 0, 0, GW, NECK + 0.6, { px: 9, py: NECK, ox: sway * 1.1, oy: bob + (idle ? -0.18 * (br * 0.5 + 0.5) : 0.15 * Math.abs(Math.sin(p - 0.6)) * A), ang: mv ? 0.03 * Math.sin(p - 0.5) * A : 0.012 * Math.sin(t * 1.3) });
+    // 팔: 어깨를 축으로 다리와 반대로 흔듦 (앞으로 나오는 팔은 조금 짧아 보이게)
+    // 앞에서 보면 팔을 앞뒤로 흔드는 것은 '팔이 짧아졌다 길어졌다' + 살짝 안팎으로 기울기
+    const swing = mv ? s * A : 0.3 * br, aL = arms ? swing : 0, aR = arms === true ? -swing : 0;
+    P(0, NECK + 0.4, 5.4, HIP + 2.2, { px: 4.6, py: SHO, ox: sway, oy: bob, ang: 0.07 * aL, sy: 1 - 0.13 * Math.max(0, aL) + 0.04 * Math.max(0, -aL) });
+    P(12.6, NECK + 0.4, GW, HIP + 2.2, { px: 13.4, py: SHO, ox: sway, oy: bob, ang: -0.07 * aR, sy: 1 - 0.13 * Math.max(0, aR) + 0.04 * Math.max(0, -aR) });
     ctx.imageSmoothingEnabled = sm;
   }
-  // v106 옆모습 걷기: 다리 하나 그림을 두 번(뒷다리·앞다리) 엉덩이 기준으로 반대로 흔들고, 가까운 팔은 따로 그려 어깨 기준으로 흔듦
   function rigSide(ctx, body, arm, dx, dy, dw, dh, p, mv, opt) {
     opt = opt || {};
-    const cs = body.height / GH, kx = dw / body.width, ky = dh / body.height, A = opt.amp == null ? 1 : opt.amp;
-    const s = mv ? Math.sin(p) : 0, bob = mv ? -Math.abs(s) * 0.5 * A : 0, HIP = 20, SHO = 13;
+    const cs = body.height / GH, kx = dw / body.width, ky = dh / body.height, A = opt.amp == null ? 1 : opt.amp, t = performance.now() / 1000;
+    const s = mv ? Math.sin(p) : 0, HIP = 20, KNEE = 24.2, SHO = 13.2;
+    const idle = !mv && opt.idle !== false, br = idle ? Math.sin(t * 2.4) : 0;
+    const bob = mv ? (0.45 * Math.abs(s) - 0.3) * A : -0.2 * (br * 0.5 + 0.5);   // 다리가 벌어질 때 낮아짐
+    /* v153 '오른쪽으로 갈 때 다리가 4개' 고침: 옆모습 그림에는 다리가 이미 둘 → 다리 줄을 통째로 두 번 그리면 넷이 됨.
+     *  종아리·신발 줄에서 두 다리 사이 틈을 찾아 [앞쪽 다리 | 뒤쪽 다리] 로 나눠 하나씩 움직임. 치마(허벅지 줄이 넓음)는 허벅지는 그대로 두고 종아리만 */
+    const LB = legSplit(body, cs, HIP, KNEE, GH), lean = mv ? 0.05 * A : 0;
     const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-    const pc = (im, y0, y1, oy, sh, ay) => {
-      const sy = y0 * cs, shh = (y1 - y0) * cs;
-      ctx.save(); ctx.translate(dx, dy);
-      if (sh) { const ty = ay * cs * ky; ctx.translate(0, ty); ctx.transform(1, 0, sh, 1, 0, 0); ctx.translate(0, -ty); }
-      ctx.drawImage(im, 0, sy, im.width, shh, 0, sy * ky + oy * cs * ky, im.width * kx, shh * ky); ctx.restore();
+    const P = (im, y0, y1, o) => {   // im 의 y0~y1 줄(가로 sx0~sx1 점)을 (축 px 점, py 칸) 기준으로 ang 돌려 (ox 점, oy 칸) 옮겨 그림
+      o = o || {}; const sy0 = y0 * cs, shh = (y1 - y0) * cs; if (shh <= 0) return;
+      const sx0 = Math.max(0, o.sx0 != null ? o.sx0 : 0), sw = Math.min(im.width, o.sx1 != null ? o.sx1 : im.width) - sx0; if (sw <= 0) return;
+      const pX = (o.px != null ? o.px : LB.mid) * kx, pY = (o.py != null ? o.py : y0) * cs * ky;
+      ctx.save(); ctx.translate(dx + pX + (o.ox || 0) * kx, dy + pY + (o.oy || 0) * cs * ky); if (o.ang) ctx.rotate(o.ang);
+      ctx.drawImage(im, sx0, sy0, sw, shh, sx0 * kx - pX, sy0 * ky - pY, sw * kx, shh * ky); ctx.restore();
     };
-    const lg = s * 0.32 * A;
-    ctx.save(); try { ctx.filter = 'brightness(0.78)'; } catch (e) { /* noop */ }
-    pc(body, HIP, GH, bob, lg, HIP); ctx.restore();                 // 뒷다리 (조금 어둡게)
-    pc(body, 0, HIP, bob, 0, 0);                                     // 머리·몸통
-    pc(body, HIP, GH, bob, -lg, HIP);                                // 앞다리
-    pc(arm, SHO - 1, GH, bob, mv ? s * 0.3 * A : 0, SHO);            // 가까운 팔
+    const top = LB.skirt ? KNEE : HIP;   // 몸통에 붙여 그대로 그리는 아래 끝
+    const leg = (ph, x0, x1) => {   // 다리 하나 = 허벅지(엉덩이 축) + 종아리(무릎 축) · th < 0 = 앞으로 · kn = 무릎 굽힘
+      const cx = (x0 + x1) / 2, th = mv ? (LB.skirt ? -0.3 : -0.34) * Math.sin(ph) * A : 0, kn = mv ? 0.5 * Math.max(0, Math.cos(ph)) * A : 0;
+      if (LB.skirt) { P(body, KNEE - 0.2, GH, { sx0: x0, sx1: x1, px: cx, py: KNEE, oy: bob - (mv ? 0.35 * Math.max(0, Math.cos(ph)) * A : 0), ang: th + kn * 0.5 }); return; }
+      const L = (KNEE - HIP) * cs * ky, kxp = -Math.sin(th) * L, kyp = Math.cos(th) * L - L;
+      P(body, KNEE - 0.3, GH, { sx0: x0, sx1: x1, px: cx, py: KNEE, ox: kxp / kx, oy: bob + kyp / (cs * ky) - (mv ? 0.3 * Math.max(0, Math.cos(ph)) * A : 0), ang: th + kn * 0.85 });
+      P(body, HIP, KNEE + 0.4, { sx0: x0, sx1: x1, px: cx, py: HIP, oy: bob, ang: th });
+    };
+    // 다리 자리 바깥(칼끝·손 등)은 몸통과 함께 그대로
+    if (LB.ok) { P(body, top, GH, { sx0: 0, sx1: LB.a, py: HIP, oy: bob }); P(body, top, GH, { sx0: LB.b, sx1: body.width, py: HIP, oy: bob }); }
+    if (LB.ok) leg(p + Math.PI, LB.mid, LB.b);                       // 뒤쪽 다리 (그림 오른쪽)
+    P(body, 0, top + 0.6, { py: HIP, oy: bob, ang: lean });          // 머리·몸통 (앞으로 살짝 기울임)
+    if (LB.ok) leg(p, LB.a, LB.mid);                                 // 앞쪽 다리
+    else P(body, top, GH, { py: HIP, oy: bob });                      // 다리를 못 나누면 그대로 (넷으로 보이지 않게)
+    const aa = mv ? 0.5 * Math.sin(p) * A : 0.04 * br;               // 가까운 팔: 앞쪽 다리와 반대로
+    P(arm, SHO - 1, GH, { py: SHO, oy: bob, ang: aa + lean, px: LB.mid + (opt.armDx || 0) });
     ctx.imageSmoothingEnabled = sm;
+  }
+  // 옆모습 다리 나누기: 종아리·신발 줄(KNEE~발)에서 다리 자리 [a, b] 와 두 다리 사이 가장 얇은 곳(mid) · 허벅지 줄이 훨씬 넓으면 치마 · 그림마다 한 번
+  const legSp = new WeakMap();
+  function legSplit(im, cs, hip, knee, gh) {
+    let v = legSp.get(im); if (v) return v;
+    v = { mid: im.width / 2, a: 0, b: im.width, ok: false, skirt: false };
+    try {
+      const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+      const W2 = im.width, cnt = (y0, y1) => { const ya = Math.round(y0 * cs), yb = Math.max(ya + 1, Math.round(y1 * cs)), d = x.getImageData(0, ya, W2, yb - ya).data, col = new Array(W2).fill(0);
+        for (let y = 0; y < yb - ya; y++) for (let i = 0; i < W2; i++) if (d[(y * W2 + i) * 4 + 3] > 60) col[i]++; return { col, h: yb - ya }; };
+      const span = (r, f) => { let a = W2, b = -1; r.col.forEach((n, i) => { if (n > r.h * f) { if (i < a) a = i; if (i > b) b = i; } }); return [a, b]; };
+      const lo = cnt(knee + 0.3, gh - 1.2), [a, b] = span(lo, 0.2);
+      if (b - a >= 3 * cs) {
+        let best = -1, bv = 1e9; for (let i = Math.round(a + (b - a) * 0.35); i <= Math.round(a + (b - a) * 0.65); i++) if (lo.col[i] < bv) { bv = lo.col[i]; best = i; }
+        const th = cnt(hip + 0.5, knee - 0.5), [ta, tb] = span(th, 0.3);
+        v = { mid: best + 0.5, a: Math.max(0, Math.min(a, ta) - 1), b: Math.min(W2, Math.max(b, tb) + 2), ok: true, skirt: tb - ta > (b - a) * 1.35 };
+      }
+    } catch (e) { /* noop */ }
+    legSp.set(im, v); return v;
   }
   function draw(ctx, av, x, y, scale, opt) {
     opt = opt || {};
