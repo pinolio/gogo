@@ -384,9 +384,22 @@
     map.startR = { x: (w - 2.5) * TS, y: (mid + 1) * TS };
     // v150 18번 사냥터 위쪽: 숨은 던전 입구(dg_ruin) + 글씨 새긴 바위 — 길은 따로 안 뚫고 입구 아래만 풀밭으로 비움
     if (D.SASIN && D.SASIN.on && id === D.SASIN.gateMap) {
-      const DG = DUNGEON.dg_ruin, x0 = (w >> 1) - 3, y0 = 1, di = 2;
+      const DG = DUNGEON.dg_ruin, x0 = (w >> 1) - 3, y0 = 2, di = 2, rr = seeded('sxgate-' + id), X0 = x0 - 6, X1 = x0 + 12, Y1 = y0 + 9;   // v151 선생님 11/16: 지도 12시 방향 숲속에 숨은 입구 (길은 그대로 왼→오)
+      // 입구 둘레의 연못 그림은 치움 (숲으로 덮음)
+      map.ponds = (map.ponds || []).filter(pd => { const T = POND[pd.k].t, tw = T[0].length, th = T.length; if (pd.x + tw < X0 || pd.x > X1 || pd.y > Y1) return true; for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++) { const v = at(pd.x + i, pd.y + j); if (v === 4 || v === 12) set(pd.x + i, pd.y + j, 0); } return false; });
       DG.t.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'X') set(x0 + i, y0 + j, 10); else if (ch === 'D') set(x0 + i, y0 + j, 13); else if (ch === 'r') set(x0 + i, y0 + j, 12); }));
-      for (let y = y0 + DG.t.length; y < h - 2 && at(x0 + di, y) !== 1; y++) for (let x = x0 + di - 1; x <= x0 + di + 1; x++) if (SOLID[at(x, y)] || at(x, y) === 4) set(x, y, 0);
+      // 입구에서 큰길까지 구불구불한 좁은 오솔길 (풀밭 칸 · 폭 2)
+      const trail = new Set(); let tx2 = x0 + di;
+      for (let y = y0 + DG.t.length; y < h - 2 && at(tx2, y) !== 1 && at(tx2 + 1, y) !== 1; y++) {
+        if (y > y0 + DG.t.length + 1 && rr() < 0.45) tx2 = Math.max(x0 - 3, Math.min(x0 + 7, tx2 + (rr() < 0.5 ? -1 : 1)));
+        for (let x = tx2; x <= tx2 + 1; x++) { if (at(x, y) !== 1) set(x, y, 0); trail.add(x + ',' + y); }
+      }
+      // 입구 둘레를 빽빽한 숲으로 (오솔길·입구 칸은 비움)
+      for (let y = y0; y <= Y1; y++) for (let x = X0; x <= X1; x++) {
+        const v = at(x, y); if (v !== 0 && v !== 5) continue; if (trail.has(x + ',' + y)) continue;
+        if (x >= x0 && x < x0 + 6 && y < y0 + DG.t.length + 1) continue;
+        if (rr() < 0.62) set(x, y, rr() < 0.8 ? 2 : 3);
+      }
       map.dgs = [{ k: 'dg_ruin', x: x0, y: y0, to: D.SASIN.entry, sx: true }];
       const rx = x0 + 8, ry = y0 + 3; set(rx, ry + 1, 3); set(rx + 1, ry + 1, 3); for (let y = ry - 1; y <= ry + 3; y++) for (let x = rx - 1; x <= rx + 2; x++) if (at(x, y) === 2 || (at(x, y) === 3 && y !== ry + 1)) set(x, y, 0);
       map.sxRock = { tx: rx, ty: ry, x: (rx + 1) * TS, y: (ry + 2) * TS, text: D.SASIN.rock };
@@ -620,10 +633,11 @@
    *  · 얼음(r5_water): 눈 테두리 + 밝은 얼음 가장자리 · 독늪(r2_water): 이끼 테두리 + 연두 거품 가장자리 */
   function softPool(x, map, pat, nz, tex) {
     const { w, h, at } = map, P = 4, GW = w * TS / P, GH = h * TS / P, S2 = 0.95 * 0.95;
-    const kind = tex === 'r5_water' ? 'ice' : tex === 'r2_water' ? 'poison' : 'lava';
+    const kind = tex === 'r5_water' ? 'ice' : tex === 'r2_water' ? 'poison' : tex === 'r8_water' || map.M.hell ? 'lava' : 'water';   // v152 그 밖 = 맑은 물(이끼 돌 테두리)
     const C = { lava: { rim: '#2A1712', rim2: '#4A2A1E', edge: 'rgba(255,190,70,', deep: 'rgba(60,0,0,', flow: ['#FFE45C', '#FFB13D'] },
                 ice: { rim: '#EAF6FF', rim2: '#B9DDF2', edge: 'rgba(255,255,255,', deep: 'rgba(0,40,90,', flow: null },
-                poison: { rim: '#14301A', rim2: '#2E5A2A', edge: 'rgba(170,255,90,', deep: 'rgba(0,25,10,', flow: null } }[kind];
+                poison: { rim: '#14301A', rim2: '#2E5A2A', edge: 'rgba(170,255,90,', deep: 'rgba(0,25,10,', flow: null },
+                water: { rim: '#3E4A36', rim2: '#6A7452', edge: 'rgba(225,250,255,', deep: 'rgba(0,30,80,', flow: null } }[kind];
     let any = false; for (let i = 0; i < w * h && !any; i++) if (map.t[i] === 4) any = true; if (!any) return;
     // 1) 점마다 값 (칸 가운데에서의 거리로 · 1 = 웅덩이 한가운데, 0.5 = 칸 경계 쯤)
     const F = new Float32Array(GW * GH), F0 = Math.PI * S2;
@@ -673,7 +687,7 @@
     const { w, h, R, at } = map, [c, x] = mk(w * TS, h * TS), rnd = seeded('paint-' + map.id), nz = noise2('nz-' + map.id);
     const px = (X, Y, ww, hh, col) => { x.fillStyle = col; x.fillRect(X, Y, ww, hh); };
     const isPath = v => v === 1 || v === 7, G0 = R.ground[0], G1 = R.ground[1], dark = shade(G0, -0.18), light = shade(G0, 0.16);
-    map.water = []; map.objs = []; map.glows = [];
+    map.water = []; map.objs = (map.objs || []).filter(o => o.sign); map.glows = [];   // v151 고침: 재질 그림을 다 받아 다시 그릴 때 비석·입구 바위(sign)가 사라지던 것
     // v80 Meshy 재질 그림 (땅·길·물 192px 이어 붙는 무늬). 아직 안 불러왔으면 옛 색 무늬로 그리고, 다 불러오면 다시 그림
     const TX = texOf(map), NEED = TX.concat((map.ponds || []).map(p => p.k), (map.dgs || []).map(d => d.k)), ok = NEED.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
     if (!ok && !map.texWait) {   // v82 고침: 이미 받은 그림은 기다릴 수에서 빼야 함 (전에는 하나라도 먼저 받아져 있으면 영영 다시 안 그렸음)
@@ -720,7 +734,7 @@
     }
     if (map.roads) drawRoads(x, map, ok ? pat : null, rnd, nz);
     // 3) 물: 깊이에 따라 진하게 · 물가 모래 테두리 · 위쪽 물보라
-    const W0 = R.water, soft = !!map.M.hell;   // v135 저승 용암·얼음·독늪 = 부드러운 웅덩이 (네모 칸 대신)
+    const W0 = R.water, soft = !!(map.M.hell || map.M.sx);   // v152 사신의 땅 길 연못도 부드럽게   // v135 저승 용암·얼음·독늪 = 부드러운 웅덩이 (네모 칸 대신)
     if (soft) softPool(x, map, ok ? pat[2] : null, nz, TX[2]);
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       if (at(tx, ty) !== 4) continue;
@@ -759,6 +773,7 @@
     // 5) 나무·바위 → 그림 조각 + 땅 그림자
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       const v = at(tx, ty); if (v !== 2 && v !== 3) continue;
+      if (map.M.def && map.M.def.art) continue;   // v152 그림 지도(사방신·회합·전당) = 테두리는 막혀 있되 나무·바위는 안 그림
       const kind = v === 2 ? R.block : R.block2, vr = Math.floor(rnd() * 3), spr = blockSprite(kind, vr, R);
       x.fillStyle = 'rgba(0,0,0,.22)'; x.beginPath(); x.ellipse(tx * TS + 16, ty * TS + 28, 15, 6, 0, 0, Math.PI * 2); x.fill();
       map.objs.push({ img: spr, x: tx * TS - 16, y: ty * TS - 40, sy: (ty + 1) * TS - 2, kind, tx, ty, alt: 'obj_r' + map.M.region + '_' + (v === 2 ? 1 : 2), alt2: map.M.hell ? null : envPick(map.M.region, v, tx, ty) });
@@ -1108,6 +1123,13 @@
     WP_ANG = { sword: { 0: 32, c: 40, a: 75 }, staff: { 0: 18, c: 32, a: 45 } },   // 자세별 기울기(도)
     HAND = { 0: [0, 0], 1: [0, 1], 3: [0, -1], c: [0, -6.5], a: [1, -2] };   // 자세별 무기 쥔 손 위치 (서 있을 때 기준, 칸)   // 무기 그림 · 손에 들 때 높이·아래 끝(칸)
   const swBoxC = {};
+  /* v151 선생님 11/15: 왕을 죽인 검을 손에 든 모양 — 광개토대왕의 전당 안 = 화려한 검(ic_sw_kingh) · 밖 = 허술한 검(ic_sw_kingp) (Gemini 아이콘을 칼끝이 위로 가게 세운 그림) */
+  const kingWp = wp => !!(wp && (wp.kingSword || (D.ITEMS[wp.base] || {}).kingSword));
+  const kingKey = () => (window.GoRPGKingRoom ? 'K' : 'k') + (img79('ic_sw_kingh') ? 1 : 0) + (img79('ic_sw_kingp') ? 1 : 0);
+  function wpPick(wp) {
+    if (kingWp(wp)) { const nm = window.GoRPGKingRoom ? 'ic_sw_kingh' : 'ic_sw_kingp', im = img79(nm); if (im) return { nm, im, one: true }; }
+    const nm = WP_IC[wp.look]; return { nm, im: nm && imgOk(nm), one: false };
+  }
   function swBox(im, n, nm) {   // v99 무기 그림 칸(80×80)에서 실제 그림이 있는 범위
     const ck = nm + n; if (swBoxC[ck]) return swBoxC[ck];
     const [t, tx] = mk(80, 80); tx.drawImage(im, n * 80, 0, 80, 80, 0, 0, 80, 80);
@@ -1153,16 +1175,16 @@
   function dirSprite(av, eq, hide, view, part) {
     const bodyI = bodyOf(av, view, eq, hide);
     if (!bodyI) return blankSp(view === 's' ? 2 : 2);   // v120 몸 그림을 받는 중이면 잠깐 빈 그림 (도트 안 씀)
-    const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!bodyI, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!bodyI, kingKey(), !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const k = 2, side = view === 's', arm = part === 'arm', noArm = part === 'noArm';
-    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 9 * k : 0;
+    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], WPK = wp && wpPick(wp), wIc = WPK && WPK.nm, swI = WPK && WPK.im, PAD = swI ? 9 * k : 0;
     const hmIt = !hide && eq && eq.helmet && D.ITEMS[eq.helmet], hmNm = hmIt && (view === 'b' && imgOk('ic_hm_b') ? 'ic_hm_b' : side && imgOk('ic_hm_s') ? 'ic_hm_s' : 'ic_hm'), hmI = hmIt && imgOk(hmNm);   // v107 투구 뒷모습·옆모습 그림
     const [c, x] = mk(GW * k + PAD * 2, GH * k);
     const nOf = o => (o.legend ? 9 : o.rare ? 10 + o.tier : o.tier);
     const CX = side ? 9.4 : 8.875;   // 몸 가운데 (칸)
     const drawWeapon = () => {
-      const n = nOf(wp), b = swBox(swI, n, wIc), [hc, gf] = WP_SZ[wp.look];
+      const n = WPK.one ? 0 : nOf(wp), b = swBox(swI, n, wIc), [hc, gf] = WP_SZ[wp.look];
       const hx = (side ? 9.9 : 12.75) * k + PAD, hy = 18.5 * k;
       let hh = hc * k, ww = Math.max(1, Math.round(b.w * hh / b.h)); if (ww > 13 * k) { hh = Math.round(hh * 13 * k / ww); ww = 13 * k; }
       x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
@@ -1213,13 +1235,13 @@
     if (view === 'b' || view === 's') return dirSprite(av, eq, hide, view, part);
     const bodyI = bodyOf(av, 'f', eq, hide);
     if (!bodyI) return blankSp(2);   // v120
-    const key = JSON.stringify([av, hide ? {} : eq, frame, !!bodyI, !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    const key = JSON.stringify([av, hide ? {} : eq, frame, !!bodyI, kingKey(), !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
     frame = leg;
     const k = 2;   // v120 몸은 늘 새 몸 그림 (예전 도트 몸·도트 장비 칸 그리기는 뺐음)
     // v99 손에 든 검 · v100 지팡이 = 새 그림 (img/ic_sw.png · ic_st.png). 그림이 넓어서 양옆을 PAD 만큼 넓힘 (가운데는 그대로)
-    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], wIc = wp && WP_IC[wp.look], swI = wIc && imgOk(wIc), PAD = swI ? 9 * k : 0;
+    const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], WPK = wp && wpPick(wp), wIc = WPK && WPK.nm, swI = WPK && WPK.im, PAD = swI ? 9 * k : 0;
     const hmI = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] && imgOk('ic_hm');   // v100 투구 = 새 그림 (머리 전체를 덮음 · 머리칼이 삐져나오지 않게 머리 줄은 비움)
     const [c, x] = mk(GW * k + PAD * 2, GH * k);
     drawBody(x, bodyI, 8.875 * k + PAD, k);   // v112 새 기본 몸 그림   // v108 머리 줄을 비우지 않음 (투구 안 얼굴)
@@ -1248,7 +1270,7 @@
       hmDraw(x, hmI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), Math.round(by - hh), ww, hh, [5.5 * k + PAD, 6.5 * k, 12.5 * k + PAD, 10 * k]);   // v108 눈구멍 투명 · 조금 크게
     }
     if (swI) {   // v101 손잡이를 손에 맞춰 쥐게 하고, 손은 무기 위에 다시 그려 '잡은' 모양으로
-      const n = wp.legend ? 9 : wp.rare ? 10 + wp.tier : wp.tier, b = swBox(swI, n, wIc), [hc, gf] = WP_SZ[wp.look];
+      const n = WPK.one ? 0 : wp.legend ? 9 : wp.rare ? 10 + wp.tier : wp.tier, b = swBox(swI, n, wIc), [hc, gf] = WP_SZ[wp.look];
       const o = HAND[pose] || HAND[0], hx = (12.75 + o[0]) * k + PAD, hy = (18.5 + o[1]) * k;   // 무기 쥔 손의 가운데 (칸 → 그림 점)
       const hb = [Math.round(hx - 4 * k / 2), Math.round(hy - 4 * k / 2), 4 * k, 4 * k], [hc2, hx2] = mk(hb[2], hb[3]);
       hx2.drawImage(c, hb[0], hb[1], hb[2], hb[3], 0, 0, hb[2], hb[3]);   // 손 부분 따로 떠 두기
@@ -1266,6 +1288,10 @@
   function itemImg(id) {
     const it = D.ITEMS[id]; if (!it) return '';
     if (it.base) return itemImg(it.base);   // v60 장비 하나하나(g:…) 는 기본 장비 그림을 같이 씀
+    if (it.icon79 || (D.ITEMS[it.base] || {}).icon79) {   // v151 따로 그린 아이콘 (광개토대왕의 반지 ic_rg_king · Gemini) — 그림이 있을 때만
+      const nm = it.icon79 || D.ITEMS[it.base].icon79, im = img79(nm);
+      if (im) { if (icC[nm]) return icC[nm]; const [c2, x2] = mk(80, 80); x2.drawImage(im, 0, 0, 80, 80); return (icC[nm] = c2.toDataURL()); }
+    }
     if (it.kingSword) {   // v150 왕을 죽인 검: 평소 허술한 검 · 광개토대왕의 전당 안에서는 화려한 검 (선생님 Gemini 그림)
       const nm = window.GoRPGKingRoom ? 'ic_sw_king2' : 'ic_sw_king', im = imgOk(nm) || img79(nm);
       if (im) { if (icC[nm]) return icC[nm]; const [c2, x2] = mk(80, 80); x2.drawImage(im, 0, 0, 80, 80); return (icC[nm] = c2.toDataURL()); }

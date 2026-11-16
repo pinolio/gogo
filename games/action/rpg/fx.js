@@ -294,8 +294,17 @@
   }
   // v146 방향을 돌려 그릴 때 왼쪽(또는 바로 위)으로 쓰면 그림이 뒤집혀 보이던 것 → 위아래를 다시 뒤집어 '위쪽'이 늘 화면 위쪽이 되게
   function upright(c, ang) { const cs = Math.cos(ang); if (cs < -1e-6 || (Math.abs(cs) <= 1e-6 && Math.sin(ang) < 0)) c.scale(1, -1); }
-  function slash(x, y, dx, dy, staff) {
+  function slash(x, y, dx, dy, staff, king) {
     const ang = Math.atan2(dy, dx), col = staff ? PAL.dark : ['#FFFFFF', '#E8EEFF', '#B8C4FF', '#6A7AD0'];
+    if (king) {   /* v151 왕을 죽인 검(광개토대왕의 전당 안): 금빛·불꽃 빛 꼬리 — 더 넓고 오래 남는 세 겹 호 + 불티 */
+      add({ dur: 0.34, draw(c, k) {
+        c.globalCompositeOperation = 'lighter'; c.translate(x, y); c.rotate(ang); upright(c, ang); const a0 = -1.6 + Math.min(1, k * 1.7) * 2.0, span = 2.0;
+        [[58, 18, '#FF4A1A', 0.55], [56, 10, '#FFB13D', 0.85], [55, 4, '#FFFFFF', 1]].forEach(([r, lw, cc, al]) => { c.globalAlpha = (1 - k) * al; c.strokeStyle = cc; c.lineWidth = lw * (1 - k * 0.5); c.beginPath(); c.arc(0, 0, r, a0 - span * (0.35 + 0.65 * (1 - k)), a0); c.stroke(); });
+        c.globalAlpha = (1 - k) * 0.6; const tip = a0; drawGlow(c, Math.cos(tip) * 56, Math.sin(tip) * 56, 22, '#FFD23F', 0.9);
+      } });
+      for (let i = 0; i < 10; i++) { const a = ang + rand(-1.1, 0.9), r = rand(30, 60); emit({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, vx: Math.cos(a) * rand(40, 120), vy: Math.sin(a) * rand(40, 120) - 40, g: 120, life: rand(0.35, 0.7), size: rand(2, 4), color: ['#FFD23F', '#FF8A3D', '#FFFFFF', '#FF4A1A'][i % 4], shape: 'glow', add: true }); }
+      return;
+    }
     add({ dur: 0.18, draw(c, k) {
       c.globalCompositeOperation = 'lighter'; c.translate(x, y); c.rotate(ang); upright(c, ang); const a0 = -1.3 + k * 1.6;   // v146 왼쪽 공격도 위→아래로 휘두름
       [[44, 10, col[2]], [44, 4, col[0]]].forEach(([r, lw, cc]) => { c.globalAlpha = 1 - k; c.strokeStyle = cc; c.lineWidth = lw; c.beginPath(); c.arc(0, 0, r, a0, a0 + 1.6); c.stroke(); });

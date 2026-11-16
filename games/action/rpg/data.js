@@ -318,7 +318,7 @@
   ITEMS.swKing = { id: 'swKing', slot: 'weapon', name: '왕을 죽인 검', tier: 8, rare: false, legend: false, req: 80, st: { atk: 120 }, price: Math.round(20 + 80 * 80 * 0.9), look: 'sword', kingSword: true,
     desc: '어디선가 굴러들어온 검.', descKing: '어느 날 광개토대왕을 죽인 검.' };
   ITEMS.rgKing = { id: 'rgKing', slot: 'ring', name: '광개토대왕의 반지', tier: 9, rare: true, legend: true, req: 100, st: { mp: Math.round(ITEMS.rg10.st.mp * 1.2), mag: Math.round(ITEMS.rg10.st.mag * 1.2) }, price: ITEMS.rg10.price * 2,
-    noTrade: true, desc: '사방신을 거느린 대왕의 반지. 잡을 때마다 하나씩.', goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'] };
+    noTrade: true, icon79: 'ic_rg_king', desc: '사방신을 거느린 대왕의 반지. 잡을 때마다 하나씩.', goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'] };
 
   /* ---------------- v60 장비 옵션 (떨어질 때 무작위로 붙음) ----------------
    *  max = 가장 높은 단계(전설)에서 나올 수 있는 최댓값(%). 낮은 단계일수록 작게: max × (0.25 + 0.75 × 단계/9) × (0.2~1)
@@ -569,7 +569,7 @@
     const W2 = 40, H2 = 28, OPP2 = { u: 'd', d: 'u', l: 'r', r: 'l' };
     // 엑셀 배치 (행 0 = 맨 위) · id · 이름 · 종류
     const cells = [
-      ['sx_king', 3, 0, '광개토대왕의 전당', 'king'], ['sx_all', 3, 1, '사신의 회합', 'all'], ['sx_npc', 3, 2, '사신의 땅 어귀', 'npc'],
+      ['sx_king', 3, 0, '광개토대왕의 전당', 'king'], ['sx_all', 3, 1, '사신의 회합', 'all'], ['sx_npc', 3, 2, '광개토대왕 던전 어귀', 'npc'],
       ['sx_cr', 0, 3, '청룡의 숲', 'cr'], ['sx_p1', 1, 3, '동쪽 신목길', 'path'], ['sx_p2', 2, 3, '푸른 비늘 고개', 'path'], ['sx_x1', 3, 3, '사신의 갈림길', 'path'], ['sx_p3', 4, 3, '붉은 깃 언덕', 'path'], ['sx_p4', 5, 3, '불새의 재 들판', 'path'], ['sx_jj', 6, 3, '주작의 화원', 'jj'],
       ['sx_v1', 3, 4, '네 바람의 길', 'path'],
       ['sx_bh', 0, 5, '백호의 바위산', 'bh'], ['sx_p5', 1, 5, '흰 발톱 골짜기', 'path'], ['sx_p6', 2, 5, '서쪽 쇠바위길', 'path'], ['sx_x2', 3, 5, '아래 갈림길', 'path'], ['sx_p7', 4, 5, '검은 물가', 'path'], ['sx_p8', 5, 5, '거북 등 늪', 'path'], ['sx_hm', 6, 5, '현무의 깊은 못', 'hm'],
@@ -578,9 +578,25 @@
     const at = {}; cells.forEach(c => { at[c[1] + ',' + c[2]] = c[0]; });
     // 바닥 재질 · 지역(나무·바위 모양) — 길은 자수정 동굴(용굴), 사방신 방은 신의 색
     const LOOK = { path: ['sx', 6], npc: ['sx', 6], all: ['sxa', 6], king: ['sxk', 8], cr: ['sxb', 1], jj: ['sxr', 8], bh: ['sxw', 5], hm: ['sxd', 2] };
-    // 길 칸 몬스터 (지금 있는 몬스터 · Lv.150 · 칸마다 2종 섞어 18마리)
-    const MOB = { sx_v3: ['f61', 'f62'], sx_v2: ['f63', 'f65'], sx_x2: ['f66', 'f67'], sx_v1: ['f71', 'f72'], sx_x1: ['f73', 'f74'],
-      sx_p1: ['f12', 'f14'], sx_p2: ['f76', 'f77'], sx_p3: ['f81', 'f82'], sx_p4: ['f83', 'f84'], sx_p5: ['f53', 'f55'], sx_p6: ['f45', 'f48'], sx_p7: ['f23', 'f24'], sx_p8: ['f26', 'f86'] };
+    /* v151 선생님 11/15: 길 13칸 = 칸마다 다른 바닥·숲·바위·연못 + 몬스터 3종(19마리) · 난이도 Lv.150(입구) → 190(사방신 방 바로 앞)
+     *  사방신 방 바로 앞 칸은 그 신의 땅: 청룡 앞 = 푸른 숲(천둥) · 주작 앞 = 불 맵(용암) · 백호 앞 = 흙빛 바위산 · 현무 앞 = 물 많은 늪
+     *  tex = 바닥 그림(없으면 지역 region 의 바닥) · region = 나무·바위 모양 · tree/rock = 무더기 수 · pond = 연못 수 */
+    const GOD_ART = ['cr', 'jj', 'bh', 'hm'];   // v151 사방신 방 그림 지도(img/v79/arena_sx_cr·jj·bh·hm.png, Gemini)가 들어온 방 — 그림을 넣으면 'cr' 등을 적음
+    const PATH = {
+      sx_v3: { tex: 'sx', region: 6, lv: 150, mob: ['f61', 'f62', 'f63'], tree: 3, rock: 12, pond: 1 },   // 숨은 동굴 안 — 자수정 동굴
+      sx_v2: { region: 4, lv: 155, mob: ['f41', 'f44', 'f47'], tree: 5, rock: 12, pond: 1 },               // 잊힌 비석 길 — 바위 고개
+      sx_x2: { region: 1, lv: 160, mob: ['f11', 'f17', 'f19'], tree: 16, rock: 4, pond: 2 },               // 아래 갈림길 — 깊은 숲
+      sx_v1: { region: 7, lv: 165, mob: ['f71', 'f72', 'f77'], tree: 9, rock: 3, pond: 4 },                // 네 바람의 길 — 구름 들판 · 연못
+      sx_x1: { region: 0, lv: 170, mob: ['f65', 'f67', 'f78'], tree: 10, rock: 5, pond: 3 },               // 사신의 갈림길 — 들판
+      sx_p2: { region: 1, lv: 178, mob: ['f12', 'f13', 'f14'], tree: 16, rock: 3, pond: 2 },               // 푸른 비늘 고개 — 숲
+      sx_p1: { tex: 'sxb', region: 1, lv: 190, mob: ['f76', 'f87', 'f19'], tree: 14, rock: 4, pond: 3 },   // 동쪽 신목길 — 청룡 앞 (푸른 숲 · 천둥 도깨비 · 새끼 용)
+      sx_p3: { region: 3, lv: 178, mob: ['f34', 'f35', 'f37'], tree: 6, rock: 8, pond: 1 },                // 붉은 깃 언덕 — 메마른 협곡
+      sx_p4: { region: 8, lv: 190, mob: ['f82', 'f83', 'f85'], tree: 6, rock: 8, pond: 7 },                // 불새의 재 들판 — 주작 앞 (불 맵 · 용암 웅덩이)
+      sx_p6: { region: 4, lv: 178, mob: ['f42', 'f45', 'f49'], tree: 5, rock: 13, pond: 1 },               // 서쪽 쇠바위길 — 바위산
+      sx_p5: { tex: 'sxw', region: 4, lv: 190, mob: ['f65', 'f11', 'f28'], tree: 4, rock: 16, pond: 1 },   // 흰 발톱 골짜기 — 백호 앞 (흙빛 바위 · 늑대)
+      sx_p7: { region: 2, lv: 178, mob: ['f21', 'f23', 'f27'], tree: 9, rock: 4, pond: 4 },                // 검은 물가 — 갈대늪
+      sx_p8: { tex: 'sxd', region: 2, lv: 190, mob: ['f24', 'f52', 'f58'], tree: 6, rock: 3, pond: 9 }     // 거북 등 늪 — 현무 앞 (물 많은 늪 · 빙하 전갈)
+    };
     function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
     function grid(id, ex, kind) {
       const r = seeded('sx-' + id), t = new Array(W2 * H2).fill(0), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < W2 && y < H2) t[y * W2 + x] = v; }, get = (x, y) => t[y * W2 + x];
@@ -591,7 +607,7 @@
         if (sd === 'u' || sd === 'd') { for (let x = cx - 3; x <= cx + 2; x++) for (let k = 0; k < 3; k++) set(x, sd === 'u' ? k : H2 - 1 - k, 0); for (let y = Math.min(sd === 'u' ? 0 : cy, cy); y <= (sd === 'u' ? cy : H2 - 1); y++) for (let x = cx - 1; x <= cx; x++) set(x, y, 1); }
         else { for (let y = cy - 3; y <= cy + 2; y++) for (let k = 0; k < 3; k++) set(sd === 'l' ? k : W2 - 1 - k, y, 0); for (let x = (sd === 'l' ? 0 : cx); x <= (sd === 'l' ? cx : W2 - 1); x++) for (let y = cy - 1; y <= cy; y++) set(x, y, 1); }
       });
-      if (kind === 'all' || kind === 'king') return t;   // v150 선생님 Gemini 지도 그림을 쓰는 방 — 테두리·출구만 (기둥·바위는 그림에 있음)
+      if (kind === 'all' || kind === 'king' || GOD_ART.includes(kind)) return t;   // v151 사방신 방도 그림 지도가 들어오면 (GOD_ART) 테두리·출구만   // v150 선생님 Gemini 지도 그림을 쓰는 방 — 테두리·출구만 (기둥·바위는 그림에 있음)
       if (boss) {   // 보스 방: 가운데 넓은 마당 (돌기둥 네 개)
         for (let y = cy - 7; y <= cy + 6; y++) for (let x = cx - 11; x <= cx + 10; x++) if (get(x, y) !== 1) set(x, y, 0);
         [[-9, -5], [8, -5], [-9, 4], [8, 4]].forEach(([dx, dy]) => set(cx + dx, cy + dy, 3));
@@ -599,21 +615,22 @@
       // 바위·나무 무더기 · 물웅덩이 (길과 출구 앞은 비움)
       const near = (x, y, d) => { for (let b = -d; b <= d; b++) for (let a = -d; a <= d; a++) if (get(clampI(x + a), clampJ(y + b)) === 1) return true; return false; };
       const clampI = v => Math.max(0, Math.min(W2 - 1, v)), clampJ = v => Math.max(0, Math.min(H2 - 1, v));
-      for (let k = 0; k < (boss ? 6 : 14); k++) {
-        const x0 = 4 + Math.floor(r() * (W2 - 8)), y0 = 4 + Math.floor(r() * (H2 - 8)), n = 2 + Math.floor(r() * 5), v = r() < 0.5 ? 2 : 3;
+      const P = PATH[id], nClu = boss ? 6 : P.tree + P.rock;
+      for (let k = 0; k < nClu; k++) {
+        const x0 = 4 + Math.floor(r() * (W2 - 8)), y0 = 4 + Math.floor(r() * (H2 - 8)), n = 2 + Math.floor(r() * 5), v = boss ? (r() < 0.5 ? 2 : 3) : (k < P.tree ? 2 : 3);
         if (boss && Math.abs(x0 - cx) < 13 && Math.abs(y0 - cy) < 9) continue;
         for (let i = 0; i < n; i++) { const x = x0 + Math.floor(r() * 3) - 1, y = y0 + Math.floor(r() * 3) - 1; if (get(x, y) === 0 && !near(x, y, 2)) set(x, y, v); }
       }
-      if (!boss) for (let k = 0; k < 2; k++) { const x0 = 6 + Math.floor(r() * (W2 - 12)), y0 = 5 + Math.floor(r() * (H2 - 10)); for (let y = y0 - 1; y <= y0 + 1; y++) for (let x = x0 - 2; x <= x0 + 2; x++) if (get(x, y) === 0 && !near(x, y, 2) && (Math.abs(x - x0) + Math.abs(y - y0)) < 3) set(x, y, 4); }
+      if (!boss) for (let k = 0; k < P.pond; k++) { const x0 = 7 + r() * (W2 - 14), y0 = 6 + r() * (H2 - 12), big = k % 2 === 0, rx = (big ? 3.2 : 2.2) + r() * 1.2, ry = (big ? 2.2 : 1.5) + r() * 0.8; for (let y = Math.floor(y0 - ry); y <= y0 + ry; y++) for (let x = Math.floor(x0 - rx); x <= x0 + rx; x++) if (get(x, y) === 0 && !near(x, y, 2) && ((x + 0.5 - x0) / rx) ** 2 + ((y + 0.5 - y0) / ry) ** 2 <= 1) set(x, y, 4); }   // v152 연못 = 둥근 타원 (world.js softPool 이 부드럽게 그림)
       for (let y = 2; y < H2 - 2; y++) for (let x = 2; x < W2 - 2; x++) if (get(x, y) === 0 && r() < 0.05) set(x, y, 5);   // 꽃(작은 빛 풀)
       return t;
     }
     const rows = cells.map(([id, cx, cy, name, kind]) => {
       const ex = {}; [['u', 0, -1], ['d', 0, 1], ['l', -1, 0], ['r', 1, 0]].forEach(([sd, dx, dy]) => { const to = at[(cx + dx) + ',' + (cy + dy)]; if (to) ex[sd] = to; });
       if (id === 'sx_v3') ex.d = 'f18';   // 맨 아래 → 18번 사냥터 (돌아가는 길만, 18번 쪽에는 길을 안 뚫음 · noBack)
-      const mons = kind === 'path' ? { list: MOB[id].map((f, i) => ({ f, lv: 150, n: i ? 6 : 12 })) } : {};
-      const [tex, region] = LOOK[kind];
-      return { id, name, data: { w: W2, h: H2, region, t: grid(id, ex, kind), exits: ex, mons, pub: true, noBack: id === 'sx_v3', sx: kind, tex, art: kind === 'all' ? 'arena_sx_all' : kind === 'king' ? 'arena_sx_king' : null, rec: kind === 'path' ? 150 : kind === 'king' ? 400 : kind === 'npc' ? 150 : 250, solo: true } };
+      const P = PATH[id], mons = P ? { list: P.mob.map((f, i) => ({ f, lv: P.lv, n: [8, 6, 5][i] })) } : {};
+      const [tex, region] = P ? [P.tex || null, P.region] : LOOK[kind];
+      return { id, name, data: { w: W2, h: H2, region, t: grid(id, ex, kind), exits: ex, mons, pub: true, noBack: id === 'sx_v3', sx: kind, tex, art: kind === 'all' ? 'arena_sx_all' : kind === 'king' ? 'arena_sx_king' : GOD_ART.includes(kind) ? 'arena_sx_' + kind : null, rec: P ? P.lv : kind === 'king' ? 400 : kind === 'npc' ? 150 : 250, solo: true } };
     });
     const B = (name, img, el, imm, light, colors, say, skills) => ({ name, img, h: 150, el, immune: imm, light, shape: 'golem', colors, kind: 'boss', say, skills });
     const SXF = k => ({ idle: 'sx_' + k, atk1: 'sx_' + k + '_atk', atk2: 'sx_' + k + '_atk', cast: 'sx_' + k + '_cast', hit: 'sx_' + k + '_hit' });   // v150 사방신 자세 그림 (Gemini · 공격·마법·맞음)
@@ -631,15 +648,16 @@
         bh: 380, aura: true, baseCol: '#FF4A3A', ax: 234 / 417, castAt: [0.39, 0.66], castCol: '#FF4A8A',
         frames: { idle: 'sx_king_idle', walk: ['sx_king_walk1', 'sx_king_walk2'], atk1: 'sx_king_atk1', atk2: 'sx_king_atk2', cast: 'sx_king_cast', hit: 'sx_king_hit' } })   // v149 선생님 11/15: 넉백(움찔·밀어내기)은 안 걸림 · 상태 이상(불·느려짐·기절·저주)은 왕을 죽인 검을 끼면 걸림
     };
+    ['cr', 'jj', 'bh', 'hm'].forEach(k => { boss[k].fxQ = 0.25; });   // v152 선생님 11/16: 사방신은 넉백·상태 이상이 1/4 만 걸림 (광개토대왕 noFx = 안 걸림 · 왕을 죽인 검을 끼면 1/4)
     const lv = { path: 150, god: 250, king: 400 };
     const rock = '돌에 새겨진 글씨: 이 너머는 한 번 생을 다시 산 자만 지날 수 있다.';
-    const npc = { name: '사신의 땅 지킴이', img: 'sx_npc', h: 70, color: '#9AE6FF', av: { skin: 's2', hair: 'h_long', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black', back: 'bk_cape' },
-      lines: ['여기는 네 신이 지키는 사신의 땅이다. 동쪽 청룡, 남쪽 주작, 서쪽 백호, 북쪽 현무가 저마다 자기 땅을 지키고 있지.',
+    const npc = { name: '광개토대왕 던전 지킴이', img: 'sx_npc', h: 70, color: '#9AE6FF', av: { skin: 's2', hair: 'h_long', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black', back: 'bk_cape' },
+      lines: ['여기는 광개토대왕 던전, 네 신이 지키는 땅이다. 동쪽 청룡, 남쪽 주작, 서쪽 백호, 북쪽 현무가 저마다 자기 땅을 지키고 있지.',
         '청룡에게는 번개가, 주작에게는 불이, 현무에게는 물이, 백호에게는 땅의 힘이 통하지 않는다. 다른 힘으로 맞서라.',
         '네 신을 모두 이기면 위쪽 문에 네 개의 불이 켜지고, 네 신이 한꺼번에 기다리는 방이 열린다.',
         '그 너머에는 광개토대왕께서 계신다. 그분께는 어떤 공격도 통하지 않는다고 하지… 준비가 다 된 자만 들어가라.'] };
     // on: false = 아직 숨김 (선생님 그림이 오면 true 로 · v150). 꺼져 있으면 지도 20장·18번 입구·39번 검 떨어짐이 모두 없음
-    return { on: false, rows, boss, lv, rock, npc, gateMap: 'f18', entry: 'sx_v3', home: 'f18', swordMap: 'f39', swordRate: { mob: 0.03, boss: 0.3 },
+    return { on: true, rows, boss, lv, rock, npc, gateMap: 'f18', entry: 'sx_v3', rockImg: 'sx_rock' /* v151 입구 바위 그림(img/v79/sx_rock.png)이 들어오면 'sx_rock' */, home: 'f18', swordMap: 'f39', swordRate: { mob: 0.03, boss: 0.3 },
       gods: ['cr', 'jj', 'bh', 'hm'], godName: { cr: '청룡', jj: '주작', bh: '백호', hm: '현무' }, fire: { cr: '#FFE45C', jj: '#FF4A3A', bh: '#B07A45', hm: '#3C78F0' } };
   })();
   // v131 환생: 저승 10-5(오도전륜대왕)를 깨면 할 수 있음 · Lv.1 로 돌아가고 환생마다 스탯 포인트 +20 · 장비·가방·골드는 그대로 · 마법은 기본 마법만 · 스탯마다 최대치 +10 · 최대 10번 · 10-5를 깰 때마다 한 번

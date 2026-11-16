@@ -1372,12 +1372,12 @@
           const id = regGear(u, S.gear[u]); const got = addItem(id, 1);
           S.petOpen.legend = 1; D.SASIN.gods.forEach(q => { S.sasin[q] = 0; }); S.sasinAll = 0;
           G.title = { t: 0, text: '광개토대왕을 이겼다!', sub: (got ? '광개토대왕의 반지를 얻었다 · ' : '가방이 가득 차서 반지를 못 받았어요… · ') + '이장 댁 펫 뽑기에 「전설」이 열렸어요' }; G.flash = 0.6; G.shake = 14; Fx.levelUp(G.px, G.py);
-          save(true); setTimeout(() => { if (!G.dead && inKingRoom()) { enter(SX.home, { from: SX.entry }); say('사신의 땅이 처음으로 돌아갔어요. 다시 사방신을 이기면 광개토대왕을 만날 수 있어요', 5); } }, 6000);
+          save(true); setTimeout(() => { if (!G.dead && inKingRoom()) { enter(SX.home, { from: SX.entry }); say('광개토대왕 던전이 처음으로 돌아갔어요. 다시 사방신을 이기면 광개토대왕을 만날 수 있어요', 5); } }, 6000);
           return;
         }
         if (m.def.allRoom) { if (G.mons.every(x => x.dead || !x.def.allRoom)) { S.sasinAll = 1; G.title = { t: 0, text: '사방신을 모두 이겼다!', sub: '위쪽 광개토대왕의 방이 열렸어요' }; G.flash = 0.5; save(true); } return; }
         S.sasin[g] = 1; const n = godsDone();
-        G.title = { t: 0, text: `${SX.godName[g]}을(를) 이겼다!`, sub: `사신의 땅 어귀 문에 ${SX.godName[g]}의 불이 켜졌어요 (${n}/4)` }; G.flash = 0.45;
+        G.title = { t: 0, text: `${SX.godName[g]}을(를) 이겼다!`, sub: `광개토대왕 던전 어귀 문에 ${SX.godName[g]}의 불이 켜졌어요 (${n}/4)` }; G.flash = 0.45;
         if (n === 4 && !S.petOpen.hero) { S.petOpen.hero = 1; setTimeout(() => say('사방신을 모두 이겼어요! 이장 댁 펫 뽑기에 「영웅」(청룡·주작·백호·현무)이 열렸어요', 5), 2500); }
         save(true);
       }
@@ -1463,20 +1463,21 @@
         const crit = Math.random() < ST.crit / 100; if (crit) dmg *= ST.critD || D.STAT.critDmg;
         dmg = Math.max(1, Math.round(dmg));
         if (m.dummy) return dummyHit(m, dmg, crit, weakHit, els);   // v144 훈련장 허수아비
-        m.hp -= dmg; m.flash = 0.12; m.aggro = true; m.knock = m.def.noFx ? 0 : (m.x < G.px ? -1 : 1) * (crit ? 6 : 3) * (m.boss ? 1 / 3 : 1); /* v146 보스는 맞아도 1/3 만 움찔 (선생님 11/14) · v149 광개토대왕은 안 움찔 */
+        m.hp -= dmg; m.flash = 0.12; m.aggro = true; const fq = m.def.noFx ? (kingSwordOn() ? 0.25 : 0) : (m.def.fxQ || 1); m.knock = fq === 0 || m.def.noFx ? 0 : (m.x < G.px ? -1 : 1) * (crit ? 6 : 3) * (m.def.fxQ || m.def.noFx ? fq : m.boss ? 1 / 3 : 1); /* v146 보스는 맞아도 1/3 만 움찔 (선생님 11/14) · v149 광개토대왕은 안 움찔 */
         const elc = els && els.length ? Fx.pal(els[0])[1] : '#FFFFFF';
         G.texts.push({ x: m.x + rand(-8, 8), y: m.y - m.spr.h - 4, text: (crit ? '치명! ' : '') + (weakHit ? '약점! ' : '') + dmg, color: crit ? '#FFD23F' : elc, t: 0, big: crit, dmg: true });
         Fx.hit(m.x, m.y - m.spr.h / 2, els, crit);
         if (crit) { G.shake = Math.max(G.shake, 4); G.hitstop = 0.05; }
         (els || []).forEach(e => {
           const fx = ELEM[e].fx;
-          if (m.def.noFx && (fx === 'push' || (fx !== 'holy' && !kingSwordOn()))) return;   // v149 광개토대왕: 넉백(밀어내기)은 늘 안 걸림 · 상태 이상(불·느려짐·기절·저주)은 왕을 죽인 검을 끼면 걸림 (빛 회복은 나에게 오는 것이라 그대로)
-          if (fx === 'burn') m.burn = { t: 3, dps: dmg * 0.12, tick: 0.5 };
-          else if (fx === 'slow') m.slow = 2.5;
-          else if (fx === 'stun' && !opt.noStun) m.stun = m.boss ? 0.25 : 0.7;
-          else if (fx === 'push') { const a = Math.atan2(m.y - G.py, m.x - G.px), k = m.boss ? 8 / 3 : 46; /* v146 보스 밀어내기 1/3 (8 → 약 2.7px) */ moveMon(m, Math.cos(a) * k, Math.sin(a) * k); }
+          if ((fq === 0 && fx !== 'holy') || (m.def.noFx && (fx === 'push' || fx === 'stun'))) return;   // v152 광개토대왕: 넉백·기절은 검을 껴도 안 걸림 (선생님 11/16 05:47)   // v152 광개토대왕 넉백은 검을 껴도 안 걸림 (선생님 11/16 05:41)   // v152 광개토대왕: 넉백·상태 이상 안 걸림 (왕을 죽인 검을 끼면 1/4) · 빛 회복은 나에게 오는 것이라 그대로
+          const q = (m.def.fxQ || m.def.noFx) ? fq : 1;   // v152 사방신·(검 낀) 광개토대왕 = 1/4 (시간·거리)
+          if (fx === 'burn') m.burn = { t: 3 * q, dps: dmg * 0.12, tick: 0.5 };
+          else if (fx === 'slow') m.slow = 2.5 * q;
+          else if (fx === 'stun' && !opt.noStun) m.stun = q < 1 ? 0.7 * q : m.boss ? 0.25 : 0.7;
+          else if (fx === 'push') { const a = Math.atan2(m.y - G.py, m.x - G.px), k = q < 1 ? 46 * q : m.boss ? 8 / 3 : 46; /* v146 보스 밀어내기 1/3 · v152 사방신 1/4 */ moveMon(m, Math.cos(a) * k, Math.sin(a) * k); }
           else if (fx === 'holy') S.hp = Math.min(ST.hp, S.hp + Math.max(1, Math.round(dmg * 0.03)));
-          else if (fx === 'curse') m.curse = 4;   // v87 어둠: 4초 동안 받는 피해 +20%
+          else if (fx === 'curse') m.curse = 4 * q;   // v87 어둠: 4초 동안 받는 피해 +20%
         });
         if (m.hp <= 0) killMon(m);
         return dmg;
@@ -1641,7 +1642,7 @@
         const staff = S.eq.weapon && ITEMS[S.eq.weapon].look === 'staff';
         const [dx, dy] = aimDir(staff ? 150 : 70);
         G.face = dx < 0 ? -1 : 1;
-        Fx.slash(G.px, G.py - 24, dx, dy, staff);
+        Fx.slash(G.px, G.py - 24, dx, dy, staff, !staff && window.GoRPGKingRoom && kingSwordOn());   // v151 왕을 죽인 검: 전당 안에서 금빛 불꽃 빛 꼬리
         if (G.map.M.kind !== 'field' && !G.map.M.train) return;
         if (staff) { G.shots.push({ x: G.px, y: G.py - 24, vx: dx * 380, vy: dy * 380, life: 0.42, dmg: ST.atk * 0.6 + ST.mag * 0.5, els: [], look: ['light'], pierce: false, hit: new Set(), r: 7, color: '#C8A8FF', color2: '#FFFFFF', mine: true }); return; }
         G.mons.forEach(m => {
@@ -2017,14 +2018,43 @@
           });
         }
         if (M.sx === 'king' && kingSwordOn()) {   // 왕을 죽인 검이 화려하게 (빛 · 불꽃 · 번쩍)
-          if (!G.kingSwordShown) { G.kingSwordShown = true; G.flash = 0.7; G.shake = 8; G.title = { t: 0, text: '왕을 죽인 검이 깨어났다!', sub: '어느 날 광개토대왕을 죽인 검 — 피해 ×2' }; for (let i = 0; i < 40; i++) Fx.emit({ x: G.px, y: G.py - 30, vx: rand(-260, 260), vy: rand(-320, 60), g: 300, life: 1.1, size: 3, color: pick(['#FFD23F', '#FFFFFF', '#FF8A3D', '#9AE6FF']) }); }
+          if (!G.kingSwordShown) { G.kingSwordShown = true; G.swordMorph = { t0: now, burst: false }; G.shake = 3; }   // v151 선생님 11/15: 검이 머리 위로 떠올라 허술한 검 → 화려한 검으로 바뀌는 연출 (2.6초)
+          const sm = G.swordMorph;
+          if (sm) {
+            const e = (now - sm.t0) / 1000, old = img79('ic_sw_king'), neu = img79('ic_sw_king2'), sx = G.px, sy = G.py - 80 - Math.min(1, e / 0.6) * 34, S0 = 78;
+            if (e > 2.6) G.swordMorph = null;
+            else {
+              if (!sm.burst && e >= 0.95) { sm.burst = true; G.flash = 0.7; G.shake = 9; G.title = { t: 0, text: '왕을 죽인 검이 깨어났다!', sub: '광개토대왕을 쓰러뜨린 그 검 — 대왕에게 피해 ×2 · 상태 이상도 걸림' };
+                for (let i = 0; i < 48; i++) { const a = Math.random() * Math.PI * 2, v = rand(120, 320); Fx.emit({ x: sx, y: sy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, g: 260, life: 1.1, size: rand(2.5, 4.5), color: pick(['#FFD23F', '#FFFFFF', '#FF8A3D', '#9AE6FF']), shape: 'glow', add: true }); } }
+              c.save();
+              // 빛기둥: 땅에서 하늘로
+              c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, e / 0.4) * (e > 2.1 ? Math.max(0, (2.6 - e) / 0.5) : 1) * 0.55;
+              const gr = c.createLinearGradient(sx, G.py, sx, sy - 120); gr.addColorStop(0, 'rgba(255,210,63,0)'); gr.addColorStop(0.35, 'rgba(255,210,63,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+              const bw = 26 + 10 * Math.sin(now / 90); c.fillStyle = gr; c.fillRect(sx - bw / 2, sy - 120, bw, G.py - sy + 120);
+              c.globalAlpha = 1; Fx.drawGlow(c, sx, sy, 50 + 25 * Math.min(1, e) + 8 * Math.sin(now / 80), e < 0.95 ? '#9AE6FF' : '#FFD23F', 0.7);
+              // 번쩍 고리 (바뀌는 순간)
+              if (e >= 0.95 && e < 1.6) { const k = (e - 0.95) / 0.65; c.strokeStyle = '#FFFFFF'; c.globalAlpha = 1 - k; c.lineWidth = 6 * (1 - k) + 1; c.beginPath(); c.arc(sx, sy, 20 + 140 * k, 0, Math.PI * 2); c.stroke(); c.strokeStyle = '#FFD23F'; c.beginPath(); c.arc(sx, sy, 10 + 90 * k, 0, Math.PI * 2); c.stroke(); }
+              c.restore(); c.save(); c.translate(sx, sy);
+              if (e < 0.95) {   // 허술한 검이 떨리며 금이 감
+                const sh = e > 0.5 ? (e - 0.5) * 10 : 0; c.translate(rand(-sh, sh), rand(-sh, sh)); c.rotate(Math.sin(now / 60) * 0.05 * sh);
+                if (old) c.drawImage(old, -S0 / 2, -S0 / 2, S0, S0);
+                if (e > 0.55) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = (e - 0.55) / 0.4; if (old) c.drawImage(old, -S0 / 2, -S0 / 2, S0, S0); }
+              } else {   // 화려한 검: 크게 나타났다가 손으로 내려옴
+                const k = Math.min(1, (e - 0.95) / 0.25), down = e > 2.0 ? (e - 2.0) / 0.6 : 0, sc = (0.6 + 0.6 * k) * (1 - 0.5 * down);
+                c.translate((G.face || 1) * 18 * down, 40 * down); c.rotate(Math.sin(now / 200) * 0.06); c.globalAlpha = 1 - 0.6 * down;
+                if (neu) c.drawImage(neu, -S0 * sc / 2 - 4, -S0 * sc / 2 - 4, S0 * sc + 8, S0 * sc + 8); else if (old) c.drawImage(old, -S0 / 2, -S0 / 2, S0, S0);
+                if (Math.random() < 0.5) Fx.emit({ x: sx + rand(-20, 20), y: sy + rand(-20, 20), vx: rand(-20, 20), vy: rand(-70, -20), g: -10, life: 0.6, size: 2.5, color: pick(['#FFD23F', '#FFFFFF']), shape: 'glow', add: true });
+              }
+              c.restore();
+            }
+          }
           const hx = G.px + (G.face || 1) * 18, hy = G.py - 34;
           c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, hx, hy, 38 + 8 * Math.sin(now / 120), '#FFD23F', 0.55); Fx.drawGlow(c, G.px, G.py - 30, 70 + 10 * Math.sin(now / 300), '#FF8A3D', 0.18); c.restore();
           if (Math.random() < 0.6) Fx.emit({ x: hx + rand(-10, 10), y: hy + rand(-16, 10), vx: rand(-30, 30), vy: rand(-90, -30), g: -20, life: 0.7, size: 2.5, color: pick(['#FFD23F', '#FFFFFF', '#FFB13D']) });
         } else if (M.sx !== 'king') G.kingSwordShown = false;
       }
       function drawObj(c, o, now) {
-        if (o.sign) { c.drawImage(o.img, Math.round(o.x), Math.round(o.y)); return; }   // v150 글씨 새긴 바위
+        if (o.sign) { const ri = D.SASIN.rockImg && img79(D.SASIN.rockImg); if (ri) { const ww = 104, hh = ri.naturalHeight * ww / ri.naturalWidth, cx = o.x + o.img.width / 2; c.drawImage(ri, Math.round(cx - ww / 2), Math.round(o.sy - hh + 8), ww, Math.round(hh)); } else c.drawImage(o.img, Math.round(o.x), Math.round(o.y)); return; }   // v151 입구 바위: Gemini 그림(SASIN.rockImg)이 들어오면 그림   // v150 글씨 새긴 바위
         if (o.p79) { const im = img79(o.p79); if (im) { const hh = im.naturalHeight * o.pw / im.naturalWidth; c.drawImage(im, Math.round(o.cx - o.pw / 2), Math.round(o.by - hh), o.pw, Math.round(hh)); } return; }   // v80 진영 소품
         // Meshy 그림이 있으면: 장애물은 칸 아래 가운데에 세움, 건물은 건물 칸 폭에 맞춤 (+ 이름표)
         if (o.fountain && imgOk('bld_fountain')) {   // v86 분수: Meshy 그림 (6×4 칸, 가운데 맞춤) + 물 반짝임
@@ -2617,6 +2647,14 @@
         const R = petRates(), ok = S.gold >= D.PET.price, r = tab.petRes;
         let h = `<div class="rg-petshop"><div class="rg-pethead"><b>🐾 이장님의 펫 뽑기</b><span>한 번 <b class="rg-gold">${fmtN(D.PET.price)} G</b> · 가진 골드 <b class="rg-gold">${fmtN(S.gold)} G</b></span></div>`;
         h += `<div class="rg-petrates">${R.map(x => `<div class="${x.on ? '' : 'lock'}" style="--c:${x.g.color}"><b>${x.g.name}</b><span>${x.on ? x.p.toFixed(1) + '%' : '🔒'}</span><small>올스탯 +${x.g.stat}</small>${x.on ? '' : `<em>${x.g.lockTxt}</em>`}</div>`).join('')}</div>`;
+        if (R.some(x => !x.on)) {   /* v151 선생님 11/15: 영웅·전설 얻는 법을 뽑기 창에 크게 알림 */
+          const hero = PG.find(x => x.lock === 'hero'), leg = PG.find(x => x.lock === 'legend'), soon = D.SASIN && !D.SASIN.on;
+          h += `<div class="rg-petlock" style="margin:8px 0;padding:9px 12px;border-radius:10px;background:#1D2340;border:2px solid #D8A8FF;line-height:1.55">`
+            + `<b style="color:#FFE45C">🔒 영웅·전설 펫은 보스를 이겨야 뽑기에 나와요</b><br>`
+            + (petOpenOf(hero) ? '' : `<span style="color:${hero.color}">🐉 영웅</span> <span style="color:#FFFFFF">청룡·주작·백호·현무 — 숨은 「광개토대왕 던전」에서 <b style="color:${hero.color}">사방신 넷을 모두 이기면</b> 열려요</span><br>`)
+            + (petOpenOf(leg) ? '' : `<span style="color:${leg.color}">👑 전설</span> <span style="color:#FFFFFF">광개토대왕 — 광개토대왕 던전 가장 깊은 곳에서 <b style="color:${leg.color}">광개토대왕을 이기면</b> 열려요</span><br>`)
+            + `<small style="color:#9AE6FF">${soon ? '광개토대왕 던전은 곧 열려요! (환생한 사람만 들어갈 수 있어요)' : '환생한 사람만 들어갈 수 있는 숨은 입구를 찾아보세요'}</small></div>`;
+        }
         h += `<div class="rg-srvact" style="justify-content:center"><button type="button" class="go rg-petgo" data-petdraw ${ok ? '' : 'disabled'}>${ok ? `🎁 펫 뽑기 · ${fmtN(D.PET.price)} G` : `골드가 모자라요 (${fmtN(D.PET.price)} G 필요)`}</button></div>`;
         if (r) { const P = PETBY[r.id], g = PG[P.g]; h += `<div class="rg-petres g${P.g}" style="--c:${g.color}" data-age="${Math.round(performance.now() - r.t)}">${petCard(r.id, `<em>올스탯 +${g.stat}${r.dup ? ' · 같은 펫이 있어서 펫 창(P)에서 강화할 수 있어요' : ''}</em>`, 'flip')}</div>`; }
         h += `<p class="sub" style="text-align:center">뽑은 펫은 모두 스탯에 더해져요 (지금 올스탯 <b>+${petBonus(S)}</b>) · 펫 창(P)에서 데리고 다닐 펫을 골라요</p></div>`;
@@ -2776,7 +2814,7 @@
           }
         } else if (k === 'sxnpc') {   // v150 사신의 땅 지킴이
           const n = godsDone();
-          h = head(SX.npc.name, '사신의 땅 어귀 · 혼자 들어온 곳 (다른 사람은 보이지 않아요)') + `<div class="rg-fuse" style="text-align:left;line-height:1.7">${SX.npc.lines.map(l => `<p style="margin:0 0 6px">${l}</p>`).join('')}</div>`;
+          h = head(SX.npc.name, '광개토대왕 던전 어귀 · 혼자 들어온 곳 (다른 사람은 보이지 않아요)') + `<div class="rg-fuse" style="text-align:left;line-height:1.7">${SX.npc.lines.map(l => `<p style="margin:0 0 6px">${l}</p>`).join('')}</div>`;
           h += `<div class="rg-petrates">${SX.gods.map(g => `<div style="--c:${SX.fire[g]}" class="${S.sasin[g] ? '' : 'lock'}"><b>${SX.godName[g]}</b><span>${S.sasin[g] ? '🔥' : '·'}</span><small>${S.sasin[g] ? '불이 켜졌다' : '아직'}</small></div>`).join('')}<div style="--c:#FFD23F" class="${S.sasinAll ? '' : 'lock'}"><b>사방신 모두</b><span>${S.sasinAll ? '🔥' : n === 4 ? '열림' : '🔒'}</span><small>${S.sasinAll ? '광개토대왕의 방 열림' : `불 ${n}/4`}</small></div></div>`;
         } else if (k === 'pet') {   // v149 펫 창 (P)
           h = petPaneHtml();
