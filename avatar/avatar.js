@@ -921,7 +921,7 @@
     const br = idle ? Math.sin(t * 2.4) : 0;   // 숨쉬기
     const bob = mv ? -(0.25 + 0.45 * Math.abs(s)) * A + 0.25 * A : -0.22 * (br * 0.5 + 0.5);   // 칸
     const sway = mv ? 0.35 * s * A : 0;
-    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = img.width > dw + 1;   // v154 큰 그림을 줄여 그릴 때는 부드럽게
     // 조각 (칸 좌표 x0~x1, y0~y1 · 가로는 몸 기준 0~GW) 을 축(px, py 칸)을 기준으로 ang 만큼 돌리고 sx·sy 배로 늘이고 (ox, oy 칸) 옮겨 그림
     const P = (x0, y0, x1, y1, o) => {
       o = o || {}; const sx0 = (x0 + gx) * cs, sy0 = y0 * cs, sw = (x1 - x0) * cs, shh = (y1 - y0) * cs; if (sw <= 0 || shh <= 0) return;
@@ -956,7 +956,7 @@
     /* v153 '오른쪽으로 갈 때 다리가 4개' 고침: 옆모습 그림에는 다리가 이미 둘 → 다리 줄을 통째로 두 번 그리면 넷이 됨.
      *  종아리·신발 줄에서 두 다리 사이 틈을 찾아 [앞쪽 다리 | 뒤쪽 다리] 로 나눠 하나씩 움직임. 치마(허벅지 줄이 넓음)는 허벅지는 그대로 두고 종아리만 */
     const LB = legSplit(body, cs, HIP, KNEE, GH), lean = mv ? 0.05 * A : 0;
-    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = body.width > dw + 1;   // v154 큰 그림을 줄여 그릴 때는 부드럽게
     const P = (im, y0, y1, o) => {   // im 의 y0~y1 줄(가로 sx0~sx1 점)을 (축 px 점, py 칸) 기준으로 ang 돌려 (ox 점, oy 칸) 옮겨 그림
       o = o || {}; const sy0 = y0 * cs, shh = (y1 - y0) * cs; if (shh <= 0) return;
       const sx0 = Math.max(0, o.sx0 != null ? o.sx0 : 0), sw = Math.min(im.width, o.sx1 != null ? o.sx1 : im.width) - sx0; if (sw <= 0) return;
@@ -1026,6 +1026,7 @@
     const bk = layer => { if (!bkIm) return; const sm1 = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = scale < 4; ctx.drawImage(bkIm, (bkV * 2 + layer) * 128, 0, 128, 116, x - BK_PAD * scale, y, (GW + BK_PAD * 2) * scale, GH * scale); ctx.imageSmoothingEnabled = sm1; };
     bk(0);
     if (opt.walk != null) { if (view === 's') { if (!emptyCv) { emptyCv = document.createElement('canvas'); emptyCv.width = bc.width; emptyCv.height = bc.height; } rigSide(ctx, bc, emptyCv, x, y, GW * scale, GH * scale, opt.walk, true, opt); } else rig(ctx, bc, x, y, GW * scale, GH * scale, opt.walk, true, opt); }
+    else if (opt.breathe) { if (view === 's') rigSide(ctx, bc, emptyCv || (emptyCv = Object.assign(document.createElement('canvas'), { width: bc.width, height: bc.height })), x, y, GW * scale, GH * scale, 0, false, opt); else rig(ctx, bc, x, y, GW * scale, GH * scale, 0, false, opt); }   // v154 서 있을 때 숨쉬기
     else { ctx.imageSmoothingEnabled = true; ctx.drawImage(bc, x, y, GW * scale, GH * scale); }
     bk(1);
     ctx.imageSmoothingEnabled = sm;

@@ -545,12 +545,31 @@
     if (night) { c.fillStyle = 'rgba(20,16,60,.35)'; c.fillRect(-2000, -2000, 4000, 4000); }
   }
 
+  /* v154 가구 그림 (Gemini 고화질 도트 62종 · img/furn/<id>.webp) — 그림은 '앞면이 왼쪽 아래(+j)'를 봄 → 돌린 가구(r=1)는 좌우를 뒤집음
+   *  그림이 아직 없거나 못 받으면 예전 코드 그림. FIMG_K = 바닥 칸 너비 대비 그림 너비 · FIMG_DY = 아래로 내리는 점 */
+  const FIMG_IDS = 'f_bed1 f_bed2 f_bunk f_desk f_pcdesk f_lowtable f_round f_chair f_sofa f_beanbag f_rocking f_shelf f_drawer f_rack f_chest f_lamp f_floorlamp f_starlamp f_pot f_tree f_cactus f_vase f_tv f_console f_speaker f_fridge f_piano f_fishtank f_bear f_trophy f_doghouse f_basket f_sofa2 f_armchair f_stool f_gamechair f_swing f_canopy f_yo f_dresser f_kitchen f_dining f_guitar f_drum f_arcade f_tvstand f_gamingpc f_cattower f_monstera f_sunflower f_mushlamp f_fireplace f_snowman f_xmastree f_tent f_globe f_easel f_robot f_vending f_bench f_ballpool f_telescope'.split(' ');
+  const FIMG_K = { f_pot: 0.62, f_cactus: 0.6, f_vase: 0.55, f_lamp: 0.55, f_bear: 0.62, f_console: 0.7, f_globe: 0.62, f_stool: 0.7, f_mushlamp: 0.6, f_starlamp: 0.62, f_round: 0.75, f_chair: 0.78, f_guitar: 0.6, f_robot: 0.7, f_sunflower: 0.62, f_floorlamp: 0.55, f_telescope: 0.8, f_basket: 0.85 };
+  const FIMG = {};
+  function fimg(id) {
+    if (!FIMG_IDS.includes(id)) return null;
+    let e = FIMG[id];
+    if (!e) { e = FIMG[id] = { im: new Image(), ok: false }; e.im.onload = () => { e.ok = true; if (window.GoFurn && window.GoFurn.onImg) try { window.GoFurn.onImg(id); } catch (er) { /* noop */ } }; e.im.src = (window.GOGO_BASE || '') + 'img/furn/' + id + '.webp?v=154'; }
+    return e.ok ? e.im : null;
+  }
+  try { FIMG_IDS.forEach(fimg); } catch (e) { /* noop */ }
+  function drawImgItem(g, it, im, i, j, r) {
+    const wi = r ? it.d : it.w, dj = r ? it.w : it.d, L0 = g.P(i, j + dj, 0), R0 = g.P(i + wi, j, 0), B0 = g.P(i + wi, j + dj, 0);
+    const fw = R0[0] - L0[0], k = FIMG_K[it.id] || 1.02, w = fw * k, h = w * im.naturalHeight / im.naturalWidth, cx = (L0[0] + R0[0]) / 2, by = B0[1] + 2;
+    const c = g.c; c.save(); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+    c.translate(Math.round(cx), Math.round(by)); if (r) c.scale(-1, 1);
+    c.drawImage(im, -w / 2, -h, w, h); c.restore();
+  }
   /* 가구 하나 그리기 (방 안) — state: { open(옷장 0~1), on(조명·화면) } */
   function drawItem(g, it, i, j, r, state) {
     state = state || {};
     if (it.slot === 'wardrobe') return drawWardrobe(g, it, i, j, r, state.open || 0);
-    const L = local(g, i, j, r);
-    it.draw(L, null);
+    const L = local(g, i, j, r), im = it.slot === 'furn' ? fimg(it.id) : null;
+    if (im) drawImgItem(g, it, im, i, j, r); else it.draw(L, null);
     if (state.on && it.act === 'light') { const p = L.P(0.5, 0.5, it.h - 6); const grd = g.c.createRadialGradient(p[0], p[1], 2, p[0], p[1], 70); grd.addColorStop(0, 'rgba(255,240,180,.75)'); grd.addColorStop(1, 'rgba(255,240,180,0)'); g.c.fillStyle = grd; g.c.fillRect(p[0] - 70, p[1] - 70, 140, 140); }
     if (state.on && it.act === 'screen') { const p = L.P(it.w / 2, it.d / 2, it.h - 14); g.c.fillStyle = 'rgba(120,220,255,.35)'; g.c.fillRect(p[0] - 20, p[1] - 10, 40, 20); }
   }
@@ -583,6 +602,7 @@
       drawWallItem(g, it, 'R', 0, {});
     } else {
       if (it.slot === 'wardrobe' && !WDS[id] && !wdImg(id, false)) ready = false;
+      if (it.slot === 'furn' && FIMG_IDS.includes(id) && !fimg(id)) ready = false;   // v154 그림을 받으면 다시 그림
       drawShadow(g, it, 0, 0, 0);
       drawItem(g, it, 0, 0, 0, {});
     }
@@ -620,8 +640,8 @@
     g.poly([g.P(n, 0, 0), g.P(n, n, 0), g.P(n, n, -6), g.P(n, 0, -6)], shade(flI.color, -0.42), O);
   }
 
-  window.GoFurn = { ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, local, drawItem, drawShadow, drawWallItem, drawRoomShell, thumb, shade,
+  window.GoFurn = { fimg, FIMG_IDS, onImg: null, ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, local, drawItem, drawShadow, drawWallItem, drawRoomShell, thumb, shade,
     free: () => ITEMS.filter(it => it.price === 0).map(it => it.id),
     // 처음 방 (기본 가구만)
-    DEFAULT_ROOM: { wp: 'wp_basic', fl: 'fl_wood', wd: 'wd_basic', wdAt: [0, 2, 1], items: [['f_bed1', 6, 0, 0], ['f_desk', 0, 5, 1], ['f_chair', 1, 5, 1], ['f_pot', 7, 7, 0]], walls: [['w_window', 'R', 3]] } };
+    DEFAULT_ROOM: { wp: 'wp_basic', fl: 'fl_wood', wd: 'wd_basic', wdAt: [0, 2, 1], items: [['f_bed1', 8, 0, 0], ['f_desk', 0, 6, 1], ['f_chair', 1, 6, 1], ['f_pot', 9, 9, 0]], walls: [['w_window', 'R', 4]] } };   // v154 10×10 방에 맞춤
 })();

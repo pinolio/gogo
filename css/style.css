@@ -1355,8 +1355,8 @@ a.card .card-foot .r-rank b { color: #B4560B; }
 .room-count span { background: #1D2340; color: #FFFFFF; border-radius: 6px; padding: 3px 8px; }
 .room-count b { color: #FFD23F; margin-left: 4px; }
 .room-btns { margin: 0; gap: 6px; }
-.room-stage { position: relative; max-width: 760px; margin: 0 auto; border: 3px solid #1D2340; border-radius: 10px; overflow: hidden; background: linear-gradient(180deg, #C8E4FF, #F4F0E8); }
-.room-stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 480 / 380; touch-action: manipulation; cursor: pointer; }
+.room-stage { position: relative; max-width: 860px; margin: 0 auto; border: 3px solid #1D2340; border-radius: 10px; overflow: hidden; background: linear-gradient(180deg, #C8E4FF, #F4F0E8); }
+.room-stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 560 / 440; touch-action: manipulation; cursor: pointer; }
 .room-stage.editing { border-color: #FFD23F; box-shadow: 0 0 0 3px rgba(255, 210, 63, .35); }
 .room-stage.editing canvas { touch-action: none; cursor: grab; }
 .room-tip { margin: 0; font-size: 12px; text-align: center; color: #1D2340; background: #FFF6D6; border-top: 2px solid #1D2340; padding: 5px 8px; }
@@ -1745,3 +1745,26 @@ html.fs-lock, html.fs-lock body { overflow: hidden; }
   .home a.card .card-body p { font-size: 12px; min-height: calc(12px * 1.5 * 2); }
 }
 @media (max-width: 720px) { .home .event-box { grid-template-columns: 1fr; } }
+
+/* =====================================================================
+ * v154 가구 상점 새 단장 (선생님 11/16 "딱딱해") — 흰 카드 · 그림 크게 · 부드러운 그림자 · 종류 칩 · 정렬 · 방에 놓아 본 모습
+ * ===================================================================== */
+.furn-shop .fs-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin: 0 0 6px; flex-wrap: wrap; }
+.furn-shop .fs-bar .theme-chips { margin: 0; }
+.furn-shop .fs-bar .chip[aria-pressed="true"] { background: #1D2340; color: #FFFFFF; border-color: #1D2340; }
+.furn-shop .fs-sort { font-size: 12px; font-weight: 700; color: #4A5378; display: inline-flex; align-items: center; gap: 6px; }
+.furn-shop .fs-sort select { font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 10px; border: 1px solid #C9D0EA; background: #FFFFFF; color: #1D2340; }
+.furn-shop .furn-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 12px; }
+.furn-shop .furn-grid .item { border: 0; border-radius: 16px; padding: 10px 8px 12px; background: #FFFFFF; box-shadow: 0 4px 14px rgba(60, 70, 160, .12); transition: transform .15s, box-shadow .15s; }
+.furn-shop .furn-grid .item:hover { transform: translateY(-4px); box-shadow: 0 10px 22px rgba(60, 70, 160, .2); }
+.furn-shop .furn-grid .item.sel { box-shadow: 0 0 0 3px #FFD23F, 0 10px 22px rgba(60, 70, 160, .2); background: #FFFDF2; }
+.furn-shop .furn-grid .item canvas { width: 104px; height: 104px; border-radius: 12px; background: linear-gradient(180deg, #F6F8FF, #EEF1FB); image-rendering: auto; }
+.furn-shop .furn-grid .it-name { font-size: 13px; color: #1D2340; margin-top: 6px; }
+.shop-layout.furn-shop .pv-stage.furn-pv { position: relative; min-height: 0; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: linear-gradient(180deg, #CFE6FF, #F4F0E8); box-shadow: inset 0 0 0 1px #DDE3F5; }
+.furn-shop .furn-pv canvas { image-rendering: auto; }
+.furn-shop .furn-pv canvas#fRoomPv { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; }
+.furn-shop .furn-pv .small { padding: 40px 16px; text-align: center; }
+.furn-shop .fs-rot { position: absolute; right: 10px; bottom: 10px; width: 38px; height: 38px; border-radius: 50%; border: 0; background: #FFFFFF; color: #1D2340; font-size: 20px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(29, 35, 64, .25); }
+.furn-shop .fs-rot:hover { background: #FFD23F; }
+@media (max-width: 720px) { .furn-shop .furn-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .furn-shop .furn-grid .item canvas { width: 100%; height: auto; aspect-ratio: 1; } }
+@media (max-width: 720px) { .sm-tab { gap: 4px; padding-left: 6px; padding-right: 6px; } .sm-tab .sm-tx b { font-size: 13px; white-space: normal; word-break: keep-all; line-height: 1.15; } .sm-tab .sm-tx small { display: none; } .sm-tab .sm-ic { width: 26px; height: 26px; font-size: 15px; flex: none; } }   /* v154 휴대폰: 상점 큰 탭 글자가 세로로 깨지던 것 */

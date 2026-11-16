@@ -54,7 +54,7 @@
   let serverPrices = null;
   Hub.price = id => (serverPrices && id in serverPrices ? serverPrices[id] : (itemOf(id) ? itemOf(id).price : 0));
   /* v88 내 방: 배치 정보 정리 { wp, fl, wd, wdAt:[i,j,r], items:[[id,i,j,r]…], walls:[[id,'L'|'R',t]…] } (가진 것만 · 칸 안만 · 최대 40개) */
-  const ROOM_N = 8, GUEST_MAX = 120;
+  const ROOM_N = 10, GUEST_MAX = 120;   // v154 방 10×10칸
   function normRoom(r) {
     const F = window.GoFurn; r = r && typeof r === 'object' ? r : {};
     const D0 = F ? F.DEFAULT_ROOM : { wp: 'wp_basic', fl: 'fl_wood', wd: 'wd_basic', wdAt: [0, 2, 1], items: [], walls: [] };

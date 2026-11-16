@@ -12,7 +12,7 @@
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let A = null, root = null, slot = 'top', theme = 'all', picked = null, trial = null, confirmBuy = false, busy = false, walkTimer = 0, walking = false;
-  let mode = 'avatar', fcat = 'furn', fpick = null;   // v88 '내 방 가구' 상점 (mode = 'furn')
+  let mode = 'avatar', fcat = 'furn', fpick = null, fsub = 'all', fsort = 'price', fRot = 0;   // v88 '내 방 가구' 상점 (mode = 'furn') · v154 가구 종류·정렬·돌려 보기
   const F = window.GoFurn;
 
   const saved = () => (Hub.user ? Hub.user.avatar : AV.normalize({}));
@@ -111,7 +111,9 @@
   }
   /* v88 내 방 가구 상점 */
   function renderFurn() {
-    const u = Hub.user, list = F.ITEMS.filter(it => it.slot === fcat).sort((a, b) => Hub.price(a.id) - Hub.price(b.id) || (a.name < b.name ? -1 : 1));
+    const u = Hub.user, FSUB = [['all', '전체'], ['bed', '침대'], ['desk', '책상·탁자'], ['chair', '의자·소파'], ['storage', '수납'], ['light', '조명'], ['plant', '식물'], ['elec', '가전·놀이'], ['deco', '장식']];
+    const srt = fsort === 'high' ? (a, b) => Hub.price(b.id) - Hub.price(a.id) : fsort === 'name' ? (a, b) => (a.name < b.name ? -1 : 1) : (a, b) => Hub.price(a.id) - Hub.price(b.id) || (a.name < b.name ? -1 : 1);
+    const list = F.ITEMS.filter(it => it.slot === fcat && (fcat !== 'furn' || fsub === 'all' || it.cat === fsub)).sort(srt);
     const fbadge = id => { const p = Hub.price(id); if (p === 0) return '<span class="it-badge free">기본</span>'; if (Hub.owns(id)) return '<span class="it-badge owned">보유</span>'; return `<span class="it-badge price num ${p >= PREMIUM ? 'premium' : ''}">${p >= PREMIUM ? '★' : ''}${p}P</span>`; };
     root.innerHTML = `
       <div class="page-head shop-head shop-hero">
@@ -119,22 +121,43 @@
         <div class="wallet-big">${u ? `<span class="lbl">MY POINTS</span><b class="num">${A.fmt(u.points)}P</b>` : '<button class="btn btn-primary" type="button" data-auth="login">로그인하고 쇼핑하기</button>'}</div>
       </div>
       ${modeTabs()}
-      <div class="shop-layout">
+      <div class="shop-layout furn-shop">
       <div class="panel shop-items">
         <div class="slot-tabs" role="tablist" aria-label="가구 종류">${F.SHOP_CATS.map(([id, name]) => `<button type="button" role="tab" aria-selected="${id === fcat}" data-fcat="${id}">${name}</button>`).join('')}</div>
+        <div class="fs-bar">${fcat === 'furn' ? `<div class="theme-chips">${FSUB.map(([id, nm]) => `<button type="button" class="chip" aria-pressed="${fsub === id}" data-fsub="${id}">${nm}</button>`).join('')}</div>` : '<span></span>'}
+          <label class="fs-sort">정렬 <select data-fsort><option value="price"${fsort === 'price' ? ' selected' : ''}>싼 것부터</option><option value="high"${fsort === 'high' ? ' selected' : ''}>비싼 것부터</option><option value="name"${fsort === 'name' ? ' selected' : ''}>이름순</option></select></label></div>
         <div class="item-grid furn-grid">${list.map(it => `<button type="button" class="item ${fpick === it.id ? 'sel' : ''}" data-fitem="${it.id}" aria-pressed="${fpick === it.id}"><canvas data-fth="${it.id}" width="160" height="160" aria-hidden="true"></canvas><span class="it-name">${A.esc(it.name)}</span>${fbadge(it.id)}</button>`).join('')}</div>
       </div>
       <div class="panel shop-preview">
         <h3>미리보기</h3>
-        <div class="pv-stage furn-pv">${fpick ? `<canvas data-fth="${fpick}" data-big width="320" height="320" aria-hidden="true"></canvas>` : '<p class="small">왼쪽에서 가구를 눌러 보세요.</p>'}</div>
+        <div class="pv-stage furn-pv">${fpick ? (canRoomPv(fpick) ? `<canvas id="fRoomPv" width="640" height="480" aria-label="방에 놓아 본 모습"></canvas>${F.byId[fpick].slot === 'furn' || F.byId[fpick].slot === 'rug' ? `<button type="button" class="fs-rot" data-frot title="돌려 보기" aria-label="돌려 보기">↻</button>` : ''}` : `<canvas data-fth="${fpick}" data-big width="320" height="320" aria-hidden="true"></canvas>`) : '<p class="small">왼쪽에서 가구를 눌러 보세요.<br>내 방에 놓은 모습을 미리 볼 수 있어요.</p>'}</div>
         <div class="pv-info" id="pvInfo">${fpick ? furnInfo() : ''}</div>
       </div>
       </div>`;
     $$('canvas[data-fth]', root).forEach(c => { const big = c.hasAttribute('data-big'), t = F.thumb(c.dataset.fth, big ? 160 : 80), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); g.drawImage(t, 0, 0, c.width, c.height); });
+    drawRoomPv();
+    $$('[data-fsub]', root).forEach(b => b.addEventListener('click', () => { fsub = b.dataset.fsub; render(); }));
+    const so = $('[data-fsort]', root); if (so) so.addEventListener('change', () => { fsort = so.value; render(); });
+    const rb = $('[data-frot]', root); if (rb) rb.addEventListener('click', () => { fRot = fRot ? 0 : 1; drawRoomPv(); });
     $$('[data-mode]', root).forEach(b => b.addEventListener('click', () => { mode = b.dataset.mode; render(); }));
     $$('[data-fcat]', root).forEach(b => b.addEventListener('click', () => { fcat = b.dataset.fcat; fpick = null; confirmBuy = false; stopPv(); render(); }));
     $$('[data-fitem]', root).forEach(b => b.addEventListener('click', () => { if (fpick !== b.dataset.fitem) stopPv(); fpick = b.dataset.fitem; confirmBuy = false; render(); }));
     $$('[data-fact]', root).forEach(b => b.addEventListener('click', () => furnAct(b.dataset.fact)));
+  }
+  /* v154 '방에 놓아 본 모습': 내 방 벽지·바닥으로 만든 작은 방(4×4칸) 가운데에 고른 가구 · 벽 장식은 벽에 · 벽지·바닥은 그것으로 바꾼 방 */
+  const canRoomPv = id => { const it = F.byId[id]; return !!it && /^(furn|rug|wall|wallpaper|floor|wardrobe)$/.test(it.slot); };
+  function drawRoomPv() {
+    const cv = $('#fRoomPv', root); if (!cv || !fpick) return;
+    const it = F.byId[fpick], room = (Hub.user && Hub.user.room) || {}, n = 4, x = cv.getContext('2d');
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cv.width, cv.height); x.scale(2.4, 2.4); x.lineJoin = 'round';
+    const wp = it.slot === 'wallpaper' ? it.id : room.wp || 'wp_basic', fl = it.slot === 'floor' ? it.id : room.fl || 'fl_wood';
+    const g = F.pen(x, 133, 100); F.drawRoomShell(g, n, 92, wp, fl, false);
+    if (it.slot === 'wall') F.drawWallItem(g, it, 'R', Math.max(0, Math.floor((n - it.w) / 2)), {});
+    else if (it.slot === 'furn' || it.slot === 'rug' || it.slot === 'wardrobe') {
+      const r = it.slot === 'wardrobe' ? 1 : fRot, w = r ? it.d || 1 : it.w || 1, d = r ? it.w || 1 : it.d || 1, i = Math.floor((n - w) / 2), j = Math.floor((n - d) / 2);
+      if (F.drawShadow) F.drawShadow(g, it, i, j, r); F.drawItem(g, it, i, j, r, {});
+    }
+    if (it.slot === 'furn' && F.FIMG_IDS.includes(it.id) && !F.fimg(it.id)) setTimeout(drawRoomPv, 300);   // 그림을 받는 중이면 다시
   }
   function furnInfo() {
     const u = Hub.user, it = F.byId[fpick], price = Hub.price(fpick), cat = (F.SHOP_CATS.find(c => c[0] === it.slot) || [, '가구'])[1];

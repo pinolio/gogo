@@ -11,7 +11,7 @@
   const Hub = window.GameHub, AV = window.GoAvatar, F = window.GoFurn, SET = window.GoSettings;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-  const N = 8, WH = 150, VW = 480, VH = 380, OX = 240, OY = 172, S = 2;   // 방 8×8칸 · 벽 높이 · 화면(논리) 크기 · 바닥 위 꼭짓점
+  const N = 10, WH = 150, VW = 560, VH = 440, OX = 280, OY = 178, S = 2;   // v154 방 10×10칸 (예전 8×8 · 놓아 둔 가구 자리는 그대로) · 벽 높이 · 화면(논리) 크기 · 바닥 위 꼭짓점
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let A = null, root = null, key = null, owner = null, room = null, draft = null, edit = false, raf = 0, cv = null, ctx = null, closetCleanup = null;
@@ -67,11 +67,25 @@
     const prev = { [sk]: null }, q = [from];
     while (q.length) {
       const [i, j] = q.shift(); if (i + ',' + j === goal) break;
-      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([di, dj]) => { const ni = i + di, nj = j + dj, k = ni + ',' + nj; if (ni < 0 || nj < 0 || ni >= N || nj >= N || b.has(k) || k in prev) return; prev[k] = i + ',' + j; q.push([ni, nj]); });
+      // v154 대각선으로도 (양옆 칸이 둘 다 비어 있을 때만 · 가구 모서리를 스치지 않게)
+      [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([di, dj]) => { const ni = i + di, nj = j + dj, k = ni + ',' + nj; if (ni < 0 || nj < 0 || ni >= N || nj >= N || b.has(k) || k in prev) return;
+        if (di && dj && (b.has((i + di) + ',' + j) || b.has(i + ',' + (j + dj)))) return; prev[k] = i + ',' + j; q.push([ni, nj]); });
     }
     if (!(goal in prev)) return null;
     const out = []; let k = goal; while (k) { const [i, j] = k.split(',').map(Number); out.unshift([i + 0.5, j + 0.5]); k = prev[k]; }
-    return out.slice(1);
+    return smooth(out, b).slice(1);
+  }
+  // v154 길 다듬기: 곧게 갈 수 있으면 중간 칸을 건너뜀 (지그재그 대신 부드러운 직선)
+  function clearLine(a, c, b) {
+    const n = Math.ceil(Math.hypot(c[0] - a[0], c[1] - a[1]) * 4);
+    for (let s2 = 1; s2 < n; s2++) { const t = s2 / n, x = a[0] + (c[0] - a[0]) * t, y = a[1] + (c[1] - a[1]) * t;
+      for (const [ox, oy] of [[0.22, 0.22], [-0.22, 0.22], [0.22, -0.22], [-0.22, -0.22]]) if (b.has(Math.floor(x + ox) + ',' + Math.floor(y + oy))) return false; }
+    return true;
+  }
+  function smooth(pts, b) {
+    if (pts.length < 3) return pts; const out = [pts[0]]; let a = 0;
+    while (a < pts.length - 1) { let c = pts.length - 1; while (c > a + 1 && !clearLine(pts[a], pts[c], b)) c--; out.push(pts[c]); a = c; }
+    return out;
   }
   const myTile = () => [Math.max(0, Math.min(N - 1, Math.floor(me.i))), Math.max(0, Math.min(N - 1, Math.floor(me.j)))];
   // 가구 앞(또는 옆)의 빈 칸 중 가장 가까운 곳
@@ -147,11 +161,11 @@
     nameTag(c, e, x, y - 62);
     c.save();
     c.fillStyle = 'rgba(29,35,64,.2)'; c.beginPath(); c.ellipse(x + 2, y + 1, 12, 5, 0, 0, Math.PI * 2); c.fill();   // v94 가구 그림자와 같은 색 · 같은 방향
-    const bob = moving ? 0 : (reduce ? 0 : Math.round(Math.sin(now / 500)));
+    const bob = 0;   // v154 서 있을 때 들썩임 대신 숨쉬기(AV.draw breathe)
     c.translate(x, y);
     if (e.face < 0) c.scale(-1, 1);
     const view = e.view || 'f';   // v106 방향 (멈춰도 마지막 방향 유지)
-    AV.draw(c, av, -18, -56 + bob, 2, moving && !reduce ? { walk: e.walkT * Math.PI * 3.5, view } : { frame, view });   // v105 부드러운 걷기 (순찰병처럼)
+    AV.draw(c, av, -18, -56 + (moving ? 0 : bob), 2, moving && !reduce ? { walk: e.walkT * Math.PI * 3.5, view } : { frame, view: view === 's' ? 'f' : view, breathe: !reduce });   // v105 부드러운 걷기 · v154 서 있을 때 숨쉬기
     c.restore();
   }
   // 의자에 앉은 모습 · 침대에 누워 이불 덮은 모습 (그 가구를 그린 바로 다음에 그림)
@@ -244,14 +258,21 @@
       if (!host.path.length && (host.idleT -= dt) <= 0) { host.idleT = 3 + Math.random() * 4; const t = [Math.floor(Math.random() * N), Math.floor(Math.random() * N)]; const p = path([Math.floor(host.i), Math.floor(host.j)], t, R()); if (p) host.path = p; }
     }
   }
+  /* v154 부드럽게 걷기: 천천히 출발해 속도를 올리고 도착 전에 줄임 · 화면에서 옆으로 가면 옆모습(걷는 다리) · 걸음은 간 거리만큼 (발이 미끄러지지 않게) */
   function walkStep(e, dt) {
-    if (!e.path.length) return;
-    const [ti, tj] = e.path[0], di = ti - e.i, dj = tj - e.j, dist = Math.hypot(di, dj), sp = 2.6 * dt;
-    const sx = (di - dj); if (Math.abs(sx) > 0.01) e.face = sx > 0 ? 1 : -1;
-    const sy = (di + dj); if (Math.abs(sy) > 0.01) e.view = sy > 0 ? 'f' : 'b';   // v106 화면 아래로 걸으면 앞모습, 위로 걸으면 뒷모습
-    if (dist <= sp) { e.i = ti; e.j = tj; e.path.shift(); if (!e.path.length && e.after) { const f = e.after; e.after = null; f(); } }
+    if (!e.path.length) { e.v = 0; return; }
+    const [ti, tj] = e.path[0], di = ti - e.i, dj = tj - e.j, dist = Math.hypot(di, dj);
+    let left = dist; for (let k = 1; k < e.path.length; k++) left += Math.hypot(e.path[k][0] - e.path[k - 1][0], e.path[k][1] - e.path[k - 1][1]);
+    const vmax = 2.7, want = Math.min(vmax, 0.8 + left * 2.2);
+    e.v = Math.min(want, (e.v || 0) + dt * 7); if (e.v > want) e.v = want;
+    const sp = Math.max(0.6, e.v) * dt;
+    const sx = (di - dj), sy = (di + dj) / 2;   // 화면 위 움직임 (가로 · 세로)
+    if (Math.abs(sx) > 0.01) e.face = sx > 0 ? 1 : -1;
+    if (dist > 0.02) e.view = Math.abs(sx) > Math.abs(sy) * 1.3 ? 's' : sy > 0 ? 'f' : 'b';   // v106 앞·뒤 · v154 옆
+    const mv = Math.min(dist, sp);
+    if (dist <= sp) { e.i = ti; e.j = tj; e.path.shift(); if (!e.path.length) { e.v = 0; if (e.view === 's') e.view = 'f'; if (e.after) { const f = e.after; e.after = null; f(); } } }
     else { e.i += di / dist * sp; e.j += dj / dist * sp; }
-    e.walkT += dt;
+    e.walkT += mv * 0.55;   // 걸음 위상 = 간 거리
   }
   function bubble(t, sec) { st.bubble = { t, t2: sec || 1.8 }; }
 
