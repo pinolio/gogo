@@ -147,7 +147,9 @@
     ['w_cutlery', '수저 세트 장식', 12, 'wall', 1, 0, 0, null, null, { z0: 64, z1: 112, kind: 'spr' }],
     ['w_bag', '아기자기한 가방', 15, 'wall', 1, 0, 0, null, null, { z0: 52, z1: 110, kind: 'spr' }],
     ['w_catclock', '고양이 벽시계', 20, 'wall', 1, 0, 0, null, null, { z0: 44, z1: 122, kind: 'spr' }],
-    ['w_flags', '화려한 깃발', 15, 'wall', 2, 0, 0, null, null, { z0: 96, z1: 126, kind: 'spr' }]
+    ['w_flags', '화려한 깃발', 15, 'wall', 2, 0, 0, null, null, { z0: 96, z1: 126, kind: 'spr' }],
+    ['w_puppy', '강아지 액자', 12, 'wall', 1, 0, 0, null, null, { z0: 72, z1: 108, kind: 'img' }],   // v155 새 벽 장식 (그림만)
+    ['w_succulent', '다육이 선반', 12, 'wall', 1, 0, 0, null, null, { z0: 70, z1: 98, kind: 'img' }]
   ];
   // 벽지 · 바닥 (기본 0P)
   const WALLS = [['wp_basic', '하얀 벽', 0, '#F4F0E8', null], ['wp_sky', '하늘색 벽', 10, '#BDE6FF', null], ['wp_pink', '분홍 벽', 10, '#FFD6E6', null], ['wp_mint', '민트 벽', 10, '#C8F5E4', null],
@@ -170,6 +172,9 @@
   const seeded = s => () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
   /* ---- 러그: 바닥 위 평면 그림 (가로 W = 칸 × 32 · 세로 D = 칸 × 32, 왼쪽 위가 0,0) ---- */
   const RUGS = {
+    r_rattan(d, W, D) { d.C(W / 2, D / 2, W / 2 - 3, '#D8A464'); for (let r = 6; r < W / 2 - 4; r += 4) d.C(W / 2, D / 2, r, null, '#B8783E'); },
+    r_skycloud(d, W, D) { d.R(3, 3, W - 6, D - 6, '#9AD0FF', '#4A8AE8', 2); d.E(W * 0.35, D * 0.4, 9, 5, '#FFFFFF', false); d.E(W * 0.65, D * 0.7, 10, 5, '#FFFFFF', false); },
+    r_sunflower(d, W, D) { d.C(W / 2, D / 2, W / 2 - 3, '#FFD23F'); d.C(W / 2, D / 2, W / 4, '#8A5A34'); },
     r_oval(d, W, D) { const x = W / 2, y = D / 2; for (let k = 0; k < 40; k++) { const a = k / 40 * Math.PI * 2; d.L([[x + Math.cos(a) * 28, y + Math.sin(a) * 28], [x + Math.cos(a) * 31.5, y + Math.sin(a) * 31.5]], '#C8A060', 1); } d.C(x, y, 28, '#D8B078'); [22, 16, 10].forEach((r, k) => d.C(x, y, r, null, k % 2 ? '#B8905A' : '#E8C890')); d.C(x, y, 4, '#B8905A', false); },
     r_cat(d, W, D) { const x = W / 2; d.P([[10, 26], [12, 4], [26, 16]], '#F4E2C8'); d.P([[W - 10, 26], [W - 12, 4], [W - 26, 16]], '#E8A050'); d.P([[13, 22], [14, 9], [22, 16]], '#FFB0C0', false); d.E(x, 38, 28, 22, '#F4E2C8'); d.c.save(); d.c.beginPath(); d.c.ellipse(x, 38, 28, 22, 0, 0, 7); d.c.clip(); d.E(W - 14, 24, 16, 12, '#E8A050', false); d.c.restore(); d.E(x, 38, 28, 22, null); d.E(22, 36, 3, 4, O, false); d.E(42, 36, 3, 4, O, false); d.P([[x - 3, 43], [x + 3, 43], [x, 46]], '#FF8AA0'); d.Q(x - 6, 49, x - 3, 52, x, 48, O, 1); d.Q(x, 48, x + 3, 52, x + 6, 49, O, 1); [[-1, 0], [1, 0], [-1, 4], [1, 4]].forEach(([s, o]) => d.L([[x + s * 10, 45 + o * 0.5], [x + s * 24, 42 + o]], O, 0.8)); },
     r_gingham(d, W, D) { d.R(2, 2, W - 4, D - 4, '#FFFFFF'); for (let k = 0; k < 6; k++) { d.R(2 + k * 10, 2, 5, D - 4, 'rgba(46,140,70,.55)', false); d.R(2, 2 + k * 10, W - 4, 5, 'rgba(46,140,70,.55)', false); } d.R(2, 2, W - 4, D - 4, null); },
@@ -206,7 +211,8 @@
     ['r_wave', '바다 파도 러그', 18, 3, 2], ['r_bear', '포근한 곰 러그', 20, 2, 2], ['r_pad', '게임패드 매트', 20, 3, 2], ['r_leaf', '나뭇잎 매트', 12, 2, 2], ['r_cloud', '구름 러그', 15, 3, 2],
     ['r_melon', '수박 매트', 12, 3, 2], ['r_record', '음악 레코드 매트', 15, 2, 2], ['r_xmas', '크리스마스 매트', 22, 3, 2], ['r_rainbow', '레인보우 러그', 18, 3, 2], ['r_heartdot', '하트 도트 매트', 10, 2, 2],
     ['r_tatami', '한옥 돗자리', 12, 2, 2], ['r_grass', '잔디 매트', 15, 2, 2], ['r_space', '우주 별자리 러그', 30, 3, 2], ['r_tiger', '동물 가죽 러그', 35, 3, 2], ['r_keyboard', '키보드 장패드', 15, 3, 1],
-    ['r_welcome', '웰컴 발판', 8, 2, 1], ['r_chess', '체스판 러그', 15, 2, 2], ['r_halloween', '할로윈 매트', 20, 2, 2], ['r_peach', '피치 복숭아 매트', 15, 2, 2], ['r_tile', '화려한 타일 매트', 25, 2, 2]
+    ['r_welcome', '웰컴 발판', 8, 2, 1], ['r_chess', '체스판 러그', 15, 2, 2], ['r_halloween', '할로윈 매트', 20, 2, 2], ['r_peach', '피치 복숭아 매트', 15, 2, 2], ['r_tile', '화려한 타일 매트', 25, 2, 2],
+    ['r_rattan', '라탄 러그', 18, 2, 2], ['r_skycloud', '하늘 구름 러그', 15, 2, 2], ['r_sunflower', '해바라기 러그', 18, 2, 2]   // v155 새 러그
   ].forEach(([id, name, price, w, dd]) => FURN.push([id, name, price, 'rug', w, dd, 2, L => {
     const c = L.c, o = L.P(0, 0, 0.6), a = L.P(1, 0, 0.6), b = L.P(0, 1, 0.6);
     c.save(); c.transform((a[0] - o[0]) / 32, (a[1] - o[1]) / 32, (b[0] - o[0]) / 32, (b[1] - o[1]) / 32, o[0], o[1]); c.lineJoin = 'round'; c.lineCap = 'round';
@@ -247,6 +253,7 @@
     ['wp_dino', '공룡 세계', 15, '#BDE6FF'], ['wp_memo', '메모지 가득', 12, '#F4E8D0'], ['wp_doodle', '낙서 가득 벽', 10, '#FFFFFF'], ['wp_jungle', '정글 리프', 18, '#2A6A3A'], ['wp_xmas', '크리스마스 벽', 20, '#C8303A'],
     ['wp_chess', '체스보드 벽', 15, '#FFFFFF'], ['wp_fruit', '과일 패턴', 12, '#FFF6D8'], ['wp_cyber', '사이버 네트', 25, '#06140C'], ['wp_kitsch', '키치 레트로', 18, '#B8A8F0']
   ].forEach(([id, name, price, color]) => WALLS.push([id, name, price, color, 'spr']));
+  WALLS.push(['wp_peach', '복숭아 꽃 벽지', 15, '#FFDCC8', null], ['wp_wainscot', '세이지 웨인스코팅', 25, '#A8B898', null]);   // v155 새 벽지 (그림만)
 
   /* ---- 옷장: 앞면 그림 (가로 W = 32 · 세로 H = 높이, 왼쪽 위가 0,0) · o = 열린 정도 0~1 ---- */
   // 옷장 안 (어두운 안쪽 + 옷걸이 봉 + 옷)
@@ -291,6 +298,7 @@
     ['wd_retro', '레트로 서랍장', 22], ['wd_antique', '엔틱 아모아', 50], ['wd_plastic', '미니 플라스틱 함', 12], ['wd_jewel', '보석함 옷장', 40], ['wd_multi', '컬러풀 멀티장', 25],
     ['wd_study', '학습용 옷장', 30], ['wd_cloth', '간이 천 옷장', 10], ['wd_magic', '마법사의 장롱', 60], ['wd_toy', '장난감 보관장', 28], ['wd_pirate', '해적 보물장', 45], ['wd_grid', '도트 격자 옷장', 18]
   ].forEach(([id, name, price]) => WARDROBES.push([id, name, price, WDS[id].c]));
+  WARDROBES.push(['wd_mint', '민트 미니 옷장', 20, '#9AE6D0']);   // v155 새 옷장 (그림만)
   // 옷장 몸통 + 앞면 그림
   function drawWdSpr(g, it, i, j, r, open) {
     const S2 = WDS[it.id], L = local(g, i, j, r), h = S2.h, k = S2.c;
@@ -329,6 +337,15 @@
     ['fl_brick', '벽돌 바닥', 18, '#E8C8A8'], ['fl_stone', '돌길 정원', 18, '#7FB060'], ['fl_neon', '네온 그리드', 30, '#14082E'], ['fl_rainbow', '무지개 바닥', 25, '#FFFFFF'], ['fl_flower', '꽃밭', 25, '#6AC060'],
     ['fl_pixel', '게임 블록 바닥', 22, '#C8783A'], ['fl_heartcarpet', '하트 카펫', 18, '#E8505A'], ['fl_station', '우주 정거장 바닥', 35, '#8A96B0'], ['fl_terrazzo', '테라조', 22, '#F4ECE0'], ['fl_wool', '털 카펫', 15, '#F4E8D8']
   ].forEach(([id, name, price, color]) => FLOORS.push([id, name, price, color, 'spr']));
+  function floorTex(g, n, flI) {
+    const im = texImg(flI.id); if (!im) return;
+    const c = g.c, o = g.P(0, 0, 0), a = g.P(1, 0, 0), b = g.P(0, 1, 0);
+    c.save(); c.beginPath(); [g.P(0, 0, 0), g.P(n, 0, 0), g.P(n, n, 0), g.P(0, n, 0)].forEach((p, k) => (k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.closePath(); c.clip();
+    c.transform((a[0] - o[0]) / 32, (a[1] - o[1]) / 32, (b[0] - o[0]) / 32, (b[1] - o[1]) / 32, o[0], o[1]);
+    texFill(c, im, n * 32, n * 32, 64);
+    c.strokeStyle = 'rgba(40,30,20,.10)'; c.lineWidth = 0.8; c.beginPath(); for (let k = 1; k < n; k++) { c.moveTo(k * 32, 0); c.lineTo(k * 32, n * 32); c.moveTo(0, k * 32); c.lineTo(n * 32, k * 32); } c.stroke();   // 칸 자리 (아주 옅게)
+    c.restore();
+  }
   function floorSpr(g, n, flI) {
     if (flI.pat !== 'spr' || !FLS[flI.id]) return;
     const c = g.c, o = g.P(0, 0, 0), a = g.P(1, 0, 0), b = g.P(0, 1, 0);
@@ -406,7 +423,25 @@
     if (!(key in wdImgs)) { wdImgs[key] = null; const im = new Image(); im.onload = () => { wdImgs[key] = im; window.dispatchEvent(new Event('gogo:img')); }; im.onerror = () => { wdImgs[key] = false; }; im.src = 'img/room/' + key + '.png?v=88'; }
     return wdImgs[key] || null;
   }
+  /* v155 옷장 그림 27종 (Gemini · img/furn/<id>_c.webp 닫힘 · _o.webp 열림, 같은 크기 캔버스). WDI = [닫힌 그림의 왼쪽, 오른쪽, 아래] (캔버스 점) */
+  const WDI = {'wd_sliding':[0,209,269],'wd_vintage':[8,152,263],'wd_mirror':[6,168,270],'wd_bear':[47,215,268],'wd_boxes':[60,182,246],'wd_locker':[65,199,272],'wd_glass':[58,245,273],'wd_bandaji':[44,283,252],'wd_hanger':[0,183,266],'wd_drawer':[43,196,265],'wd_cyber':[43,192,271],'wd_bunny':[35,177,273],'wd_bamboo':[50,249,272],'wd_corner':[35,234,269],'wd_showroom':[1,205,270],'wd_retro':[45,214,231],'wd_antique':[47,225,270],'wd_plastic':[48,177,215],'wd_jewel':[36,236,261],'wd_multi':[44,261,265],'wd_study':[52,252,264],'wd_cloth':[17,204,266],'wd_magic':[50,235,268],'wd_toy':[34,218,236],'wd_pirate':[65,311,280],'wd_grid':[66,290,275],'wd_mint':[44,196,225]};
+  const wdI = {};
+  function wdImg2(id, open) {
+    if (!WDI[id]) return null;
+    const key = id + (open ? '_o' : '_c');
+    let e = wdI[key];
+    if (!e) { e = wdI[key] = { im: new Image(), ok: false }; e.im.onload = () => { e.ok = true; window.dispatchEvent(new Event('gogo:img')); if (window.GoFurn && window.GoFurn.onImg) try { window.GoFurn.onImg(id); } catch (er) { /* noop */ } }; e.im.src = (window.GOGO_BASE || '') + 'img/furn/' + key + '.webp?v=155'; }
+    return e.ok ? e.im : null;
+  }
   function drawWardrobe(g, it, i, j, r, open) {
+    { const imC = wdImg2(it.id, false), im = open > 0.5 ? (wdImg2(it.id, true) || imC) : imC;
+      if (im) {   // 닫힌 그림 몸통 폭 = 칸 폭 × 1.04 · 아래 = 칸의 맨 아래 꼭짓점 + 3 (열린 그림도 같은 크기·자리)
+        const b = WDI[it.id], L0 = g.P(i, j + 1, 0), R0 = g.P(i + 1, j, 0), B0 = g.P(i + 1, j + 1, 0), fw = (R0[0] - L0[0]) * 1.04, k = fw / (b[1] - b[0]);
+        const cx = (L0[0] + R0[0]) / 2, c = g.c; c.save(); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+        c.translate(Math.round(cx), Math.round(B0[1] + 3)); if (r) c.scale(-1, 1);
+        c.drawImage(im, -((b[0] + b[1]) / 2) * k, -b[2] * k, im.naturalWidth * k, im.naturalHeight * k); c.restore(); return;
+      }
+    }
     if (WDS[it.id]) return drawWdSpr(g, it, i, j, r, open);   // v93 코드 그림 옷장
     const im = wdImg(it.id, open > 0.5);
     if (im) {   // Meshy 그림 (img/room/<id>_closed|open.png, 200px 폭): 그림 왼쪽 = 칸의 왼쪽 끝 · 그림 아래 = 칸의 맨 아래 꼭짓점
@@ -479,6 +514,18 @@
   };
   function drawWallItem(g, it, side, t, state) {
     const S = it.wall, w = it.w, e = 0.04;
+    { const im = fimg(it.id + (S.kind === 'window' && state && state.night ? '_n' : ''));   // v155 Gemini 그림: 벽 면에 붙임 (가로 = 칸 × 32 · 세로 = z1 - z0)
+      if (im) {
+        const z0 = S.z0, z1 = S.z1, W = w * 32, H = z1 - z0, a = im.naturalWidth / im.naturalHeight;
+        let dw = Math.min(W * 0.94, H * a), dh = dw / a, y = (H - dh) / 2;
+        if (dw < W * 0.7 && a > 1.5) { dw = W * 0.94; dh = dw / a; y = H - dh; }   // 낮은 선반류: 폭에 맞추고 아래(z0)를 기준으로 위로 올림
+        const o = side === 'R' ? g.P(t, e, z1) : g.P(e, t + w, z1), o2 = side === 'R' ? g.P(t + 1, e, z1) : g.P(e, t + w - 1, z1);
+        const c = g.c; c.save(); c.transform((o2[0] - o[0]) / 32, (o2[1] - o[1]) / 32, 0, 1, o[0], o[1]); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+        c.drawImage(im, (W - dw) / 2, y, dw, dh);
+        if (state && state.night && (it.id === 'w_starlight' || it.id === 'w_vinelight' || it.id === 'w_neon')) { c.globalCompositeOperation = 'lighter'; const gr = c.createRadialGradient(W / 2, H / 2, 2, W / 2, H / 2, W * 0.6); gr.addColorStop(0, it.id === 'w_neon' ? 'rgba(255,90,170,.35)' : 'rgba(255,230,140,.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = gr; c.fillRect(-W * 0.2, -H * 0.5, W * 1.4, H * 2); }
+        c.restore(); return;
+      }
+    }
     const Q = (a0, a1, z0, z1, col, line) => { if (side === 'R') g.face('j', e, t + a0, t + a1, z0, z1, col, line); else g.face('i', e, t + a0, t + a1, z0, z1, col, line); };
     const z0 = S.z0, z1 = S.z1;
     if (S.kind === 'window') {
@@ -503,6 +550,21 @@
     else if (S.kind === 'board') { Q(0.05, w - 0.05, z0, z1, '#9AA8C8'); Q(0.1, w - 0.1, z0 + 3, z1 - 3, '#FFFFFF'); Q(0.3, 0.9, z1 - 12, z1 - 10, BLUE, false); Q(0.3, 1.3, z1 - 20, z1 - 18, RED, false); Q(1.2, 1.7, z0 + 8, z0 + 10, GRN, false); }
   }
 
+  /* v155 벽지 · 바닥 그림 (Gemini 이음매 없는 무늬 · img/tex/<id>.webp). 벽: 무늬 한 장 = 96 (벽 3칸) · 바닥: 무늬 한 장 = 64 (바닥 2칸) */
+  const TEX = {}, TEX_FULL = { wp_wainscot: 1 };   // FULL = 벽 높이에 맞춰 한 번만 (세로로 반복 안 함)
+  function texImg(id) {
+    if (!id || !/^(wp|fl)_/.test(id)) return null;
+    let e = TEX[id];
+    if (!e) { e = TEX[id] = { im: new Image(), ok: false, bad: false }; e.im.onload = () => { e.ok = true; window.dispatchEvent(new Event('gogo:img')); if (window.GoFurn && window.GoFurn.onImg) try { window.GoFurn.onImg(id); } catch (er) { /* noop */ } }; e.im.onerror = () => { e.bad = true; }; e.im.src = (window.GOGO_BASE || '') + 'img/tex/' + id + '.webp?v=155'; }
+    return e.ok ? e.im : null;
+  }
+  // 평면(벽 면·바닥 면) 좌표에서 무늬 채우기: tw = 무늬 한 장 너비(평면 단위), H = 세로 길이(FULL 일 때)
+  function texFill(c, im, W, H, tw, full) {
+    const pt = c.createPattern(im, full ? 'repeat-x' : 'repeat'); if (!pt) return;
+    const sx = tw / im.naturalWidth, sy = full ? H / im.naturalHeight : sx;
+    try { pt.setTransform(new DOMMatrix([sx, 0, 0, sy, 0, 0])); } catch (e) { /* noop */ }
+    c.imageSmoothingEnabled = true; c.fillStyle = pt; c.fillRect(0, 0, W, H);
+  }
   /* ---------- 벽 · 바닥 ---------- N = 방 칸 수 · WH = 벽 높이 */
   function drawRoomShell(g, N, WH, wp, fl, night) {
     const c = g.c, wpI = byId[wp] || byId.wp_basic, flI = byId[fl] || byId.fl_wood;
@@ -512,6 +574,12 @@
       c.save(); c.beginPath(); pts.forEach((p, k) => (k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.closePath(); c.clip();
       const Q = (a0, a1, z0, z1, col) => { if (side === 'R') g.face('j', 0, a0, a1, z0, z1, col, false); else g.face('i', 0, a0, a1, z0, z1, col, false); };
       const pat = wpI.pat, base = shade(wpI.color, f);
+      const wim = texImg(wpI.id);
+      if (wim) {   // v155 벽지 그림 (벽 면 좌표: 왼쪽 위 0,0 · 가로 칸×32 · 세로 WH)
+        const o = side === 'R' ? g.P(0, 0, WH) : g.P(0, N, WH), x1 = side === 'R' ? g.P(1, 0, WH) : g.P(0, N - 1, WH);
+        c.save(); c.transform((x1[0] - o[0]) / 32, (x1[1] - o[1]) / 32, 0, 1, o[0], o[1]); texFill(c, wim, N * 32, WH, 96, TEX_FULL[wpI.id]); c.restore();
+        if (f) { c.fillStyle = 'rgba(0,0,30,.08)'; c.fillRect(-4000, -4000, 8000, 8000); }
+      } else
       if (pat === 'stripe') for (let a = 0; a < N; a += 0.5) Q(a, a + 0.22, 0, WH, shade(base, -0.08));
       else if (pat === 'check') { for (let a = 0; a < N; a += 0.5) for (let z = 0; z < WH; z += 20) { if (((a * 2) + z / 20) % 2 < 1) Q(a, a + 0.5, z, z + 20, shade(base, -0.06)); } }
       else if (pat === 'plank') for (let a = 0; a < N; a += 0.4) Q(a, a + 0.02, 0, WH, shade(base, -0.25));
@@ -541,6 +609,7 @@
       if (pat === 'grass' && (i * 3 + j) % 3 === 0) g.dot(i + 0.3, j + 0.6, 0, 1, shade(flI.color, 0.35));
     }
     floorSpr(g, N, flI);   // v93 무늬 바닥
+    floorTex(g, N, flI);   // v155 바닥 그림
     { const a = g.P(0, N, 0), b = g.P(N, N, 0), d = g.P(N, 0, 0); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.strokeStyle = O; c.lineWidth = 1; c.stroke(); }   // 바닥 앞쪽 테두리 (닫지 않음 → 가운데 가로선 없음)
     if (night) { c.fillStyle = 'rgba(20,16,60,.35)'; c.fillRect(-2000, -2000, 4000, 4000); }
   }
@@ -548,12 +617,14 @@
   /* v154 가구 그림 (Gemini 고화질 도트 62종 · img/furn/<id>.webp) — 그림은 '앞면이 왼쪽 아래(+j)'를 봄 → 돌린 가구(r=1)는 좌우를 뒤집음
    *  그림이 아직 없거나 못 받으면 예전 코드 그림. FIMG_K = 바닥 칸 너비 대비 그림 너비 · FIMG_DY = 아래로 내리는 점 */
   const FIMG_IDS = 'f_bed1 f_bed2 f_bunk f_desk f_pcdesk f_lowtable f_round f_chair f_sofa f_beanbag f_rocking f_shelf f_drawer f_rack f_chest f_lamp f_floorlamp f_starlamp f_pot f_tree f_cactus f_vase f_tv f_console f_speaker f_fridge f_piano f_fishtank f_bear f_trophy f_doghouse f_basket f_sofa2 f_armchair f_stool f_gamechair f_swing f_canopy f_yo f_dresser f_kitchen f_dining f_guitar f_drum f_arcade f_tvstand f_gamingpc f_cattower f_monstera f_sunflower f_mushlamp f_fireplace f_snowman f_xmastree f_tent f_globe f_easel f_robot f_vending f_bench f_ballpool f_telescope'.split(' ');
+  // v155 벽 장식 · 러그 그림 (처음 그릴 때 받음)
+  const DIMG_IDS = 'w_window w_window_n w_bigwin w_bigwin_n w_frame w_clock w_poster w_shelf w_mirror w_board w_rmirror w_heartgar w_hangplant w_neon w_map w_calendar w_memo w_rclock w_dart w_rose w_scissor w_retro w_sea w_starlight w_dream w_dollshelf w_album w_wreath w_doodle w_rainbow w_tv w_fan w_vinelight w_scroll w_bookshelf w_plane w_cutlery w_bag w_catclock w_flags w_puppy w_succulent r_round r_stripe r_heart r_oval r_cat r_gingham r_star r_persian r_daisy r_paw r_clover r_donut r_stripe8 r_wave r_bear r_pad r_leaf r_cloud r_melon r_record r_xmas r_rainbow r_heartdot r_tatami r_grass r_space r_tiger r_keyboard r_welcome r_chess r_halloween r_peach r_tile r_rattan r_skycloud r_sunflower'.split(' ');
   const FIMG_K = { f_pot: 0.62, f_cactus: 0.6, f_vase: 0.55, f_lamp: 0.55, f_bear: 0.62, f_console: 0.7, f_globe: 0.62, f_stool: 0.7, f_mushlamp: 0.6, f_starlamp: 0.62, f_round: 0.75, f_chair: 0.78, f_guitar: 0.6, f_robot: 0.7, f_sunflower: 0.62, f_floorlamp: 0.55, f_telescope: 0.8, f_basket: 0.85 };
   const FIMG = {};
   function fimg(id) {
-    if (!FIMG_IDS.includes(id)) return null;
+    if (!FIMG_IDS.includes(id) && !DIMG_IDS.includes(id)) return null;
     let e = FIMG[id];
-    if (!e) { e = FIMG[id] = { im: new Image(), ok: false }; e.im.onload = () => { e.ok = true; if (window.GoFurn && window.GoFurn.onImg) try { window.GoFurn.onImg(id); } catch (er) { /* noop */ } }; e.im.src = (window.GOGO_BASE || '') + 'img/furn/' + id + '.webp?v=154'; }
+    if (!e) { e = FIMG[id] = { im: new Image(), ok: false }; e.im.onload = () => { e.ok = true; if (window.GoFurn && window.GoFurn.onImg) try { window.GoFurn.onImg(id); } catch (er) { /* noop */ } }; e.im.src = (window.GOGO_BASE || '') + 'img/furn/' + id + '.webp?v=' + (FIMG_IDS.includes(id) ? 154 : 155); }
     return e.ok ? e.im : null;
   }
   try { FIMG_IDS.forEach(fimg); } catch (e) { /* noop */ }
@@ -568,8 +639,13 @@
   function drawItem(g, it, i, j, r, state) {
     state = state || {};
     if (it.slot === 'wardrobe') return drawWardrobe(g, it, i, j, r, state.open || 0);
-    const L = local(g, i, j, r), im = it.slot === 'furn' ? fimg(it.id) : null;
-    if (im) drawImgItem(g, it, im, i, j, r); else it.draw(L, null);
+    const L = local(g, i, j, r), im = it.slot === 'furn' || it.slot === 'rug' ? fimg(it.id) : null;
+    if (im && it.slot === 'rug') {   // v155 러그 그림: 위에서 본 그림을 바닥 면에 펼침 (그림 가로 = w · 세로 = d)
+      const c = g.c, o = L.P(0, 0, 0.6), a = L.P(1, 0, 0.6), b = L.P(0, 1, 0.6), W = it.w * 32, D = it.d * 32, ar = im.naturalWidth / im.naturalHeight;
+      let dw = W * 0.96, dh = dw / ar; if (dh > D * 0.96) { dh = D * 0.96; dw = dh * ar; }
+      c.save(); c.transform((a[0] - o[0]) / 32, (a[1] - o[1]) / 32, (b[0] - o[0]) / 32, (b[1] - o[1]) / 32, o[0], o[1]); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+      c.drawImage(im, (W - dw) / 2, (D - dh) / 2, dw, dh); c.restore();
+    } else if (im) drawImgItem(g, it, im, i, j, r); else it.draw(L, null);
     if (state.on && it.act === 'light') { const p = L.P(0.5, 0.5, it.h - 6); const grd = g.c.createRadialGradient(p[0], p[1], 2, p[0], p[1], 70); grd.addColorStop(0, 'rgba(255,240,180,.75)'); grd.addColorStop(1, 'rgba(255,240,180,0)'); g.c.fillStyle = grd; g.c.fillRect(p[0] - 70, p[1] - 70, 140, 140); }
     if (state.on && it.act === 'screen') { const p = L.P(it.w / 2, it.d / 2, it.h - 14); g.c.fillStyle = 'rgba(120,220,255,.35)'; g.c.fillRect(p[0] - 20, p[1] - 10, 40, 20); }
   }
@@ -593,16 +669,23 @@
     const t = tmp.getContext('2d'); t.lineJoin = 'round'; t.scale(2, 2);
     const g = pen(t, BIG / 4, BIG / 4 + 20);
     let ready = true;
+    if ((it.slot === 'floor' || it.slot === 'wallpaper') && !texImg(id)) ready = false;   // v155 그림을 받으면 다시 그림
     if (it.slot === 'floor') {
       drawFloorOnly(g, 3, id);
     } else if (it.slot === 'wallpaper') drawRoomShell(pen(t, BIG / 4, BIG / 4 + 10), 2, 70, id, 'fl_wood');
+    else if (it.slot === 'wall' && fimg(id)) {   // v155 벽 장식 그림은 정면 그대로 (상점 칸에서 크게 보이게)
+      const im = fimg(id), a = im.naturalWidth / im.naturalHeight, m = size * 0.84, dw = a >= 1 ? m : m * a, dh = a >= 1 ? m / a : m;
+      c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.drawImage(im, (size - dw) / 2, (size - dh) / 2, dw, dh);
+      thumbC[key] = cv; return cv;
+    }
     else if (it.slot === 'wall') {
       const S2 = it.wall;
       g.face('j', 0, -0.3, it.w + 0.3, S2.z0 - 14, S2.z1 + 14, '#EDE6D8', '#C8BFAE');
       drawWallItem(g, it, 'R', 0, {});
+      if (DIMG_IDS.includes(id) && !fimg(id)) ready = false;
     } else {
-      if (it.slot === 'wardrobe' && !WDS[id] && !wdImg(id, false)) ready = false;
-      if (it.slot === 'furn' && FIMG_IDS.includes(id) && !fimg(id)) ready = false;   // v154 그림을 받으면 다시 그림
+      if (it.slot === 'wardrobe' && (WDI[id] ? !wdImg2(id, false) : !WDS[id] && !wdImg(id, false))) ready = false;
+      if ((it.slot === 'furn' || it.slot === 'rug') && (FIMG_IDS.includes(id) || DIMG_IDS.includes(id)) && !fimg(id)) ready = false;   // v154 그림을 받으면 다시 그림
       drawShadow(g, it, 0, 0, 0);
       drawItem(g, it, 0, 0, 0, {});
     }
@@ -633,14 +716,14 @@
       if (pat === 'star' && (i + j) % 2 === 0) g.dot(i + 0.5, j + 0.5, 0, 1.5, '#FFF3B0');
       if (pat === 'grass' && (i * 3 + j) % 3 === 0) g.dot(i + 0.3, j + 0.6, 0, 1, shade(flI.color, 0.35));
     }
-    floorSpr(g, n, flI);
+    floorSpr(g, n, flI); floorTex(g, n, flI);
     g.poly([g.P(0, 0, 0), g.P(n, 0, 0), g.P(n, n, 0), g.P(0, n, 0)], null, O);
     // 두께 (바닥판 옆면)
     g.poly([g.P(0, n, 0), g.P(n, n, 0), g.P(n, n, -6), g.P(0, n, -6)], shade(flI.color, -0.3), O);
     g.poly([g.P(n, 0, 0), g.P(n, n, 0), g.P(n, n, -6), g.P(n, 0, -6)], shade(flI.color, -0.42), O);
   }
 
-  window.GoFurn = { fimg, FIMG_IDS, onImg: null, ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, local, drawItem, drawShadow, drawWallItem, drawRoomShell, thumb, shade,
+  window.GoFurn = { fimg, FIMG_IDS, DIMG_IDS, texImg, onImg: null, ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, local, drawItem, drawShadow, drawWallItem, drawRoomShell, thumb, shade,
     free: () => ITEMS.filter(it => it.price === 0).map(it => it.id),
     // 처음 방 (기본 가구만)
     DEFAULT_ROOM: { wp: 'wp_basic', fl: 'fl_wood', wd: 'wd_basic', wdAt: [0, 2, 1], items: [['f_bed1', 8, 0, 0], ['f_desk', 0, 6, 1], ['f_chair', 1, 6, 1], ['f_pot', 9, 9, 0]], walls: [['w_window', 'R', 4]] } };   // v154 10×10 방에 맞춤

@@ -148,16 +148,16 @@
   const canRoomPv = id => { const it = F.byId[id]; return !!it && /^(furn|rug|wall|wallpaper|floor|wardrobe)$/.test(it.slot); };
   function drawRoomPv() {
     const cv = $('#fRoomPv', root); if (!cv || !fpick) return;
-    const it = F.byId[fpick], room = (Hub.user && Hub.user.room) || {}, n = 4, x = cv.getContext('2d');
-    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cv.width, cv.height); x.scale(2.4, 2.4); x.lineJoin = 'round';
+    const it = F.byId[fpick], room = (Hub.user && Hub.user.room) || {}, wl = it.slot === 'wall', n = wl ? 3 : 4, x = cv.getContext('2d');   // v155 벽 장식은 벽을 높게 (장식이 벽 위로 삐져나오지 않게)
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cv.width, cv.height); x.scale(wl ? 2.15 : 2.4, wl ? 2.15 : 2.4); x.lineJoin = 'round';
     const wp = it.slot === 'wallpaper' ? it.id : room.wp || 'wp_basic', fl = it.slot === 'floor' ? it.id : room.fl || 'fl_wood';
-    const g = F.pen(x, 133, 100); F.drawRoomShell(g, n, 92, wp, fl, false);
+    const g = wl ? F.pen(x, 149, 142) : F.pen(x, 133, 100); F.drawRoomShell(g, n, wl ? 136 : 92, wp, fl, false);
     if (it.slot === 'wall') F.drawWallItem(g, it, 'R', Math.max(0, Math.floor((n - it.w) / 2)), {});
     else if (it.slot === 'furn' || it.slot === 'rug' || it.slot === 'wardrobe') {
       const r = it.slot === 'wardrobe' ? 1 : fRot, w = r ? it.d || 1 : it.w || 1, d = r ? it.w || 1 : it.d || 1, i = Math.floor((n - w) / 2), j = Math.floor((n - d) / 2);
       if (F.drawShadow) F.drawShadow(g, it, i, j, r); F.drawItem(g, it, i, j, r, {});
     }
-    if (it.slot === 'furn' && F.FIMG_IDS.includes(it.id) && !F.fimg(it.id)) setTimeout(drawRoomPv, 300);   // 그림을 받는 중이면 다시
+    if (((F.FIMG_IDS.includes(it.id) || (F.DIMG_IDS || []).includes(it.id)) && !F.fimg(it.id)) || ((it.slot === 'floor' || it.slot === 'wallpaper') && F.texImg && !F.texImg(it.id))) setTimeout(drawRoomPv, 300);   // 그림을 받는 중이면 다시
   }
   function furnInfo() {
     const u = Hub.user, it = F.byId[fpick], price = Hub.price(fpick), cat = (F.SHOP_CATS.find(c => c[0] === it.slot) || [, '가구'])[1];
