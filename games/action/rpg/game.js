@@ -1096,8 +1096,8 @@
       function peerFx(m, p) {
         const sk = skill(m.id); if (!sk) return;
         const els = sk.els, x = m.x, y = m.y, dx = m.dx || 1, dy = m.dy || 0, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light;
-        Fx.castCircle(p.x, p.y, els, !!sk.fusion); Fx.use(sk.fusion ? null : sk.id);
-        if (sk.kind === 'bolt') { const n = sk.count || 1, sp = 430 * (sk.speed || 1); for (let i = 0; i < n; i++) { const a = Math.atan2(dy, dx) + (i - (n - 1) / 2) * 0.18; G.shots.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, dmg: 0, els, pierce: true, hit: new Set(), r: 9, color: col, color2: col2, mine: false, ghost: true, sid: sk.fusion ? null : sk.id }); } }
+        Fx.castCircle(p.x, p.y, els, !!sk.fusion); Fx.use(sk.fusion ? null : sk.id); if (sk.fusion && Fx.useV) Fx.useV('f:' + sk.name);
+        if (sk.kind === 'bolt') { const n = sk.count || 1, sp = 430 * (sk.speed || 1); for (let i = 0; i < n; i++) { const a = Math.atan2(dy, dx) + (i - (n - 1) / 2) * 0.18; G.shots.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, dmg: 0, els, pierce: true, hit: new Set(), r: 9, color: col, color2: col2, mine: false, ghost: true, sid: sk.fusion ? null : sk.id, vid: sk.fusion ? 'f:' + sk.name : sk.id }); } }
         else if (sk.kind === 'nova') Fx.nova(x, y, sk.radius || 120, els);
         else if (sk.kind === 'beam') Fx.beam(x, y, dx, dy, sk.len || 300, sk.w || 30, els);
         else if (sk.kind === 'rain') { for (let i = 0; i < (sk.count || 5); i++) Fx.fall(x + dx * 160 + rand(-90, 90), y + dy * 160 + rand(-60, 60), sk.radius || 60, els, i * 0.1); }
@@ -1601,14 +1601,17 @@
           say(G.room ? '건물 안에서는 공격 마법을 쓸 수 없어요' : '마을에서는 공격 마법을 쓸 수 없어요'); return; }
         if ((G.cds[id] || 0) > 0) return;
         if (S.mp < sk.mp) { say('마나가 부족해요 (X: 마나 포션)'); return; }
-        S.mp -= sk.mp; G.cds[id] = sk.cd; Fx.castCircle(G.px, G.py, sk.els, !!sk.fusion); G.poseK = 'c'; G.poseUntil = performance.now() + 380;   // v79 마법 동작
+        S.mp -= sk.mp; G.cds[id] = sk.cd; Fx.castCircle(G.px, G.py, sk.els, !!sk.fusion || sk.lv >= 60); G.poseK = 'c'; G.poseUntil = performance.now() + 380;   // v79 마법 동작
+        G.mot = Fx.motionFor ? Fx.motionFor(sk) : null; G.motEl = sk.els[0];   // v153 마법마다 몸 동작 (vfx.js)
+        if (G.mot) { G.poseUntil = performance.now() + Math.max(380, G.mot.dur * 800); if (G.mot.k === 'ult') G.flash = Math.max(G.flash || 0, 0.35); if (G.mot.k === 'slam') setTimeout(() => { G.shake = Math.max(G.shake || 0, 9); }, G.mot.dur * 620); }
         if (net && net.joined) { const [adx, ady] = aimDir(sk.len || 420); net.cast({ id, x: Math.round(G.px), y: Math.round(G.py - 22), dx: +adx.toFixed(2), dy: +ady.toFixed(2) }); }
         const els = sk.els, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light, base = ST.mag * sk.pow;
         const ox = G.px, oy = G.py - 22;
         Fx.use(sk.fusion ? null : sk.id);   // v102 기본 마법마다 다른 효과
+        if (sk.fusion && Fx.useV) Fx.useV('f:' + sk.name);   // v153 융합 마법은 비슷한 기본 마법 그림을 빌려 씀
         if (sk.kind === 'bolt') {
           const [dx, dy] = aimDir(420), n = sk.count || 1, sp = 430 * (sk.speed || 1);
-          for (let i = 0; i < n; i++) { const a = Math.atan2(dy, dx) + (i - (n - 1) / 2) * 0.18; G.shots.push({ x: ox, y: oy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, dmg: base, els, pierce: !!sk.pierce, hit: new Set(), r: 9, color: col, color2: col2, mine: true, sid: sk.fusion ? null : sk.id }); }
+          for (let i = 0; i < n; i++) { const a = Math.atan2(dy, dx) + (i - (n - 1) / 2) * 0.18; G.shots.push({ x: ox, y: oy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, dmg: base, els, pierce: !!sk.pierce, hit: new Set(), r: 9, color: col, color2: col2, mine: true, sid: sk.fusion ? null : sk.id, vid: sk.fusion ? 'f:' + sk.name : sk.id }); }
         } else if (sk.kind === 'nova') {
           const r = sk.radius || 120; Fx.nova(ox, oy, r, els); G.shake = Math.max(G.shake, r > 150 ? 6 : 3);
           G.mons.forEach(m => { if (!m.dead && Math.hypot(m.x - ox, m.y - m.spr.h / 2 - oy) < r + (m.hr || m.r)) hitMon(m, base, els); });
@@ -2152,7 +2155,11 @@
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(G.px, G.py, 16, 5, 0, 0, Math.PI * 2); c.fill();
         if (G.dash) Fx.afterimage(img, x, y, w, h, G.face < 0, Fx.pal(G.dash.els[0])[2]);
         if (G.inv > 0 && !G.dash && Math.floor(now / 60) % 2) c.globalAlpha = 0.45;
+        const mt = Fx.motionTf ? Fx.motionTf(G.mot, now, G.face) : null;   // v153 마법 동작 (발밑을 기준으로 옮기고·기울이고·늘이고)
+        if (mt) { c.save(); c.translate(G.px + mt.dx, G.py + mt.dy); c.rotate(mt.rot); c.scale(mt.sx, mt.sy); c.translate(-G.px, -G.py); }
         drawFig(c, img, x, y, w, h, G.face, G.walk * Math.PI * 4, walkMv, S.eq.weapon && !S.hide ? 'left' : true, fs.side);
+        if (mt) c.restore();
+        if (Fx.motionGlow) Fx.motionGlow(c, G.mot, now, G.px, G.py, G.motEl);
         c.globalAlpha = 1;
         // 장비 단계 빛 (정예 무기)
         const wp = S.eq.weapon && ITEMS[S.eq.weapon]; if (wp && wp.rare && !S.hide) { c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, G.px + (G.face < 0 ? -14 : 14), y + 14, 18, D.TIER[wp.tier].gem, 0.35 + 0.2 * Math.sin(now / 200)); c.restore(); }

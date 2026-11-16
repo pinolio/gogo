@@ -191,6 +191,7 @@
     b_pirate: { c: [34, 34, 46], f: 'pirate' }, b_space: { c: [232, 238, 250], f: 'space' }, b_ice: { c: [104, 190, 250], f: 'ice' }, b_angel: { c: [246, 248, 255], f: 'angel' }, b_dragon: { c: [54, 42, 48], f: 'dragon' },
     b_cargo: { c: [150, 135, 80] }, b_slacks: { c: [62, 66, 86] }, b_ninja: { c: [34, 34, 42] }, b_chima: { c: [214, 64, 60] }, b_uniskirt: { c: [42, 52, 98], p: 'check', c2: [70, 140, 100] }
   };
+  for (let t = 0; t < 10; t++) ['', 'r'].forEach(r => { CLOTH['t_rpg' + t + r] = { c: [150, 150, 160], f: 'rpg' + t + r }; CLOTH['b_rpg' + t + r] = { c: [150, 150, 160], f: 'rpg' + t + r }; });   // v153 skillcom RPG 갑옷 (상점에는 없음 · bodyComp 의 av.rpgAr)
   const CLOTH_GV = ['m_f', 'm_s', 'm_b', 'f_f', 'f_s', 'f_b'];
   let clothAt = null, clothLoading = false; const clothCbs = [];
   function clothAtlas(cb) {
@@ -292,6 +293,23 @@
     magenta: [[80, 0, 70], [150, 10, 140], [220, 50, 210], [255, 120, 240], [255, 220, 255]],
     emerald: [[0, 50, 30], [0, 110, 64], [20, 180, 110], [100, 240, 170], [220, 255, 236]]
   };
+  RMP.leather = [[40, 22, 10], [86, 50, 22], [138, 88, 44], [186, 132, 76], [230, 190, 136]];
+  RMP.bronze = [[60, 28, 8], [128, 66, 22], [194, 116, 52], [234, 168, 96], [255, 226, 180]];
+  RMP.iron = [[30, 36, 54], [74, 84, 110], [124, 134, 160], [172, 182, 204], [222, 228, 242]];
+  RMP.steel = [[14, 16, 24], [42, 48, 62], [82, 90, 108], [132, 142, 162], [198, 206, 222]];
+  /* v153 skillcom RPG 갑옷 단계 (data.js TIER 순서): R = 바탕 재질 · rim = 테두리·띠 · dk = 판 사이 · gem = 정예 보석 */
+  const RPG_AR = [
+    { R: RMP.leather, rim: RMP.bark, dk: RMP.leather, gem: RMP.yellow, stud: true },
+    { R: RMP.bronze, rim: RMP.gold, dk: RMP.bronze, gem: RMP.emerald },
+    { R: RMP.leaf, rim: RMP.bark, dk: RMP.leaf, gem: RMP.rose, grain: true, spark: [190, 255, 150] },
+    { R: RMP.iron, rim: RMP.silver, dk: RMP.steel, gem: RMP.cyan },
+    { R: RMP.steel, rim: RMP.silver, dk: RMP.black, gem: RMP.lava, spike: RMP.silver },
+    { R: RMP.ice, rim: RMP.silver, dk: RMP.ice, gem: RMP.ice, grain: true, spike: RMP.ice, glow: [200, 250, 255], spark: [190, 240, 255] },
+    { R: RMP.purple, rim: RMP.gold, dk: RMP.purple, gem: RMP.cyan, spike: RMP.magenta, glow: [220, 160, 255], spark: [230, 180, 255] },
+    { R: RMP.white, rim: RMP.gold, dk: RMP.white, gem: RMP.yellow, glow: [255, 250, 210], spark: [255, 240, 170] },
+    { R: RMP.char, rim: RMP.lava, dk: RMP.black, gem: RMP.lava, spike: RMP.bone, glow: [255, 150, 40], spark: [255, 170, 60] },
+    { R: RMP.gold, rim: RMP.white, dk: RMP.yellow, gem: RMP.red, spike: RMP.gold, glow: [255, 240, 160], spark: [255, 240, 150] }
+  ];
   const rmp = (r, t) => { t = Math.max(0, Math.min(0.999, Math.round(t * 8) / 8)) * (r.length - 1); const i = Math.floor(t); return mixc(r[i], r[i + 1], t - i); };
   const SAEK = [[230, 40, 50], [250, 200, 40], [60, 170, 80], [50, 110, 220], [240, 120, 180], [250, 250, 250]];
   // p = 여백까지 포함한 캔버스 픽셀, M = 옷 자리(1), S = 옷 자리 밝기(0~1), kind = 디자인, v = 'f'|'s'|'b', g = 'm'|'f', part = 't' 상의 | 'b' 하의
@@ -372,7 +390,47 @@
       const r = Math.round(y - by) % 3; return r === 1 ? rmp(R, t + 0.28) : r === 0 ? rmp(dk || R, t - 0.15) : null;
     }, 2);
     const D = kind;
-    if (part === 'b') {   // ===== v142 하의 10종 (상의와 짝) — 남 = 바지(두 다리), 여 = 치마 =====
+    if (/^rpg\d/.test(D)) {   // ===== v153 skillcom RPG 갑옷 (단계마다 재질) — 상의 = 가슴판·어깨 보호대·소매, 하의 = 다리 갑옷·무릎 보호대 (몸 모양에 딱 맞음)
+      const tier = +D[3], rare = D.endsWith('r'), A = RPG_AR[tier] || RPG_AR[3], R = A.R, RIM = A.rim, DK = A.dk || R, GEM = A.gem;
+      if (part === 'b') {
+        const skirt = g === 'f';
+        const botY = x => { for (let y = y1; y >= y0; y--) if (inM(x, y)) return y; return -1; };
+        base((x, y, t) => { const r = (y - y0) % 4; return r === 0 ? rmp(DK, t - 0.05) : rmp(R, t * 0.85 + 0.08 + (r === 1 ? 0.12 : 0)); });
+        over((x, y, t) => {
+          if (up[y * W + x] <= 2 && y < y0 + h * 0.3) return rmp(RIM, t + 0.2 + (up[y * W + x] === 1 ? 0.12 : 0));   // 허리띠
+          if (dn[y * W + x] <= 2 && y > y0 + h * 0.5) return rmp(RIM, t + 0.12);   // 발목 테
+          if (skirt && (x - x0) % 4 === 0 && up[y * W + x] > 2) return rmp(DK, 0.35);
+          return null;
+        });
+        if (!skirt && !side) {   // 무릎 보호대
+          const ky = Math.round(y0 + h * 0.58); let x = x0;
+          while (x <= x1) { if (!M[ky * W + x]) { x++; continue; } let e = x; while (e + 1 <= x1 && M[ky * W + e + 1]) e++; if (e - x >= 3) { const kx = (x + e) / 2, r = (e - x + 1) / 2; sph(RIM, kx, ky, r * 0.9, Math.max(2.2, r * 0.65), 4, DK); if (rare) put(kx, ky, rmp(GEM, 0.8), 5, false); } x = e + 1; }
+        }
+        if (skirt) for (let x = x0 + 1; x <= x1; x += 3) { const yb = botY(x); if (yb < 0) continue; for (let k = 1; k <= 2; k++) put(x, yb + k, rmp(RIM, 0.7 - k * 0.15), 3, k === 2); }
+        if (!back) { const bx = side ? x1 - 2 : cx; gem(bx, y0 + 1.5, 1, rare ? GEM : RIM, 6, rare ? RMP.gold : null); }
+        if (A.spark && rare) sparks(2, A.spark, 61 + tier, true);
+      } else {
+        base((x, y, t) => { const f = A.grain && ((x + y) % 6 === 0 || (x - y + 60) % 7 === 0) ? 0.18 : 0; return rmp(R, t * 0.8 + 0.1 + f); });
+        plate(R, RIM, DK);
+        over((x, y, t) => {
+          if (collar(x, y, 2)) return rmp(RIM, t + 0.2);
+          if (cuff(x, y, 2)) return rmp(RIM, t + 0.12);
+          if (hem(x, y, 1)) return rmp(RIM, t + 0.1);
+          if (sleeve(x, y) && (y - y0) % 3 === 2) return rmp(DK, t - 0.1);   // 소매 = 겹친 판
+          if (A.stud && !sleeve(x, y) && up[y * W + x] === 3 && x % 3 === 0) return rmp(RMP.yellow, 0.75);
+          return null;
+        });
+        SH.forEach(([sx, sy, s]) => {   // 어깨 보호대 (둥근 판 두 겹)
+          sph(R, sx, sy + 0.5, PR * 1.2, PR * 0.75, 4, RIM);
+          ell(sx, sy + PR * 0.55, PR * 1.15, 0.8, 0, () => rmp(RIM, 0.75), 5);
+          if (A.spike) poly([[sx - 1.6, sy - 0.5], [sx + s * 1.2, sy - PR * 1.4 - 1], [sx + 1.6, sy - 0.5]], (x, y, u, w) => rmp(A.spike, 0.95 - u * 0.5 - w * 0.15), 6);
+        });
+        const gy = y0 + h * (side ? 0.42 : 0.4), gx = side ? cx + tw * 0.35 : cx;
+        if (!back && (rare || tier >= 5)) { if (A.glow) for (let r = 5; r >= 4; r--) for (let k = 0; k < 24; k++) glow(gx + Math.cos(k / 24 * 6.283) * r, gy + Math.sin(k / 24 * 6.283) * r, A.glow, 0.3); gem(gx, gy, rare ? 3 : 2, GEM, 6, RIM); }
+        else if (!back) gem(gx, gy, 1, RIM, 6, null);
+        if (A.spark) sparks(rare ? 5 : 3, A.spark, 41 + tier, true);
+      }
+    } else if (part === 'b') {   // ===== v142 하의 10종 (상의와 짝) — 남 = 바지(두 다리), 여 = 치마 =====
       const skirt = g === 'f';
       // 줄마다 덩어리(다리) 나누기 → 칸마다 그 덩어리의 왼·오른 끝 (바깥 줄무늬·무릎 자리)
       const RS = new Int16Array(N).fill(-1), RE = new Int16Array(N).fill(-1);
@@ -706,6 +764,10 @@
           if (r && d.data[k * 4 + 3]) { M[k] = 1; S[k] = r; if (r > mx) mx = r; }
         }
         for (let k = 0; k < S.length; k++) if (M[k]) { if (S[k] < mx * 0.22) { M[k] = 0; S[k] = 0; } else S[k] = S[k] / mx; }   // 아주 흐린 가장자리 칸은 빼기
+        if (ch === 1) {   // v153 옆모습의 먼 다리(청바지)가 cloth.png 바지 자리에 빠져 있음 → 바지 자리 줄 안의 청바지 색 칸도 바지로
+          let ya = H2, yb = -1; for (let k = 0; k < M.length; k++) if (M[k]) { const yy = (k / W2) | 0; if (yy < ya) ya = yy; if (yy > yb) yb = yy; }
+          for (let yy = ya; yy <= yb; yy++) for (let xx = 0; xx < W2; xx++) { const k = yy * W2 + xx, i = k * 4, r = d.data[i], g2 = d.data[i + 1], b2 = d.data[i + 2]; if (!M[k] && d.data[i + 3] > 200 && b2 > r + 28 && b2 > g2 + 8) { M[k] = 1; S[k] = Math.min(1, 0.25 + (r + g2 + b2) / 600); } }
+        }
         paintFancy(d.data, W2, H2, M, S, kind, v, g, pt);
       };
       if (BF) part(1, BF, 'b');
@@ -751,6 +813,7 @@
   // 몸 그림 (피부·성별·방향 + 옷 색) — 아직 못 받았으면 null
   function bodyComp(av, view, cb) {
     const n = bodyNorm(av), bi = bodyImg(n.g, view, cb, n.skin);
+    if (av && av.rpgAr && CLOTH['t_' + av.rpgAr]) { n.top = 't_' + av.rpgAr; n.bottom = 'b_' + av.rpgAr; }   // v153 skillcom RPG 갑옷을 입으면 상의·하의 자리에 갑옷을 그림
     return bi && recolorBody(bi, n, view, cb);
   }
   /* 몸 그림을 칸 크기 k 로 그림: 발끝 = 28.4칸, 원래 몸 그림 키 = 27.4칸, 가운데 x = cx.

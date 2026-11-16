@@ -264,16 +264,19 @@
     }
   }
 
+  // v152 카드 그림 (Gemini · img/thumbs/게임id.jpg). 없으면 예전처럼 코드로 그린 그림
+  const THUMB_IMG = {};
+  ['battle', 'p512', 'snake', 'dodge', 'omok', 'janggi', 'chess', 'alkkagi', 'tennis', 'mines', 'sky', 'gugu'].forEach(id => { THUMB_IMG[id] = 'img/thumbs/' + id + '.jpg'; });
   async function renderGrid() {
     const grid = $('#gameGrid'); if (!grid) return;
     const show = g => homeCat === '전체' || g.cat === homeCat;
-    const live = GAMES.filter(show), soon = SOON.filter(([, c]) => homeCat === '전체' || c === homeCat);
+    const live = GAMES.filter(show), soon = [];   // v152 'COMING SOON' 빈 카드는 메인에서 뺌
     grid.innerHTML = live.map(g => `
       <a class="card" data-cat="${g.cat}" href="#${g.id}">
-        <canvas class="thumb" data-thumb="${g.id}" aria-hidden="true"></canvas>
+        <div class="thumb-wrap">${THUMB_IMG[g.id] ? `<img class="thumb" src="${THUMB_IMG[g.id]}?v=152" alt="" loading="lazy" draggable="false">` : `<canvas class="thumb" data-thumb="${g.id}" aria-hidden="true"></canvas>`}
+          <span class="cat">${g.cat}</span>${g.tag ? `<span class="tag ${g.tag === 'NEW' ? 'new' : g.tag === 'VS' ? 'vs' : ''}">${g.tag}</span>` : ''}</div>
         <div class="card-body">
-          <span class="cat">${g.cat}</span>
-          <h3>${g.name}${g.tag ? `<span class="tag ${g.tag === 'NEW' ? 'new' : g.tag === 'VS' ? 'vs' : ''}">${g.tag}</span>` : ''}</h3>
+          <h3>${g.name}</h3>
           <p>${g.blurb}</p>
           <div class="card-foot" data-foot="${g.id}"><span>기록 불러오는 중…</span></div>
         </div>
@@ -368,11 +371,14 @@
   let heroIndex = 0;
   // v92 선생님 그림 2장을 그대로 소개 화면으로 (그림 속 버튼 · ◀ ▶ 자리를 누르면 동작)
   //   자리는 그림 크기에 대한 % (왼쪽, 위, 너비, 높이)
+  // v152 메인 새 단장: 그림(글자 없음) + 글자는 HTML (선명 · 높이 고정). theme = 왼쪽 글자 밑 색
   const HERO_SLIDES = [
-    { id: 'event', img: 'img/hero/event.jpg', w: 1024, h: 525, alt: '신호등 구구단 이벤트 — 이번 시즌 1위에 도전! 녹색불이면 구구단 바른 답, 빨간불이면 답의 십의 자리와 일의 자리를 바꿔서. 45초 동안 맞으면 +1점, 틀리면 -1점.', cta: '이벤트 도전하기',
-      go: [6.0, 73.0, 18.4, 10.0], prev: [5.6, 84.6, 4.6, 8.6], next: [16.6, 84.6, 4.6, 8.6] },
-    { id: 'room', href: '#room', img: 'img/hero/room.jpg', w: 1024, h: 444, alt: '내 방 업데이트 — 가구를 사서 꾸미는 나만의 미니룸! 옷장을 누르면 아바타가 걸어가 옷을 갈아입어요.', cta: '내 방 가기',
-      go: [3.2, 73.5, 14.8, 12.4], prev: [3.0, 87.6, 4.6, 9.0], next: [14.6, 87.6, 4.6, 9.0] }
+    { id: 'dungeon', href: '#rpg', art: 'img/hero/dungeon.jpg', pos: '50% 45%', theme: ['#2A1B5E', '#6A3FC8'],
+      tag: 'NEW · skillcom RPG 숨은 던전', title: '광개토대왕 던전 오픈!', sub: '환생한 용사만 찾을 수 있는 숲속 입구 · 사방신 넷과 광개토대왕에게 도전하고 <b>왕을 죽인 검</b>을 얻어 보세요.', cta: '던전 찾으러 가기' },
+    { id: 'sky', href: '#sky', art: 'img/hero/sky.jpg', pos: '40% 45%', theme: ['#123E7A', '#2F8FE0'],
+      tag: 'UPDATE · 6.25. 하늘', title: '로봇으로 변신!', sub: '<b>C</b> 키로 10초 동안 로봇 변신 · P 카드 4장 · 새 적·보스와 하늘 배경 10장. 친구와 둘이서도 할 수 있어요.', cta: '출격하기' },
+    { id: 'event', art: 'img/hero/gugu.jpg', pos: '50% 70%', theme: ['#1E2A6B', '#3E7BD8'],
+      tag: 'EVENT · 이벤트 진행 중', title: '신호등 구구단<br>이번 시즌 1위에 도전!', sub: '<b>녹색불</b>이면 바른 답, <b>빨간불</b>이면 답의 십의 자리와 일의 자리를 바꿔서! 45초 · 10점마다 +1P (한 판 최대 3P)', cta: '이벤트 도전하기' }
   ];
   function startHeroRain() {
     const box = $('#heroSlides'); if (!box) return;
@@ -380,22 +386,28 @@
     const slides = HERO_SLIDES.filter(s => s.id !== 'event' || evg).map(s => Object.assign({}, s, { href: s.href || '#' + evg.id }));
     if (!slides.length) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const pos = r => `left:${r[0]}%;top:${r[1]}%;width:${r[2]}%;height:${r[3]}%`;
     box.innerHTML = slides.map((g, i) => `
-      <div class="hero-slide" data-i="${i}" ${i ? 'hidden' : ''}>
-        <a class="hero-pic" href="${g.href}" tabindex="-1" aria-hidden="true"><img src="${g.img}?v=92" width="${g.w}" height="${g.h}" alt="" draggable="false"></a>
-        <span class="sr-only">${esc(g.alt)}</span>
-        <a class="hero-hot" style="${pos(g.go)}" href="${g.href}" aria-label="${esc(g.cta)}"></a>
-        <button type="button" class="hero-hot" style="${pos(g.prev)}" data-step="-1" aria-label="이전 소개"></button>
-        <button type="button" class="hero-hot" style="${pos(g.next)}" data-step="1" aria-label="다음 소개"></button>
-      </div>`).join('');
+      <div class="hero-slide hs2" data-i="${i}" ${i ? 'hidden' : ''} style="--h1:${g.theme[0]};--h2:${g.theme[1]}">
+        <a class="hs2-art" href="${g.href}" tabindex="-1" aria-hidden="true" style="background-image:url('${g.art}?v=152');background-position:${g.pos}"></a>
+        <div class="hs2-copy">
+          <span class="hs2-tag">${g.tag}</span>
+          <h2 class="hs2-title">${g.title}</h2>
+          <p class="hs2-sub">${g.sub}</p>
+          <a class="btn btn-sun hs2-go" href="${g.href}">${g.cta} ▶</a>
+        </div>
+      </div>`).join('') + `
+      <div class="hs2-nav"><button type="button" class="hs2-arrow" data-step="-1" aria-label="이전 소개">◀</button>
+        <div class="hs2-dots">${slides.map((g, i) => `<button type="button" data-go="${i}" aria-label="${i + 1}번째 소개"></button>`).join('')}</div>
+        <button type="button" class="hs2-arrow" data-step="1" aria-label="다음 소개">▶</button></div>`;
     const els = $$('.hero-slide', box);
     let elapsed = 0, paused = false, raf = 0, last = 0;
     function go(i) {
       heroIndex = (i + slides.length) % slides.length; elapsed = 0;
       els.forEach((el, k) => { el.hidden = k !== heroIndex; if (k === heroIndex && !reduce) { el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); } });
+      $$('.hs2-dots button', box).forEach((d, k) => d.setAttribute('aria-current', String(k === heroIndex)));
     }
     $$('button[data-step]', box).forEach(b => b.addEventListener('click', e => { e.preventDefault(); go(heroIndex + Number(b.dataset.step)); }));
+    $$('button[data-go]', box).forEach(b => b.addEventListener('click', e => { e.preventDefault(); go(Number(b.dataset.go)); }));
     const hero = $('#heroBox');
     hero.addEventListener('mouseenter', () => { paused = true; });
     hero.addEventListener('mouseleave', () => { paused = false; });

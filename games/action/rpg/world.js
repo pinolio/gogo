@@ -1154,8 +1154,27 @@
   const HM_GROW = 1.07;   // v108 투구 아주 조금 크게
   /* v112 새 기본 몸 그림 (avatar/body/*.png): 기본 옷만 입었으면 칸 그림 대신 이 그림을 몸으로 씀 (장비 그림은 그 위에 그대로)
    *  그림 키 27.4칸 · 발바닥 28.4칸 · 가운데 cx(점) — 사이트 아바타 칸 그림과 같은 자리 */
+  /* v153 선생님 11/16 '장비를 부자연스럽게 입고 있어' →
+   *  갑옷 = 아이콘을 몸통에 붙이지 않고 몸 그림의 옷 자리(소매·바지까지)에 단계 재질로 직접 그림 (avatar.js RPG_AR · paintFancy 'rpgN')
+   *  투구 = 얼굴이 보이는 새 투구 그림 img/hw/hmN.png (Gemini · 앞·옆·뒤 3칸) · 그림이 없는 단계는 예전 아이콘 투구 */
+  const nOfIt = o => (o.legend ? 9 : o.rare ? 10 + o.tier : o.tier);
+  const arKind = o => 'rpg' + (o.legend ? 9 : o.tier) + (o.rare && !o.legend ? 'r' : '');
+  const HW = {};
+  function hwImg(n) {   // 새 투구 그림 (앞·옆·뒤 가로 3칸, 칸마다 투명 바탕) — 받는 중·없으면 null
+    let e = HW[n];
+    if (!e) { e = HW[n] = { ok: false, bad: false, im: new Image() }; e.im.onload = () => { e.ok = true; }; e.im.onerror = () => { e.bad = true; }; e.im.src = IMG_DIR + 'hw/hm' + n + '.png?v=153'; }
+    return e.ok ? e.im : null;
+  }
+  function hwDraw(x, im, view, cx, k) {   // 칸(360×400 점, 아래 끝 맞춤)을 같은 배율로: 22.7점 = 1칸 · 세로는 0.86배(작은 머리에 맞춰 납작하게) · 아래 끝 = 턱 (13.9칸)
+    const ci = view === 's' ? 1 : view === 'b' ? 2 : 0, cw = im.naturalWidth / 3, ch = im.naturalHeight, U = 22.7;
+    const ww = cw / U * k, hh = ch / U * 0.86 * k, by = 13.9 * k;
+    const sm = x.imageSmoothingEnabled; x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    x.drawImage(im, ci * cw, 0, cw, ch, Math.round(cx - ww / 2 + (view === 's' ? -0.3 * k : 0)), Math.round(by - hh), Math.round(ww), Math.round(hh));
+    x.imageSmoothingEnabled = sm;
+  }
   const bodyOf = (av, view, eq, hide) => {
     if (!AV.useBody || !AV.useBody(av)) return null;
+    if (!hide && eq && eq.armor && D.ITEMS[eq.armor]) av = Object.assign({}, av, { rpgAr: arKind(D.ITEMS[eq.armor]) });   // v153 갑옷은 몸 그림에 직접
     // v120 장비 그림을 아직 못 받았어도 새 몸 그림 (예전 도트 몸은 안 씀 · 장비는 받는 대로 그려짐)
     if (!hide && eq && eq.helmet && D.ITEMS[eq.helmet] && av && av.hat) av = Object.assign({}, av, { hat: null });   // v114 투구를 쓰면 모자 그림은 빼기
     return AV.bodyComp ? AV.bodyComp(av, view, null) : AV.bodyImg(av.g, view, null, AV.normalize(av).skin);   // v114 피부마다 다른 그림 + 상점 머리 얹기
@@ -1175,7 +1194,8 @@
   function dirSprite(av, eq, hide, view, part) {
     const bodyI = bodyOf(av, view, eq, hide);
     if (!bodyI) return blankSp(view === 's' ? 2 : 2);   // v120 몸 그림을 받는 중이면 잠깐 빈 그림 (도트 안 씀)
-    const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!bodyI, kingKey(), !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    const hwN = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] ? nOfIt(D.ITEMS[eq.helmet]) : -1, hwI = hwN >= 0 ? hwImg(hwN) : null;
+    const key = JSON.stringify([av, hide ? {} : eq, view, part || '', !!bodyI, !!hwI, kingKey(), !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_hm_b'), !!imgOk('ic_hm_s'), !!imgOk('ic_ar_b'), !!imgOk('ic_ar_s'), !!imgOk('ic_bt_b'), !!imgOk('ic_bt_s'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const k = 2, side = view === 's', arm = part === 'arm', noArm = part === 'noArm';
     const wp = !hide && eq && eq.weapon && D.ITEMS[eq.weapon], WPK = wp && wpPick(wp), wIc = WPK && WPK.nm, swI = WPK && WPK.im, PAD = swI ? 9 * k : 0;
@@ -1208,7 +1228,7 @@
           else x.drawImage(btI, n * 80 + b.x, b.y, b.w, b.h, X, Y, W2, H2);
         });
       }
-      const arOn = !hide && eq && eq.armor && D.ITEMS[eq.armor], arNm = arOn && (view === 'b' && imgOk('ic_ar_b') ? 'ic_ar_b' : side && imgOk('ic_ar_s') ? 'ic_ar_s' : 'ic_ar'), arI = arOn && imgOk(arNm);   // v107 갑옷 뒷모습·옆모습 그림
+      const arOn = false, arNm = arOn && (view === 'b' && imgOk('ic_ar_b') ? 'ic_ar_b' : side && imgOk('ic_ar_s') ? 'ic_ar_s' : 'ic_ar'), arI = arOn && imgOk(arNm);   // v107 갑옷 뒷모습·옆모습 그림
       if (arI) {
         const n = nOf(D.ITEMS[eq.armor]), b = swBox(arI, n, arNm);
         let ww = Math.min(14 * k, Math.max(11 * k, Math.round(b.w * 10.5 * k / b.h))), hh = Math.round(b.h * ww / b.w); if (hh > 12.5 * k) { hh = 12.5 * k; ww = Math.round(b.w * hh / b.h); }
@@ -1216,7 +1236,8 @@
         x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
         x.drawImage(arI, n * 80 + b.x, b.y, b.w, b.h, Math.round(CX * k + PAD - ww / 2), Math.round(11.6 * k), ww, Math.round(hh));
       }
-      if (hmI) {
+      if (hwI) hwDraw(x, hwI, view, CX * k + PAD, k);   // v153 얼굴이 보이는 새 투구
+      else if (hmI) {
         const n = nOf(hmIt), b = swBox(hmI, n, hmNm);
         let ww = Math.round(12 * k * HM_GROW); const hh = Math.max(Math.round(11 * k * HM_GROW), Math.round(b.h * ww / b.w)); if (side && hmNm === 'ic_hm') ww = Math.round(ww * 0.82);   // 옆 그림이 없을 때만 앞 그림을 좁힘
         const X = Math.round(CX * k + PAD - ww / 2), Y = Math.round(12.8 * k - hh);
@@ -1235,7 +1256,8 @@
     if (view === 'b' || view === 's') return dirSprite(av, eq, hide, view, part);
     const bodyI = bodyOf(av, 'f', eq, hide);
     if (!bodyI) return blankSp(2);   // v120
-    const key = JSON.stringify([av, hide ? {} : eq, frame, !!bodyI, kingKey(), !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    const hwN = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] ? nOfIt(D.ITEMS[eq.helmet]) : -1, hwI = hwN >= 0 ? hwImg(hwN) : null;
+    const key = JSON.stringify([av, hide ? {} : eq, frame, !!bodyI, !!hwI, kingKey(), !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
     frame = leg;
@@ -1256,7 +1278,7 @@
         else x.drawImage(btI, n * 80 + b.x, b.y, b.w, b.h, X, Y, W2, H2);
       });
     }
-    const arI = !hide && eq && eq.armor && D.ITEMS[eq.armor] && imgOk('ic_ar');   // v100 갑옷 = 새 그림 (몸통 위에 덮음)
+    const arI = false;   // v153 갑옷은 몸 그림에 직접 (bodyOf)   // v100 갑옷 = 새 그림 (몸통 위에 덮음)
     if (arI) {
       const a = D.ITEMS[eq.armor], n = a.legend ? 9 : a.rare ? 10 + a.tier : a.tier, b = swBox(arI, n, 'ic_ar');
       let ww = Math.min(14 * k, Math.max(11 * k, Math.round(b.w * 10.5 * k / b.h))), hh = Math.round(b.h * ww / b.w); if (hh > 12.5 * k) { hh = 12.5 * k; ww = Math.round(b.w * hh / b.h); }
@@ -1264,7 +1286,8 @@
       x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
       x.drawImage(arI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), Math.round(ty), ww, Math.round(hh));
     }
-    if (hmI) {
+    if (hwI) hwDraw(x, hwI, 'f', 8.875 * k + PAD, k);   // v153 얼굴이 보이는 새 투구
+    else if (hmI) {
       const h = D.ITEMS[eq.helmet], n = h.legend ? 9 : h.rare ? 10 + h.tier : h.tier, b = swBox(hmI, n, 'ic_hm');
       const ww = Math.round(12 * k * HM_GROW), hh = Math.max(Math.round(11 * k * HM_GROW), Math.round(b.h * ww / b.w)), cx = 8.875 * k + PAD, by = 12.8 * k;
       hmDraw(x, hmI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), Math.round(by - hh), ww, hh, [5.5 * k + PAD, 6.5 * k, 12.5 * k + PAD, 10 * k]);   // v108 눈구멍 투명 · 조금 크게

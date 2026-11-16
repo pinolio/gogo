@@ -1673,3 +1673,75 @@ html.fs-lock, html.fs-lock body { overflow: hidden; }
 .cabinet:fullscreen .fs-in, .cabinet:-webkit-full-screen .fs-in, .cabinet.fs-max .fs-in {
   display: block; position: absolute; top: 10px; right: 10px; z-index: 30; background: #FFD23F; color: #1D2340; border: 2px solid #1D2340; border-radius: 8px; font: 700 13px/1 sans-serif; padding: 6px 10px; cursor: pointer; opacity: .85;
 }
+
+/* =====================================================================
+ * v152 메인 화면 새 단장 (밝은 파스텔 · 2026-11-16)
+ *  배너 = 그림(글자 없음) + HTML 글자 · 높이 고정 / 카드 = 흰 카드 · 그림 크게 · 높이 맞춤
+ * ===================================================================== */
+.home .hero.hero-img { border: 0; border-radius: 22px; box-shadow: 0 10px 28px rgba(60, 70, 160, .22); background: #1E2A6B; min-height: 0; }
+.home .hero.hero-img::after { display: none; }
+.home .hero-slides { position: relative; height: clamp(320px, 34vw, 380px); }
+.hs2 { position: absolute; inset: 0; overflow: hidden; border-radius: 22px; background: var(--h1); }
+.hs2-art { position: absolute; inset: 0 0 0 36%; background-size: cover; background-repeat: no-repeat; image-rendering: auto; }
+.hs2::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(90deg, var(--h1) 0%, var(--h1) 36%, color-mix(in srgb, var(--h1) 60%, transparent) 46%, transparent 60%); }
+.hs2-copy { position: relative; z-index: 2; height: 100%; box-sizing: border-box; padding: 30px 34px 64px; max-width: 54%; display: flex; flex-direction: column; justify-content: center; gap: 10px; color: #FFFFFF; }
+.hs2-tag { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #FFD23F; color: #1D2340; }
+.hs2-title { font-family: var(--f-display); font-size: clamp(28px, 3.6vw, 42px); line-height: 1.15; text-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+.hs2-sub { margin: 0; font-size: 14px; line-height: 1.6; color: #E6ECFF; }
+.hs2-sub b { color: #FFD23F; }
+.hs2-go { align-self: flex-start; margin-top: 4px; }
+.hs2.in .hs2-copy > * { animation: heroIn .45s ease-out both; }
+.hs2.in .hs2-copy > *:nth-child(2) { animation-delay: .05s; } .hs2.in .hs2-copy > *:nth-child(3) { animation-delay: .1s; } .hs2.in .hs2-copy > *:nth-child(4) { animation-delay: .15s; }
+.hs2-nav { position: absolute; left: 34px; bottom: 18px; z-index: 3; display: flex; align-items: center; gap: 10px; }
+.hs2-arrow { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .7); background: rgba(29, 35, 64, .45); color: #FFFFFF; cursor: pointer; font-size: 11px; line-height: 1; }
+.hs2-arrow:hover { border-color: #FFD23F; color: #FFD23F; }
+.hs2-dots { display: flex; gap: 6px; }
+.hs2-dots button { width: 10px; height: 10px; padding: 0; border-radius: 999px; border: 0; background: rgba(255, 255, 255, .55); cursor: pointer; transition: width .2s; }
+.hs2-dots button[aria-current="true"] { width: 28px; background: #FFD23F; }
+.home .hero-timer { z-index: 3; height: 4px; background: rgba(255, 255, 255, .18); }
+@media (max-width: 720px) {
+  .home .hero-slides { height: 430px; }
+  .hs2-art { inset: 0 0 38% 0; background-position: 50% 30% !important; }
+  .hs2::before { background: linear-gradient(0deg, var(--h1) 0%, var(--h1) 40%, color-mix(in srgb, var(--h1) 60%, transparent) 55%, transparent 72%); }
+  .hs2-copy { max-width: none; justify-content: flex-end; padding: 18px 18px 58px; gap: 8px; }
+  .hs2-title { font-size: 26px; }
+  .hs2-sub { font-size: 13px; }
+  .hs2-nav { left: 18px; bottom: 14px; }
+}
+
+/* 이벤트 칸: 배너 아래 한 줄 띠 (랭킹 TOP 5) */
+.home .event-box { margin: 0; padding: 14px 18px; gap: 14px; border: 0; border-radius: 18px; color: #1D2340;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  background: linear-gradient(120deg, #FFF3C4 0%, #FFE1F0 55%, #DDEBFF 100%); box-shadow: 0 6px 18px rgba(60, 70, 160, .14); }
+.home .event-copy h2 { font-size: 22px; color: #1D2340; text-shadow: none; }
+.home .event-copy p { display: none; }
+.home .event-tag { animation: none; font-family: inherit; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 10px; }
+.home .event-mine { color: #4A3AA8; }
+.home .event-rank { border: 0; border-radius: 14px; box-shadow: inset 0 0 0 2px #E3E8FA; }
+.home .event-rank h3 { font-size: 14px; color: #4A3AA8; }
+
+/* 게임 카드: 흰 카드 · 그림 크게 · 분류는 그림 위 작은 딱지 · 높이 맞춤 */
+.home .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; align-items: stretch; }
+.home a.card { padding: 0; display: flex; flex-direction: column; border: 0; border-radius: 18px; background: #FFFFFF;
+  box-shadow: 0 6px 18px rgba(60, 70, 160, .14); transition: transform .15s, box-shadow .15s; }
+.home a.card::before { display: none; }
+.home a.card:hover { transform: translateY(-5px); box-shadow: 0 14px 28px rgba(60, 70, 160, .24); }
+.home a.card:active { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(60, 70, 160, .14); }
+.home .thumb-wrap { position: relative; border-radius: 18px 18px 0 0; overflow: hidden; background: #1E2A6B; }
+.home a.card .thumb { border: 0; border-radius: 0; box-shadow: none; aspect-ratio: 16 / 10; width: 100%; height: auto; object-fit: cover; display: block; }
+.home .thumb-wrap .cat { position: absolute; left: 10px; top: 10px; margin: 0; font-family: inherit; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, .92); color: var(--cart-d); }
+.home .thumb-wrap .tag { position: absolute; right: 10px; top: 10px; }
+.home a.card .card-body { flex: 1; margin: 0; border: 0; border-radius: 0 0 18px 18px; background: #FFFFFF; padding: 12px 14px 14px;
+  display: flex; flex-direction: column; gap: 6px; background-image: linear-gradient(90deg, var(--cart) 0 100%); background-size: 100% 4px; background-repeat: no-repeat; }
+.home a.card .card-body h3 { font-size: 19px; color: #1D2340; }
+.home a.card .card-body p { font-size: 13px; line-height: 1.5; color: #4A5378; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: calc(13px * 1.5 * 2); }
+.home a.card .card-foot { margin-top: auto; border-top: 1px solid #E3E8FA; }
+.home .card-foot .rec-who { max-width: 100%; }
+@media (max-width: 560px) {
+  .home .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .home a.card .card-body { padding: 9px 10px 11px; }
+  .home a.card .card-body h3 { font-size: 16px; }
+  .home a.card .card-body p { font-size: 12px; min-height: calc(12px * 1.5 * 2); }
+}
+@media (max-width: 720px) { .home .event-box { grid-template-columns: 1fr; } }
