@@ -1724,7 +1724,7 @@
         enter('sx_npc', { x: (m.w >> 1) * TS - 50, y: ((m.h >> 1) + 0.6) * TS }); say(`역참 말을 타고 광개토대왕 던전 어귀에 왔어요 (−${fmtN(fee)} G) · 위쪽이 사방신 모두 방이에요`, 4); markDirty(true);
       }
       // v69 저승차사 강림: Lv.100 이 되면 마지막 마을(도원수 진영) 큰길 오른쪽에 나타남
-      const hellNpc = map => (map.R.castle && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: 30.5 * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);
+      const hellNpc = map => (map.R.castle && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: window.__GoRPGParts.VXf(30.5) * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);   // v158 넓은 마을
       function talk(n) {
         if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station', 'sxnpc'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
         n.say = null; openPanel(n.key, { npc: n, hello: pick(n.def.hello) });
@@ -1941,12 +1941,13 @@
         list.push({ y: G.py, me: true }); list.sort((a, b) => a.y - b.y);
         list.forEach(e => (e.me ? drawMe(c, now) : e.pet ? drawPetAt(c, e.pet.id, e.pet.x, e.pet.y, e.pet.face, now, e.pet.ph) : e.m ? drawMon(c, e.m, now) : e.n ? drawNpc(c, e.n, now) : e.pp ? drawPeer(c, e.pp, now) : drawObj(c, e.o, now)));
         drawSasinFx(c, map, now);   // v150 사신의 땅 (바위 글씨 · 사방신 불 · 왕을 죽인 검 빛)
+        sayFlush(c);   // v158 말풍선은 비석보다 위에
         if (G.room) {
           const ex = map.exit, dx = (ex.x0 + ex.x1 + 1) / 2 * TS, dy = (ex.y + 0.5) * TS, k = Math.abs(Math.sin(now / 300));
           c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = '#1D2340'; c.strokeText('▼ 나가기', dx, dy - 22 + k * 3); c.fillStyle = '#FFF6C2'; c.fillText('▼ 나가기', dx, dy - 22 + k * 3);
         }
         // 분수 물보라
-        if (map.fountain && Math.random() < 0.5) Fx.emit({ x: (imgOk('bld_fountain') ? 18 * TS - 24 : map.fountain.x) + rand(-4, 4), y: imgOk('bld_fountain') ? 15 * TS - 26 : map.fountain.y, vx: rand(-50, 50), vy: rand(-150, -90), g: 420, life: 0.7, size: 3, color: pick(['#FFFFFF', '#BDE8FF', '#8AD0FF']), shape: 'drop', add: false });
+        if (map.fountain && Math.random() < 0.5) Fx.emit({ x: (imgOk('bld_fountain') ? (map.fx + 1) * TS - 24 : map.fountain.x) + rand(-4, 4), y: imgOk('bld_fountain') ? (map.fy + 1) * TS - 26 : map.fountain.y, vx: rand(-50, 50), vy: rand(-150, -90), g: 420, life: 0.7, size: 3, color: pick(['#FFFFFF', '#BDE8FF', '#8AD0FF']), shape: 'drop', add: false });
         // 탄
         G.shots.forEach(s => Fx.drawShot(c, s, now));
         // 빛나는 효과 · 입자
@@ -1998,6 +1999,17 @@
         const bw = Math.max(...lines.map(l => c.measureText(l).width)) + 24, bh = lines.length * 20 + 14, bx = x - bw / 2, by = y - bh;
         c.fillStyle = 'rgba(14,18,44,.92)'; c.strokeStyle = col; c.lineWidth = 2; c.beginPath(); c.roundRect ? c.roundRect(bx, by, bw, bh, 8) : c.rect(bx, by, bw, bh); c.fill(); c.stroke();
         c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF'; lines.forEach((l, i) => c.fillText(l, x, by + 17 + i * 20));
+      }
+      // v158 선생님 11/17: 사람 말풍선을 모든 그림(광개토대왕비 등) 위에 — 그리기 끝에 한꺼번에
+      function sayFlush(c) {
+        const q = G.sayQ; if (!q || !q.length) return; G.sayQ = [];
+        q.forEach(([n, top]) => {
+          c.save(); c.globalAlpha = Math.min(1, n.sayT * 3); c.font = '13px "Jua", "Malgun Gothic", sans-serif';
+          const tw = c.measureText(n.say).width + 20, bx = clamp(n.x - tw / 2, cam.x + 4, cam.x + W - tw - 4), by = top - 30;
+          c.fillStyle = '#1D2340'; rr(c, bx - 2, by - 2, tw + 4, 30, 9); c.fill(); c.beginPath(); c.moveTo(n.x - 7, by + 26); c.lineTo(n.x + 7, by + 26); c.lineTo(n.x, by + 36); c.fill();
+          c.fillStyle = '#FFFFFF'; rr(c, bx, by, tw, 26, 8); c.fill(); c.beginPath(); c.moveTo(n.x - 5, by + 25); c.lineTo(n.x + 5, by + 25); c.lineTo(n.x, by + 32); c.fill();
+          c.fillStyle = '#1D2340'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(n.say, bx + 10, by + 14); c.restore();
+        });
       }
       function drawSasinFx(c, map, now) {
         const GS = map.gStele;   // v149 구리마을 광개토대왕비: 가까이 가면 비문 (선생님 그림이 오면 그 그림을 위에 덮어 그림)
@@ -2072,7 +2084,7 @@
         if (o.p79) { const im = img79(o.p79); if (im) { const hh = im.naturalHeight * o.pw / im.naturalWidth; c.drawImage(im, Math.round(o.cx - o.pw / 2), Math.round(o.by - hh), o.pw, Math.round(hh)); } return; }   // v80 진영 소품
         // Meshy 그림이 있으면: 장애물은 칸 아래 가운데에 세움, 건물은 건물 칸 폭에 맞춤 (+ 이름표)
         if (o.fountain && imgOk('bld_fountain')) {   // v86 분수: Meshy 그림 (6×4 칸, 가운데 맞춤) + 물 반짝임
-          const fim = imgOk('bld_fountain'), ww = 6 * TS, hh = fim.naturalHeight * ww / fim.naturalWidth, x0 = 18 * TS - ww / 2, y0 = 15 * TS - hh / 2;
+          const fim = imgOk('bld_fountain'), ww = 6 * TS, hh = fim.naturalHeight * ww / fim.naturalWidth, x0 = (G.map.fx + 1) * TS - ww / 2, y0 = (G.map.fy + 1) * TS - hh / 2;   // v158 분수 자리
           c.drawImage(fim, Math.round(x0), Math.round(y0), ww, Math.round(hh));
           c.fillStyle = '#FFFFFF';
           for (let i = 0; i < 6; i++) { const ph = (now / 700 + i * 1.7) % 3; if (ph > 1) continue; const a = Math.sin(ph * Math.PI); c.globalAlpha = a * 0.9; const sx = x0 + ww * (0.3 + 0.4 * ((i * 0.37) % 1)), sy0 = y0 + hh * (0.32 + 0.22 * ((i * 0.61) % 1)); c.fillRect(Math.round(sx), Math.round(sy0), 2, 2); c.fillRect(Math.round(sx) - 2, Math.round(sy0), 1, 1); c.fillRect(Math.round(sx) + 3, Math.round(sy0), 1, 1); }
@@ -2139,13 +2151,7 @@
           const by = top - 8 - Math.abs(Math.sin(now / 260)) * 5; c.fillStyle = '#1D2340'; rr(c, n.x - 9, by - 12, 18, 22, 6); c.fill(); c.fillStyle = '#FFD23F'; rr(c, n.x - 7, by - 10, 14, 18, 5); c.fill();
           c.fillStyle = '#1D2340'; c.fillRect(n.x - 1.5, by - 7, 3, 8); c.fillRect(n.x - 1.5, by + 3, 3, 3); top = by - 16;
         }
-        if (n.say && n.sayT > 0) {
-          c.save(); c.globalAlpha = Math.min(1, n.sayT * 3); c.font = '13px "Jua", "Malgun Gothic", sans-serif';
-          const tw = c.measureText(n.say).width + 20, bx = clamp(n.x - tw / 2, cam.x + 4, cam.x + W - tw - 4), by = top - 30;
-          c.fillStyle = '#1D2340'; rr(c, bx - 2, by - 2, tw + 4, 30, 9); c.fill(); c.beginPath(); c.moveTo(n.x - 7, by + 26); c.lineTo(n.x + 7, by + 26); c.lineTo(n.x, by + 36); c.fill();
-          c.fillStyle = '#FFFFFF'; rr(c, bx, by, tw, 26, 8); c.fill(); c.beginPath(); c.moveTo(n.x - 5, by + 25); c.lineTo(n.x + 5, by + 25); c.lineTo(n.x, by + 32); c.fill();
-          c.fillStyle = '#1D2340'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(n.say, bx + 10, by + 14); c.restore();
-        }
+        if (n.say && n.sayT > 0) (G.sayQ || (G.sayQ = [])).push([n, top]);   // v158 말풍선은 맨 마지막에 (비석·건물에 가려지지 않게) — sayFlush
       }
       function drawArmy(c, n, now) {
         const im = img79(n.def.img), H0 = Math.round((n.def.h || 64) * (n.scale || 1));
@@ -2346,13 +2352,7 @@
           const by = top - 8 - Math.abs(Math.sin(now / 260)) * 5; c.fillStyle = '#1D2340'; rr(c, n.x - 9, by - 12, 18, 22, 6); c.fill(); c.fillStyle = '#FFD23F'; rr(c, n.x - 7, by - 10, 14, 18, 5); c.fill();
           c.fillStyle = '#1D2340'; c.fillRect(n.x - 1.5, by - 7, 3, 8); c.fillRect(n.x - 1.5, by + 3, 3, 3); top = by - 16;
         }
-        if (n.say && n.sayT > 0) {
-          c.save(); c.globalAlpha = Math.min(1, n.sayT * 3); c.font = '13px "Jua", "Malgun Gothic", sans-serif';
-          const tw = c.measureText(n.say).width + 20, bx = clamp(n.x - tw / 2, cam.x + 4, cam.x + W - tw - 4), by = top - 30;
-          c.fillStyle = '#1D2340'; rr(c, bx - 2, by - 2, tw + 4, 30, 9); c.fill(); c.beginPath(); c.moveTo(n.x - 7, by + 26); c.lineTo(n.x + 7, by + 26); c.lineTo(n.x, by + 36); c.fill();
-          c.fillStyle = '#FFFFFF'; rr(c, bx, by, tw, 26, 8); c.fill(); c.beginPath(); c.moveTo(n.x - 5, by + 25); c.lineTo(n.x + 5, by + 25); c.lineTo(n.x, by + 32); c.fill();
-          c.fillStyle = '#1D2340'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(n.say, bx + 10, by + 14); c.restore();
-        }
+        if (n.say && n.sayT > 0) (G.sayQ || (G.sayQ = [])).push([n, top]);   // v158 말풍선은 맨 마지막에 (비석·건물에 가려지지 않게) — sayFlush
       }
       // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
       function drawPeer(c, p, now) {

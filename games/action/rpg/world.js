@@ -38,6 +38,8 @@
 
   /* ================= 지도 만들기 =================
    * 칸 값: 0 땅 · 1 길 · 2 장애물(큰) · 3 장애물(작은) · 4 물 · 5 꽃(지나갈 수 있음) · 6 건물 · 7 문 · 8 분수 · 9 대장간(v60) */
+  /* v158 선생님 11/17: 마을을 넓게 (36×24 → 50×32칸). 자리 숫자는 예전 지도(36×24) 기준으로 적고 VX·VY 로 넓힘 (건물·소품 크기는 그대로) */
+  const VKX = 50 / 36, VKY = 32 / 24, VX = x => Math.round(x * VKX), VY = y => Math.round(y * VKY), VXf = x => x * VKX, VYf = y => y * VKY;
   const SOLID = { 2: 1, 3: 1, 4: 1, 6: 1, 8: 1, 9: 1, 10: 1, 11: 1 };   // 9 = v60 대장간 · 10 = v80 진영 소품(천막·대포…) · 11 = v85 역참
   const mapCache = {};
   /* v120 연못 그림: t = 칸(32px) 지도 · W 물(못 지나감) · r 물가(지나감, 나무·꽃 안 놓음 = 칸 12) · . 빈칸 */
@@ -283,9 +285,9 @@
     if (ARENA[id]) return arenaMap(id);
     if (MAPBY[id] && MAPBY[id].custom) return customMap(id);
     const M = MAPBY[id], R = D.REGIONS[M.region], rnd = seeded('gogo-rpg-' + id);
-    const w = M.kind === 'village' ? 36 : 50, h = M.kind === 'village' ? 24 : 34;
+    const w = M.kind === 'village' ? 50 : 50, h = M.kind === 'village' ? 32 : 34;   // v158 마을 36×24 → 50×32
     const t = new Uint8Array(w * h), at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 2 : t[y * w + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = v; };
-    const mid = M.kind === 'village' ? 9 : Math.floor(h / 2);
+    const mid = M.kind === 'village' ? VY(9) : Math.floor(h / 2);
     const map = { id, M, R, w, h, t, at, set, mid, buildings: [], doors: [], spawns: [] };
     // 테두리
     for (let x = 0; x < w; x++) { set(x, 0, 2); set(x, h - 1, 2); }
@@ -294,6 +296,7 @@
       for (let x = 0; x < w; x++) { set(x, mid, 1); set(x, mid + 1, 1); }
       const bs = D.BUILDINGS.map(b => Object.assign({}, b));
       if (R.castle) bs.push(Object.assign({}, D.CASTLE));
+      bs.forEach(b => { b.x = VX(b.x); b.y = VY(b.y); });   // v158 넓은 마을 자리
       bs.forEach(b => {
         for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) set(x, y, 6);
         b.door = { x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 };
@@ -313,19 +316,20 @@
           for (let x = b.x - 2; x <= b.x + b.w + 1; x++) set(x, yb, 1);
         }
       });
-      if (D.GURI && M.region === D.GURI.region) { const g = D.GURI.stele; set(g.tx, g.ty, 3); set(g.tx + 1, g.ty, 3); map.gStele = { tx: g.tx, ty: g.ty, x: (g.tx + 1) * TS, y: (g.ty + 1) * TS, text: g.text, name: g.name, img: g.img }; }   // v149 구리마을 광개토대왕비 (선생님 그림이 오면 그림)
-      if (!R.castle) { set(17, 14, 8); set(18, 14, 8); set(17, 15, 8); set(18, 15, 8); for (let x = 15; x <= 20; x++) { set(x, 13, 1); set(x, 16, 1); } for (let y = 13; y <= 16; y++) { set(15, y, 1); set(20, y, 1); } for (let y = mid + 2; y < 13; y++) set(17, y, 1); }
+      if (D.GURI && M.region === D.GURI.region) { const g0 = D.GURI.stele, g = { tx: VX(g0.tx), ty: VY(g0.ty) }; set(g.tx, g.ty, 3); set(g.tx + 1, g.ty, 3); map.gStele = { tx: g.tx, ty: g.ty, x: (g.tx + 1) * TS, y: (g.ty + 1) * TS, text: g0.text, name: g0.name, img: g0.img }; }   // v149 구리마을 광개토대왕비 (선생님 그림이 오면 그림)
+      const FX = VX(17), FY = VY(14); map.fx = FX; map.fy = FY;   // v158 분수 자리 (예전 17,14)
+      if (!R.castle) { set(FX, FY, 8); set(FX + 1, FY, 8); set(FX, FY + 1, 8); set(FX + 1, FY + 1, 8); for (let x = FX - 2; x <= FX + 3; x++) { set(x, FY - 1, 1); set(x, FY + 2, 1); } for (let y = FY - 1; y <= FY + 2; y++) { set(FX - 2, y, 1); set(FX + 3, y, 1); } for (let y = mid + 2; y < FY - 1; y++) set(FX, y, 1); }
       // 나무 몇 그루 · 꽃
-      for (let i = 0; i < 70; i++) { const x = 1 + Math.floor(rnd() * (w - 2)), y = 1 + Math.floor(rnd() * (h - 2)); if (at(x, y) === 0 && Math.abs(y - mid) > 2 && !nearDoor(map, x, y)) set(x, y, rnd() < 0.35 ? 2 : 5); }
+      for (let i = 0; i < 95; i++) { const x = 1 + Math.floor(rnd() * (w - 2)), y = 1 + Math.floor(rnd() * (h - 2)); if (at(x, y) === 0 && Math.abs(y - mid) > 2 && !nearDoor(map, x, y)) set(x, y, rnd() < 0.35 ? 2 : 5); }
       // v60 대장간 (마을마다 하나 · 3×2 칸) + 큰길에서 내려오는 작은 길. 대장장이는 대장간 앞에 섬 (game.js)
-      const fx0 = R.castle ? 16 : 27, fy0 = 14;
+      const fx0 = VX(R.castle ? 16 : 27), fy0 = VY(14);
       for (let y = fy0 - 1; y <= fy0 + 4; y++) for (let x = fx0 - 2; x <= fx0 + 4; x++) if ([2, 3, 5].includes(at(x, y))) set(x, y, 0);
       for (let y = fy0; y < fy0 + 2; y++) for (let x = fx0; x < fx0 + 3; x++) set(x, y, 9);
       for (let y = mid + 2; y <= fy0 + 3; y++) set(fx0 - 1, y, 1);
       for (let x = fx0 - 1; x <= fx0 + 3; x++) set(x, fy0 + 3, 1);
       map.forge = { x: fx0, y: fy0, w: 3, h: 2 };
       // v85 역참 (4×2 칸, 오른쪽 아래 · 마지막 마을은 왼쪽 아래) + 역참지기 자리 + 길
-      const st = R.castle ? { x: 13, y: 20, w: 6, h: 2, nx: 19.6, path: 19 } : { x: 29, y: 20, w: 6, h: 2, nx: 27.6, path: 28 };   // v144 새 그림으로 크게 (예전 4×2, y19)
+      const st = R.castle ? { x: VX(13), y: VY(20), w: 6, h: 2, nx: VX(13) + 6.6, path: VX(13) + 6 } : { x: VX(29), y: VY(20), w: 6, h: 2, nx: VX(29) - 1.4, path: VX(29) - 1 };   // v158 넓은 마을   // v144 새 그림으로 크게 (예전 4×2, y19)
       for (let y = st.y - 2; y <= st.y + st.h; y++) for (let x = st.x - 1; x <= st.x + st.w; x++) if ([2, 3, 5].includes(at(x, y))) set(x, y, 0);
       for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) set(x, y, 11);
       for (let y = R.castle ? mid + 2 : fy0 + 3; y <= st.y + st.h; y++) set(st.path, y, 1);
@@ -456,7 +460,7 @@
     const { at, set, w, h } = map, last = !!map.R.castle;
     const free = p => { for (let y = p.y; y < p.y + p.fh; y++) for (let x = p.x; x < p.x + p.fw; x++) if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1 || ![0, 2, 3, 5].includes(at(x, y))) return false; return true; };
     map.props = [];
-    CAMP_PROPS.forEach((p, i) => {
+    CAMP_PROPS.map(p0 => Object.assign({}, p0, { x: VX(p0.x), y: VY(p0.y) })).forEach((p, i) => {   // v158 넓은 마을 자리
       if (!last && i > 1 && rnd() < 0.3) return;   // 마을마다 조금씩 다르게 (마지막 진영은 전부)
       if (!free(p)) return;
       for (let y = p.y - 1; y <= p.y + p.fh; y++) for (let x = p.x - 1; x <= p.x + p.fw; x++) if ([2, 3].includes(at(x, y))) set(x, y, 0);
@@ -465,14 +469,14 @@
     });
     // 사람 자리 (kind = data.js ARMY 의 열쇠) — 걷는 병사는 큰길 · 아래 빈 땅에서 좌우로 순찰
     const ri = map.M.region, A = [];
-    A.push({ k: 'spear', x: 8, y: map.mid + 0.75, range: 90 }, { k: ri % 2 ? 'bow' : 'militia', x: 29, y: map.mid + 1.8, range: 80 });
-    A.push({ k: ['porter', 'monk', 'militia', 'spear'][ri % 4], x: 19, y: 19.6, range: 110 });
-    A.push({ k: 'horse', x: 20, y: 22.2, range: 240, spd: 66 });
-    if (last) A.push({ k: 'general', x: 21, y: map.mid - 0.4, range: 0 });
+    A.push({ k: 'spear', x: VXf(8), y: map.mid + 0.75, range: 90 }, { k: ri % 2 ? 'bow' : 'militia', x: VXf(29), y: map.mid + 1.8, range: 80 });
+    A.push({ k: ['porter', 'monk', 'militia', 'spear'][ri % 4], x: VXf(19), y: VYf(19.6), range: 110 });
+    A.push({ k: 'horse', x: VXf(20), y: VYf(22.2), range: 300, spd: 66 });
+    if (last) A.push({ k: 'general', x: VXf(21), y: map.mid - 0.4, range: 0 });
     // 다친 병사 + 군의관 (천막 앞 또는 항아리 옆)
     const tent = map.props.find(p => p.n === 'prop_tent');
     if (tent) A.push({ k: 'hurt1', x: tent.x + 0.8, y: tent.y + 3.1, still: true }, { k: 'doctor', x: tent.x + 2.9, y: tent.y + 3.0, range: 0 });
-    A.push({ k: 'hurt2', x: 16.6, y: 21.3, still: true });
+    A.push({ k: 'hurt2', x: VXf(16.6), y: VYf(21.3), still: true });
     A.forEach(a => { if (!a.range) return; const ty = Math.floor(a.y), r = Math.ceil(a.range / TS) + 1; for (let x = Math.floor(a.x) - r; x <= Math.floor(a.x) + r; x++) if ([2, 3].includes(at(x, ty))) set(x, ty, 0); });   // 순찰 길의 나무·바위 치움
     map.army = A.filter(a => { const tx = Math.floor(a.x), ty = Math.floor(a.y); return !SOLID[at(tx, ty)]; });
   }
@@ -525,8 +529,9 @@
       }
     });
     if (!last) {   // 분수 둥근 마당 + 큰길에서 내려오는 길
-      roads.push({ pts: [join(17.8), [18, 12.2], [18, 13.2]], w: 1.6 });
-      plazas.push({ x: 18, y: 15, r: 2.75 });
+      const FX = map.fx + 1, FY = map.fy + 1;   // v158 분수 가운데
+      roads.push({ pts: [join(FX - 0.2), [FX, FY - 2.8], [FX, FY - 1.8]], w: 1.6 });
+      plazas.push({ x: FX, y: FY, r: 2.75 });
     }
     const f = map.forge, st = map.station;
     if (f) {   // 대장간 앞 마당
@@ -804,11 +809,12 @@
       x.fillStyle = 'rgba(0,0,0,.22)'; x.beginPath(); x.ellipse(cx0, by - 6, p.pw * 0.42, 9, 0, 0, Math.PI * 2); x.fill();
       map.objs.push({ p79: p.n, pw: p.pw, cx: cx0, by, img: { width: p.pw, height: p.pw * 1.2 }, x: cx0 - p.pw / 2, y: by - p.pw * 1.2, sy: by - 3 });
     });
-    if (map.at(17, 14) === 8) {
-      x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.ellipse(17 * TS + 32, 16 * TS - 2, 34, 10, 0, 0, Math.PI * 2); x.fill();
-      for (let yy = 13; yy <= 15; yy++) for (let xx = 16; xx <= 19; xx++) set8(map, xx, yy);   // v86 새 분수 그림(돌 거북 · 연꽃 · 석등)은 6×4 칸 크기 → 가운데 4×3 칸을 막음
-      map.objs.push({ img: fountainSprite(R), x: 17 * TS - 8, y: 14 * TS - 40, sy: 16 * TS - 1, fountain: true });
-      map.fountain = { x: 17 * TS + 32, y: 14 * TS - 8 };
+    const FX = map.fx, FY = map.fy;   // v158 분수 자리 (넓은 마을)
+    if (FX != null && map.at(FX, FY) === 8) {
+      x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.ellipse(FX * TS + 32, (FY + 2) * TS - 2, 34, 10, 0, 0, Math.PI * 2); x.fill();
+      for (let yy = FY - 1; yy <= FY + 1; yy++) for (let xx = FX - 1; xx <= FX + 2; xx++) set8(map, xx, yy);   // v86 새 분수 그림(돌 거북 · 연꽃 · 석등)은 6×4 칸 크기 → 가운데 4×3 칸을 막음
+      map.objs.push({ img: fountainSprite(R), x: FX * TS - 8, y: FY * TS - 40, sy: (FY + 2) * TS - 1, fountain: true });
+      map.fountain = { x: FX * TS + 32, y: FY * TS - 8 };
     }
     // 7) 출구: 빛나는 길
     const exitGlow = (X0, dir) => { for (let k = 0; k < 4; k++) { x.fillStyle = 'rgba(255,255,220,' + (0.18 - k * 0.04) + ')'; x.fillRect(dir < 0 ? X0 : X0 - (k + 1) * 32, (map.mid - 2) * TS, (k + 1) * 32, 6 * TS); } };
@@ -1357,5 +1363,5 @@
   }
 
   registerCustom([]);   // v150 사신의 땅 20장은 서버 지도 목록이 없어도(체험 모드) 늘 있게
-  window.__GoRPGParts = { RB_ART, registerCustom, arrivePos, gateAt, gatePos, dungeonAt, CUSTOM, previewMap, drawMapObj, texOf, POND, DUNGEON, DUNGEON_KEYS, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
+  window.__GoRPGParts = { VX, VY, VXf, VYf, RB_ART, registerCustom, arrivePos, gateAt, gatePos, dungeonAt, CUSTOM, previewMap, drawMapObj, texOf, POND, DUNGEON, DUNGEON_KEYS, loadImages, imgOk, img79, getMap, solidAt, monSprite, avatarSprite, itemIcon, itemImg, seeded, clamp, rand, pick, dist, fmtN, shade, mk, MAPBY, SOLID, W, H, TS, SAVE_V, GAME };
 })();

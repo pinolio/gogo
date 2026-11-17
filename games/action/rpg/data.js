@@ -681,7 +681,7 @@
    *  할아버지 말(18살·39살) = 숨은 던전 단서 (18번 사냥터 입구 · 39번 사냥터 왕을 죽인 검) */
   const GURI = {
     region: 1,
-    stele: { tx: 22, ty: 12, img: 'gw_stele', name: '광개토대왕비', text: '국강상광개토경평안호태왕… 열여덟에 왕위에 올라 영락이라 부르니, 그 은혜가 하늘에 닿고 위엄이 사해에 떨쳤다.' },
+    stele: { tx: 22, ty: 12, img: 'gw_stele', name: '광개토대왕비', text: '국강상광개토경평안호태왕… 18세에 왕위에 올라 영락이라 부르니, 그 은혜가 하늘에 닿고 위엄이 사해에 떨쳤다.' },
     folk: [
       { name: '꼬마 돌쇠', img: 'gw_kid1', h: 50, at: [7.5, 12.6], range: 50, color: '#9AE6FF', av: { skin: 's2', hair: 'h_short', top: 't_pe', bottom: 'b_shorts', shoes: 'sh_red' },
         lines: ['할아버지가 그러는데, 옛날옛날에 땅을 엄청 넓힌 임금님이 있었대!'] },
@@ -690,7 +690,7 @@
       { name: '꼬마 범이', img: 'gw_kid3', h: 50, at: [20.5, 13.4], range: 0, color: '#9AF0B0', av: { skin: 's3', hair: 'h_spiky', top: 't_vest', bottom: 'b_shorts', shoes: 'sh_black' },
         lines: ['저 큰 비석 봤어? 글씨가 빼곡해서 하나도 못 읽겠어…'] },
       { name: '이야기꾼 할아버지', img: 'gw_grandpa', h: 62, at: [24.6, 12.7], range: 0, color: '#FFE45C', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
-        lines: ['광개토대왕께서는 열여덟 살에 임금이 되셨고, 서른아홉 살에 세상을 떠나셨지.'] },
+        lines: ['광개토대왕께서는 18살에 임금이 되셨고, 39살에 세상을 떠나셨지.'] },
       { name: '빨래터 아주머니', img: 'gw_aunt', h: 62, at: [28.5, 13.2], range: 40, color: '#FF9AA0', av: { skin: 's2', hair: 'h_bun', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black' },
         lines: ['강 건너에서 이끼 낀 큰 돌비석이 나왔다는 소문이 있더라고요.'] },
       { name: '글 읽는 선비', img: 'gw_scholar', h: 64, at: [31.5, 12.6], range: 30, color: '#D8B8FF', av: { skin: 's1', hair: 'h_topknot', hat: 'hat_gat', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },

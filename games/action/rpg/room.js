@@ -304,13 +304,13 @@
   /* ---------- 마을 사람 (마을마다 2명) ---------- */
   function villagers(map) {
     const V = D.VILLAGERS, r = map.M.region, a = V[r % V.length], b = V[(r + 1) % V.length];
-    const spots = [[15, map.mid + 1.75], [24.5, map.mid + 1.6]];   // 큰길 위 (좌우로만 천천히 걸음)
+    const spots = [[P.VXf(15), map.mid + 1.75], [P.VXf(24.5), map.mid + 1.6]];   // v158 넓은 마을   // 큰길 위 (좌우로만 천천히 걸음)
     const folk = [a, b].map((d0, i) => ({ key: 'v' + i, def: D.npcDef(d0, r), x: spots[i][0] * TS, y: spots[i][1] * TS, hx: spots[i][0] * TS, hy: spots[i][1] * TS, face: i ? -1 : 1, ph: i * 3, wt: 1 + i, vx: 0, vy: 0, walker: true }));
     // v80 조선 병사·다친 병사·군의관 (world.js armyCamp 가 정한 자리 · 그림은 data.js ARMY)
     const army = (map.army || []).filter(q => D.ARMY && D.ARMY[q.k]).map((q, i) => ({ key: 'a' + i, def: D.ARMY[q.k], x: q.x * TS, y: q.y * TS, hx: q.x * TS, hy: q.y * TS,
       face: i % 2 ? -1 : 1, ph: i * 1.7, wt: 0.5 + i * 0.4, vx: 0, vy: 0, range: q.range || 0, spd: q.spd, still: !!q.still, walker: !q.still, guard: !!q.still }));
     // v149 구리마을: 광개토대왕 이야기하는 사람 6명 (data.js GURI)
-    const gu = D.GURI && r === D.GURI.region && map.M.kind === 'village' ? D.GURI.folk.map((d0, i) => ({ key: 'g' + i, def: d0, x: d0.at[0] * TS, y: d0.at[1] * TS, hx: d0.at[0] * TS, hy: d0.at[1] * TS,
+    const gu = D.GURI && r === D.GURI.region && map.M.kind === 'village' ? D.GURI.folk.map((d0, i) => ({ key: 'g' + i, def: d0, x: P.VXf(d0.at[0]) * TS, y: P.VYf(d0.at[1]) * TS, hx: P.VXf(d0.at[0]) * TS, hy: P.VYf(d0.at[1]) * TS,   /* v158 넓은 마을 */
       face: i % 2 ? -1 : 1, ph: i * 1.3, wt: 0.8 + i * 0.5, vx: 0, vy: 0, range: d0.range, spd: 22, walker: true })) : [];
     return folk.concat(army, gu);
   }
