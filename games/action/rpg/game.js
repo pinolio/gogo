@@ -437,6 +437,7 @@
   .rg-detail .grow { flex: 1; min-width: 0; }
   .rg-detail .nm { display: block; font-size: 15px; } .rg-detail .nm.rare { color: #E0C8FF; } .rg-detail .nm small { color: #9AF0B0; font-size: 11px; }
   .rg-detail .ds { display: block; color: #AEB7E0; font-size: 12px; }
+  .rg-detail .rg-itdesc { display: block; margin: 4px 0 2px; color: #FFE48A; font-size: 12.5px; line-height: 1.45; }   /* v162 장비 간단 설명 (옵션 위) */
   .rg-detail .cmp { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; margin-top: 3px; }
   .rg-detail em { font-style: normal; } .rg-detail em.up { color: #3DDC84; } .rg-detail em.dn { color: #FF8A8E; }
   .rg-side .panel { margin: 0; }
@@ -1740,6 +1741,10 @@
             n.moving = !!n.vx; if (n.vx) n.face = n.vx < 0 ? -1 : 1; else if (d < 160) n.face = G.px < n.x ? -1 : 1;
             n.walk = (n.walk || 0) + (n.moving ? dt : 0);
           } else if (!n.guard && d < 220) n.face = G.px < n.x ? -1 : 1;
+          if (!n.walker && n.def.nearSay) {   // v162 서 있는 NPC: 가까이 오면 한마디 (가까이 있는 동안 6초마다 다시)
+            if (d < 180) { n.nst = (n.nst || 0) - dt; if (!n.near || n.nst <= 0) { n.near = true; n.nst = 6; n.say = n.def.nearSay; n.sayT = 3.5; } }
+            else n.near = false;
+          }
         });
       }
 
@@ -2708,6 +2713,17 @@
       }
       const tabs = (key, list) => `<div class="rg-tabs">${list.map(([k, n]) => `<button type="button" data-tab="${key}:${k}" aria-pressed="${(tab[key] || list[0][0]) === k}">${n}</button>`).join('')}</div>`;
       const edefTxt = () => { const v = Object.values(ST.edefs), lo = Math.min(...v), hi = Math.max(...v); return lo === hi ? lo + '%' : lo + '%+'; };
+      /* v162 선생님 11/17: 장비를 누르면 옵션 위에 간단한 설명 (따로 적은 desc 가 있으면 그것 — 왕을 죽인 검·광개토대왕의 반지) */
+      const BLURB = { sword: '가까이에서 베는 검이에요. 공격을 크게 올려 줘요.', staff: '마력을 모아 주는 지팡이예요. 공격과 마력을 함께 올려 마법이 세져요.',
+        helmet: '머리를 지키는 투구예요. 방어와 체력을 올려 줘요.', armor: '몸을 지키는 갑옷이에요. 방어와 체력을 가장 많이 올려 줘요.',
+        boots: '발을 지키는 신발이에요. 방어와 이동 속도를 올려 줘요.', ring: '손에 끼는 반지예요. 마나와 마력을 올려 줘요.' };
+      function itemBlurb(it) {
+        const B = ITEMS[it.base] || it, d = it.desc || B.desc;
+        if (d) return (it.kingSword || B.kingSword) && inKingRoom() ? (it.descKing || B.descKing || d) : d;
+        const k = it.slot === 'weapon' ? (B.look === 'staff' ? 'staff' : 'sword') : it.slot;
+        const g = B.legend ? ' 전설 단계 — 아주 드물게 얻는 최고 장비예요.' : B.rare ? ' 정예 — 같은 단계 보통 장비보다 강해요.' : '';
+        return (BLURB[k] || '') + g;
+      }
       const optList = it => (it && it.op && it.op.length ? `<ul class="rg-opts">${it.op.map(o => `<li class="${o[1] > 0 ? 'pos' : 'neg'}">${optTxt(o)}</li>`).join('')}</ul>` : '');
       const stOf = it => Object.entries(it.st || {}).map(([k, v]) => ({ atk: '공격', mag: '마력', def: '방어', hp: '체력', mp: '마나', spd: '속도%' }[k] + ' +' + v)).join(' · ');
       function renderPanel() {
@@ -2734,7 +2750,7 @@
             const cur = it.slot && !worn ? ITEMS[S.eq[it.slot]] : null, keys = ['atk', 'mag', 'def', 'hp', 'mp', 'spd'], nm = { atk: '공격', mag: '마력', def: '방어', hp: '체력', mp: '마나', spd: '속도%' };
             const cmp = it.slot ? keys.filter(q => (it.st || {})[q] || (cur && (cur.st || {})[q])).map(q => { const v = (it.st || {})[q] || 0, d = v - ((cur && cur.st && cur.st[q]) || 0); return `<span>${nm[q]} <b>${v}</b>${!worn && d ? ` <em class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</span>`; }).join('') : '';
             const btn = worn ? `<button type="button" class="rg-mini ghost" data-unequip="${it.slot}">벗기</button>` : it.stack ? `<button type="button" class="rg-mini" data-use="${id}">쓰기</button>` : `<button type="button" class="rg-mini" data-equip="${id}" ${S.lv >= it.req ? '' : 'disabled'}>${S.lv >= it.req ? (cur ? '바꿔 입기' : '입기') : 'Lv.' + it.req + ' 필요'}</button>`;
-            h += `<div class="rg-detail">${itemIcon(id)}<div class="grow"><b class="nm${it.rare ? ' rare' : ''}"${it.grade != null ? ` style="color:${GRADE[it.grade].color}"` : ''}>${it.name}${it.grade != null ? `<span class="rg-grade">${GRADE[it.grade].name}</span>` : ''}${worn ? ' <small>입는 중</small>' : ''}</b><span class="ds">${it.slot ? `${D.SLOT_NAME[it.slot]} · ${it.rare && !it.legend ? '정예 · ' : ''}Lv.${it.req} 이상 · 강화 +${it.en || 0}/${ENH.max}${cur ? ' · 지금: ' + cur.name : ''}${it.desc ? ' · <em style="color:#FFE48A">' + (it.kingSword && inKingRoom() ? it.descKing : it.desc) + '</em>' : ''}${it.noTrade ? ' · 거래 안 됨' : ''}` : it.desc + ' · 가진 수 ' + count(id)}</span>${cmp ? `<div class="cmp">${cmp}</div>` : ''}${optList(it)}</div>${btn}</div>`;
+            h += `<div class="rg-detail">${itemIcon(id)}<div class="grow"><b class="nm${it.rare ? ' rare' : ''}"${it.grade != null ? ` style="color:${GRADE[it.grade].color}"` : ''}>${it.name}${it.grade != null ? `<span class="rg-grade">${GRADE[it.grade].name}</span>` : ''}${worn ? ' <small>입는 중</small>' : ''}</b><span class="ds">${it.slot ? `${D.SLOT_NAME[it.slot]} · ${it.rare && !it.legend ? '정예 · ' : ''}Lv.${it.req} 이상 · 강화 +${it.en || 0}/${ENH.max}${cur ? ' · 지금: ' + cur.name : ''}${it.noTrade ? ' · 거래 안 됨' : ''}` : it.desc + ' · 가진 수 ' + count(id)}</span>${it.slot ? `<span class="rg-itdesc">${itemBlurb(it)}</span>` : ''}${cmp ? `<div class="cmp">${cmp}</div>` : ''}${optList(it)}</div>${btn}</div>`;
           } else h += `<div class="rg-detail hint">칸을 누르면 자세히 보여요. 필요 없는 물건은 <b>🗑 쓰레기통</b>을 누른 뒤 고르면 버릴 수 있어요. 장비는 <b>입기</b>, 물약은 <b>쓰기</b>. 사냥터 몬스터가 장비를 떨어뜨려요 (보스는 꼭!)</div>`;
           h += '</section></div>';
           const tq = tab.trashAsk && count(tab.trashAsk) ? tab.trashAsk : null;   // v68 버리기 경고

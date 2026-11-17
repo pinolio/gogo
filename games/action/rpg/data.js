@@ -663,7 +663,7 @@
     ['cr', 'jj', 'bh', 'hm', 'king'].forEach(k => { boss[k].noKnock = true; boss[k].hard = true; });   // v157 선생님 11/17: 사방신·광개토대왕 넉백(움찔·밀려남) 없음 · 더 어렵게(hard = 공격 빨리 · 마법 자주·많이 · 쿨타임 짧게, game.js bossSkill)   // v152 선생님 11/16: 사방신은 넉백·상태 이상이 1/4 만 걸림 (광개토대왕 noFx = 안 걸림 · 왕을 죽인 검을 끼면 1/4)
     const lv = { path: 150, god: 250, king: 400 };
     const rock = '돌에 새겨진 글씨: 이 너머는 한 번 생을 다시 산 자만 지날 수 있다.';
-    const npc = { name: '광개토대왕 던전 지킴이', img: 'sx_npc', h: 70, color: '#9AE6FF', av: { skin: 's2', hair: 'h_long', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black', back: 'bk_cape' },
+    const npc = { name: '광개토대왕 던전 지킴이', img: 'sx_npc', h: 70, color: '#9AE6FF', nearSay: '왕을 죽일 준비된 자만 들어와라',   // v162 선생님 11/17: 가까이 오면 머리 위 말풍선 av: { skin: 's2', hair: 'h_long', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black', back: 'bk_cape' },
       lines: ['여기는 광개토대왕 던전, 네 신이 지키는 땅이다. 동쪽 청룡, 남쪽 주작, 서쪽 백호, 북쪽 현무가 저마다 자기 땅을 지키고 있지.',
         '청룡에게는 번개가, 주작에게는 불이, 현무에게는 물이, 백호에게는 땅의 힘이 통하지 않는다. 다른 힘으로 맞서라.',
         '네 신을 모두 이기면 위쪽 문에 네 개의 불이 켜지고, 네 신이 한꺼번에 기다리는 방이 열린다.',
