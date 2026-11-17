@@ -185,6 +185,15 @@
   .rg-page .screen { outline: none; }
   .rg-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
   .rg-bar .btn { min-width: 0; padding: 8px 12px; font-size: 14px; }
+  /* v164 아래 메뉴 = 게임 창과 같은 남색·금테 단추 + Gemini 아이콘 (선생님 11/17: 딱딱한 흰 단추 다듬기) */
+  .rg-bar { gap: 4px; padding: 7px 6px; width: min(100%, 1000px); box-sizing: border-box; border-radius: 12px; background: linear-gradient(180deg, #1E2A55, #0E1532); border: 3px solid #C9A24A; box-shadow: 0 0 0 3px #0A0E24, inset 0 0 0 2px rgba(243,210,122,.18), 0 6px 0 rgba(0,0,0,.25); }
+  .rg-bar .rg-mb { display: inline-flex; align-items: center; gap: 6px; padding: 4px 7px 4px 4px; font-size: 13px; gap: 4px; font-weight: 700; color: #FFF4D0; background: linear-gradient(180deg, #2C3A66, #1A2446); border: 2px solid #8FA6C8; border-radius: 8px; box-shadow: 0 0 0 1px #0A0E24, inset 0 1px 0 rgba(255,255,255,.18), 0 3px 0 #0A0E24; text-decoration: none; transition: transform .08s, border-color .12s, box-shadow .12s; }
+  .rg-bar .rg-mb:hover { transform: translateY(-2px); border-color: #F3D27A; box-shadow: 0 0 0 1px #0A0E24, inset 0 1px 0 rgba(255,255,255,.25), 0 5px 0 #0A0E24, 0 0 10px rgba(243,210,122,.45); }
+  .rg-bar .rg-mb:active { transform: translateY(1px); box-shadow: 0 0 0 1px #0A0E24, 0 1px 0 #0A0E24; }
+  .rg-bar .rg-mb i { width: 24px; height: 24px; flex: none; background: var(--ic) center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 0 #0A0E24); }
+  .rg-bar .rg-mb kbd { font: 700 11px/1 var(--f-display, inherit); color: #1D2340; background: linear-gradient(180deg, #F3D27A, #C8922E); border: 1px solid #6B4A12; border-radius: 4px; padding: 2px 4px; }
+  .rg-bar .rg-mb-fight { background: linear-gradient(180deg, #8A5AE8, #5A2FB0); border-color: #C9A8FF; color: #FFFFFF; }
+  .rg-bar .rg-mb-save { background: linear-gradient(180deg, #F3D27A, #C8922E); border-color: #6B4A12; color: #1D2340; }
   .rg-panel { position: absolute; inset: 4% 6%; background: linear-gradient(180deg, rgba(34, 42, 92, .97), rgba(12, 16, 40, .97)); color: #EEF1FF; border: 3px solid #0A0E24; border-radius: 10px; padding: 12px 14px; overflow-y: auto; overscroll-behavior: contain; font-size: 14px; z-index: 3; box-shadow: 0 6px 0 rgba(0,0,0,.35); }
   .rg-panel[hidden] { display: none; }
   .rg-panel h3 { font-family: var(--f-display); font-size: 22px; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
@@ -615,7 +624,7 @@
   window.GoRPG = {
     render(el, A) {
       BGM.load(GAME);
-      const syncBgm = () => { const b = el.querySelector('#rgBgm'); if (b) b.textContent = BGM.isMuted() ? '♪ 음악 켜기' : '♪ 음악 끄기'; };   // v73
+      const syncBgm = () => { const b = el.querySelector('#rgBgm'); if (b) (b.querySelector('span') || b).textContent = BGM.isMuted() ? '음악 켜기' : '음악 끄기'; };   // v73 · v164 아이콘은 두고 글자만
       if (!document.getElementById('rgCss')) { const st = document.createElement('style'); st.id = 'rgCss'; st.textContent = CSS; document.head.appendChild(st); }
       el.innerHTML = `
         <div class="rg-page">
@@ -630,16 +639,16 @@
               <div class="rg-toon" id="rgToon" hidden></div>
             </div></div>
             <div class="rg-bar">
-              <button type="button" class="btn" data-rg="stat">스탯 (C)</button>
-              <button type="button" class="btn" data-rg="inv">가방 · 장비 (I)</button>
-              <button type="button" class="btn" data-rg="skill">마법 (K)</button>
-              <button type="button" class="btn" data-rg="pet">🐾 펫 (P)</button>
-              <button type="button" class="btn" data-rg="servers">서버</button>
-              <button type="button" class="btn" data-rg="help">도움말</button>
-              <button type="button" class="btn" data-rg="full">크게 보기</button>
-              <a class="btn" href="#scfight" style="background:#9A5AE0;color:#fff">Skillcom Fight 대결</a>
-              <button type="button" class="btn" data-rg="bgm" id="rgBgm">♪ 음악 끄기</button>
-              <button type="button" class="btn btn-sun" data-rg="save">지금 저장</button>
+              <button type="button" class="btn rg-mb" data-rg="stat"><i style="--ic:url(games/action/rpg/img/v79/mb_stat.png)"></i><span>스탯</span><kbd>C</kbd></button>
+              <button type="button" class="btn rg-mb" data-rg="inv"><i style="--ic:url(games/action/rpg/img/v79/mb_bag.png)"></i><span>가방</span><kbd>I</kbd></button>
+              <button type="button" class="btn rg-mb" data-rg="skill"><i style="--ic:url(games/action/rpg/img/v79/mb_magic.png)"></i><span>마법</span><kbd>K</kbd></button>
+              <button type="button" class="btn rg-mb" data-rg="pet"><i style="--ic:url(games/action/rpg/img/v79/mb_pet.png)"></i><span>펫</span><kbd>P</kbd></button>
+              <button type="button" class="btn rg-mb" data-rg="servers"><i style="--ic:url(games/action/rpg/img/v79/mb_server.png)"></i><span>서버</span></button>
+              <button type="button" class="btn rg-mb" data-rg="help"><i style="--ic:url(games/action/rpg/img/v79/mb_help.png)"></i><span>도움말</span></button>
+              <button type="button" class="btn rg-mb" data-rg="full"><i style="--ic:url(games/action/rpg/img/v79/mb_full.png)"></i><span>크게 보기</span></button>
+              <a class="btn rg-mb rg-mb-fight" href="#scfight"><i style="--ic:url(games/action/rpg/img/v79/mb_duel.png)"></i><span>Fight 대결</span></a>
+              <button type="button" class="btn rg-mb" data-rg="bgm" id="rgBgm"><i style="--ic:url(games/action/rpg/img/v79/mb_music.png)"></i><span>음악 끄기</span></button>
+              <button type="button" class="btn rg-mb rg-mb-save" data-rg="save"><i style="--ic:url(games/action/rpg/img/v79/mb_save.png)"></i><span>지금 저장</span></button>
             </div>
             <div class="rg-side">
               <div id="rgChatBox"></div>
@@ -2968,7 +2977,7 @@
             <li>쓰러지면 경험치가 조금 줄고 마지막 마을에서 다시 시작해요. <b>귀환 주문서</b>로 언제든 마을로 돌아갈 수 있어요.</li>
           </ul><button type="button" class="btn btn-primary" data-x>모험 시작!</button>`;
         }
-        panel.classList.toggle('rg-deco', !!k && k !== 'inv' && k !== 'stat');   // v146 금테 꾸미기 (가방·스탯 창은 원래 꾸밈)
+        panel.classList.toggle('rg-deco', !!k);   // v146 금테 꾸미기 · v164 가방·스탯 창도 같은 금테 (모든 창 통일)
         panel.innerHTML = h;
         if (k === 'inv' && tab.trashAsk) panel.scrollTop = 0;   // v68 버리기 경고가 보이게
       }
