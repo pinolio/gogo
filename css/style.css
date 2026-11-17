@@ -1767,3 +1767,54 @@ html.fs-lock, html.fs-lock body { overflow: hidden; }
 .card-foot .r-king2 { justify-content: flex-end; margin-top: -2px; }
 .card-foot .r-king2 .rec-who { font-size: 13px; }
 a.card .card-foot .r-king2 b { color: #B4560B; }
+
+/* =====================================================================
+ * v167 메인 화면 살짝 꾸미기 (선생님 11/17: 실제 게임 화면은 그대로 두고 조금만 · 게임과 상관없는 그림은 쓰지 않음)
+ *  ① 큰 배너 = 픽셀 금테 + 네 귀퉁이 장식  ② 게임 카드 = 화면을 게임기 화면처럼(분류 색 테두리 · 위쪽 빛 반사 · 올리면 반짝 지나감)
+ *  ③ '게임 목록' 제목 = 리본 띠  ④ 분류 딱지 = 분류 색 픽셀 딱지
+ * ===================================================================== */
+.home .hero.hero-img { box-shadow: 0 0 0 4px #1D2340, 0 0 0 7px #F3D27A, 0 0 0 10px #1D2340, 0 14px 30px rgba(60, 70, 160, .28); margin: 10px; }
+.home .hero.hero-img::before { content: ""; position: absolute; inset: -12px; z-index: 4; pointer-events: none;
+  background:
+    linear-gradient(#F3D27A, #F3D27A) 0 0 / 18px 6px, linear-gradient(#F3D27A, #F3D27A) 0 0 / 6px 18px,
+    linear-gradient(#F3D27A, #F3D27A) 100% 0 / 18px 6px, linear-gradient(#F3D27A, #F3D27A) 100% 0 / 6px 18px,
+    linear-gradient(#F3D27A, #F3D27A) 0 100% / 18px 6px, linear-gradient(#F3D27A, #F3D27A) 0 100% / 6px 18px,
+    linear-gradient(#F3D27A, #F3D27A) 100% 100% / 18px 6px, linear-gradient(#F3D27A, #F3D27A) 100% 100% / 6px 18px;
+  background-repeat: no-repeat; filter: drop-shadow(0 2px 0 #1D2340); }
+.home .hs2-art { box-shadow: inset 6px 0 0 rgba(243, 210, 122, .0); }
+.home .hs2-art::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .06) 0 1px, transparent 1px 3px); }   /* 아주 옅은 화면 줄무늬(게임 화면 느낌) */
+
+.home #gamesTitle { position: relative; display: inline-block; padding: 6px 22px 6px 44px; color: #FFFFFF; background: linear-gradient(180deg, #3B4FB8, #26357F); border-radius: 8px;
+  box-shadow: 0 0 0 3px #1D2340, 0 4px 0 #1D2340; text-shadow: 0 2px 0 #1D2340; }
+.home #gamesTitle::before { content: ""; position: absolute; left: 12px; top: 50%; width: 22px; height: 14px; transform: translateY(-50%); border-radius: 5px; background: #F3D27A;
+  box-shadow: inset 4px 0 0 #1D2340, inset -4px 0 0 #1D2340; }   /* 작은 게임기 모양 */
+.home #gamesTitle::after { content: ""; position: absolute; left: 20px; top: 50%; width: 6px; height: 6px; transform: translateY(-50%); background: #D24A45; border-radius: 50%; }
+
+.home .thumb-wrap { margin: 8px 8px 0; border-radius: 12px; box-shadow: 0 0 0 3px var(--cart), 0 0 0 5px #1D2340; }
+.home .thumb-wrap::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: 12px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, .28) 0%, rgba(255, 255, 255, 0) 28%), linear-gradient(0deg, rgba(10, 14, 36, .35) 0%, rgba(10, 14, 36, 0) 30%); }   /* 화면 위 빛 반사 · 아래 살짝 어둡게 */
+.home .thumb-wrap::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; z-index: 1; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .45), transparent); transform: skewX(-18deg); opacity: 0; }
+.home a.card:hover .thumb-wrap::after { animation: cardShine .7s ease-out; }
+@keyframes cardShine { 0% { left: -60%; opacity: 1; } 100% { left: 130%; opacity: 1; } }
+.home .thumb-wrap .cat, .home .thumb-wrap .tag { z-index: 2; }
+.home .thumb-wrap .cat { background: var(--cart); color: #FFFFFF; border-radius: 4px; box-shadow: 0 0 0 2px #1D2340, 0 2px 0 2px #1D2340; text-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+.home a.card .card-body { background-size: 100% 0; padding-top: 12px; }
+.home a.card .card-body h3::before { content: ""; display: inline-block; width: 8px; height: 8px; margin: 0 7px 2px 0; background: var(--cart); box-shadow: 0 0 0 2px #1D2340; transform: rotate(45deg); vertical-align: middle; }
+@media (max-width: 560px) { .home .thumb-wrap { margin: 6px 6px 0; } .home #gamesTitle { padding: 5px 14px 5px 38px; } }
+/* v167 마스코트 세 자세 (Gemini · 사이트 마스코트 그대로): 게임 목록 띠 위에 앉음 · 랭킹 칸 위에서 트로피 · 배너 아래에서 손 흔듦 */
+.home .sec-head { position: relative; }
+.home .sec-head::before { content: ""; position: absolute; left: 168px; top: -58px; width: 64px; height: 80px; background: url(../img/mascot_sit.png) center bottom / contain no-repeat; image-rendering: pixelated; pointer-events: none; animation: mascot-bob 1.6s steps(2, jump-none) infinite alternate; }
+.home .side-rank { position: relative; }
+.home .side-rank::after { content: ""; position: absolute; right: 12px; top: -64px; width: 56px; height: 68px; background: url(../img/mascot_cheer.png) center bottom / contain no-repeat; image-rendering: pixelated; pointer-events: none; animation: mascot-bob 1.2s steps(2, jump-none) infinite alternate; }
+@media (max-width: 560px) { .home .sec-head::before { left: 150px; top: -40px; width: 40px; height: 50px; } }
+/* v167 게임 카드 아래쪽(소개 칸) 꾸미기 · 소개 글 4줄까지 (선생님 11/17: 2줄만 보여서 답답) */
+.home a.card { background: linear-gradient(180deg, #FFFFFF 0%, color-mix(in srgb, var(--cart) 9%, #FFFFFF) 100%); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cart) 35%, #FFFFFF), 0 6px 18px rgba(60, 70, 160, .14); }
+.home a.card:hover { box-shadow: 0 0 0 2px var(--cart), 0 14px 28px rgba(60, 70, 160, .26); }
+.home a.card .card-body { background: transparent; position: relative; }
+.home a.card .card-body::after { content: ""; position: absolute; right: 10px; top: 14px; width: 28px; height: 10px; pointer-events: none;   /* 오른쪽 위 작은 픽셀 점 셋 (분류 색) */
+  background: radial-gradient(circle, var(--cart) 0 3px, transparent 3.5px) 0 50% / 10px 10px repeat-x; opacity: .55; }
+.home a.card .card-body h3 { padding-bottom: 6px; margin-bottom: 2px; background: linear-gradient(90deg, var(--cart) 0 46px, color-mix(in srgb, var(--cart) 25%, transparent) 46px 100%) left bottom / 100% 3px no-repeat; }
+.home a.card .card-body p { -webkit-line-clamp: 4; box-sizing: content-box; font-size: 13px; line-height: 1.5; height: 6em; min-height: 0; max-height: none; padding: 0 3px; border: 6px solid transparent; border-radius: 10px; background: color-mix(in srgb, var(--cart) 7%, #FFFFFF) border-box; outline: 1px dashed color-mix(in srgb, var(--cart) 40%, #FFFFFF); outline-offset: -1px;   /* 여백은 투명 테두리로(넘친 5번째 줄이 여백에 비치지 않게) */ color: #3A4366; }
+.home a.card .card-foot { border-top: 2px dotted color-mix(in srgb, var(--cart) 35%, #FFFFFF); }
+@media (max-width: 560px) { .home a.card .card-body p { -webkit-line-clamp: 4; font-size: 12px; height: 6em; min-height: 0; padding: 0 2px; border-width: 4px; } .home a.card .card-body::after { display: none; } }

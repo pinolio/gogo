@@ -213,7 +213,7 @@
         </div>
         <aside class="side">
           <div class="panel" id="accountBox"></div>
-          <div class="panel">
+          <div class="panel side-rank">
             <h3>게임별 랭킹 <small>최고 점수</small></h3>
             <div class="mini-tabs" id="rankTabs">${GAMES.map(g => `<button type="button" data-g="${g.id}" aria-pressed="${g.id === homeRankGame}">${g.name}</button>`).join('')}</div>
             <ol class="rank" id="rankList"><li class="empty">불러오는 중…</li></ol>
