@@ -1710,16 +1710,8 @@ html.fs-lock, html.fs-lock body { overflow: hidden; }
   .hs2-nav { left: 18px; bottom: 14px; }
 }
 
-/* 이벤트 칸: 배너 아래 한 줄 띠 (랭킹 TOP 5) */
-.home .event-box { margin: 0; padding: 14px 18px; gap: 14px; border: 0; border-radius: 18px; color: #1D2340;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  background: linear-gradient(120deg, #FFF3C4 0%, #FFE1F0 55%, #DDEBFF 100%); box-shadow: 0 6px 18px rgba(60, 70, 160, .14); }
-.home .event-copy h2 { font-size: 22px; color: #1D2340; text-shadow: none; }
-.home .event-copy p { display: none; }
-.home .event-tag { animation: none; font-family: inherit; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 10px; }
-.home .event-mine { color: #4A3AA8; }
-.home .event-rank { border: 0; border-radius: 14px; box-shadow: inset 0 0 0 2px #E3E8FA; }
-.home .event-rank h3 { font-size: 14px; color: #4A3AA8; }
+/* v161 선생님 11/17: 이벤트 칸은 예전(v27) 모습 그대로 — 진한 분홍·보라 그라데이션 · 깜빡이는 EVENT · 큰 제목 · 설명 글 (v152 의 밝은 띠 덮어쓰기는 뺌) */
+.home .event-box { margin: 0; }
 
 /* 게임 카드: 흰 카드 · 그림 크게 · 분류는 그림 위 작은 딱지 · 높이 맞춤 */
 .home .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; align-items: stretch; }
