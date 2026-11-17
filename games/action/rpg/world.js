@@ -690,18 +690,21 @@
 
   const LAVA_ART = true;   // v164 선생님 11/17 반영 (그림 lava_w·lava_r)
   // v164 저승 용암 웅덩이: 이어진 용암 칸(4) 덩어리마다 Gemini 그림 한 장을 덩어리 크기에 맞춰 그림 (네모 칸이 보이지 않게)
-  function lavaArt(x, map) {
+  const POOL_ART = { lava: ['lava_w', 'lava_r', '140,40,0'], ice: ['ice_w', 'ice_r', '120,200,255'], poison: ['psn_w', 'psn_r', '60,160,40'] };   // v165 한빙=얼음 웅덩이 · 독늪=독늪 웅덩이
+  const poolKind = (map, tex) => (tex === 'r5_water' ? 'ice' : tex === 'r2_water' ? 'poison' : 'lava');
+  function lavaArt(x, map, kind) {
+    const PA = POOL_ART[kind || 'lava'];
     const { w, h, at } = map, seen = new Uint8Array(w * h);
     for (let y0 = 0; y0 < h; y0++) for (let x0 = 0; x0 < w; x0++) {
       if (seen[y0 * w + x0] || at(x0, y0) !== 4) continue;
       let a = x0, b = x0, c = y0, d = y0; const q = [[x0, y0]]; seen[y0 * w + x0] = 1;
       while (q.length) { const [px, py] = q.pop(); a = Math.min(a, px); b = Math.max(b, px); c = Math.min(c, py); d = Math.max(d, py);
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = px + dx, ny = py + dy; if (nx < 0 || ny < 0 || nx >= w || ny >= h || seen[ny * w + nx] || at(nx, ny) !== 4) continue; seen[ny * w + nx] = 1; q.push([nx, ny]); } }
-      const bw = b - a + 1, bh = d - c + 1, im = img79(bw / bh >= 1.45 ? 'lava_w' : 'lava_r');
+      const bw = b - a + 1, bh = d - c + 1, im = img79(bw / bh >= 1.45 ? PA[0] : PA[1]);
       let X = (a - 0.45) * TS, Y = (c - 0.55) * TS, W = (bw + 0.9) * TS, H = (bh + 1.0) * TS;
       if (H < W * 0.42) { Y -= (W * 0.42 - H) / 2; H = W * 0.42; } if (W < H * 0.85) { X -= (H * 0.85 - W) / 2; W = H * 0.85; }   // 너무 납작하거나 길쭉하게 늘어나지 않게
       x.save(); x.globalCompositeOperation = 'lighter'; const g = x.createRadialGradient(X + W / 2, Y + H / 2, Math.min(W, H) * 0.3, X + W / 2, Y + H / 2, Math.max(W, H) * 0.75);
-      g.addColorStop(0, 'rgba(140,40,0,0.25)'); g.addColorStop(1, 'rgba(140,40,0,0)'); x.fillStyle = g; x.fillRect(X - W * 0.3, Y - H * 0.3, W * 1.6, H * 1.6); x.restore();   // 둘레로 번지는 열기
+      g.addColorStop(0, `rgba(${PA[2]},${kind === 'ice' ? 0.16 : 0.25})`); g.addColorStop(1, `rgba(${PA[2]},0)`); x.fillStyle = g; x.fillRect(X - W * 0.3, Y - H * 0.3, W * 1.6, H * 1.6); x.restore();   // 둘레로 번지는 열기
       x.drawImage(im, X, Y, W, H);
       for (let ty = c - 1; ty <= d + 1; ty++) for (let tx = a - 1; tx <= b + 1; tx++) { const v = at(tx, ty); if ((v === 2 || v === 3) && tx > 0 && ty > 0 && tx < w - 1 && ty < h - 1) map.t[ty * w + tx] = 0; }   // 그림 테두리 위의 나무·바위는 치움
     }
@@ -713,7 +716,7 @@
     const isPath = v => v === 1 || v === 7, G0 = R.ground[0], G1 = R.ground[1], dark = shade(G0, -0.18), light = shade(G0, 0.16);
     map.water = []; map.objs = (map.objs || []).filter(o => o.sign); map.glows = [];   // v151 고침: 재질 그림을 다 받아 다시 그릴 때 비석·입구 바위(sign)가 사라지던 것
     // v80 Meshy 재질 그림 (땅·길·물 192px 이어 붙는 무늬). 아직 안 불러왔으면 옛 색 무늬로 그리고, 다 불러오면 다시 그림
-    const TX = texOf(map), NEED = TX.concat((map.ponds || []).map(p => p.k), (map.dgs || []).map(d => d.k), LAVA_ART && map.M.hell ? ['lava_w', 'lava_r'] : []), ok = NEED.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
+    const TX = texOf(map), NEED = TX.concat((map.ponds || []).map(p => p.k), (map.dgs || []).map(d => d.k), LAVA_ART && map.M.hell ? POOL_ART[poolKind(map, texOf(map)[2])].slice(0, 2) : []), ok = NEED.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
     if (!ok && !map.texWait) {   // v82 고침: 이미 받은 그림은 기다릴 수에서 빼야 함 (전에는 하나라도 먼저 받아져 있으면 영영 다시 안 그렸음)
       map.texWait = true; const need = NEED.filter(n => !img79(n)); let left = need.length;
       const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) { map.ground = paintGround(map); if (map.reArt) map.reArt(); } };
@@ -759,7 +762,7 @@
     if (map.roads) drawRoads(x, map, ok ? pat : null, rnd, nz);
     // 3) 물: 깊이에 따라 진하게 · 물가 모래 테두리 · 위쪽 물보라
     const W0 = R.water, soft = !!(map.M.hell || map.M.sx);   // v152 사신의 땅 길 연못도 부드럽게   // v135 저승 용암·얼음·독늪 = 부드러운 웅덩이 (네모 칸 대신)
-    if (LAVA_ART && soft && map.M.hell && TX[2] !== 'r5_water' && TX[2] !== 'r2_water' && img79('lava_w') && img79('lava_r')) lavaArt(x, map); else if (soft) softPool(x, map, ok ? pat[2] : null, nz, TX[2]);   // v164 저승 용암 = Gemini 용암 웅덩이 그림
+    const PK = poolKind(map, TX[2]); if (LAVA_ART && soft && map.M.hell && img79(POOL_ART[PK][0]) && img79(POOL_ART[PK][1])) lavaArt(x, map, PK); else if (soft) softPool(x, map, ok ? pat[2] : null, nz, TX[2]);   // v164 저승 용암 = Gemini 용암 웅덩이 그림
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       if (at(tx, ty) !== 4) continue;
       if (soft) { map.water.push([tx, ty]); continue; }
