@@ -374,7 +374,7 @@
   // v158 선생님 11/17: 큰 배너 그림도 실제 게임 화면 (사신의 회합 · 6.25. 하늘 로봇 변신 중 · 신호등 구구단)
   const HERO_SLIDES = [
     { id: 'dungeon', href: '#rpg', art: 'img/hero/dungeon.jpg', pos: '50% 55%', theme: ['#2A1B5E', '#6A3FC8'],
-      tag: 'NEW · skillcom RPG 숨은 던전', title: '광개토대왕 던전 오픈!', sub: '환생한 용사만 찾을 수 있는 숲속 입구 · 사방신 넷과 광개토대왕에게 도전하고 <b>왕을 죽인 검</b>을 얻어 보세요.', cta: '던전 찾으러 가기' },
+      tag: 'NEW · skillcom RPG 숨은 던전', title: '광개토대왕 던전 오픈!', sub: '환생한 용사만 찾을 수 있는 숲속 입구 · 사방신 넷을 이기고 <b>광개토대왕</b>에게 도전해 보세요. 첫 토벌자는 메인 화면에 이름이 올라가요!', cta: '던전 찾으러 가기' },
     { id: 'sky', href: '#sky', art: 'img/hero/sky.jpg', pos: '50% 92%', theme: ['#123E7A', '#2F8FE0'],
       tag: 'UPDATE · 6.25. 하늘', title: '로봇으로 변신!', sub: '<b>C</b> 키로 10초 동안 로봇 변신 · P 카드 4장 · 새 적·보스와 하늘 배경 10장. 친구와 둘이서도 할 수 있어요.', cta: '출격하기' },
     { id: 'event', art: 'img/hero/gugu.jpg', pos: '50% 50%', theme: ['#1E2A6B', '#3E7BD8'],
