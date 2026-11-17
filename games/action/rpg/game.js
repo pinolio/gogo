@@ -1774,7 +1774,8 @@
         if (G.shield && (G.shield.t -= dt) <= 0) G.shield = null;
         // 자연 회복
         const reg = (M.kind !== 'field' ? 3 : 1) * (G.lastHit > 5 ? 1 : 0.25);
-        if (!G.duel) S.hp = Math.min(ST.hp, S.hp + ST.hp * 0.012 * reg * dt);   // v143 결투 중엔 HP 저절로 안 참 S.mp = Math.min(ST.mp, S.mp + ST.mp * 0.02 * reg * (ST.mpRegen / 100) * dt);   // v44 지혜 → 마나 회복
+        if (!G.duel) S.hp = Math.min(ST.hp, S.hp + ST.hp * 0.012 * reg * dt);   // v143 결투 중엔 HP 저절로 안 참
+        S.mp = Math.min(ST.mp, S.mp + ST.mp * 0.02 * reg * (ST.mpRegen / 100) * dt);   // v44 지혜 → 마나 회복 · v166 고침: 이 줄이 위 줄 주석 뒤에 붙어 있어 마나가 저절로 전혀 안 찼음
 
         // 입력 → 이동
         let mx = 0, my = 0; const K = G.keys;
