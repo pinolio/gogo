@@ -1264,9 +1264,9 @@
       const SKILL_NAME = { slam: '내려찍기!', charge: '돌진!', blades: '칼비가 쏟아진다!', ring: '사방 원혼탄!', fan: '판결의 붓!', summon: '망령을 부른다!' };
       function bossShot(m, a, sp, dmgK) { const E = ELEM[m.el || 'earth']; G.shots.push({ x: m.x, y: m.y - m.spr.h / 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 2.2, dmg: m.atk * dmgK, lvl: m.lvl, r: 7, color: E.color, color2: E.light, mine: false, monEl: 'dark', el: m.el || 'earth' }); }
       function bossSkill(m, dt, d) {
-        const rage = m.hp < m.max * 0.5, c = m.cast;
+        const rage = m.hp < m.max * 0.5, c = m.cast, H = !!m.def.hard;   // v157 H = 사방신·광개토대왕: 마법 준비 빨리 · 쿨타임 반쯤 · 탄 더 많이·빠르게 · 더 멀리서도 씀
         if (c) {
-          c.t += dt;
+          c.t += dt * (H ? 1.35 : 1);
           if (c.k === 'blades' && c.t >= 1.0) {
             c.pts.forEach(q => { if (Math.hypot(G.px - q.x, G.py - 20 - q.y) < 46) hitPlayer(m.atk * 1.1, m.lvl, m.el, q); Fx.nova(q.x, q.y, 46, [m.el || 'earth', 'earth']); });
             G.shake = Math.max(G.shake, 7); m.cast = null;
@@ -1277,15 +1277,15 @@
           return;
         }
         m.skCd -= dt * (rage ? 1.5 : 1);
-        if (m.skCd > 0 || d > 460 || m.slam) return;
-        const k = pick(m.def.skills); m.skCd = rand(3.2, 4.4);
+        if (m.skCd > 0 || d > (H ? 620 : 460) || m.slam) return;
+        const k = pick(m.def.skills); m.skCd = H ? rand(1.5, 2.2) : rand(3.2, 4.4);
         float(m.x, m.y - m.spr.h - 26, (rage ? '분노! ' : '') + SKILL_NAME[k], '#FF8A8E', true);
         const a0 = Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x);
         if (k === 'slam') m.slam = { t: 0, x: m.x, y: m.y - 20 };
-        else if (k === 'blades') m.cast = { k, t: 0, pts: Array.from({ length: rage ? 7 : 5 }, (_, i) => ({ x: G.px + (i ? rand(-120, 120) : 0), y: G.py - 20 + (i ? rand(-80, 80) : 0) })) };
-        else if (k === 'charge') { const a = Math.atan2(G.py - m.y, G.px - m.x); m.cast = { k, t: 0, a, vx: Math.cos(a) * 430, vy: Math.sin(a) * 430 }; }
-        else if (k === 'ring') { const n = rage ? 18 : 12; for (let i = 0; i < n; i++) bossShot(m, a0 + i / n * Math.PI * 2, 190, 0.7); m.cast = { k, t: 0 }; }
-        else if (k === 'fan') { const n = rage ? 7 : 5; for (let i = 0; i < n; i++) bossShot(m, a0 + (i - (n - 1) / 2) * 0.2, 250, 0.8); m.cast = { k, t: 0 }; }
+        else if (k === 'blades') m.cast = { k, t: 0, pts: Array.from({ length: (rage ? 7 : 5) + (H ? 3 : 0) }, (_, i) => ({ x: G.px + (i ? rand(-120, 120) : 0), y: G.py - 20 + (i ? rand(-80, 80) : 0) })) };
+        else if (k === 'charge') { const a = Math.atan2(G.py - m.y, G.px - m.x); const v = H ? 580 : 430; m.cast = { k, t: 0, a, vx: Math.cos(a) * v, vy: Math.sin(a) * v }; }   // v157 H 는 준비가 1.35배 빨라 돌진 시간이 짧으니 속도를 올림
+        else if (k === 'ring') { const n = (rage ? 18 : 12) + (H ? 6 : 0); for (let i = 0; i < n; i++) bossShot(m, a0 + i / n * Math.PI * 2, H ? 230 : 190, 0.7); m.cast = { k, t: 0 }; }
+        else if (k === 'fan') { const n = (rage ? 7 : 5) + (H ? 2 : 0); for (let i = 0; i < n; i++) bossShot(m, a0 + (i - (n - 1) / 2) * (H ? 0.17 : 0.2), H ? 300 : 250, 0.8); m.cast = { k, t: 0 }; }
         else if (k === 'summon') {
           const g = D.HELL.gates[(G.map.M.gate || 1) - 1];
           if (G.mons.filter(x => !x.dead && !x.boss).length < 8) for (let i = 0; i < 3; i++) { const x = makeMon(i === 2 && g.mob2 ? g.mob2 : g.mob, m.lvl - 3); x.noRespawn = true; x.x = m.x + rand(-70, 70); x.y = m.y + rand(-40, 40); x.aggro = true; G.mons.push(x); Fx.death(x.x, x.y - 20, x.def.colors, false); }
@@ -1441,7 +1441,7 @@
         return { def, name: def.name, lvl, boss: !!boss, kind: boss ? 'boss' : def.kind, x: p.x, y: p.y, hx: p.x, hy: p.y, hp, max: hp,
           atk: Math.round(F.monAtk(lvl) * (boss ? B.atk : 1)), mdef: F.monDef(lvl), spr, r: boss ? 30 : 14, hr: def.bh >= 250 ? Math.round(def.bh * 0.3) : 0,   // v150 큰 그림(사방신)은 맞는 범위도 크게
           exp: Math.round(F.monExp(lvl) * (boss ? B.exp : 1)), gold: Math.round(F.monGold(lvl) * (boss ? B.gold : 1)),
-          spd: boss ? 70 : def.kind === 'shoot' ? 60 : 80, cd: rand(0.5, 1.5), wt: 0, wx: 0, wy: 0, aggro: false, flash: 0,
+          spd: boss ? 91 : def.kind === 'shoot' ? 60 : 80, cd: rand(0.5, 1.5), wt: 0, wx: 0, wy: 0, aggro: false, flash: 0,   /* v157 선생님 11/17: 모든 보스 이동 속도 1.3배 (70 → 91) */
           burn: null, slow: 0, stun: 0, dead: false, respawn: 0, slam: null, el: def.el || null, cast: null, skCd: 2.5 };
       }
 
@@ -1463,7 +1463,7 @@
         const crit = Math.random() < ST.crit / 100; if (crit) dmg *= ST.critD || D.STAT.critDmg;
         dmg = Math.max(1, Math.round(dmg));
         if (m.dummy) return dummyHit(m, dmg, crit, weakHit, els);   // v144 훈련장 허수아비
-        m.hp -= dmg; m.flash = 0.12; m.aggro = true; const fq = m.def.noFx ? (kingSwordOn() ? 0.25 : 0) : (m.def.fxQ || 1); m.knock = fq === 0 || m.def.noFx ? 0 : (m.x < G.px ? -1 : 1) * (crit ? 6 : 3) * (m.def.fxQ || m.def.noFx ? fq : m.boss ? 1 / 3 : 1); /* v146 보스는 맞아도 1/3 만 움찔 (선생님 11/14) · v149 광개토대왕은 안 움찔 */
+        m.hp -= dmg; m.flash = 0.12; m.aggro = true; const fq = m.def.noFx ? (kingSwordOn() ? 0.25 : 0) : (m.def.fxQ || 1); m.knock = fq === 0 || m.def.noFx || m.def.noKnock ? 0 : (m.x < G.px ? -1 : 1) * (crit ? 6 : 3) * (m.def.fxQ || m.def.noFx ? fq : m.boss ? 1 / 3 : 1); /* v146 보스는 맞아도 1/3 만 움찔 (선생님 11/14) · v149 광개토대왕은 안 움찔 */
         const elc = els && els.length ? Fx.pal(els[0])[1] : '#FFFFFF';
         G.texts.push({ x: m.x + rand(-8, 8), y: m.y - m.spr.h - 4, text: (crit ? '치명! ' : '') + (weakHit ? '약점! ' : '') + dmg, color: crit ? '#FFD23F' : elc, t: 0, big: crit, dmg: true });
         Fx.hit(m.x, m.y - m.spr.h / 2, els, crit);
@@ -1475,7 +1475,7 @@
           if (fx === 'burn') m.burn = { t: 3 * q, dps: dmg * 0.12, tick: 0.5 };
           else if (fx === 'slow') m.slow = 2.5 * q;
           else if (fx === 'stun' && !opt.noStun) m.stun = q < 1 ? 0.7 * q : m.boss ? 0.25 : 0.7;
-          else if (fx === 'push') { const a = Math.atan2(m.y - G.py, m.x - G.px), k = q < 1 ? 46 * q : m.boss ? 8 / 3 : 46; /* v146 보스 밀어내기 1/3 · v152 사방신 1/4 */ moveMon(m, Math.cos(a) * k, Math.sin(a) * k); }
+          else if (fx === 'push') { if (m.def.noKnock) return; const a = Math.atan2(m.y - G.py, m.x - G.px), k = q < 1 ? 46 * q : m.boss ? 8 / 3 : 46; /* v146 보스 밀어내기 1/3 · v152 사방신 1/4 */ moveMon(m, Math.cos(a) * k, Math.sin(a) * k); }
           else if (fx === 'holy') S.hp = Math.min(ST.hp, S.hp + Math.max(1, Math.round(dmg * 0.03)));
           else if (fx === 'curse') m.curse = 4 * q;   // v87 어둠: 4초 동안 받는 피해 +20%
         });
@@ -1712,6 +1712,15 @@
         S.gold -= fee; pane = null; panel.hidden = true; G.paused = false;
         enter(id, stationFront(id)); say(`역참 말을 타고 ${M.name}에 왔어요 (−${fmtN(fee)} G)`, 3); markDirty(true);
       }
+      // v157 선생님 11/17: 사방신 넷을 모두 이겨 '사방신 모두 방'에 들어갈 자격이 되면, 역참에서 '광개토대왕 던전 어귀'(사방신 모두 방 바로 앞, 지킴이 NPC 옆)로 바로 감 · 이용료 D.STATION.sxFee
+      function stationSx() {
+        if (G.map.M.kind !== 'village' || godsDone() < 4) return;
+        const fee = D.STATION.sxFee || 3000;
+        if (S.gold < fee) { say('골드가 모자라요'); return; }
+        const m = getMap('sx_npc'); if (!m) return;
+        S.gold -= fee; pane = null; panel.hidden = true; G.paused = false;
+        enter('sx_npc', { x: (m.w >> 1) * TS - 50, y: ((m.h >> 1) + 0.6) * TS }); say(`역참 말을 타고 광개토대왕 던전 어귀에 왔어요 (−${fmtN(fee)} G) · 위쪽이 사방신 모두 방이에요`, 4); markDirty(true);
+      }
       // v69 저승차사 강림: Lv.100 이 되면 마지막 마을(도원수 진영) 큰길 오른쪽에 나타남
       const hellNpc = map => (map.R.castle && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: 30.5 * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);
       function talk(n) {
@@ -1820,12 +1829,12 @@
               if (m.cd <= 0 && d < 300) { m.cd = 2.2; const a = Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x); const rel = m.el || D.RG_EL[m.def.ri != null ? m.def.ri : G.map.M.region]; G.shots.push({ x: m.x, y: m.y - m.spr.h / 2, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230, life: 1.6, dmg: m.atk * 0.8, lvl: m.lvl, r: 6, color: ELEM[rel].color, color2: ELEM[rel].light, mine: false, monEl: 'dark', el: rel }); m.lunge = 0.2; }
             } else {
               if (d > m.r + 12 && !m.cast) moveMon(m, dx / d * sp, dy / d * sp);
-              if (d < m.r + 22 && m.cd <= 0) { m.cd = m.boss ? 1.4 : 1.2; m.lunge = 0.25; const md = hitPlayer(m.atk, m.lvl); if (md && m.el && Math.random() < 0.25) pStatus(m.el, md, m); }   // v87 몸통 박치기 = 물리 피해 + 25% 확률로 속성 효과
+              if (d < m.r + 22 && m.cd <= 0) { m.cd = m.def.hard ? 0.8 : m.boss ? 1.4 : 1.2; m.lunge = 0.25; const md = hitPlayer(m.atk, m.lvl); if (md && m.el && Math.random() < 0.25) pStatus(m.el, md, m); }   // v87 몸통 박치기 = 물리 피해 + 25% 확률로 속성 효과
               if (m.boss) {
                 if (m.def.skills) bossSkill(m, dt, d);   // v69 저승 보스 기술
                 else if (!m.slam && m.cd <= 0.2 && Math.random() < 0.01 + dt) m.slam = { t: 0, x: m.x, y: m.y - 20 };
                 const sel = m.el || D.RG_EL[G.map.M.region];
-                if (m.slam) { m.slam.t += dt; if (m.slam.t >= 0.9) { if (Math.hypot(G.px - m.slam.x, G.py - 20 - m.slam.y) < 130) hitPlayer(m.atk * 1.5, m.lvl, sel, m.slam); Fx.nova(m.slam.x, m.slam.y, 130, [sel, 'earth']); G.shake = Math.max(G.shake, 9); m.slam = null; m.cd = 2.2; } }
+                if (m.slam) { m.slam.t += dt; if (m.slam.t >= 0.9) { if (Math.hypot(G.px - m.slam.x, G.py - 20 - m.slam.y) < 130) hitPlayer(m.atk * 1.5, m.lvl, sel, m.slam); Fx.nova(m.slam.x, m.slam.y, 130, [sel, 'earth']); G.shake = Math.max(G.shake, 9); m.slam = null; m.cd = m.def.hard ? 1.2 : 2.2; } }
               }
             }
           } else {
@@ -2786,7 +2795,8 @@
           h = head('역참 · 마을 이동', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 가는 마을의 <b style="color:#FFD23F">시작 레벨</b> 이상이면 갈 수 있어요 · 이용료 = 거리 × 마을 번호 × ${D.STATION.feeUnit} G`) + npcBox();
           h += `<ul class="rg-list">${D.REGIONS.map((r, i) => { const id = 'v' + (i + 1), need = D.LV_RANGE[i][0], fee = D.stationFee(here, i), lvOk = S.lv >= need, gOk = S.gold >= fee, cur = i === here;
             const why = cur ? '지금 있는 마을' : !lvOk ? `Lv.${need} 부터` : !gOk ? '골드 부족' : '';
-            return `<li class="rg-row${cur ? ' sel' : ''}"><span class="grow"><span class="nm">${i + 1}. ${r.name} <small style="color:#AEB7E0">Lv.${D.LV_RANGE[i][0]}~${D.LV_RANGE[i][1]}</small></span><span class="ds">${cur ? '여기예요' : `이용료 <b style="color:#FFE45C">${fmtN(fee)} G</b> · 시작 레벨 <b style="color:${lvOk ? '#9AF0B0' : '#FF8A8E'}">Lv.${need}</b>`}</span></span><button type="button" class="rg-mini" data-stgo="${id}" ${why ? 'disabled' : ''}>${why || '출발'}</button></li>`; }).join('')}</ul>`;
+            return `<li class="rg-row${cur ? ' sel' : ''}"><span class="grow"><span class="nm">${i + 1}. ${r.name} <small style="color:#AEB7E0">Lv.${D.LV_RANGE[i][0]}~${D.LV_RANGE[i][1]}</small></span><span class="ds">${cur ? '여기예요' : `이용료 <b style="color:#FFE45C">${fmtN(fee)} G</b> · 시작 레벨 <b style="color:${lvOk ? '#9AF0B0' : '#FF8A8E'}">Lv.${need}</b>`}</span></span><button type="button" class="rg-mini" data-stgo="${id}" ${why ? 'disabled' : ''}>${why || '출발'}</button></li>`; }).join('')}${godsDone() >= 4 ? (() => { const fee = D.STATION.sxFee || 3000, ok = S.gold >= fee;   // v157 사방신 넷을 이기면 보이는 칸
+            return `<li class="rg-row" style="border-color:#FFD23F"><span class="grow"><span class="nm" style="color:#FFD23F">🐉 광개토대왕 던전 어귀 <small style="color:#AEB7E0">사방신 모두 방 바로 앞</small></span><span class="ds">이용료 <b style="color:#FFE45C">${fmtN(fee)} G</b> · 사방신 넷을 모두 이겨서 열렸어요</span></span><button type="button" class="rg-mini" data-stsx="1" ${ok ? '' : 'disabled'}>${ok ? '출발' : '골드 부족'}</button></li>`; })() : ''}</ul>`;
         } else if (k === 'forge') {   // v60 대장간: 장비 강화 (+0 → +10 · 실패하면 부서짐)
           const mine = Object.keys(S.eq).map(sl => ({ id: S.eq[sl], worn: true })).concat(S.inv.filter(x => ITEMS[x.id] && ITEMS[x.id].slot).map(x => ({ id: x.id, worn: false })));
           if (!mine.some(x => x.id === tab.fgSel)) tab.fgSel = (mine.find(x => (ITEMS[x.id].en || 0) < ENH.max) || mine[0] || {}).id || null;
@@ -3071,6 +3081,7 @@
           if (S.gold < price || S.skills.includes(id) || !skill(id)) return;
           S.gold -= price; S.skills.push(id); const free = S.fslots.indexOf(null); if (free >= 0) S.fslots[free] = id;
           say(`융합 성공! '${skill(id).name}'${free >= 0 ? ` ${FKEY[free]} 키로 써 보세요` : ' 마법 창(K)에서 Q W E R 칸에 넣어요'}`, 3); markDirty(true);
+        } else if (d.stsx) { stationSx(); return;   // v157 광개토대왕 던전 어귀로
         } else if (d.stgo) { stationGo(d.stgo); return;   // v85 역참 출발
         } else if (d.toongate) { const g = D.HELL.gates[+d.toongate - 1]; if (!g) return; pane = null; panel.hidden = true; showToon(gateCuts(g), { title: `저승 제${g.no}관문 · ${g.hell}`, go: '닫기' }); return;   // v130 관문 웹툰 다시 보기
         } else if (d.hellgo) { const id = d.hellgo, M = MAPBY[id]; if (!M || S.lv < D.MAX_LV || (M.gate - 1) * 5 + M.stage > (S.hell || 0) + 1) return; pane = null; panel.hidden = true; G.paused = false; enter(id, 'L'); return; }   // v69 저승 단계 들어가기
@@ -3133,7 +3144,7 @@
         if (!GAME_KEYS.has(e.code)) return;
         const down = e.type === 'keydown';
         if (toon) { e.preventDefault(); if (down && !e.repeat) { if (e.code === 'Escape') toonClose(); else if (e.code === 'Space' || e.code === 'Enter') { if (toon.i < toon.cuts.length) toonNext(); else toonClose(); } } return; }   // v130 웹툰 보는 중
-        if (down && e.code === 'Escape') { if (pane) { e.preventDefault(); closePanel(); } return; }
+        if (down && e.code === 'Escape') { e.preventDefault(); if (pane) closePanel(); else if (fsNow() || (cabEl() && cabEl().classList.contains('rg-max'))) toggleFull(); return; }   // v157 창이 열려 있으면 창만 닫고, 없을 때만 작게 보기 (전체 화면에서 Esc 는 kbLock 으로 게임이 받음)
         if (down && (e.code === 'KeyI' || e.code === 'KeyK' || e.code === 'KeyC' || e.code === 'KeyP')) { e.preventDefault(); const k = e.code === 'KeyI' ? 'inv' : e.code === 'KeyK' ? 'skill' : e.code === 'KeyP' ? 'pet' : 'stat'; if (G.dead) return; if (pane === k) closePanel(); else if (!pane || pane === 'inv' || pane === 'skill' || pane === 'stat' || pane === 'pet' || pane === 'help') openPanel(k); return; }
         if (pane) { if (tag !== 'button') e.preventDefault(); return; }
         if (tag === 'button' && (e.code === 'Space' || e.code === 'Enter')) return;
@@ -3200,11 +3211,13 @@
         if (!req) { fallback(); return; }
         try {
           const pr = req.call(cab, { navigationUI: 'hide' });
-          if (pr && pr.then) pr.then(() => { try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* noop */ } setTimeout(onResize, 200); }, fallback);
+          if (pr && pr.then) pr.then(() => { kbLock(true); try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* noop */ } setTimeout(onResize, 200); }, fallback);
         } catch (e) { fallback(); }
         try { screenEl.focus({ preventScroll: true }); } catch (e) { /* noop */ }
       }
-      const onFs = () => { setTimeout(onResize, 150); const b = el.querySelector('[data-rg="full"]'); if (b) b.textContent = fsNow() ? '작게 보기' : '크게 보기'; };
+      // v157 전체 화면에서 Esc 를 브라우저가 가로채서 바로 작게 되던 것 → Keyboard Lock(크롬·엣지·웨일)으로 Esc 를 게임이 받음. 그래도 Esc 를 길게 누르면 브라우저가 전체 화면을 끔
+      function kbLock(on) { try { const k = navigator.keyboard; if (!k) return; if (on) { if (k.lock) k.lock(['Escape']).catch(() => {}); } else if (k.unlock) k.unlock(); } catch (e) { /* noop */ } }
+      const onFs = () => { if (!fsNow()) kbLock(false); setTimeout(onResize, 150); const b = el.querySelector('[data-rg="full"]'); if (b) b.textContent = fsNow() ? '작게 보기' : '크게 보기'; };
       document.addEventListener('fullscreenchange', onFs); document.addEventListener('webkitfullscreenchange', onFs);
       $('#rgFull').addEventListener('click', e => { e.stopPropagation(); toggleFull(); });
       function fitScreen() {

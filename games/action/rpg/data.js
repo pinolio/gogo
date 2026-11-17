@@ -526,7 +526,7 @@
   // v85 역참 (마을마다 하나) — 다른 마을로 한 번에 이동
   //  레벨 제한 = 가는 마을의 시작 레벨(LV_RANGE[도착][0]) 이상 · 이용료 = 거리(마을 칸 수) × 도착 마을 번호(1~9) × feeUnit G
   //  예) 솔뫼(1) → 구리(2) = 1 × 2 × 20 = 40G · 솔뫼 → 도원수 진영(9) = 8 × 9 × 20 = 1,440G · 도원수 진영 → 솔뫼 = 8 × 1 × 20 = 160G
-  const STATION = { name: '역참지기 바람이', img: 'npc_station', h: 64, names: ['역참지기 바람이', '역참지기 구름이', '역참지기 번개', '역참지기 질풍이', '역참지기 산들이', '역참지기 눈보라', '역참지기 돌개', '역참지기 하늬', '역참지기 회오리'], color: '#9AE6FF', feeUnit: 20, av: { skin: 's2', hair: 'h_short', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
+  const STATION = { name: '역참지기 바람이', img: 'npc_station', h: 64, names: ['역참지기 바람이', '역참지기 구름이', '역참지기 번개', '역참지기 질풍이', '역참지기 산들이', '역참지기 눈보라', '역참지기 돌개', '역참지기 하늬', '역참지기 회오리'], color: '#9AE6FF', feeUnit: 20, sxFee: 3000, av: { skin: 's2', hair: 'h_short', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
     hello: ['어디로 모실까요? 말이 바람처럼 달립니다!', '먼 마을일수록 말을 여러 번 갈아타야 해서 값이 올라요.', '그 마을 시작 레벨이 안 되면 위험해서 못 모셔요.', '한 번에 휙! 걸어가는 것보다 훨씬 빠르지요.'],
     lines: ['히히힝~', '말 먹이를 줘야겠군.', '역참 이용하세요!'] };
   const stationFee = (from, to) => Math.abs(to - from) * (to + 1) * STATION.feeUnit;   // from·to = 마을 번호 0~8
@@ -648,7 +648,8 @@
         bh: 380, aura: true, baseCol: '#FF4A3A', ax: 234 / 417, castAt: [0.39, 0.66], castCol: '#FF4A8A',
         frames: { idle: 'sx_king_idle', walk: ['sx_king_walk1', 'sx_king_walk2'], atk1: 'sx_king_atk1', atk2: 'sx_king_atk2', cast: 'sx_king_cast', hit: 'sx_king_hit' } })   // v149 선생님 11/15: 넉백(움찔·밀어내기)은 안 걸림 · 상태 이상(불·느려짐·기절·저주)은 왕을 죽인 검을 끼면 걸림
     };
-    ['cr', 'jj', 'bh', 'hm'].forEach(k => { boss[k].fxQ = 0.25; });   // v152 선생님 11/16: 사방신은 넉백·상태 이상이 1/4 만 걸림 (광개토대왕 noFx = 안 걸림 · 왕을 죽인 검을 끼면 1/4)
+    ['cr', 'jj', 'bh', 'hm'].forEach(k => { boss[k].fxQ = 0.25; });
+    ['cr', 'jj', 'bh', 'hm', 'king'].forEach(k => { boss[k].noKnock = true; boss[k].hard = true; });   // v157 선생님 11/17: 사방신·광개토대왕 넉백(움찔·밀려남) 없음 · 더 어렵게(hard = 공격 빨리 · 마법 자주·많이 · 쿨타임 짧게, game.js bossSkill)   // v152 선생님 11/16: 사방신은 넉백·상태 이상이 1/4 만 걸림 (광개토대왕 noFx = 안 걸림 · 왕을 죽인 검을 끼면 1/4)
     const lv = { path: 150, god: 250, king: 400 };
     const rock = '돌에 새겨진 글씨: 이 너머는 한 번 생을 다시 산 자만 지날 수 있다.';
     const npc = { name: '광개토대왕 던전 지킴이', img: 'sx_npc', h: 70, color: '#9AE6FF', av: { skin: 's2', hair: 'h_long', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black', back: 'bk_cape' },

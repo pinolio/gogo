@@ -264,16 +264,16 @@
     }
   }
 
-  // v152 카드 그림 (Gemini · img/thumbs/게임id.jpg). 없으면 예전처럼 코드로 그린 그림
+  // v157 카드 그림 = 실제 게임 화면 (img/thumbs/게임id.jpg · 640×400). 없으면 예전처럼 코드로 그린 그림
   const THUMB_IMG = {};
-  ['battle', 'p512', 'snake', 'dodge', 'omok', 'janggi', 'chess', 'alkkagi', 'tennis', 'mines', 'sky', 'gugu'].forEach(id => { THUMB_IMG[id] = 'img/thumbs/' + id + '.jpg'; });
+  ['rpg', 'scfight', 'battle', 'p512', 'mines', 'snake', 'dodge', 'omok', 'janggi', 'chess', 'alkkagi', 'volley', 'tennis', 'fight', 'mecha', 'sky', 'wordchain', 'typing', 'idiom', 'english', 'history', 'gugu'].forEach(id => { THUMB_IMG[id] = 'img/thumbs/' + id + '.jpg'; });
   async function renderGrid() {
     const grid = $('#gameGrid'); if (!grid) return;
     const show = g => homeCat === '전체' || g.cat === homeCat;
     const live = GAMES.filter(show), soon = [];   // v152 'COMING SOON' 빈 카드는 메인에서 뺌
     grid.innerHTML = live.map(g => `
       <a class="card" data-cat="${g.cat}" href="#${g.id}">
-        <div class="thumb-wrap">${THUMB_IMG[g.id] ? `<img class="thumb" src="${THUMB_IMG[g.id]}?v=152" alt="" loading="lazy" draggable="false">` : `<canvas class="thumb" data-thumb="${g.id}" aria-hidden="true"></canvas>`}
+        <div class="thumb-wrap">${THUMB_IMG[g.id] ? `<img class="thumb" src="${THUMB_IMG[g.id]}?v=157" alt="" loading="lazy" draggable="false">` : `<canvas class="thumb" data-thumb="${g.id}" aria-hidden="true"></canvas>`}
           <span class="cat">${g.cat}</span>${g.tag ? `<span class="tag ${g.tag === 'NEW' ? 'new' : g.tag === 'VS' ? 'vs' : ''}">${g.tag}</span>` : ''}</div>
         <div class="card-body">
           <h3>${g.name}</h3>
