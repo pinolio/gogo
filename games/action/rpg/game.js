@@ -139,6 +139,7 @@
     s.pets = (Array.isArray(s.pets) ? s.pets : []).filter(p => p && PETBY[p.id] && /^[a-z0-9]{4,16}$/.test(String(p.u || ''))).slice(0, D.PET.maxOwn).map(p => ({ u: String(p.u), id: p.id, en: clamp(Math.floor(+p.en || 0), 0, D.PET.max) }));
     if (!s.pets.some(p => p.u === s.petOn)) s.petOn = '';
     s.petOpen = { hero: s.petOpen && s.petOpen.hero ? 1 : 0, legend: s.petOpen && s.petOpen.legend ? 1 : 0 };
+    s.kingAt = +s.kingAt || (s.petOpen.legend ? Date.now() : 0);   // v158 광개토대왕을 처음 이긴 때(ms) — 예전에 이긴 사람(전설 펫 열림)은 지금 시각으로 · 메인 카드 '광개토대왕 최초 토벌자'
     const sa = s.sasin && typeof s.sasin === 'object' ? s.sasin : {}; s.sasin = {}; D.SASIN.gods.forEach(k => { s.sasin[k] = sa[k] ? 1 : 0; }); s.sasinAll = s.sasinAll ? 1 : 0;
     const total = (s.lv - 1) * (CFG.statPerLevel || 2) + s.reb * D.REBIRTH.bonus, used = D.STAT.keys.reduce((a, k) => a + s.stat[k], 0);
     if (used > total) { D.STAT.keys.forEach(k => { s.stat[k] = 0; }); s.sp = total; } else s.sp = total - used;
@@ -1370,6 +1371,7 @@
           const u = newUid(), base = ITEMS.rgKing, good = base.goodOpts.slice().sort(() => Math.random() - 0.5).slice(0, 1), rest = rollOpts(9, 5).filter(o => !good.includes(o[0]) && o[0] !== 'e_all').slice(0, 2);   // v149 선생님 11/15: ① 모든 속성 방어 15% 고정 ② 좋은 옵션 1개 최대치 ③④ 무작위
           S.gear[u] = { b: 'rgKing', en: 0, op: [['e_all', 15]].concat(good.map(q => [q, OPTS[q].max]), rest) };
           const id = regGear(u, S.gear[u]); const got = addItem(id, 1);
+          if (!S.kingAt) S.kingAt = Date.now(); setTimeout(() => submitRank(0, true), 500);   // v158 최초 토벌 기록 (메인 카드)
           S.petOpen.legend = 1; D.SASIN.gods.forEach(q => { S.sasin[q] = 0; }); S.sasinAll = 0;
           G.title = { t: 0, text: '광개토대왕을 이겼다!', sub: (got ? '광개토대왕의 반지를 얻었다 · ' : '가방이 가득 차서 반지를 못 받았어요… · ') + '이장 댁 펫 뽑기에 「전설」이 열렸어요' }; G.flash = 0.6; G.shake = 14; Fx.levelUp(G.px, G.py);
           save(true); setTimeout(() => { if (!G.dead && inKingRoom()) { enter(SX.home, { from: SX.entry }); say('광개토대왕 던전이 처음으로 돌아갔어요. 다시 사방신을 이기면 광개토대왕을 만날 수 있어요', 5); } }, 6000);
@@ -2608,7 +2610,7 @@
         if (!Hub.user) return;
         const now = Date.now(); if (now - G.lastSubmit < 4000 && !pd && !force) return; G.lastSubmit = now;
         const sec = Math.min(86400, Math.round(S.play - G.playMark)); G.playMark = S.play;
-        try { await Hub.submitScore({ game_id: GAME, score: rankScore(), duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills, hell: S.hell ? hellTxt(S.hell) : null, reb: S.reb || 0, dps: Math.min(1e13, Math.round(S.dpsBest || 0)) } }); loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }   // v134 환생 횟수(reb)도 기록 (메인 카드 '환생 1위')
+        try { await Hub.submitScore({ game_id: GAME, score: rankScore(), duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills, hell: S.hell ? hellTxt(S.hell) : null, reb: S.reb || 0, dps: Math.min(1e13, Math.round(S.dpsBest || 0)), king: S.kingAt ? 9e12 - S.kingAt : 0 } });   /* v158 king = 9조 − 처음 이긴 시각 → 클수록 먼저 이김 (extraTop 이 큰 값 1위) */ loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }   // v134 환생 횟수(reb)도 기록 (메인 카드 '환생 1위')
       }
       function bossReward() { const p = (CFG.points && CFG.points.boss) || 0; if (p) { submitRank(p); A.toast(`보스 처치! +${p}P`); } }
       async function loadRank() {

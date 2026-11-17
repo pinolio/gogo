@@ -1768,3 +1768,10 @@ html.fs-lock, html.fs-lock body { overflow: hidden; }
 .furn-shop .fs-rot:hover { background: #FFD23F; }
 @media (max-width: 720px) { .furn-shop .furn-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .furn-shop .furn-grid .item canvas { width: 100%; height: auto; aspect-ratio: 1; } }
 @media (max-width: 720px) { .sm-tab { gap: 4px; padding-left: 6px; padding-right: 6px; } .sm-tab .sm-tx b { font-size: 13px; white-space: normal; word-break: keep-all; line-height: 1.15; } .sm-tab .sm-tx small { display: none; } .sm-tab .sm-ic { width: 26px; height: 26px; font-size: 15px; flex: none; } }   /* v154 휴대폰: 상점 큰 탭 글자가 세로로 깨지던 것 */
+/* v158 RPG 카드: 광개토대왕 최초 토벌자 (이름은 아랫줄) · 환생 1위 · 10초 딜 1위 — 줄이 4개라 색을 이름으로 정함 */
+.card-foot .r-rank.r-king .rec-l { background: #FFD84D; color: #1D2340; }
+.card-foot .r-rank.r-reb .rec-l { background: #CFE3FF; color: #1D2340; }
+.card-foot .r-rank.r-dps .rec-l { background: #F5BE8A; color: #1D2340; }
+.card-foot .r-king2 { justify-content: flex-end; margin-top: -2px; }
+.card-foot .r-king2 .rec-who { font-size: 13px; }
+a.card .card-foot .r-king2 b { color: #B4560B; }

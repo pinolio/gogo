@@ -295,12 +295,11 @@
       try {
         if (SET.get(g.id) && SET.get(g.id).rebRank) {   // v144 RPG 카드 3줄: 스테이지 1위(가장 멀리 · 같으면 먼저 깬 사람) · 환생 1위 · 10초 딜 1위
           const xt = k => (Hub.extraTop ? Hub.extraTop(g.id, k).catch(() => null) : Promise.resolve(null));
-          const [tops0, rb, dp] = await Promise.all([Hub.leaderboard(g.id, 1), xt('reb'), xt('dps')]);
-          const tops = (tops0 || []).filter(t => t && t.best_score > 0);
+          const [kg, rb, dp] = await Promise.all([xt('king'), xt('reb'), xt('dps')]);   // v158 선생님 11/17: 스테이지 1위 → 광개토대왕 최초 토벌자
           if (!foot.isConnected) return;
           const kf = v => { v = Math.round(v || 0); return v >= 1e12 ? Math.floor(v / 1e11) / 10 + '조' : v >= 1e8 ? Math.floor(v / 1e7) / 10 + '억' : v >= 1e4 ? Math.floor(v / 1e3) / 10 + '만' : fmt(v); };
           foot.classList.add('rec3');
-          foot.innerHTML = recLine('r-rank', '<i>🏆 </i>스테이지 1위', tops[0] && tops[0].nickname, tops[0] ? sfmt(g.id, tops[0].best_score) : '-')
+          foot.innerHTML = `<div class="rec r-rank r-king"><span class="rec-l"><i>👑 </i>광개토대왕 최초 토벌자</span></div><div class="rec r-king2"><span class="rec-v">${kg ? `<span class="rec-who">${esc(kg.nickname)}</span>` : '<b class="num">아직 없음</b>'}</span></div>`
             + recLine('r-rank r-reb', '<i>♻ </i>환생 1위', rb && rb.nickname, rb ? rb.value + '회' : '-')
             + recLine('r-rank r-dps', '<i>🎯 </i>10초 딜 1위', dp && dp.nickname, dp ? kf(dp.value) + '/초' : '-');
           return;
@@ -372,12 +371,13 @@
   // v92 선생님 그림 2장을 그대로 소개 화면으로 (그림 속 버튼 · ◀ ▶ 자리를 누르면 동작)
   //   자리는 그림 크기에 대한 % (왼쪽, 위, 너비, 높이)
   // v152 메인 새 단장: 그림(글자 없음) + 글자는 HTML (선명 · 높이 고정). theme = 왼쪽 글자 밑 색
+  // v158 선생님 11/17: 큰 배너 그림도 실제 게임 화면 (사신의 회합 · 6.25. 하늘 로봇 변신 중 · 신호등 구구단)
   const HERO_SLIDES = [
-    { id: 'dungeon', href: '#rpg', art: 'img/hero/dungeon.jpg', pos: '50% 45%', theme: ['#2A1B5E', '#6A3FC8'],
+    { id: 'dungeon', href: '#rpg', art: 'img/hero/dungeon.jpg', pos: '50% 55%', theme: ['#2A1B5E', '#6A3FC8'],
       tag: 'NEW · skillcom RPG 숨은 던전', title: '광개토대왕 던전 오픈!', sub: '환생한 용사만 찾을 수 있는 숲속 입구 · 사방신 넷과 광개토대왕에게 도전하고 <b>왕을 죽인 검</b>을 얻어 보세요.', cta: '던전 찾으러 가기' },
-    { id: 'sky', href: '#sky', art: 'img/hero/sky.jpg', pos: '40% 45%', theme: ['#123E7A', '#2F8FE0'],
+    { id: 'sky', href: '#sky', art: 'img/hero/sky.jpg', pos: '50% 92%', theme: ['#123E7A', '#2F8FE0'],
       tag: 'UPDATE · 6.25. 하늘', title: '로봇으로 변신!', sub: '<b>C</b> 키로 10초 동안 로봇 변신 · P 카드 4장 · 새 적·보스와 하늘 배경 10장. 친구와 둘이서도 할 수 있어요.', cta: '출격하기' },
-    { id: 'event', art: 'img/hero/gugu.jpg', pos: '50% 70%', theme: ['#1E2A6B', '#3E7BD8'],
+    { id: 'event', art: 'img/hero/gugu.jpg', pos: '50% 50%', theme: ['#1E2A6B', '#3E7BD8'],
       tag: 'EVENT · 이벤트 진행 중', title: '신호등 구구단<br>이번 시즌 1위에 도전!', sub: '<b>녹색불</b>이면 바른 답, <b>빨간불</b>이면 답의 십의 자리와 일의 자리를 바꿔서! 45초 · 10점마다 +1P (한 판 최대 3P)', cta: '이벤트 도전하기' }
   ];
   function startHeroRain() {
@@ -388,7 +388,7 @@
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     box.innerHTML = slides.map((g, i) => `
       <div class="hero-slide hs2" data-i="${i}" ${i ? 'hidden' : ''} style="--h1:${g.theme[0]};--h2:${g.theme[1]}">
-        <a class="hs2-art" href="${g.href}" tabindex="-1" aria-hidden="true" style="background-image:url('${g.art}?v=152');background-position:${g.pos}"></a>
+        <a class="hs2-art" href="${g.href}" tabindex="-1" aria-hidden="true" style="background-image:url('${g.art}?v=158');background-position:${g.pos}"></a>
         <div class="hs2-copy">
           <span class="hs2-tag">${g.tag}</span>
           <h2 class="hs2-title">${g.title}</h2>
