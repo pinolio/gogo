@@ -635,6 +635,13 @@
     c.translate(Math.round(cx), Math.round(by)); if (r) c.scale(-1, 1);
     c.drawImage(im, -w / 2, -h, w, h); c.restore();
   }
+  // v163 그림 가구가 화면에 놓인 자리 (내 방에서 앉기·눕기 자세를 그림에 맞춤) · 그림이 없으면 null
+  function imgBox(g, it, i, j, r) {
+    const im = it.slot === 'furn' ? fimg(it.id) : null; if (!im) return null;
+    const wi = r ? it.d : it.w, dj = r ? it.w : it.d, L0 = g.P(i, j + dj, 0), R0 = g.P(i + wi, j, 0), B0 = g.P(i + wi, j + dj, 0);
+    const w = (R0[0] - L0[0]) * (FIMG_K[it.id] || 1.02);
+    return { im, cx: Math.round((L0[0] + R0[0]) / 2), by: Math.round(B0[1] + 2), w, h: w * im.naturalHeight / im.naturalWidth, r: !!r };
+  }
   /* 가구 하나 그리기 (방 안) — state: { open(옷장 0~1), on(조명·화면) } */
   function drawItem(g, it, i, j, r, state) {
     state = state || {};
@@ -723,7 +730,7 @@
     g.poly([g.P(n, 0, 0), g.P(n, n, 0), g.P(n, n, -6), g.P(n, 0, -6)], shade(flI.color, -0.42), O);
   }
 
-  window.GoFurn = { fimg, FIMG_IDS, DIMG_IDS, texImg, onImg: null, ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, local, drawItem, drawShadow, drawWallItem, drawRoomShell, thumb, shade,
+  window.GoFurn = { fimg, imgBox, FIMG_IDS, DIMG_IDS, texImg, onImg: null, ITEMS, byId, CATS, SHOP_CATS, MUSIC, TW, TH, pen, local, drawItem, drawShadow, drawWallItem, drawRoomShell, thumb, shade,
     free: () => ITEMS.filter(it => it.price === 0).map(it => it.id),
     // 처음 방 (기본 가구만)
     DEFAULT_ROOM: { wp: 'wp_basic', fl: 'fl_wood', wd: 'wd_basic', wdAt: [0, 2, 1], items: [['f_bed1', 8, 0, 0], ['f_desk', 0, 6, 1], ['f_chair', 1, 6, 1], ['f_pot', 9, 9, 0]], walls: [['w_window', 'R', 4]] } };   // v154 10×10 방에 맞춤

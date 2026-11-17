@@ -168,15 +168,61 @@
     AV.draw(c, av, -18, -56 + (moving ? 0 : bob), 2, moving && !reduce ? { walk: e.walkT * Math.PI * 3.5, view } : { frame, view: view === 's' ? 'f' : view, breathe: !reduce });   // v105 부드러운 걷기 · v154 서 있을 때 숨쉬기
     c.restore();
   }
+  // v163 그림 가구에 맞춘 자세 — 값은 그림 가로(w) 대비 비율 · 가운데 아래 기준 (fx 오른쪽 +, fy 위쪽 +)
+  // 앉기: [엉덩이 fx, 앉는 면 fy, 보는 쪽(1 오른쪽 아래 · -1 왼쪽 아래), 무릎에서 바닥까지 fy]
+  const SEATI = { f_chair: [-0.07, 0.79, -1, 0.6], f_sofa: [-0.06, 0.385, 1, 0.27], f_stool: [-0.02, 0.92, 1, 0.57], f_beanbag: [0.02, 0.53, 1, 0.3], f_rocking: [-0.09, 0.58, -1, 0.45],
+    f_sofa2: [-0.09, 0.375, -1, 0.25], f_armchair: [-0.04, 0.5, -1, 0.3], f_gamechair: [-0.04, 0.76, -1, 0.6], f_swing: [0.06, 0.48, -1, 0.3], f_bench: [0.01, 0.41, -1, 0.27] };
+  // 눕기: [머리 가운데 fx, fy, 이불 윗선 fx, fy]
+  const BEDI = { f_bed1: [0.22, 0.62, 0.06, 0.53], f_bed2: [0.12, 0.62, -0.02, 0.52], f_bunk: [0.27, 0.52, 0.11, 0.44], f_canopy: [0.18, 0.5, 0.02, 0.42], f_yo: [0.3, 0.44, 0.14, 0.36] };
+  // 옆모습으로 앉기: 원점 = 앉는 면 위 엉덩이 · 오른쪽을 봄 (몸 그림 72×116 → 반으로 줄여 그림)
+  function sitSide(c, bs, drop) {
+    const sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = true;
+    const hy = -6, A = 0.46, T = 13, kx = Math.cos(A) * T, ky = hy + Math.sin(A) * T, L = Math.max(0, Math.min(6, drop - 16));   // 허벅지(T)는 바닥 방향(앞 아래)으로 · 종아리 늘림 L
+    c.drawImage(bs, 0, 92, 72, 8, kx - 20, ky - 1, 36, 5 + L);            // 종아리 (바지 끝·다리)
+    c.drawImage(bs, 0, 100, 72, 16, kx - 20, ky + 3 + L, 36, 8);           // 신발
+    c.save(); c.translate(0, hy); c.rotate(-Math.PI / 2 + A);              // 허벅지: 앞으로 눕힘
+    c.drawImage(bs, 20, 80, 30, 18, -7, -1, 15, T + 2); c.restore();
+    c.drawImage(bs, 0, 0, 72, 81, -17, hy - 40, 36, 40.5);                 // 머리·몸통 (엉덩이까지)
+    c.drawImage(bs, 40, 74, 16, 16, 3, hy - 3, 8, 8);                      // 손 (허벅지 위)
+    c.imageSmoothingEnabled = sm;
+  }
   // 의자에 앉은 모습 · 침대에 누워 이불 덮은 모습 (그 가구를 그린 바로 다음에 그림)
   function drawOnFurn(c, g, now, o) {
-    const it = o.it, L = F.local(g, o.i, o.j, o.r), av = myAv();
+    const it = o.it, L = F.local(g, o.i, o.j, o.r), av = myAv(), ib = F.imgBox ? F.imgBox(g, it, o.i, o.j, o.r) : null;
+    const useB = AV.useBody && AV.useBody(av);
+    if (me.act === 'sit' && ib && SEATI[it.id]) {
+      const q = SEATI[it.id], bs = useB ? AV.bodyCanvas(av, 's') : null, x = q[0] * ib.w, y = -q[1] * ib.w;
+      c.save(); c.translate(ib.cx, ib.by); if (ib.r) c.scale(-1, 1);
+      c.translate(x, y); c.scale(q[2], 1); if (bs) sitSide(c, bs, q[3] * ib.w); c.restore();
+      nameTag(c, me, ib.cx + (ib.r ? -x : x), ib.by + y - 52); return;
+    }
+    if (me.act === 'sleep' && ib && BEDI[it.id]) {
+      const q = BEDI[it.id], bf = useB ? AV.bodyCanvas(av, 'f') : null; if (!bf) return;
+      const hx = q[0] * ib.w, hy = -q[1] * ib.w, ex = q[2] * ib.w, ey = -q[3] * ib.w, k = 1 / Math.sqrt(5);
+      c.save(); c.translate(ib.cx, ib.by); if (ib.r) c.scale(-1, 1);
+      // 몸: 머리 위 → 머리맡(오른쪽 위) · 몸 가로 → 오른쪽 아래 (바닥과 나란한 면에 눕힘)
+      c.save(); c.transform(2 * k, k, -2 * k * 0.92, k * 0.92, hx, hy); const sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = true;
+      c.drawImage(bf, 0, 0, 72, 84, -18, -9, 36, 42); c.imageSmoothingEnabled = sm; c.restore();
+      // 이불: 같은 침대 그림을 이불 윗선 아래(발 쪽)만 다시 그려 몸을 덮음
+      c.save(); c.beginPath(); const big = ib.w * 3; c.moveTo(ex - 2 * big, ey - big); c.lineTo(ex + 2 * big, ey + big); c.lineTo(ex + 2 * big - big, ey + big + 2 * big); c.lineTo(ex - 2 * big - big, ey - big + 2 * big); c.closePath(); c.clip();
+      c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.drawImage(ib.im, -ib.w / 2, -ib.h, ib.w, ib.h); c.restore();
+      c.restore();
+      const zx = ib.cx + (ib.r ? -hx : hx), zy = ib.by + hy;
+      nameTag(c, me, zx, zy - 22);
+      c.font = '12px "Jua", sans-serif'; c.fillStyle = '#4A5AA8'; const t = (now / 600) % 3; c.fillText('Z', zx + 8 + t * 4, zy - 10 - t * 8); c.fillText('z', zx + 16 + t * 3, zy - 24 - t * 6);
+      return;
+    }
+  // 의자에 앉은 모습 · 침대에 누워 이불 덮은 모습 (그 가구를 그린 바로 다음에 그림)
     if (me.act === 'sit') {
       const s = SEAT[it.id] || [it.w / 2, it.d / 2, 16], [x, y] = L.P(s[0], s[1], 0);
       nameTag(c, me, x, y - s[2] - 46);
       c.save(); c.translate(x, y); if (me.face < 0) c.scale(-1, 1);
-      const bc = AV.useBody && AV.useBody(av) ? AV.bodyCanvas(av, 'f') : null;   // v114 새 몸 그림: 윗몸 그대로 + 다리는 접은 듯 짧게
-      if (bc) { const sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = true; c.drawImage(bc, 0, 0, 72, 82, -18, -s[2] - 41, 36, 41); c.drawImage(bc, 0, 82, 72, 34, -18, -s[2], 36, 9); c.imageSmoothingEnabled = sm; }
+      const bc = AV.useBody && AV.useBody(av) ? AV.bodyCanvas(av, 'f') : null;   // v163 앉은 모습: 엉덩이 = 앉는 면 · 허벅지는 앞으로 짧게 · 종아리는 의자 앞으로 내려옴
+      if (bc) { const H = s[2], sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = true;
+        c.drawImage(bc, 0, 97, 72, 19, -18, -H + 4, 36, 9.5);    // 종아리·신발 (무릎 아래)
+        c.drawImage(bc, 0, 80, 72, 17, -18.5, -H - 0.5, 37, 5);  // 허벅지 (앞으로 뻗어 짧아 보임)
+        c.drawImage(bc, 0, 0, 72, 81, -18, -H - 40, 36, 40.5);   // 머리·몸통
+        c.imageSmoothingEnabled = sm; }
       // v120 몸 그림을 받는 중이면 잠깐 안 그림 (예전 도트는 안 씀)
       c.restore(); return;
     }
