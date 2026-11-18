@@ -153,15 +153,24 @@
     online: () => Hub.mode === 'online' && Hub.user && Hub._sb,
     async server() {
       if (!this.online() || this.noServer) return null;
-      try {
-        const { data, error } = await Hub._sb.from('game_saves').select('data').eq('user_id', Hub.user.id).eq('game_id', GAME).maybeSingle();
-        if (error) { this.noServer = true; console.warn('[rpg] 서버 저장 표 없음 → 이 기기에만 저장', error.message); return null; }
-        return data ? data.data : null;
-      } catch (e) { return null; }
+      for (let t = 0; t < 3; t++) {   // v168 서버를 못 읽으면 두 번 더 해 봄 (못 읽은 채 새 캐릭터로 시작하지 않게)
+        try {
+          const { data, error } = await Hub._sb.from('game_saves').select('data').eq('user_id', Hub.user.id).eq('game_id', GAME).maybeSingle();
+          if (!error) return data ? data.data : null;
+          if (/relation|does not exist|schema cache/i.test(error.message)) { this.noServer = true; console.warn('[rpg] 서버 저장 표 없음 → 이 기기에만 저장', error.message); return null; }
+        } catch (e) { /* 다시 */ }
+        await new Promise(r => setTimeout(r, 800 * (t + 1)));
+      }
+      return null;
     },
     async push(s) {
       if (!this.online() || this.noServer) return false;
       try {
+        // v168 지킴이: 처치 수(kills)는 절대 줄지 않음 → 서버에 더 많은 처치 수가 있으면 '덮어쓰기' 대신 멈춤
+        //   (11/18 한 학생 캐릭터가 Lv.1 새 캐릭터로 덮어써짐 — 서버를 못 읽은 채 새로 시작한 저장이 올라간 것으로 보임)
+        const { data: cur, error: e1 } = await Hub._sb.from('game_saves').select('kills:data->kills').eq('user_id', Hub.user.id).eq('game_id', GAME).maybeSingle();
+        if (e1) { console.warn('[rpg] 서버 확인 실패 → 이번 저장은 건너뜀', e1.message); return false; }
+        if (cur && (+cur.kills || 0) > (+s.kills || 0)) { this.guard = true; console.warn('[rpg] 서버에 더 진행된 캐릭터가 있어 덮어쓰지 않음', cur.kills, s.kills); if (window.GoRPGGuard) window.GoRPGGuard(); return false; }
         const { error } = await Hub._sb.from('game_saves').upsert({ user_id: Hub.user.id, game_id: GAME, data: s, updated_at: new Date().toISOString() });
         if (error) { if (/relation|does not exist|schema cache|permission/i.test(error.message)) this.noServer = true; console.warn('[rpg] 서버 저장 실패', error.message); return false; }
         return true;
@@ -756,6 +765,7 @@
       /* ---------- 글자 띄우기 ---------- */
       let msgT = 0;
       function say(t, sec) { msgEl.textContent = t; msgEl.hidden = false; msgT = sec || 2.4; }
+      window.GoRPGGuard = () => say('⚠ 서버에 더 진행된 내 캐릭터가 있어서 저장을 멈췄어요. 새로고침(F5) 해 주세요!', 8);   // v168 덮어쓰기 막음 알림
       const float = (x, y, text, color, big) => G.texts.push({ x, y, text, color: color || '#FFFFFF', t: 0, big });
 
       /* ---------- 지도 들어가기 ---------- */
