@@ -321,6 +321,19 @@
   .rg-toon .tn-list { flex: 1; overflow-y: auto; padding: 12px 14px 4px; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; cursor: pointer; }
   .rg-toon .tn-cut { position: relative; border: 3px solid #0A0E24; border-radius: 4px; overflow: hidden; animation: tnIn .45s ease-out both; flex: none; box-shadow: 4px 4px 0 rgba(10,14,36,.25); }
   @keyframes tnIn { from { opacity: 0; transform: translateY(26px) scale(.97); } to { opacity: 1; transform: none; } }
+  /* v170 그림 컷 (왕을 죽인 검이 깨어나는 웹툰) · sfx = 큰 효과음 글자 · cap = 아래 설명 상자 */
+  .rg-toon .tn-cut.pic { padding: 0; background: #0A0E24; }
+  .rg-toon .tn-cut.pic img { display: block; width: 100%; height: auto; image-rendering: auto; }
+  .rg-toon .tn-cut.pic.shake img { animation: tnShake .09s linear 6 alternate, tnIn .45s ease-out both; }
+  @keyframes tnShake { from { transform: translate(-3px, 1px) rotate(-.4deg); } to { transform: translate(3px, -1px) rotate(.4deg); } }
+  .rg-toon .tn-cut.pic.flash::after { content: ''; position: absolute; inset: 0; background: #FFFFFF; animation: tnFlash .9s ease-out both; pointer-events: none; }
+  @keyframes tnFlash { from { opacity: 1; } to { opacity: 0; } }
+  .rg-toon .tn-sfx { position: absolute; top: 8%; right: 5%; font-family: var(--f-display); font-size: 34px; color: #FFE79A; transform: rotate(-8deg); text-shadow: 0 3px 0 #0A0E24, 3px 0 0 #0A0E24, -3px 0 0 #0A0E24, 0 -3px 0 #0A0E24, 0 0 14px #FF8A3D; animation: tnPop .45s .25s ease-out both; }
+  .rg-toon .tn-sfx.l { right: auto; left: 5%; transform: rotate(6deg); }
+  .rg-toon .tn-sfx.big { font-size: 46px; color: #FFFFFF; text-shadow: 0 4px 0 #8A5A12, 4px 0 0 #8A5A12, -4px 0 0 #8A5A12, 0 -4px 0 #8A5A12, 0 0 20px #FFD23F; }
+  .rg-toon .tn-cap { position: absolute; left: 10px; bottom: 10px; max-width: 86%; background: #FFF3B0; color: #1D2340; border: 2px solid #1D2340; padding: 6px 12px; font-size: 14px; line-height: 1.5; box-shadow: 3px 3px 0 #0A0E24; animation: tnIn .4s .35s ease-out both; }
+  .rg-toon .tn-cap b { color: #B8321E; }
+  @media (max-width: 760px) { .rg-toon .tn-sfx { font-size: 24px; } .rg-toon .tn-sfx.big { font-size: 32px; } .rg-toon .tn-cap { font-size: 12.5px; } }
   .rg-toon .tn-cut.nar { min-height: 150px; padding: 18px 16px; background-size: cover; background-position: center; color: #FFFFFF; display: grid; align-content: center; gap: 10px; }
   .rg-toon .tn-big { font-family: var(--f-display); font-size: 28px; color: #FFE79A; text-shadow: 0 3px 0 #0A0E24, 0 0 12px var(--c); }
   .rg-toon .tn-big small { display: block; font-size: 15px; color: #FFFFFF; text-shadow: 0 2px 0 #0A0E24; }
@@ -1321,9 +1334,25 @@
       const toonSay = (g, k, side) => { const d = k === 'king' ? g.boss : g[k]; return { kind: 'say', img: `hell${g.no}_${k}`, name: d.name, role: ROLE[k], text: d.intro || d.say, side, king: k === 'king', col: ELEM[g.el].color }; };
       const gateCuts = g => [{ kind: 'nar', gate: g, col: ELEM[g.el].color, wait: 3200 }, toonSay(g, 'guard', 'l'), toonSay(g, 'judge', 'r'), Object.assign(toonSay(g, 'king', 'l'), { wait: 3400 })];
       function cutHtml(c) {
+        if (c.kind === 'pic') return `<div class="tn-cut pic${c.fx ? ' ' + c.fx : ''}"><img src="${TIMG}${c.img}?v=170" alt="">${c.sfx ? `<div class="tn-sfx${c.sfxCls ? ' ' + c.sfxCls : ''}">${c.sfx}</div>` : ''}${c.cap ? `<div class="tn-cap">${c.cap}</div>` : ''}</div>`;   // v170 그림 컷
+        if (c.kind === 'nar2') return `<div class="tn-cut nar" style="--c:${c.col};background-image:linear-gradient(rgba(14,6,24,.45),rgba(14,6,24,.8)),url(${TIMG}${c.bg})"><div class="tn-big"><small>${c.small}</small>${c.big}</div><div class="tn-box">${c.text}</div></div>`;
         if (c.kind === 'nar') { const g = c.gate; return `<div class="tn-cut nar" style="--c:${c.col};background-image:linear-gradient(rgba(14,6,24,.5),rgba(14,6,24,.82)),url(${TIMG}hellfloor${g.no}.jpg?v=80)"><div class="tn-big"><small>저승 제${g.no}관문 · ${g.day}</small>${g.hell}</div><div class="tn-box">${g.about}</div></div>`; }
-        return `<div class="tn-cut say ${c.side === 'r' ? 'r' : ''}${c.king ? ' king' : ''}" style="--c:${c.col}"><img src="${TIMG}${c.img}.png?v=80" alt="${c.name}"><div class="tn-bub"><span class="tn-nm">${c.name}<small>${c.role}</small></span><p>${c.text}</p></div></div>`;
+        return `<div class="tn-cut say ${c.side === 'r' ? 'r' : ''}${c.king ? ' king' : ''}" style="--c:${c.col}"><img src="${c.src || TIMG + c.img + '.png?v=80'}" alt="${c.name}"><div class="tn-bub"><span class="tn-nm">${c.name}<small>${c.role}</small></span><p>${c.text}</p></div></div>`;
       }
+      /* v170 왕을 죽인 검이 깨어나는 웹툰 (선생님 11/19: 저승 관문 소개처럼) — 광개토대왕의 전당에 그 검을 차고 처음 들어갈 때 (새로고침마다 한 번)
+       *  그림 img/v79/toon_sw1~3.jpg (Gemini) · 닫으면 예전 게임 속 변신 연출(머리 위로 떠올라 바뀜)이 이어짐 */
+      const swordCuts = () => {
+        const av = Hub.user ? Hub.user.avatar : AV.normalize({}), kr = window.GoRPGKingRoom; window.GoRPGKingRoom = false; const me = avatarSprite(av, S.eq, S.hide, 0).toDataURL(); window.GoRPGKingRoom = kr; const nick = Hub.user ? Hub.user.nickname : '나';
+        return [
+          { kind: 'nar2', bg: 'arena_sx_king.png?v=80', col: '#FFD23F', small: '숨은 던전 · 마지막 방', big: '광개토대왕의 전당', text: '전당 문턱을 넘자, 허리에 찬 낡은 검이 덜덜 떨리기 시작했다…', wait: 3000 },
+          { kind: 'pic', img: 'toon_sw1.jpg', fx: 'shake', sfx: '우우웅…', cap: '녹슨 칼날 위로 <b>금빛 금</b>이 번져 간다!', wait: 2800 },
+          { kind: 'say', src: me, name: nick, role: '나', text: '검이… 스스로 울고 있어?!', side: 'r', col: '#9AE6FF', wait: 2200 },
+          { kind: 'pic', img: 'toon_sw2.jpg', fx: 'flash', sfx: '번쩍!!', sfxCls: 'big l', cap: '녹슨 껍데기가 <b>산산조각</b> 났다!', wait: 2600 },
+          { kind: 'pic', img: 'toon_sw3.jpg', sfx: '화르륵', cap: '<b>왕을 죽인 검</b>이 깨어났다! 대왕에게 주는 피해 ×2 · 상태 이상도 걸려요', wait: 3200 },
+          { kind: 'say', img: 'sx_king_idle', name: '광개토대왕', role: '전당의 주인', text: '그 검은… 나를 쓰러뜨렸던 바로 그 검이로구나. 좋다, 덤벼 보거라!', side: 'l', king: true, col: '#FFD23F', wait: 3400 }
+        ];
+      };
+      let swordToonSeen = false;
       function showToon(cuts, opt) {
         if (!toonEl) { if (opt.done) opt.done(); return; }
         if (toon) toonClose(true);
@@ -2070,7 +2099,9 @@
           });
         }
         if (M.sx === 'king' && kingSwordOn()) {   // 왕을 죽인 검이 화려하게 (빛 · 불꽃 · 번쩍)
-          if (!G.kingSwordShown) { G.kingSwordShown = true; G.swordMorph = { t0: now, burst: false }; G.shake = 3; }   // v151 선생님 11/15: 검이 머리 위로 떠올라 허술한 검 → 화려한 검으로 바뀌는 연출 (2.6초)
+          if (!G.kingSwordShown) { G.kingSwordShown = true;
+            if (!swordToonSeen && toonEl) { swordToonSeen = true; showToon(swordCuts(), { title: '⚔ 왕을 죽인 검', go: '⚔ 싸우러 가기', done: () => { G.swordMorph = { t0: performance.now(), burst: false }; G.shake = 3; } }); }   // v170 처음엔 웹툰 먼저
+            else { G.swordMorph = { t0: now, burst: false }; G.shake = 3; } }   // v151 선생님 11/15: 검이 머리 위로 떠올라 허술한 검 → 화려한 검으로 바뀌는 연출 (2.6초)
           const sm = G.swordMorph;
           if (sm) {
             const e = (now - sm.t0) / 1000, old = img79('ic_sw_king'), neu = img79('ic_sw_king2'), sx = G.px, sy = G.py - 80 - Math.min(1, e / 0.6) * 34, S0 = 78;
