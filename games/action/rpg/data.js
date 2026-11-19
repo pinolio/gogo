@@ -3,7 +3,7 @@
  *  ※ 숫자를 고치면 바로 게임에 반영됩니다. 밸런스 조정은 이 파일에서 합니다.
  *
  *  세계 구조 (총 99칸: 마을 9 + 사냥터 90)
- *    마을1 → 사냥터 1~10 → 마을2 → 사냥터 11~20 → … → 마을9(도원수 진영) → 사냥터 81~90
+ *    마을1 → 사냥터 1~10 → 마을2 → 사냥터 11~20 → … → 마을9(부산 · 부산진성 도원수) → 사냥터 81~90
  *    · 마을 1~8 은 10레벨씩: 사냥터 권장 레벨 1씩 (마을1 = Lv.1~10, 마을2 = Lv.11~20 … 마을8 = Lv.71~80)
  *    · 마을 9 는 80 → 100: 사냥터 권장 레벨 2씩 (Lv.82 … Lv.100)
  *    · 만렙 100
@@ -22,23 +22,23 @@
    *  lv: [이 지역 사냥터 권장 레벨 시작, 끝] — 마을 1~8 은 10레벨씩(사냥터마다 +1), 마을 9 는 80→100(사냥터마다 +2)
    *  ground: 땅 색 2가지, block·block2: 장애물 종류, deco: 꽃·풀 색 */
   const REGIONS = [
-    { name: '솔뫼 마을', short: '솔뫼', ground: ['#7CC66A', '#6DB85C'], path: '#D8C08A', block: 'tree', block2: 'rock', deco: ['#FFE45C', '#FF8AB0', '#FFFFFF'], water: '#4FA8E8', sky: '#BFE6FB',
+    { name: '의주', short: '의주', ground: ['#7CC66A', '#6DB85C'], path: '#D8C08A', block: 'tree', block2: 'rock', deco: ['#FFE45C', '#FF8AB0', '#FFFFFF'], water: '#4FA8E8', sky: '#BFE6FB',
       fields: ['보리밭 들판', '토끼 언덕', '민들레 둑길', '개울 빨래터', '버섯 솔숲', '숯막 터', '이끼 굴 어귀', '장승 고개', '돌다리 밑', '큰 슬라임 둥지'] },
-    { name: '구리마을', short: '구리', ground: ['#4E9E58', '#438F4D'], path: '#B99A66', block: 'pine', block2: 'rock', deco: ['#B8F28A', '#FFD23F', '#9AE6FF'], water: '#3A8FD0', sky: '#A9DCC0',
+    { name: '평양', short: '평양', castle: { img: 'bld_pyongyang', name: '평양성', A: [335, 534], B: [482, 597], u: [-126, 67], iw: 940, ih: 700, lord: '평양성 수문장', hello: ['대동문을 지키는 수문장이오. 평양은 옛 고구려의 도읍이었소.', '왜군에게 빼앗겼던 평양성을 1593년 정월에 되찾았소!'], info: '고구려의 옛 도읍이에요. 임진왜란 때 왜군에게 빼앗겼다가 1593년 1월 조선과 명나라 연합군이 되찾았어요. 대동문은 평양성 동쪽의 큰 문이에요.' }, ground: ['#4E9E58', '#438F4D'], path: '#B99A66', block: 'pine', block2: 'rock', deco: ['#B8F28A', '#FFD23F', '#9AE6FF'], water: '#3A8FD0', sky: '#A9DCC0',
       fields: ['대숲 입구', '덩굴 오솔길', '반딧불 연못', '부엉이 고목', '여우 골짜기', '사냥꾼 움막', '쓰러진 고목', '왜군 척후 진지', '서낭당 터', '숲의 수호자'] },
-    { name: '갈대늪 나루', short: '나루', ground: ['#5E7A4A', '#55703F'], path: '#8A7A55', block: 'deadtree', block2: 'mossrock', deco: ['#C8E08A', '#9AD8C0', '#E8D8FF'], water: '#4A7A6A', sky: '#B8C8B0',
+    { name: '한양', short: '한양', castle: { img: 'bld_hanyang', name: '한양 도성', A: [330, 542], B: [487, 588], u: [-126, 67], iw: 940, ih: 695, lord: '도성 수문장', hello: ['여기는 조선의 도읍 한양이오. 숭례문을 지나면 도성 안이오.', '왜군이 쳐들어온 지 스무 날 만에 도성을 빼앗겼었소… 다시는 그런 일이 없게 하리다.'], info: '조선의 수도예요. 숭례문(남대문)은 도성의 남쪽 큰 문이에요. 임진왜란 때 왜군이 부산에 올라온 지 약 20일 만에 한양을 빼앗겼어요.' }, ground: ['#5E7A4A', '#55703F'], path: '#8A7A55', block: 'deadtree', block2: 'mossrock', deco: ['#C8E08A', '#9AD8C0', '#E8D8FF'], water: '#4A7A6A', sky: '#B8C8B0',
       fields: ['젖은 갈대밭', '개구리 연못', '썩은 나무다리', '도깨비불 늪', '안개 낀 수렁', '무당집 터', '거머리 웅덩이', '뿌리 동굴', '버려진 나루터', '늪의 여왕 둥지'] },
-    { name: '모래톱 포구', short: '포구', ground: ['#E8C878', '#DDB866'], path: '#C9A05A', block: 'cactus', block2: 'sandrock', deco: ['#B5842F', '#F5E2A8', '#7FB24A'], water: '#3BB0C9', sky: '#FBE6B8',
+    { name: '충주', short: '충주', ground: ['#E8C878', '#DDB866'], path: '#C9A05A', block: 'cactus', block2: 'sandrock', deco: ['#B5842F', '#F5E2A8', '#7FB24A'], water: '#3BB0C9', sky: '#FBE6B8',
       fields: ['뜨거운 모래톱', '갯바위 길', '소금밭', '해골 협곡', '왜선 상륙지', '무너진 봉수대', '전갈 굴', '바람 깎인 바위', '왜군 해안 진지', '모래 왕의 무덤'] },
-    { name: '돌산성 마을', short: '산성', ground: ['#A8957A', '#9C8A70'], path: '#C8B48E', block: 'pine', block2: 'rock', deco: ['#E8E0C8', '#8AB86A', '#FFD23F'], water: '#5A9AD0', sky: '#D8D0C0',
+    { name: '남원', short: '남원', castle: { img: 'bld_namwon', name: '남원성', D: [248, 633], iw: 940, ih: 698, lord: '남원성 부사', hello: ['남원성에 온 것을 환영하오. 광한루에는 들러 보았소?', '정유년에 이 성에서 군사와 백성이 끝까지 싸웠소.'], info: '정유재란(1597) 때 조선·명나라 군사와 백성들이 끝까지 싸운 성이에요. 그 넋이 만인의총에 잠들어 있어요. 마을의 광한루와 오작교는 춘향전의 무대예요.' }, ground: ['#A8957A', '#9C8A70'], path: '#C8B48E', block: 'pine', block2: 'rock', deco: ['#E8E0C8', '#8AB86A', '#FFD23F'], water: '#5A9AD0', sky: '#D8D0C0',
       fields: ['자갈 고갯길', '광부의 길', '낙석 지대', '독수리 절벽', '버려진 광산', '산성 남문', '동굴 거미 굴', '바위 정령 터', '용암 틈새', '바위산의 왕'] },
-    { name: '눈고개 진영', short: '눈고개', ground: ['#E8F2FB', '#D6E6F5'], path: '#B9CCE0', block: 'snowpine', block2: 'ice', deco: ['#FFFFFF', '#9FD8F5', '#C8B8FF'], water: '#6FC3F0', sky: '#D8ECFF',
+    { name: '진주', short: '진주', castle: { img: 'bld_jinju', name: '진주성', D: [248, 633], iw: 940, ih: 700, lord: '진주성 장수', hello: ['진주성은 결코 무너지지 않소!', '남강 절벽 위 누각이 촉석루요. 경치가 참 좋지요.'], info: '1592년 김시민 장군이 약 3,800명의 군사로 2만이 넘는 왜군을 막아 낸 진주대첩의 성이에요(임진왜란 3대첩). 남강 절벽 위의 큰 누각이 촉석루예요.' }, ground: ['#E8F2FB', '#D6E6F5'], path: '#B9CCE0', block: 'snowpine', block2: 'ice', deco: ['#FFFFFF', '#9FD8F5', '#C8B8FF'], water: '#6FC3F0', sky: '#D8ECFF',
       fields: ['눈 덮인 길', '얼어붙은 강', '고드름 동굴', '설인 발자국', '눈보라 고개', '얼음 성벽 터', '왜군 겨울 진지', '빙하 틈', '오로라 언덕', '얼음 여왕의 홀'] },
-    { name: '용굴 마을', short: '용굴', ground: ['#4A3E6A', '#423760'], path: '#6E6090', block: 'crystal', block2: 'rock', deco: ['#C8A8FF', '#7FE0F0', '#FF9AE0'], water: '#5A4AB0', sky: '#2A2440',
+    { name: '통영', short: '통영', castle: { img: 'bld_tongyeong', name: '통제영', D: [349, 610], iw: 940, ih: 702, lord: '통제영 군관', hello: ['삼도수군통제영에 온 것을 환영하오. 거북선은 보았소?', '바다는 우리 수군이 지키겠소!'], info: '전쟁이 끝난 뒤 1604년 이곳에 삼도수군통제영이 세워졌어요. 가운데 큰 건물이 세병관이에요. 가까운 한산도 앞바다에서 이순신 장군이 한산도대첩(1592)을 거뒀어요.' }, ground: ['#4A3E6A', '#423760'], path: '#6E6090', block: 'crystal', block2: 'rock', deco: ['#C8A8FF', '#7FE0F0', '#FF9AE0'], water: '#5A4AB0', sky: '#2A2440',
       fields: ['반짝이는 굴 입구', '보라 수정길', '메아리 동굴', '지하 호수', '여우 굴', '수정 광맥', '왜군 첩자 은신처', '그림자 통로', '수정 심장부', '수정 골렘의 방'] },
-    { name: '구름절 마을', short: '구름절', ground: ['#9EE0A8', '#90D49A'], path: '#F0E6D0', block: 'blossom', block2: 'cloudrock', deco: ['#FFFFFF', '#FFB3D1', '#FFE45C'], water: '#8AD0FF', sky: '#CFEFFF',
+    { name: '동래', short: '동래', ground: ['#9EE0A8', '#90D49A'], path: '#F0E6D0', block: 'blossom', block2: 'cloudrock', deco: ['#FFFFFF', '#FFB3D1', '#FFE45C'], water: '#8AD0FF', sky: '#CFEFFF',
       fields: ['구름 계단', '벚꽃 절터', '무지개 다리', '바람의 법당', '떠다니는 정원', '천둥 구름길', '깃털 둥지', '별빛 전망대', '왜장 본진', '폭풍 거인'] },
-    { name: '도원수 진영', short: '진영', ground: ['#5A4A4A', '#4E3F3F'], path: '#8A6A5A', block: 'lavarock', block2: 'deadtree', deco: ['#FF6A3D', '#FFB13D', '#8A2B2B'], water: '#FF5A2A', sky: '#3A2430', castle: true,
+    { name: '부산', short: '부산', castle: { img: 'bld_busan', name: '부산진성', quest: true, D: [367, 620], iw: 940, ih: 700, info: '1592년 4월 왜군이 처음 쳐들어와 임진왜란이 시작된 곳이에요. 첨사 정발 장군이 끝까지 싸웠어요.' }, ground: ['#5A4A4A', '#4E3F3F'], path: '#8A6A5A', block: 'lavarock', block2: 'deadtree', deco: ['#FF6A3D', '#FFB13D', '#8A2B2B'], water: '#FF5A2A', sky: '#3A2430',
       fields: ['재 날리는 길', '불타는 강가', '화산 어귀', '검은 바위 숲', '마그마 동굴', '불타는 왜성 외벽', '용의 둥지', '어둠의 제단', '왜성 정문', '흑룡의 왕좌'] }
   ];
   // 사냥터 권장 레벨: 지역 ri 의 k번째(0~9) 사냥터
@@ -99,7 +99,7 @@
   });
 
   /* ---------------- v69 저승 던전 (임진왜란 뒤 저승 이야기) ----------------
-   *  Lv.100 이 되면 마지막 마을(도원수 진영) 큰길에 '저승차사 강림' 이 나타나 저승문을 열어 줌
+   *  Lv.100 이 되면 마지막 마을(부산) 큰길에 '저승차사 강림' 이 나타나 저승문을 열어 줌
    *  관문 10개 × 단계 5개 (g-1 ~ g-5). 지금은 1관문(도산지옥 · 진광대왕)만 — 2관문부터는 gates 에 더하면 됨
    *  단계 s 의 몬스터 레벨 = 100 + (관문-1)×5 + s (플레이어 만렙은 100 그대로 → 레벨 차이만큼 주는 피해가 줄어 어려워짐)
    *   s=1·2 : 몬스터 kills 마리 잡으면 통과
@@ -485,7 +485,7 @@
     { type: 'chief', name: '이장 댁', x: 4, y: 15, w: 9, h: 4, roof: '#3E9E58' },   // v144 (예전 x6 y13 6×4)
     { type: 'train', name: '훈련장', x: 13, y: 6, w: 5, h: 3, roof: '#C8402A' }   // v144 훈련장 (허수아비 10초 딜량) · v150 그림 bld_train.png = Gemini (한옥 훈련장)
   ];
-  const CASTLE = { type: 'castle', name: '도원수 진영', x: 23, y: 14, w: 10, h: 6, roof: '#5A5A70' };   // v144 새 성 그림 · 커진 서원과 안 겹치게 2칸 아래로 (예전 y12)
+  const CASTLE = { type: 'castle', name: '부산진성', quest: true, x: 23, y: 14, w: 10, h: 6, roof: '#5A5A70' };   // v144 새 성 그림 · 커진 서원과 안 겹치게 2칸 아래로 (예전 y12)
 
   /* ---------------- 사람(NPC) · v41 ----------------
    *  av = 사이트 아바타 옷 그대로 (avatar/avatar.js 의 아이템 id) → 플레이어와 같은 그림체
@@ -495,13 +495,13 @@
       hello: ['어서 와요! 오늘 끓인 물약이 아주 잘 됐어요.', '사냥 가기 전에 물약은 넉넉히! 쓰러지면 손해예요.', '안 쓰는 물건은 여기서 팔아도 돼요. 값은 좀 깎이지만요.'] },
     school: { name: '서원 도사 루멘', img: 'npc_school', h: 66, names: ['서원 도사 루멘', '서원 도사 청암', '서원 도사 운곡', '서원 도사 해암', '서원 도사 석봉', '서원 도사 설봉', '서원 도사 현무', '서원 도사 운학', '서원 도사 백운'], color: '#D8B8FF', av: { skin: 's1', hair: 'h_long', hat: 'hat_wizard', face: 'f_beard', top: 't_robe', bottom: 'b_ninja', shoes: 'sh_black' },
       hello: ['마법은 원소의 대화란다. 두 원소를 섞으면 새 마법이 태어나지.', '레벨이 오르면 다시 오너라. 더 강한 마법을 가르쳐 주마.', '같은 원소끼리는 섞이지 않는단다. 서로 다른 것이 만나야 새것이 되지.'] },
-    chief: { name: '이장님', img: 'npc_chief', h: 66, names: ['솔뫼 이장님', '구리 이장님', '나루 이장님', '포구 이장님', '산성 이장님', '눈고개 이장님', '용굴 이장님', '구름절 이장님', '진영 이장님'], color: '#9AF0B0', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+    chief: { name: '이장님', img: 'npc_chief', h: 66, names: ['의주 이장님', '평양 이장님', '한양 이장님', '충주 이장님', '남원 이장님', '진주 이장님', '통영 이장님', '동래 이장님', '부산 이장님'], color: '#9AF0B0', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
       hello: ['어서 오게! 여기가 자네의 귀환 장소일세.', '가 본 곳이면 어디든 보내 주지. 이동은 무료라네.', '무리하지 말게. 쓰러지면 이 집 앞에서 다시 깨어날 걸세.'] },
     castle: { name: '도원수', img: 'npc_castle', h: 70, color: '#FFE45C', av: { skin: 's1', hair: 'h_curly', hat: 'hat_emperor', face: 'f_beard', top: 't_suit', bottom: 'b_armor', shoes: 'sh_gold', back: 'bk_cape' },
       hello: ['잘 왔소. 왜성 깊은 곳에서 흑룡 이무기가 깨어나고 있소…', '왜군과 요괴가 한데 엉켜 몰려오고 있소. 힘을 길러 두시오.'] },
-    guard: { name: '진영 파수꾼', color: '#C9D0F0', img: 'npc_guard', h: 66,   // v130 그림 파수꾼 (투구·창·방패) · 그림을 못 받으면 아래 아바타
+    guard: { name: '성 파수꾼', color: '#C9D0F0', img: 'npc_guard', h: 66,   // v130 그림 파수꾼 (투구·창·방패) · 그림을 못 받으면 아래 아바타
       av: { skin: 's4', hair: 'h_short', hat: 'hat_darkhelm', top: 't_armor', bottom: 'b_armor', shoes: 'sh_black' },
-      lines: ['도원수께 예를 갖추시오.', '진영은 안전하오.', '왜성 쪽 용암 지대는 조심하시오!'] }
+      lines: ['예를 갖추시오.', '성은 안전하오.', '왜성 쪽 용암 지대는 조심하시오!'] }
   };
   // 마을을 돌아다니는 사람 (마을마다 2명씩 번갈아)
   const VILLAGERS = [
@@ -525,7 +525,7 @@
   };
   // v85 역참 (마을마다 하나) — 다른 마을로 한 번에 이동
   //  레벨 제한 = 가는 마을의 시작 레벨(LV_RANGE[도착][0]) 이상 · 이용료 = 거리(마을 칸 수) × 도착 마을 번호(1~9) × feeUnit G
-  //  예) 솔뫼(1) → 구리(2) = 1 × 2 × 20 = 40G · 솔뫼 → 도원수 진영(9) = 8 × 9 × 20 = 1,440G · 도원수 진영 → 솔뫼 = 8 × 1 × 20 = 160G
+  //  예) 의주(1) → 평양(2) = 1 × 2 × 20 = 40G · 의주 → 부산(9) = 8 × 9 × 20 = 1,440G · 부산 → 의주 = 8 × 1 × 20 = 160G   (v169 마을 이름: 의주·평양·한양·충주·남원·진주·통영·동래·부산)
   const STATION = { name: '역참지기 바람이', img: 'npc_station', h: 64, names: ['역참지기 바람이', '역참지기 구름이', '역참지기 번개', '역참지기 질풍이', '역참지기 산들이', '역참지기 눈보라', '역참지기 돌개', '역참지기 하늬', '역참지기 회오리'], color: '#9AE6FF', feeUnit: 20, sxFee: 3000, av: { skin: 's2', hair: 'h_short', top: 't_vest', bottom: 'b_cargo', shoes: 'sh_black' },
     hello: ['어디로 모실까요? 말이 바람처럼 달립니다!', '먼 마을일수록 말을 여러 번 갈아타야 해서 값이 올라요.', '그 마을 시작 레벨이 안 되면 위험해서 못 모셔요.', '한 번에 휙! 걸어가는 것보다 훨씬 빠르지요.'],
     lines: ['히히힝~', '말 먹이를 줘야겠군.', '역참 이용하세요!'] };
@@ -536,7 +536,10 @@
     lines: ['땅! 땅! 땅!', '강화하러 왔나?', '불꽃이 좋구먼!'] };
 
   // v110 NPC 그림(img/v79/npc_*.png) · 같은 그림을 쓰는 마을마다 이름만 다르게 (names[마을 번호 0~8])
-  const npcDef = (def, r) => (def && def.names && def.names[r] && def.names[r] !== def.name ? Object.assign({}, def, { name: def.names[r] }) : def);
+  const npcDef = (def, r) => {
+    if (def === NPCS.castle && REGIONS[r] && REGIONS[r].castle && REGIONS[r].castle.lord) { const C = REGIONS[r].castle; return Object.assign({}, def, { name: C.lord, hello: C.hello || def.hello }); }   // v169 성마다 다른 성지기 (부산진성은 도원수)
+    return def && def.names && def.names[r] && def.names[r] !== def.name ? Object.assign({}, def, { name: def.names[r] }) : def;
+  };
 
   /* ---------------- v149 펫 (선생님 11/15 결정 · 설계서 claude/v149-설계서_숨은던전·사방신·펫.md 8장) ----------------
    *  이장 댁 이장이 판매 · 한 번 뽑기 PET.price G · 확률 = 등급 rate(%) · 잠긴 등급(영웅 = 사방신 넷 · 전설 = 광개토대왕)의 확률은 열린 등급에 비율대로 나눔
@@ -679,21 +682,21 @@
    *  그림: 선생님이 주시면 img/v79/gw_kid1·gw_kid2·gw_kid3·gw_grandpa·gw_aunt·gw_scholar·gw_stele.png 로 넣으면 저절로 바뀜
    *  (그림이 없으면 사람 = av 아바타, 비석 = 코드로 그린 돌비석) · at = [칸 x, 칸 y] · range = 좌우로 걷는 폭(px, 0 = 가만히)
    *  할아버지 말(18살·39살) = 숨은 던전 단서 (18번 사냥터 입구 · 39번 사냥터 왕을 죽인 검) */
-  const GURI = {
+  const GURI = {   // v169 평양(마을 2)이 성 마을이 되어 비석·사람 자리를 왼쪽으로 옮김 (성은 오른쪽 아래)
     region: 1,
-    stele: { tx: 22, ty: 12, img: 'gw_stele', name: '광개토대왕비', text: '국강상광개토경평안호태왕… 18세에 왕위에 올라 영락이라 부르니, 그 은혜가 하늘에 닿고 위엄이 사해에 떨쳤다.' },
+    stele: { tx: 11, ty: 12, img: 'gw_stele', name: '광개토대왕비', text: '국강상광개토경평안호태왕… 18세에 왕위에 올라 영락이라 부르니, 그 은혜가 하늘에 닿고 위엄이 사해에 떨쳤다.' },
     folk: [
-      { name: '꼬마 돌쇠', img: 'gw_kid1', h: 50, at: [7.5, 12.6], range: 50, color: '#9AE6FF', av: { skin: 's2', hair: 'h_short', top: 't_pe', bottom: 'b_shorts', shoes: 'sh_red' },
+      { name: '꼬마 돌쇠', img: 'gw_kid1', h: 50, at: [3.5, 12.6], range: 40, color: '#9AE6FF', av: { skin: 's2', hair: 'h_short', top: 't_pe', bottom: 'b_shorts', shoes: 'sh_red' },
         lines: ['할아버지가 그러는데, 옛날옛날에 땅을 엄청 넓힌 임금님이 있었대!'] },
-      { name: '꼬마 연이', img: 'gw_kid2', h: 50, at: [11.5, 12.8], range: 40, color: '#FFB0C8', av: { skin: 's2', hair: 'h_twin', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_red' },
+      { name: '꼬마 연이', img: 'gw_kid2', h: 50, at: [6.5, 12.8], range: 40, color: '#FFB0C8', av: { skin: 's2', hair: 'h_twin', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_red' },
         lines: ['광개토대왕은 말 타고 활도 엄청 잘 쐈대. 나도 크면 그렇게 될 거야!'] },
-      { name: '꼬마 범이', img: 'gw_kid3', h: 50, at: [20.5, 13.4], range: 0, color: '#9AF0B0', av: { skin: 's3', hair: 'h_spiky', top: 't_vest', bottom: 'b_shorts', shoes: 'sh_black' },
+      { name: '꼬마 범이', img: 'gw_kid3', h: 50, at: [9.6, 13.4], range: 0, color: '#9AF0B0', av: { skin: 's3', hair: 'h_spiky', top: 't_vest', bottom: 'b_shorts', shoes: 'sh_black' },
         lines: ['저 큰 비석 봤어? 글씨가 빼곡해서 하나도 못 읽겠어…'] },
-      { name: '이야기꾼 할아버지', img: 'gw_grandpa', h: 62, at: [24.6, 12.7], range: 0, color: '#FFE45C', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+      { name: '이야기꾼 할아버지', img: 'gw_grandpa', h: 62, at: [13.6, 12.7], range: 0, color: '#FFE45C', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
         lines: ['광개토대왕께서는 18살에 임금이 되셨고, 39살에 세상을 떠나셨지.'] },
-      { name: '빨래터 아주머니', img: 'gw_aunt', h: 62, at: [28.5, 13.2], range: 40, color: '#FF9AA0', av: { skin: 's2', hair: 'h_bun', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black' },
+      { name: '빨래터 아주머니', img: 'gw_aunt', h: 62, at: [15.6, 12.9], range: 30, color: '#FF9AA0', av: { skin: 's2', hair: 'h_bun', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black' },
         lines: ['강 건너에서 이끼 낀 큰 돌비석이 나왔다는 소문이 있더라고요.'] },
-      { name: '글 읽는 선비', img: 'gw_scholar', h: 64, at: [31.5, 12.6], range: 30, color: '#D8B8FF', av: { skin: 's1', hair: 'h_topknot', hat: 'hat_gat', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+      { name: '글 읽는 선비', img: 'gw_scholar', h: 64, at: [20.2, 12.6], range: 30, color: '#D8B8FF', av: { skin: 's1', hair: 'h_topknot', hat: 'hat_gat', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
         lines: ['대왕께서 돌아가신 뒤 아드님 장수왕께서 그 업적을 비석에 새기셨다네.'] }
     ]
   };

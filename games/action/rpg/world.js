@@ -50,9 +50,11 @@
    * v130 성(도원수 진영) 그림 의 문 자리 → 지도 좌표 (game.js drawObj 와 같은 크기·자리)
    *  A·B = 두 낮은 담 사이 통로가 성벽에 닿는 왼쪽·오른쪽 끝 · u = 통로가 뻗는 쪽(왼쪽 아래, 낮은 담과 나란히) · 박석 길과 들어가는 칸(문 칸)을 여기에 맞춤 */
   function castleGeo(b) {
-    const ww = b.w * TS + 150, s = ww / 820, L = (b.x + b.w / 2) * TS - ww / 2, T = (b.y + b.h) * TS + 6 - 640 * s;
+    const G0 = b.geo || { iw: 820, ih: 640, A: [300, 527], B: [420, 535], u: [-142, 63] };   // v169 성마다 그림이 달라 문 자리도 그림마다 (data.js REGIONS[].castle)
+    const ww = b.w * TS + 150, s = ww / G0.iw, L = (b.x + b.w / 2) * TS - ww / 2, T = (b.y + b.h) * TS + 6 - G0.ih * s;
     const P = (ix, iy) => [L + ix * s, T + iy * s];
-    return { A: P(300, 527), B: P(420, 535), u: [-142 * s, 63 * s] };   // v144 새 그림의 문 아래 양 끝   // A·B = 양쪽 낮은 담 사이 통로 안쪽 끝(성벽 밑)
+    if (!G0.A) return { D: P(G0.D[0], G0.D[1]) };   // 문 앞 마당이 그림에 이미 있는 성: 들어가는 자리만
+    return { A: P(G0.A[0], G0.A[1]), B: P(G0.B[0], G0.B[1]), u: [G0.u[0] * s, G0.u[1] * s] };   // v144 새 그림의 문 아래 양 끝   // A·B = 양쪽 낮은 담 사이 통로 안쪽 끝(성벽 밑)
   }
   /* v132 대왕 결전장: 선생님 그림 한 장(960×544 = 30×17칸)을 통째로 바닥으로 쓰는 지도 (지금 1-5 진광대왕 전)
    *  walk: [줄, 왼쪽 칸, 오른쪽 칸] 지나갈 수 있는 칸 (나머지 = 용암·벽 → 막힘, 칸 10) · start: 들어오는 자리(아래 가운데 좁은 길) · boss: 대왕이 서는 자리(위 해골 철문 앞) */
@@ -295,14 +297,15 @@
     if (M.kind === 'village') {
       for (let x = 0; x < w; x++) { set(x, mid, 1); set(x, mid + 1, 1); }
       const bs = D.BUILDINGS.map(b => Object.assign({}, b));
-      if (R.castle) bs.push(Object.assign({}, D.CASTLE));
+      if (R.castle) bs.push(Object.assign({}, D.CASTLE, R.castle.img ? { name: R.castle.name, img: R.castle.img, geo: R.castle, quest: !!R.castle.quest } : {}));   // v169 성 마을 6곳 (평양·한양·남원·진주·통영·부산) · 퀘스트는 부산진성만
       bs.forEach(b => { b.x = VX(b.x); b.y = VY(b.y); });   // v158 넓은 마을 자리
       bs.forEach(b => {
         for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) set(x, y, 6);
         b.door = { x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 };
         if (b.type === 'castle') {   // v130 문 칸 = 그림 속 문 앞 통로가 맨 아랫줄 칸을 지나는 곳
-          const g = castleGeo(b), yc = (b.door.y + 0.5) * TS, t = (yc - (g.A[1] + g.B[1]) / 2) / g.u[1];
-          b.door.x = Math.floor(((g.A[0] + g.B[0]) / 2 + t * g.u[0]) / TS);
+          const g = castleGeo(b);
+          if (g.D) b.door.x = Math.floor(g.D[0] / TS);
+          else { const yc = (b.door.y + 0.5) * TS, t = (yc - (g.A[1] + g.B[1]) / 2) / g.u[1]; b.door.x = Math.floor(((g.A[0] + g.B[0]) / 2 + t * g.u[0]) / TS); }
         }
         set(b.door.x, b.door.y, 7);
         map.buildings.push(b); map.doors.push(b);
@@ -456,10 +459,33 @@
     { n: 'prop_cart', x: 8, y: 21, fw: 3, fh: 2, pw: 104 }, { n: 'prop_jars', x: 15, y: 19, fw: 2, fh: 2, pw: 80 },
     { n: 'prop_cannon', x: 22, y: 19, fw: 3, fh: 2, pw: 108 }, { n: 'prop_fence', x: 12, y: 21, fw: 3, fh: 1, pw: 100 }
   ];
+  /* v169 마을마다 그 고장 명소 (Gemini 그림 img/v79/lm_*.png) · cx = 가운데 칸 x, by = 그림 바닥 칸 y (넓은 마을 50×32 칸 기준), pw = 그림 폭(px), label = 이름표
+   *  U 자리 = 훈련장과 도술 서원 사이(큰길 위) · L 자리 = 분수 아래(마을 모습) */
+  const LANDMARKS = [
+    [{ n: 'lm_tonggun', cx: 26.6, by: 10.3, pw: 200, label: '통군정' }, { n: 'lm_naru', cx: 26, by: 30.6, pw: 196, label: '압록강 나루' }],   // 0 의주
+    [{ n: 'lm_yeongwang', cx: 26.6, by: 10.3, pw: 200, label: '연광정' }],        // 1 평양
+    [{ n: 'lm_seonggwak', cx: 26.6, by: 10.3, pw: 196, label: '한양 도성 성곽' }],  // 2 한양
+    [{ n: 'lm_tangeum', cx: 26, by: 30.6, pw: 204, label: '탄금대' }],          // 3 충주
+    [{ n: 'lm_gwanghan', cx: 26.6, by: 10.4, pw: 210, label: '광한루 · 오작교' }],  // 4 남원
+    [{ n: 'lm_uiam', cx: 26.6, by: 10.3, pw: 196, label: '의암' }],             // 5 진주
+    [{ n: 'lm_geobuk', cx: 26.6, by: 10.3, pw: 204, label: '거북선' }],          // 6 통영
+    [{ n: 'lm_oncheon', cx: 26, by: 30.6, pw: 204, label: '동래 온천' }],        // 7 동래
+    []                                                                          // 8 부산 (부산진성)
+  ];
+  function placeLandmarks(map) {
+    const { at, set, w, h } = map;
+    (LANDMARKS[map.M.region] || []).forEach(L => {
+      const fw = Math.max(2, Math.round(L.pw / TS) - 2), fh = 2, x0 = Math.round(L.cx - fw / 2), y0 = Math.round(L.by) - fh, hh = Math.ceil(L.pw * 0.92 / TS);
+      for (let y = y0 - hh + 1; y <= y0 + fh; y++) for (let x = x0 - 1; x <= x0 + fw; x++) if (x > 0 && y > 0 && x < w - 1 && y < h - 1 && [0, 2, 3, 5].includes(at(x, y))) set(x, y, 12);   // 그림에 겹치는 나무·바위 치우고 소품도 못 놓게 (12 = 지나갈 수 있는 빈 땅)
+      for (let y = y0; y < y0 + fh; y++) for (let x = x0; x < x0 + fw; x++) if ([0, 2, 3, 5].includes(at(x, y))) set(x, y, 10);
+      map.props.push({ n: L.n, x: x0, y: y0, fw, fh, pw: L.pw, label: L.label, lm: true });
+    });
+  }
   function armyCamp(map, rnd) {
-    const { at, set, w, h } = map, last = !!map.R.castle;
+    const { at, set, w, h } = map, last = map.M.region === D.REGIONS.length - 1;   // v169 성 마을이 여럿 → 마지막 마을(부산)만
     const free = p => { for (let y = p.y; y < p.y + p.fh; y++) for (let x = p.x; x < p.x + p.fw; x++) if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1 || ![0, 2, 3, 5].includes(at(x, y))) return false; return true; };
     map.props = [];
+    placeLandmarks(map);   // v169 명소 먼저 (진영 소품은 빈 곳에만)
     CAMP_PROPS.map(p0 => Object.assign({}, p0, { x: VX(p0.x), y: VY(p0.y) })).forEach((p, i) => {   // v158 넓은 마을 자리
       if (!last && i > 1 && rnd() < 0.3) return;   // 마을마다 조금씩 다르게 (마지막 진영은 전부)
       if (!free(p)) return;
@@ -605,7 +631,8 @@
     }));
     // 문 앞 디딤돌 (넓적한 돌 3장) · 진영 앞은 박석(돌판) 마당
     map.plazas.filter(q => q.door).forEach(q => {
-      if (q.castle) {   // v130 성 문 앞 박석 길: 문 아래(A~B)에서 낮은 담과 나란히 왼쪽 아래로 · 끝은 양옆으로 넓어지는 마당
+      if (q.castle && !castleGeo(q.castle).A) { /* v169 그림에 문 앞 마당이 있는 성 → 박석 길 안 그림 */ }
+      else if (q.castle) {   // v130 성 문 앞 박석 길: 문 아래(A~B)에서 낮은 담과 나란히 왼쪽 아래로 · 끝은 양옆으로 넓어지는 마당
         const g = castleGeo(q.castle), v = [g.B[0] - g.A[0], g.B[1] - g.A[1]], K = 2.1, rows = 20, cols = 9;
         const P = (t, a) => [g.A[0] + a * v[0] + t * g.u[0], g.A[1] + a * v[1] + t * g.u[1]], flare = t => Math.max(0, t - 1.25) * 0.35;
         const quad = (pts, col) => { x.fillStyle = col; x.beginPath(); x.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < 4; i++) x.lineTo(pts[i][0], pts[i][1]); x.closePath(); x.fill(); };
@@ -829,7 +856,7 @@
     (map.props || []).forEach(p => {   // v80 진영 소품 (Meshy) — 그림 폭 pw 에 맞춰 칸 아래 가운데에 세움
       const cx0 = (p.x + p.fw / 2) * TS, by = (p.y + p.fh) * TS + 2;
       x.fillStyle = 'rgba(0,0,0,.22)'; x.beginPath(); x.ellipse(cx0, by - 6, p.pw * 0.42, 9, 0, 0, Math.PI * 2); x.fill();
-      map.objs.push({ p79: p.n, pw: p.pw, cx: cx0, by, img: { width: p.pw, height: p.pw * 1.2 }, x: cx0 - p.pw / 2, y: by - p.pw * 1.2, sy: by - 3 });
+      map.objs.push({ p79: p.n, pw: p.pw, cx: cx0, by, img: { width: p.pw, height: p.pw * 1.2 }, x: cx0 - p.pw / 2, y: by - p.pw * 1.2, sy: by - 3, label: p.label });
     });
     const FX = map.fx, FY = map.fy;   // v158 분수 자리 (넓은 마을)
     if (FX != null && map.at(FX, FY) === 8) {
@@ -985,7 +1012,7 @@
     return (forgeC[key] = c);
   }
   function buildingSprite(b, R) {
-    const key = b.type + b.w + b.h + R.name; if (bldC[key]) return bldC[key];
+    const key = b.type + b.w + b.h + R.name + (b.name || ''); if (bldC[key]) return bldC[key];
     const ox = 40, oy = 90, w = b.w * TS, h = b.h * TS, [c, x] = mk(w + ox * 2, h + oy + 10), K = '#1D2340';
     const p = (a, d, ww, hh, col) => { x.fillStyle = col; x.fillRect(ox + a, oy + d, ww, hh); };
     if (b.type === 'castle') {
@@ -1009,7 +1036,7 @@
       p(w / 2 - 34, h - 70, 68, 8, '#FFD23F'); p(w / 2 - 34, h - 70, 68, 2, '#FFF3B0');
       [w / 2 - 70, w / 2 + 52].forEach(a => { p(a, 30, 18, 46, K); p(a + 2, 32, 14, 40, '#D2343A'); p(a + 2, 32, 14, 4, '#FFD23F'); p(a + 7, 48, 4, 8, '#FFD23F'); });
       x.font = '14px "Jua", "Malgun Gothic", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-      p(w / 2 - 54, h - 100, 108, 24, K); p(w / 2 - 52, h - 98, 104, 20, '#3A2A1A'); x.fillStyle = '#FFE45C'; x.fillText('도원수 진영 · 퀘스트', ox + w / 2, oy + h - 87);
+      p(w / 2 - 54, h - 100, 108, 24, K); p(w / 2 - 52, h - 98, 104, 20, '#3A2A1A'); x.fillStyle = '#FFE45C'; x.fillText(b.name + (b.quest ? ' · 퀘스트' : ''), ox + w / 2, oy + h - 87);
     } else {
       const wall = '#F3E6CC', wl = '#FFF6E0', wd = '#D8C8A8', roof = b.roof, rl = shade(roof, 0.25), rd = shade(roof, -0.28);
       // 벽 (나무판 + 기둥)
@@ -1066,6 +1093,7 @@
   const imgOk = n => { const im = RIMG[n]; return im && im.complete && im.naturalWidth ? im : null; };
   /* v80 Meshy 그림 2차 (img/v79/ · 126장): 필요할 때 불러옴. 아직이면 null → 다 불러오면 cb() */
   const V79 = {};
+  setTimeout(() => { D.REGIONS.forEach(R => { if (R.castle && R.castle.img) img79(R.castle.img); }); LANDMARKS.forEach(a => a.forEach(L => img79(L.n))); }, 0);   // v169 성·명소 그림 미리 불러 둠
   function img79(n, cb) {
     let e = V79[n];
     if (!e) {

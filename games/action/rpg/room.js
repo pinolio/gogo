@@ -199,7 +199,7 @@
     const id = 'room-' + type + '-' + region; if (roomCache[id]) return roomCache[id];
     const R = D.REGIONS[region], st = STYLE[type], rnd = seeded(id), B = D.BUILDINGS.concat([D.CASTLE]).find(b => b.type === type);
     const t = new Uint8Array(RW * RH), at = (x, y) => (x < 0 || y < 0 || x >= RW || y >= RH ? 2 : t[y * RW + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < RW && y < RH) t[y * RW + x] = v; };
-    const M = { id, kind: 'room', region, name: B ? B.name : type, type };
+    const M = { id, kind: 'room', region, name: type === 'castle' && R.castle && R.castle.name ? R.castle.name : B ? B.name : type, type };   // v169 성 이름 (평양성·한양 도성…)
     const map = { id, M, R, w: RW, h: RH, t, at, set, mid: 9, room: type, buildings: [], doors: [], spawns: [], objs: [], water: [], glows: [], fx: [], npcs: [], exitL: null, exitR: null, exit: { x0: 12, x1: 13, y: RH - 1 } };
     // 벽: 위 3줄 · 옆 1줄 · 아래 1줄 (문 2칸 빼고)
     for (let x = 0; x < RW; x++) { for (let y = 0; y < 3; y++) set(x, y, 2); set(x, RH - 1, x >= map.exit.x0 && x <= map.exit.x1 ? 1 : 2); }
