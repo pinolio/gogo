@@ -1303,7 +1303,7 @@
         if (c) {
           c.t += dt * (H ? 1.35 : 1);
           if (c.k === 'blades' && c.t >= 1.0) {
-            c.pts.forEach(q => { if (Math.hypot(G.px - q.x, G.py - 20 - q.y) < 46) hitPlayer(m.atk * 1.1, m.lvl, m.el, q); Fx.nova(q.x, q.y, 46, [m.el || 'earth', 'earth']); });
+            const br = m.def.bladeR || 46; c.pts.forEach(q => { if (Math.hypot(G.px - q.x, G.py - 20 - q.y) < br) hitPlayer(m.atk * 1.1, m.lvl, m.el, q); Fx.nova(q.x, q.y, br, [m.el || 'earth', 'earth']); });   // v171 칼비 범위 (광개토대왕 bladeR)
             G.shake = Math.max(G.shake, 7); m.cast = null;
           } else if (c.k === 'charge') {
             if (c.t >= 0.7 && c.t < 1.3) { moveMon(m, c.vx * dt, c.vy * dt); Fx.dust(m.x, m.y, '#FF8A6A'); if (!c.hit && Math.hypot(G.px - m.x, G.py - m.y) < m.r + 24) { c.hit = true; hitPlayer(m.atk * 1.6, m.lvl, m.el); G.shake = Math.max(G.shake, 8); } }
@@ -1313,11 +1313,11 @@
         }
         m.skCd -= dt * (rage ? 1.5 : 1);
         if (m.skCd > 0 || d > (H ? 620 : 460) || m.slam) return;
-        const k = pick(m.def.skills); m.skCd = H ? rand(1.5, 2.2) : rand(3.2, 4.4);
+        const k = pick(m.def.skills); m.skCd = m.def.skCd ? rand(m.def.skCd[0], m.def.skCd[1]) : H ? rand(1.5, 2.2) : rand(3.2, 4.4);   // v171 광개토대왕은 data.js skCd (더 빨리)
         float(m.x, m.y - m.spr.h - 26, (rage ? '분노! ' : '') + SKILL_NAME[k], '#FF8A8E', true);
         const a0 = Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x);
         if (k === 'slam') m.slam = { t: 0, x: m.x, y: m.y - 20 };
-        else if (k === 'blades') m.cast = { k, t: 0, pts: Array.from({ length: (rage ? 7 : 5) + (H ? 3 : 0) }, (_, i) => ({ x: G.px + (i ? rand(-120, 120) : 0), y: G.py - 20 + (i ? rand(-80, 80) : 0) })) };
+        else if (k === 'blades') m.cast = { k, t: 0, pts: Array.from({ length: (rage ? 7 : 5) + (H ? 3 : 0) }, (_, i) => ({ x: G.px + (i ? rand(-120, 120) * (m.def.bladeSpread || 1) : 0), y: G.py - 20 + (i ? rand(-80, 80) * (m.def.bladeSpread || 1) : 0) })) };
         else if (k === 'charge') { const a = Math.atan2(G.py - m.y, G.px - m.x); const v = H ? 580 : 430; m.cast = { k, t: 0, a, vx: Math.cos(a) * v, vy: Math.sin(a) * v }; }   // v157 H 는 준비가 1.35배 빨라 돌진 시간이 짧으니 속도를 올림
         else if (k === 'ring') { const n = (rage ? 18 : 12) + (H ? 6 : 0); for (let i = 0; i < n; i++) bossShot(m, a0 + i / n * Math.PI * 2, H ? 230 : 190, 0.7); m.cast = { k, t: 0 }; }
         else if (k === 'fan') { const n = (rage ? 7 : 5) + (H ? 2 : 0); for (let i = 0; i < n; i++) bossShot(m, a0 + (i - (n - 1) / 2) * (H ? 0.17 : 0.2), H ? 300 : 250, 0.8); m.cast = { k, t: 0 }; }
@@ -1348,7 +1348,7 @@
           { kind: 'pic', img: 'toon_sw1.jpg', fx: 'shake', sfx: '우우웅…', cap: '녹슨 칼날 위로 <b>금빛 금</b>이 번져 간다!', wait: 2800 },
           { kind: 'say', src: me, name: nick, role: '나', text: '검이… 스스로 울고 있어?!', side: 'r', col: '#9AE6FF', wait: 2200 },
           { kind: 'pic', img: 'toon_sw2.jpg', fx: 'flash', sfx: '번쩍!!', sfxCls: 'big l', cap: '녹슨 껍데기가 <b>산산조각</b> 났다!', wait: 2600 },
-          { kind: 'pic', img: 'toon_sw3.jpg', sfx: '화르륵', cap: '<b>왕을 죽인 검</b>이 깨어났다! 대왕에게 주는 피해 ×2 · 상태 이상도 걸려요', wait: 3200 },
+          { kind: 'pic', img: 'toon_sw3.jpg', sfx: '화르륵', cap: '<b>왕을 죽인 검</b>이 깨어났다! 이 검이라야 대왕에게 피해가 들어가고 상태 이상도 걸려요', wait: 3200 },
           { kind: 'say', img: 'sx_king_idle', name: '광개토대왕', role: '전당의 주인', text: '그 검은… 나를 쓰러뜨렸던 바로 그 검이로구나. 좋다, 덤벼 보거라!', side: 'l', king: true, col: '#FFD23F', wait: 3400 }
         ];
       };
@@ -1493,7 +1493,7 @@
         return { def, name: def.name, lvl, boss: !!boss, kind: boss ? 'boss' : def.kind, x: p.x, y: p.y, hx: p.x, hy: p.y, hp, max: hp,
           atk: Math.round(F.monAtk(lvl) * (boss ? B.atk : 1)), mdef: F.monDef(lvl), spr, r: boss ? 30 : 14, hr: def.bh >= 250 ? Math.round(def.bh * 0.3) : 0,   // v150 큰 그림(사방신)은 맞는 범위도 크게
           exp: Math.round(F.monExp(lvl) * (boss ? B.exp : 1)), gold: Math.round(F.monGold(lvl) * (boss ? B.gold : 1)),
-          spd: boss ? 91 : def.kind === 'shoot' ? 60 : 80, cd: rand(0.5, 1.5), wt: 0, wx: 0, wy: 0, aggro: false, flash: 0,   /* v157 선생님 11/17: 모든 보스 이동 속도 1.3배 (70 → 91) */
+          spd: boss ? 137 : def.kind === 'shoot' ? 60 : 80, cd: rand(0.5, 1.5), wt: 0, wx: 0, wy: 0, aggro: false, flash: 0,   /* v157 선생님 11/17: 모든 보스 이동 속도 1.3배 (70 → 91) · v171 선생님 11/20: 1.5배 더 (91 → 137) */
           burn: null, slow: 0, stun: 0, dead: false, respawn: 0, slam: null, el: def.el || null, cast: null, skCd: 2.5 };
       }
 
@@ -1507,8 +1507,8 @@
         let dmg = (base * rand(0.9, 1.1) * (1 + (ST.dmg || 0) / 100) - m.mdef * 0.5) * lvF;   // v44 힘 → 주는 피해 +%
         if ((els || []).some(e => ELEM[e].fx === 'heavy')) dmg *= 1.2;
         if (m.curse > 0) dmg *= 1.2;   // v87 저주 걸린 적
-        const imm = m.def.immune;   // v150 사신의 땅: 사방신 = 자기 속성(기본·융합 마법에 그 속성) 피해 0 · 광개토대왕 = 왕을 죽인 검이 없으면 0, 있으면 ×2 (평타·마법 모두)
-        if (imm === 'all') { if (kingSwordOn()) dmg *= 2; else { immTxt(m, '무효! (어떤 공격도 통하지 않는다)', '#FFD23F'); return 0; } }
+        const imm = m.def.immune;   // v150 사신의 땅: 사방신 = 자기 속성(기본·융합 마법에 그 속성) 피해 0 · 광개토대왕 = 왕을 죽인 검이 없으면 0, 있으면 ×1 (v171 · 예전 ×2)
+        if (imm === 'all') { if (!kingSwordOn()) { immTxt(m, '무효! (어떤 공격도 통하지 않는다)', '#FFD23F'); return 0; } }   // v171 선생님 11/20: 왕을 죽인 검 피해 ×2 → ×1 (너무 쉽게 잡음 · 검이 있어야 피해가 들어가는 것만 남김)
         else if (imm && (els || []).includes(imm)) { immTxt(m, '무효!', ELEM[imm].color); return 0; }
         let weakHit = false;
         if (m.el && !m.def.immune) { if ((els || []).includes(m.el)) dmg *= D.HELL.resist; if ((els || []).includes(D.HELL.weak[m.el])) { dmg *= D.HELL.weakMul; weakHit = true; } }   // v69 저승 몬스터 속성: 같은 원소 ×0.7 · 약점 ×1.3
@@ -1891,7 +1891,7 @@
                 if (m.def.skills) bossSkill(m, dt, d);   // v69 저승 보스 기술
                 else if (!m.slam && m.cd <= 0.2 && Math.random() < 0.01 + dt) m.slam = { t: 0, x: m.x, y: m.y - 20 };
                 const sel = m.el || D.RG_EL[G.map.M.region];
-                if (m.slam) { m.slam.t += dt; if (m.slam.t >= 0.9) { if (Math.hypot(G.px - m.slam.x, G.py - 20 - m.slam.y) < 130) hitPlayer(m.atk * 1.5, m.lvl, sel, m.slam); Fx.nova(m.slam.x, m.slam.y, 130, [sel, 'earth']); G.shake = Math.max(G.shake, 9); m.slam = null; m.cd = m.def.hard ? 1.2 : 2.2; } }
+                if (m.slam) { m.slam.t += dt; if (m.slam.t >= 0.9) { const sr = m.def.slamR || 130; if (Math.hypot(G.px - m.slam.x, G.py - 20 - m.slam.y) < sr) hitPlayer(m.atk * 1.5, m.lvl, sel, m.slam); Fx.nova(m.slam.x, m.slam.y, sr, [sel, 'earth']); G.shake = Math.max(G.shake, 9); m.slam = null; m.cd = m.def.slamCd || (m.def.hard ? 1.2 : 2.2); } }   // v171 내려찍기 범위·쿨타임 (광개토대왕 slamR·slamCd)
               }
             }
           } else {
@@ -1976,7 +1976,7 @@
         // 바닥 효과
         Fx.drawFx(c, true, now);
         G.pools.forEach(p => Fx.drawPool(c, p, now));
-        G.mons.forEach(m => { if (m.slam) Fx.slamWarn(c, m.slam.x, m.slam.y + 20, 130, Math.min(1, m.slam.t / 0.9), now); });
+        G.mons.forEach(m => { if (m.slam) Fx.slamWarn(c, m.slam.x, m.slam.y + 20, m.def.slamR || 130, Math.min(1, m.slam.t / 0.9), now); });
         G.mons.forEach(m => {   // v69 보스 기술 예고: 칼비 자리 · 돌진 방향
           const k = m.cast; if (!k || m.dead) return;
           if (k.k === 'blades') k.pts.forEach(q => Fx.slamWarn(c, q.x, q.y + 20, 46, Math.min(1, k.t / 1.0), now));
@@ -2107,7 +2107,7 @@
             const e = (now - sm.t0) / 1000, old = img79('ic_sw_king'), neu = img79('ic_sw_king2'), sx = G.px, sy = G.py - 80 - Math.min(1, e / 0.6) * 34, S0 = 78;
             if (e > 2.6) G.swordMorph = null;
             else {
-              if (!sm.burst && e >= 0.95) { sm.burst = true; G.flash = 0.7; G.shake = 9; G.title = { t: 0, text: '왕을 죽인 검이 깨어났다!', sub: '광개토대왕을 쓰러뜨린 그 검 — 대왕에게 피해 ×2 · 상태 이상도 걸림' };
+              if (!sm.burst && e >= 0.95) { sm.burst = true; G.flash = 0.7; G.shake = 9; G.title = { t: 0, text: '왕을 죽인 검이 깨어났다!', sub: '광개토대왕을 쓰러뜨린 그 검 — 이 검이라야 대왕에게 피해가 들어감 · 상태 이상도 걸림' };
                 for (let i = 0; i < 48; i++) { const a = Math.random() * Math.PI * 2, v = rand(120, 320); Fx.emit({ x: sx, y: sy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, g: 260, life: 1.1, size: rand(2.5, 4.5), color: pick(['#FFD23F', '#FFFFFF', '#FF8A3D', '#9AE6FF']), shape: 'glow', add: true }); } }
               c.save();
               // 빛기둥: 땅에서 하늘로

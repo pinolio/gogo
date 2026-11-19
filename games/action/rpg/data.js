@@ -659,7 +659,8 @@
         { bh: 380, aura: true, baseCol: '#3C78F0', frames: SXF('hm') }),   // v150 선생님 그림 · 땅을 딛고 섬 + 발밑 물결
       king: Object.assign(B('광개토대왕', 'sx_king_idle', 'light', 'all', '#FFD23F', { a: '#FFD23F', b: '#8A5A10', c: '#FFFFFF', d: '#FF4A3A' }, '광개토대왕께서 일어나셨다! 어떤 공격도 통하지 않는다…', ['blades', 'ring', 'charge', 'slam', 'fan']), { noFx: true,
         // v150 선생님 Gemini 그림 7장 (11/15) · 사방신과 같은 380px · 땅을 딛고 섬 · 칼(blades·charge·slam)=들기→내려치기 · 마법(ring·fan)=손 뻗기 · 걸을 때 두 장 번갈아 · 맞으면 잠깐 움찔
-        bh: 380, aura: true, baseCol: '#FF4A3A', ax: 234 / 417, castAt: [0.39, 0.66], castCol: '#FF4A8A',
+        bh: 380, aura: true, baseCol: '#FF4A3A', ax: 234 / 417, skCd: [0.9, 1.3], slamR: 195, slamCd: 0.7, bladeR: 70, bladeSpread: 1.4,   // v171 선생님 11/20: 범위 기술 쿨타임 더 짧게(1.5~2.2 → 0.9~1.3초 · 내려찍기 뒤 1.2 → 0.7초) · 범위 1.5배(내려찍기 130 → 195 · 칼비 46 → 70, 퍼지는 폭 1.4배)
+        castAt: [0.39, 0.66], castCol: '#FF4A8A',
         frames: { idle: 'sx_king_idle', walk: ['sx_king_walk1', 'sx_king_walk2'], atk1: 'sx_king_atk1', atk2: 'sx_king_atk2', cast: 'sx_king_cast', hit: 'sx_king_hit' } })   // v149 선생님 11/15: 넉백(움찔·밀어내기)은 안 걸림 · 상태 이상(불·느려짐·기절·저주)은 왕을 죽인 검을 끼면 걸림
     };
     ['cr', 'jj', 'bh', 'hm'].forEach(k => { boss[k].fxQ = 0.25; });
