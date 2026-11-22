@@ -794,5 +794,19 @@
         lines: ['대왕께서 돌아가신 뒤 아드님 장수왕께서 그 업적을 비석에 새기셨다네.'] }
     ]
   };
-  window.GoRPGData = { GURI, SASIN, YS, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  /* v174 통영(이순신 던전 마을) — 이순신 장군 이야기를 하는 마을 사람 4명 (선생님 11/22) · at = [칸 x, 칸 y] (넓은 마을 칸 그대로) · 그림은 av 아바타 */
+  const YSFOLK = {
+    village: 'v7',
+    folk: [
+      { name: '늙은 수군 김 노인', h: 62, at: [16.5, 27.0], range: 0, color: '#9AE6FF', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+        lines: ['나는 젊을 적 장군님 판옥선에서 노를 저었지. 한산도 앞바다에서 학익진을 펼쳐 왜선을 모조리 무찔렀다네!', '장군님은 "신에게는 아직 열두 척의 배가 남아 있사옵니다" 하시고, 명량 울돌목에서 그 배로 수많은 왜선을 막아 내셨지.', '장군님은 싸움이 없는 날에도 일기를 쓰셨다네. 그게 바로 난중일기야.'] },
+      { name: '꼬마 순돌', h: 50, at: [31.5, 27.8], range: 40, color: '#9AF0B0', av: { skin: 's2', hair: 'h_spiky', top: 't_vest', bottom: 'b_shorts', shoes: 'sh_red' },
+        lines: ['거북선 등에는 뾰족한 쇠못이 잔뜩 박혀 있어서 왜군이 올라타지 못했대!', '거북선 머리에서는 연기가 뿜어져 나와서 적이 앞을 못 봤대. 나도 거북선 타 보고 싶다!', '이순신 장군님은 스물세 번 싸워서 한 번도 안 졌대. 진짜야!'] },
+      { name: '주막 아주머니', h: 62, at: [35.5, 29.2], range: 30, color: '#FF9AA0', av: { skin: 's2', hair: 'h_bun', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black' },
+        lines: ['노량 바다에서 장군님은 "싸움이 급하니 나의 죽음을 알리지 마라" 하셨대요…', '장군님 덕분에 이 통영 바다가 지켜졌지요. 국밥 한 그릇 드시고 가요.'] },
+      { name: '떠돌이 화공', h: 64, at: [19.5, 28.6], range: 20, color: '#FFE45C', av: { skin: 's1', hair: 'h_topknot', hat: 'hat_gat', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
+        lines: ['옛날 한산도 통제영에는 이순신 장군님과 거북선을 그린 커다란 벽화가 있었지. 내 스승님께서 평생을 바쳐 그리신 그림이라오.', '그 벽화 앞에 서면 장군님이 금방이라도 걸어 나오실 것 같았지. 왜군들은 그 그림만 봐도 벌벌 떨었다네.', '그런데 얼마 전 왜군이 그 벽화를 몰래 떼어 남쪽 바다로 가져갔다는 소문이 돌더군… 누가 꼭 되찾아 주면 좋으련만.'] }
+    ]
+  };
+  window.GoRPGData = { GURI, YSFOLK, SASIN, YS, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();

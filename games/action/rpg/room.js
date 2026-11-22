@@ -312,7 +312,10 @@
     // v149 구리마을: 광개토대왕 이야기하는 사람 6명 (data.js GURI)
     const gu = D.GURI && r === D.GURI.region && map.M.kind === 'village' ? D.GURI.folk.map((d0, i) => ({ key: 'g' + i, def: d0, x: P.VXf(d0.at[0]) * TS, y: P.VYf(d0.at[1]) * TS, hx: P.VXf(d0.at[0]) * TS, hy: P.VYf(d0.at[1]) * TS,   /* v158 넓은 마을 */
       face: i % 2 ? -1 : 1, ph: i * 1.3, wt: 0.8 + i * 0.5, vx: 0, vy: 0, range: d0.range, spd: 22, walker: true })) : [];
-    return folk.concat(army, gu);
+    // v174 통영: 이순신 장군 이야기하는 사람 4명 (data.js YSFOLK · 넓은 마을 칸 그대로)
+    const ysf = D.YSFOLK && map.M.id === D.YSFOLK.village ? D.YSFOLK.folk.map((d0, i) => ({ key: 'y' + i, def: d0, x: d0.at[0] * TS, y: d0.at[1] * TS, hx: d0.at[0] * TS, hy: d0.at[1] * TS,
+      face: i % 2 ? -1 : 1, ph: i * 1.1, wt: 0.9 + i * 0.4, vx: 0, vy: 0, range: d0.range, spd: 22, walker: true })) : [];
+    return folk.concat(army, gu, ysf);
   }
 
   Object.assign(P, { getRoom, npcSprite, npcPortrait, villagers, ROOM_W: RW, ROOM_H: RH });

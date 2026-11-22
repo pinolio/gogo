@@ -335,12 +335,13 @@
       for (let x = fx0 - 1; x <= fx0 + 3; x++) set(x, fy0 + 3, 1);
       map.forge = { x: fx0, y: fy0, w: 3, h: 2 };
       // v85 역참 (4×2 칸, 오른쪽 아래 · 마지막 마을은 왼쪽 아래) + 역참지기 자리 + 길
-      const st = R.castle ? { x: VX(13), y: VY(20), w: 6, h: 2, nx: VX(13) + 6.6, path: VX(13) + 6 } : { x: VX(29), y: VY(20), w: 6, h: 2, nx: VX(29) - 1.4, path: VX(29) - 1 };   // v158 넓은 마을   // v144 새 그림으로 크게 (예전 4×2, y19)
+      const ysHome = D.YS && M.id === D.YS.home, st = ysHome ? { x: VX(29) + 3, y: VY(20), w: 6, h: 2, nx: VX(29) + 1.6, path: VX(29) + 2 } : R.castle ? { x: VX(13), y: VY(20), w: 6, h: 2, nx: VX(13) + 6.6, path: VX(13) + 6 } : { x: VX(29), y: VY(20), w: 6, h: 2, nx: VX(29) - 1.4, path: VX(29) - 1 };   // v174 통영: 아래쪽 이순신 던전 입구를 가리지 않게 역참을 오른쪽 아래로   // v158 넓은 마을   // v144 새 그림으로 크게 (예전 4×2, y19)
       for (let y = st.y - 2; y <= st.y + st.h; y++) for (let x = st.x - 1; x <= st.x + st.w; x++) if ([2, 3, 5].includes(at(x, y))) set(x, y, 0);
       for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) set(x, y, 11);
       for (let y = R.castle ? mid + 2 : fy0 + 3; y <= st.y + st.h; y++) set(st.path, y, 1);
       for (let x = Math.min(st.path, st.x); x <= Math.max(st.path, st.x + st.w - 1); x++) set(x, st.y + st.h, 1);
       map.station = st;
+      if (ysHome && MAPBY[D.YS.entry]) { const gx = (w >> 1) + 3.6; map.ysSign = { x: (gx + 1) * TS, y: (h - 2.6) * TS }; }   // v174 이순신 던전 푯말 (아래쪽 입구 오른쪽)
       villageRoads(map, rnd);   // v109 직각 길 → 부드럽게 굽은 흙길·마당·디딤돌 (칸도 새 길 모양에 맞춤)
       armyCamp(map, rnd);   // v80 임진왜란 진영 꾸미기 (천막·대포·깃발 + 조선 병사 · 다친 병사)
     } else {
@@ -856,6 +857,7 @@
       x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(st.x * TS - 4, (st.y + st.h) * TS - 10, st.w * TS + 8, 12);
       map.objs.push({ station: st, img: { width: st.w * TS, height: 120 }, x: st.x * TS, y: (st.y + st.h) * TS - 120, sy: (st.y + st.h) * TS - 1 });
     }
+    if (map.ysSign) { const sg = map.ysSign; map.objs.push({ ysSign: true, img: { width: 152, height: 92 }, x: sg.x - 76, y: sg.y - 90, sy: sg.y }); map.glows.push({ x: sg.x, y: sg.y - 70, r: 110, col: '#FFD8A0' }); }   // v174 그림은 game.js drawObj
     (map.props || []).forEach(p => {   // v80 진영 소품 (Meshy) — 그림 폭 pw 에 맞춰 칸 아래 가운데에 세움
       const cx0 = (p.x + p.fw / 2) * TS, by = (p.y + p.fh) * TS + 2;
       x.fillStyle = 'rgba(0,0,0,.22)'; x.beginPath(); x.ellipse(cx0, by - 6, p.pw * 0.42, 9, 0, 0, Math.PI * 2); x.fill();

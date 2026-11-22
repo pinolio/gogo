@@ -811,7 +811,7 @@
       let msgT = 0;
       function say(t, sec) { msgEl.textContent = t; msgEl.hidden = false; msgT = sec || 2.4; }
       window.GoRPGGuard = () => say('⚠ 서버에 더 진행된 내 캐릭터가 있어서 저장을 멈췄어요. 새로고침(F5) 해 주세요!', 8);   // v168 덮어쓰기 막음 알림
-      const float = (x, y, text, color, big) => G.texts.push({ x, y, text, color: color || '#FFFFFF', t: 0, big });
+      const float = (x, y, text, color, big) => { if (G.texts.length >= 40) { const i = G.texts.findIndex(t => !t.big); G.texts.splice(i < 0 ? 0 : i, 1); } G.texts.push({ x, y, text, color: color || '#FFFFFF', t: 0, big }); };   // v174 렉: 떠오르는 글자 최대 40개
 
       /* ---------- 지도 들어가기 ---------- */
       function enter(id, side, quiet) {
@@ -2503,9 +2503,10 @@
         Fx.drawParts(c, view);
         // 글자 (톡 튀어나왔다가 올라가며 사라짐)
         c.textAlign = 'center'; c.textBaseline = 'middle';
+        let lastF = '';
         G.texts.forEach(t => {
-          const k = t.t / 1.1, pop = t.t < 0.12 ? 0.6 + t.t / 0.12 * 0.7 : t.t < 0.22 ? 1.3 - (t.t - 0.12) / 0.1 * 0.3 : 1, size = (t.big ? 22 : t.dmg ? 17 : 14) * pop;
-          c.globalAlpha = Math.max(0, 1 - Math.max(0, k - 0.5) * 2); c.font = Math.round(size) + 'px "Jua", "Malgun Gothic", sans-serif';
+          const k = t.t / 1.1, pop = t.t < 0.12 ? 0.6 + t.t / 0.12 * 0.7 : t.t < 0.22 ? 1.3 - (t.t - 0.12) / 0.1 * 0.3 : 1, size = Math.round((t.big ? 22 : t.dmg ? 17 : 14) * pop / 3) * 3;   // v174 렉: 글자 크기를 3px 단위로 (글꼴을 매번 새로 만들지 않게)
+          c.globalAlpha = Math.max(0, 1 - Math.max(0, k - 0.5) * 2); const fnt = size + 'px "Jua", "Malgun Gothic", sans-serif'; if (lastF !== fnt) { c.font = lastF = fnt; }
           const y = t.y - t.t * 40; c.lineWidth = 4; c.strokeStyle = '#1D2340'; c.strokeText(t.text, t.x, y); c.fillStyle = t.color; c.fillText(t.text, t.x, y);
         });
         c.globalAlpha = 1;
@@ -2633,6 +2634,14 @@
         } else if (M.sx !== 'king') G.kingSwordShown = false;
       }
       function drawObj(c, o, now) {
+        if (o.ysSign) {   // v174 통영 아래쪽 '이순신 장군님 던전' 나무 푯말
+          const cx = o.x + 76, by = o.sy; c.save();
+          c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(cx, by, 26, 6, 0, 0, Math.PI * 2); c.fill();
+          c.fillStyle = '#5A3A1E'; c.fillRect(cx - 4, by - 58, 8, 58); c.fillStyle = '#7A4E28'; c.fillRect(cx - 3, by - 58, 3, 58);
+          c.fillStyle = '#3A2410'; rr(c, cx - 76, by - 92, 152, 40, 5); c.fill(); c.fillStyle = '#C8955A'; rr(c, cx - 73, by - 89, 146, 34, 4); c.fill();
+          c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#1D2340'; c.fillText('⚓ 이순신 장군님 던전', cx, by - 80); c.font = '11px "Jua", "Malgun Gothic", sans-serif'; c.fillText('↓ 통영 남쪽 바닷길', cx, by - 63);
+          c.restore(); return;
+        }
         if (o.sign) { const ri = D.SASIN.rockImg && img79(D.SASIN.rockImg); if (ri) { const ww = 104, hh = ri.naturalHeight * ww / ri.naturalWidth, cx = o.x + o.img.width / 2; c.drawImage(ri, Math.round(cx - ww / 2), Math.round(o.sy - hh + 8), ww, Math.round(hh)); } else c.drawImage(o.img, Math.round(o.x), Math.round(o.y)); return; }   // v151 입구 바위: Gemini 그림(SASIN.rockImg)이 들어오면 그림   // v150 글씨 새긴 바위
         if (o.p79) { const im = img79(o.p79); if (im) { const hh = im.naturalHeight * o.pw / im.naturalWidth; c.drawImage(im, Math.round(o.cx - o.pw / 2), Math.round(o.by - hh), o.pw, Math.round(hh));
           if (o.label) { c.font = '13px "Jua", "Malgun Gothic", sans-serif'; const lw = c.measureText(o.label).width + 20, ly = Math.max(o.by - hh - 2, 16), lx = o.cx; c.fillStyle = 'rgba(10,14,36,.82)'; c.fillRect(lx - lw / 2, ly - 11, lw, 22); c.fillStyle = '#5AD1FF'; c.fillRect(lx - lw / 2, ly + 10, lw, 2); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#9AE6FF'; c.fillText(o.label, lx, ly + 1); } } return; }   // v80 진영 소품   // v169 명소 이름표

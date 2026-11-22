@@ -188,6 +188,38 @@
   /* ---------- 화면 공통 ---------- */
   const view = () => $('#view');
   let cleanups = [];
+  /* v174 같은 아이디로 같은 게임을 두 곳에서 하지 못하게 (선생님 11/22) — 다른 게임·다른 화면은 괜찮음
+   *  게임 화면에 들어가면 실시간 채널 'lock-게임id' 에 {uid, cid(이 탭), at(들어온 때)} 를 알림.
+   *  같은 uid 가 먼저(at 이 더 이른) 들어와 있으면 → 나중에 들어온 쪽이 경고창 + 게임 목록으로 */
+  function playLock(gid) {
+    if (!Hub.user || !Hub.channel) return () => {};
+    const me = { uid: Hub.user.id, cid: Hub.clientId, at: Date.now(), g: gid };
+    let done = false, ch = null;
+    const check = list => {
+      if (done) return;
+      const older = (list || []).find(p => p && p.uid === me.uid && p.cid && p.cid !== me.cid && (+p.at < me.at || (+p.at === me.at && p.cid < me.cid)));
+      if (!older) return;
+      done = true; try { ch.leave(); } catch (e) { /* noop */ }
+      if ((location.hash || '').replace(/^#/, '') === gid) location.hash = '#home';
+      setTimeout(() => lockAlert(Hub.user ? Hub.user.nickname : '', nameOf(gid)), 50);
+    };
+    try { ch = Hub.channel('lock-' + gid, { onPeers: check }); ch.track(me); } catch (e) { return () => {}; }
+    return () => { done = true; try { ch.leave(); } catch (e) { /* noop */ } };
+  }
+  function lockAlert(nick, gname) {
+    const old = document.getElementById('lockModal'); if (old) old.remove();
+    const m = document.createElement('div'); m.className = 'modal'; m.id = 'lockModal';
+    m.innerHTML = `<div class="modal-card lock-card" role="alertdialog" aria-modal="true" aria-labelledby="lkTitle">
+      <h2 id="lkTitle" class="modal-title">⚠️ 게임 접속 불가</h2>
+      <p class="lock-msg"><b>${esc(nick)}</b>님은 이미 <b>${esc(gname)}</b> 게임을 하고 있습니다. 그래서 게임 접속이 안됩니다.</p>
+      <p class="small" style="margin:6px 0 4px">같은 아이디로는 한 게임을 한 곳에서만 할 수 있어요. 다른 곳의 게임을 끄고 다시 들어와 주세요.</p>
+      <p class="lock-wait">⏱ 인터넷이 끊기거나 창이 갑자기 꺼진 경우에는 <b>30초 뒤에 다시 접속해 주세요.</b></p>
+      <button class="btn btn-primary btn-block" type="button" data-lkok>확인</button>
+    </div>`;
+    document.body.appendChild(m);
+    m.querySelector('[data-lkok]').addEventListener('click', () => m.remove());
+    m.querySelector('[data-lkok]').focus();
+  }
   function cleanup() { cleanups.forEach(f => { try { f(); } catch (e) { /* noop */ } }); cleanups = []; }
   let current = 'home';
 
@@ -1136,6 +1168,7 @@
     if (h === 'battle') {
       current = 'battle'; setNav('home');
       cleanups.push(window.GoBattle.render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText }));
+      cleanups.push(playLock('battle'));   // v174
     }
     else if ((h === 'shop' || h.startsWith('shop/')) && shopLocked()) {   // v113 상점 잠시 쉬기
       current = 'shopoff'; setNav('shop');
@@ -1158,8 +1191,9 @@
     else if (SET.get(h) && SET.get(h).page && window[SET.get(h).page]) {
       current = h; setNav('home');
       cleanups.push(window[SET.get(h).page].render(view(), { toast, esc, fmt, dur, openAuth, resetHTML, pointText, rankItems, ago, avCanvas }));
+      cleanups.push(playLock(h));   // v174 같은 아이디로 같은 게임 두 곳 금지
     }
-    else if (gameById(h)) renderPlay(h);
+    else if (gameById(h)) { renderPlay(h); cleanups.push(playLock(h)); }
     else if (h === 'rank') renderRank();
     else if (h === 'admin') {
       current = 'admin'; setNav('admin');

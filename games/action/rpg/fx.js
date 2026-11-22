@@ -53,7 +53,7 @@
 
   /* ================= 입자 ================= */
   const parts = [];        // 세계 좌표
-  const MAX = 1400;
+  const MAX = 700;   // v174 렉 줄이기 (1400 → 700)
   // o: { x, y, vx, vy, life, size, color, g(중력), drag, shape: 'sq'|'glow'|'spark'|'ring'|'star'|'rock'|'leaf'|'coin'|'drop', grow, add(빛남), spin, target }
   function emit(o) { if (parts.length >= MAX) parts.shift(); o.t = 0; o.life = o.life || 0.6; o.size = o.size || 4; o.drag = o.drag == null ? 1.5 : o.drag; o.rot = o.rot || Math.random() * TAU; parts.push(o); return o; }
   function burst(x, y, n, P, opt) {
@@ -381,21 +381,23 @@
     ctx.restore();
     // 어둠 (수정 동굴·불꽃왕성): 내 주변과 빛나는 것들 둘레만 밝게
     if (A.dark) {
-      const [dc, dx] = darkCanvas(W, H);
-      dx.globalCompositeOperation = 'source-over'; dx.clearRect(0, 0, W, H); dx.fillStyle = region === 8 ? 'rgba(40,8,8,' + A.dark + ')' : 'rgba(12,6,30,' + A.dark + ')'; dx.fillRect(0, 0, W, H);
-      dx.globalCompositeOperation = 'destination-out';
-      lights.forEach(l => { const g = glow('#FFFFFF', l.r); dx.globalAlpha = l.a == null ? 1 : l.a; dx.drawImage(g, l.x - g.width / 2, l.y - g.height / 2); });
-      dx.globalAlpha = 1; ctx.drawImage(dc, 0, 0);
+      // v174 렉 줄이기: 어둠 판은 절반 해상도로 그려 늘림(채우는 픽셀 1/4) · 빛은 가까운 순서로 최대 28개 · 색 번짐은 14개까지
+      const q = 2, [dc, dx] = darkCanvas(Math.ceil(W / q), Math.ceil(H / q)), L = lights.length > 28 ? lights.slice(0, 28) : lights;
+      dx.setTransform(1, 0, 0, 1, 0, 0); dx.globalCompositeOperation = 'source-over'; dx.globalAlpha = 1; dx.clearRect(0, 0, dc.width, dc.height); dx.fillStyle = region === 8 ? 'rgba(40,8,8,' + A.dark + ')' : 'rgba(12,6,30,' + A.dark + ')'; dx.fillRect(0, 0, dc.width, dc.height);
+      dx.globalCompositeOperation = 'destination-out'; dx.setTransform(1 / q, 0, 0, 1 / q, 0, 0);
+      L.forEach(l => { const g = glow('#FFFFFF', l.r); dx.globalAlpha = l.a == null ? 1 : l.a; dx.drawImage(g, l.x - g.width / 2, l.y - g.height / 2); });
+      dx.globalAlpha = 1; dx.setTransform(1, 0, 0, 1, 0, 0);
+      const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true; ctx.drawImage(dc, 0, 0, W, H); ctx.imageSmoothingEnabled = sm;
       // 빛 색 번짐
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      lights.forEach(l => { if (l.col) drawGlow(ctx, l.x, l.y, l.r * 0.6, l.col, 0.18); });
+      let nc = 0; L.forEach(l => { if (l.col && nc++ < 14) drawGlow(ctx, l.x, l.y, l.r * 0.6, l.col, 0.18); });
       ctx.restore();
     }
     if (A.haze) { ctx.save(); ctx.globalAlpha = 0.05 + 0.03 * Math.sin(now / 500); ctx.fillStyle = region === 8 ? '#FF6A3D' : '#FFE0A0'; ctx.fillRect(0, H * 0.6, W, H * 0.4); ctx.restore(); }
     // 가장자리 어둡게 (모든 지역)
     ctx.drawImage(vignette(W, H), 0, 0);
   }
-  let darkC = null; const darkCanvas = (W, H) => (darkC && darkC[0].width === W ? darkC : (darkC = mk(W, H)));
+  let darkC = null; const darkCanvas = (W, H) => (darkC && darkC[0].width === W && darkC[0].height === H ? darkC : (darkC = mk(W, H)));
   let vigC = null;
   function vignette(W, H) {
     if (vigC && vigC.width === W) return vigC;

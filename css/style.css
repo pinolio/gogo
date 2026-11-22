@@ -163,6 +163,9 @@ a.card:hover { transform: translate(-2px, -3px); box-shadow: 6px 7px 0 var(--sha
 .card-foot b { color: var(--ink); font-size: 11px; }
 .tag { font-family: var(--f-pixel); font-size: 8px; padding: 4px 5px 3px; border-radius: 4px; background: var(--accent); color: #fff; }
 .tag.new { background: var(--leaf); color: #0F1430; }
+.lock-card { border: 3px solid #FF6A3D; }
+.lock-wait { margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; background: #FFD23F; color: #1D2340; font-size: .92rem; line-height: 1.5; }
+.lock-msg { font-size: 1.05rem; line-height: 1.6; margin: 10px 0 0; color: #1D2340; }
 .tag.beta { background: #FF9A3D; color: #1D2340; }   /* v174 베타테스트 */
 .cat { font-size: 12px; font-weight: 700; color: var(--blue); }
 
