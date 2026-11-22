@@ -1631,7 +1631,7 @@
           } else if (c.t > 0.6) m.cast = null;
           return;
         }
-        m.skCd -= dt * (rage ? 1.5 : 1);
+        m.skCd -= dt * (rage ? 1.5 : 1) * (m.def.aspd || 1);   // v177 이순신 던전 장수·와키자카 공격 속도 1.5배
         if (m.skCd > 0 || d > (H ? 700 : 560) || m.slam || m.isClone && Math.random() < 0.5) return;   // v173 쓰는 거리 460→560 · 620→700
         // v173 체력 단계 패턴: 100~70% 앞의 기본 기술(nb개, 기본 2)만 · 70% 아래 대표 기술까지 · 같은 기술 두 번 연속 안 씀 · 30% 아래 40% 확률로 바로 이어서(연계)
         const hpK = m.hp / m.max, all = m.skl || m.def.skills, nb = m.def.nb || 2; let pool = hpK > 0.7 ? all.slice(0, Math.min(nb, all.length)) : all.slice();
@@ -1763,7 +1763,7 @@
       function spawnYs(M) {
         const k = M.ys, cx = G.map.w * TS / 2, cy = (G.map.h >> 1) * TS, mk = (def, lv, dx, dy) => { const m = makeMon(def, lv, true); m.noRespawn = true; m.x = m.hx = cx + dx; m.y = m.hy = cy + dy; return m; };
         if (k === 'gen') { const i = M.yi, g = YS.gens[i]; if (!S.ysp[i]) { G.mons.push(mk(Object.assign({ ysGen: i }, g), M.rec, 0, 120)); G.title = { t: 0, text: `${g.name} (Lv.${M.rec})`, sub: g.say }; G.shake = 6; } else say(`${g.name}의 벽화 조각은 이미 되찾았어요`, 3); return; }
-        if (k === 'all' && S.ysMural && !S.ysAll) { YS.gens.forEach((g, i) => { const dx = ((i % 3) - 1) * 300, dy = (Math.floor(i / 3) - 1) * 170 + 60; G.mons.push(mk(Object.assign({ ysGen: i, allRoom: true }, g, { bh: 210 }), YS.lv.all, dx, dy)); }); G.title = { t: 0, text: '왜장 아홉이 한꺼번에 나타났다!', sub: '저마다 자기 속성의 힘은 통하지 않는다' }; G.shake = 10; return; }
+        if (k === 'all' && S.ysMural && !S.ysAll) { YS.gens.forEach((g, i) => { const dx = ((i % 3) - 1) * 300, dy = (Math.floor(i / 3) - 1) * 170 + 60; G.mons.push(mk(Object.assign({ ysGen: i, allRoom: true }, g, { bh: 210 }), YS.lv.all, dx, dy)); }); G.title = { t: 0, text: '왜장 아홉이 한꺼번에 나타났다!', sub: '저마다 통하지 않는 원소가 둘씩 있다 (융합 마법도)' }; G.shake = 10; return; }
         if (k === 'boss' && (!S.ysMural || S.ysAll)) { G.mons.push(mk(Object.assign({}, YS.boss), YS.lv.boss, 0, 140)); G.ysNav = null; G.title = { t: 0, text: `${YS.boss.name} (Lv.${YS.lv.boss})`, sub: YS.boss.say }; G.shake = 12; G.flash = 0.4; return; }
         if (k === 'npc') G.npcs = [{ key: 'ysnpc', def: YS.npc, x: (G.map.w >> 1) * TS + 70, y: ((G.map.h >> 1) + 0.6) * TS, face: -1, ph: 1, smith: true }];
       }
@@ -1992,6 +1992,7 @@
         if (m.curse > 0) dmg *= 1.2;   // v87 저주 걸린 적
         const imm = m.def.immune;   // v150 사신의 땅: 사방신 = 자기 속성(기본·융합 마법에 그 속성) 피해 0 · 광개토대왕 = 왕을 죽인 검이 없으면 0, 있으면 ×1 (v171 · 예전 ×2)
         if (imm === 'all') { if (!kingSwordOn()) { immTxt(m, '무효! (어떤 공격도 통하지 않는다)', '#FFD23F'); return 0; } }   // v171 선생님 11/20: 왕을 죽인 검 피해 ×2 → ×1 (너무 쉽게 잡음 · 검이 있어야 피해가 들어가는 것만 남김)
+        else if (Array.isArray(imm)) { const hit = (els || []).find(e => imm.includes(e)); if (hit) { immTxt(m, ELEM[hit].name + ' 무효!', ELEM[hit].color); return 0; } }   // v177 이순신 던전 장수: 원소 2가지 무시 (융합 마법에 들어 있어도)
         else if (imm && (els || []).includes(imm)) { immTxt(m, '무효!', ELEM[imm].color); return 0; }
         let weakHit = false;
         if (m.el && !m.def.immune) { if ((els || []).includes(m.el)) dmg *= D.HELL.resist; if ((els || []).includes(D.HELL.weak[m.el])) { dmg *= D.HELL.weakMul; weakHit = true; } }   // v69 저승 몬스터 속성: 같은 원소 ×0.7 · 약점 ×1.3
@@ -2006,6 +2007,7 @@
         if (crit) { G.shake = Math.max(G.shake, 4); G.hitstop = 0.05; }
         (els || []).forEach(e => {
           const fx = ELEM[e].fx;
+          if (m.def.noCC && fx !== 'holy') { if (fx !== 'heavy' && !m.ccTxt) { m.ccTxt = 1; setTimeout(() => { m.ccTxt = 0; }, 1500); float(m.x, m.y - m.spr.h - 30, '상태 이상 무시!', '#FF4A8A'); } return; }   // v177 와키자카
           if ((fq === 0 && fx !== 'holy') || (m.def.noFx && (fx === 'push' || fx === 'stun'))) return;   // v152 광개토대왕: 넉백·기절은 검을 껴도 안 걸림 (선생님 11/16 05:47)   // v152 광개토대왕 넉백은 검을 껴도 안 걸림 (선생님 11/16 05:41)   // v152 광개토대왕: 넉백·상태 이상 안 걸림 (왕을 죽인 검을 끼면 1/4) · 빛 회복은 나에게 오는 것이라 그대로
           const q = (m.def.fxQ || m.def.noFx) ? fq : 1;   // v152 사방신·(검 낀) 광개토대왕 = 1/4 (시간·거리)
           if (fx === 'burn') m.burn = { t: 3 * q, dps: dmg * 0.12, tick: 0.5 };
@@ -2373,9 +2375,10 @@
           if (m.dummy) { dummyTick(m, dt); return; }   // v144 허수아비
           if (m.dead) { if (m.noRespawn) return; if ((m.respawn -= dt) <= 0) { const n = makeMon(m.def, m.lvl, m.boss); Object.assign(m, n); } return; }
           if (m.ysInv) { m.flash -= dt; return; }   // v173 왜선 단계: 와키자카는 멈춰 서서 지켜봄
-          m.flash -= dt; m.cd -= dt; if (m.lunge > 0) m.lunge -= dt; if (m.knock) m.knock *= Math.pow(0.001, dt);
+          m.flash -= dt; m.cd -= dt * (m.def.aspd || 1); if (m.lunge > 0) m.lunge -= dt; if (m.knock) m.knock *= Math.pow(0.001, dt);
           if (m.burn) { m.burn.t -= dt; m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 0.5; m.hp -= Math.max(1, Math.round(m.burn.dps * 0.5)); float(m.x, m.y - m.spr.h, Math.max(1, Math.round(m.burn.dps * 0.5)), '#FF9A3D'); if (m.hp <= 0) { killMon(m); return; } } if (m.burn.t <= 0) m.burn = null; }
           if (m.curse > 0) m.curse -= dt;
+          if (m.def.noCC) { m.stun = 0; m.slow = 0; m.burn = null; m.curse = 0; }   // v177 와키자카: 어디서 걸려도 바로 풀림
           if (m.stun > 0) { m.stun -= dt; return; }
           if (monTick2(m, dt) && !(m.hidden && m.cast)) return;   // v173 알·땅굴·투명·포탑·정령·2단계
           const slowF = m.slow > 0 ? 0.5 : 1; if (m.slow > 0) m.slow -= dt;
@@ -3090,7 +3093,7 @@
         const boss = G.mons.find(m => m.boss && !m.isClone && !m.dead && (m.aggro || Math.hypot(m.x - G.px, m.y - G.py) < 420));
         if (boss) {
           const bw = 420, bx = W / 2 - bw / 2, by = net && net.joined ? 84 : 58; panelBox(c, bx - 8, by - 4, bw + 16, 34, 8);
-          c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#FF8A8E'; c.fillText('보스 ' + boss.name + ' Lv.' + boss.lvl + (boss.def && boss.def.immune ? (boss.def.immune === 'all' ? ' · 모든 공격 무효' : ' · ' + ELEM[boss.def.immune].name + ' 공격 무효') : boss.el && ELEM[boss.el] ? ' · ' + ELEM[boss.el].name + ' 속성 (약점 ' + ELEM[D.HELL.weak[boss.el]].name + ')' : ''), bx, by + 7);
+          c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#FF8A8E'; c.fillText('보스 ' + boss.name + ' Lv.' + boss.lvl + (boss.def && boss.def.immune ? (Array.isArray(boss.def.immune) ? ' · ' + boss.def.immune.map(e => ELEM[e].name).join('·') + ' 공격 무효' : boss.def.immune === 'all' ? ' · 모든 공격 무효' : ' · ' + ELEM[boss.def.immune].name + ' 공격 무효') : boss.el && ELEM[boss.el] ? ' · ' + ELEM[boss.el].name + ' 속성 (약점 ' + ELEM[D.HELL.weak[boss.el]].name + ')' : ''), bx, by + 7);
           c.textAlign = 'right'; c.fillStyle = '#FFFFFF'; c.fillText(Math.ceil(boss.hp / boss.max * 100) + '%', bx + bw, by + 7);
           boss.hpShow = boss.hpShow == null ? boss.hp / boss.max : Math.max(boss.hp / boss.max, boss.hpShow - 0.3 / 60);
           bar(c, bx, by + 16, bw, 9, boss.hp / boss.max, ['#FF5A5F', '#8A1E22'], null, boss.hpShow);

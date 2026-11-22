@@ -755,9 +755,19 @@
       frames: { idle: img, atk1: img + '_atk', atk2: img + '_atk', cast: img + '_cast', hit: img + '_hit', walk: [img + '_walk1', img + '_walk2'] } }, more || {});   // v173 걷기 두 장 (선생님 11/20)
     // v173 대표 기술 (선생님 11/21 · 롤 아이디어): 앞 2개 = 기본(체력 70%까지) · 뒤 = 대표 기술(70% 아래부터)
     const SK = [['fan', 'slam', 'mines', 'whirl'], ['ring', 'fan', 'windwall', 'laser'], ['fan', 'ring', 'laser', 'barrage', 'bomb'], ['slam', 'charge', 'hook', 'mines'], ['fan', 'charge', 'clones', 'blink'], ['blades', 'ring', 'realm', 'gaze'], ['charge', 'slam', 'hook', 'laser'], ['ring', 'fan', 'blink', 'bomb'], ['charge', 'slam', 'charge3', 'barrage']];
-    const gens = GEN.map((g, i) => B(g[1], 'ys_' + g[0], g[4], g[5], { a: g[5], b: '#1D2340', c: '#FFFFFF', d: '#FF4A3A' }, g[6], SK[i], { gi: i, undying: i === 8 }));   // v173 시마즈 = 죽지 않는 분노
+    // v177 선생님 11/23: 장수마다 특성에 맞는 원소 피해 2가지 무시(그 원소가 들어간 융합 마법도 무시) · 이동 1.5배 · 공격 속도 1.5배
+    const IMM = [['water', 'wind'],    // 도도 다카토라 — 수군 대장: 바닷물·바닷바람에 익숙
+      ['wind', 'water'],               // 구루시마 미치유키 — 바다의 사나이(해적 수군)
+      ['fire', 'earth'],               // 구키 요시타카 — 철갑선: 불과 돌덩이를 막는 쇠 갑판
+      ['earth', 'thunder'],            // 가토 요시아키 — 땅에 박은 큰 방패와 창
+      ['wind', 'thunder'],             // 구루시마 미치후사 — 바람처럼 빠른 돌진
+      ['dark', 'water'],               // 구로다 나가마사 — 검은 투구, 어둠 속 매복
+      ['thunder', 'earth'],            // 가토 기요마사 — 긴 창(호랑이 사냥꾼), 벼락도 버팀
+      ['light', 'wind'],               // 고니시 유키나가 — 빛의 선봉장
+      ['fire', 'dark']];               // 시마즈 요시히로 — 귀신 같은 조총 부대, 불과 어둠
+    const gens = GEN.map((g, i) => B(g[1], 'ys_' + g[0], g[4], g[5], { a: g[5], b: '#1D2340', c: '#FFFFFF', d: '#FF4A3A' }, g[6], SK[i], { gi: i, undying: i === 8, immune: IMM[i], spdK: 1.5, aspd: 1.5 }));   // v173 시마즈 = 죽지 않는 분노
     const boss = B('와키자카 야스하루', 'ys_boss', 'dark', '#FF4A8A', { a: '#2A1F48', b: '#8A1E22', c: '#FFD23F', d: '#FF4A3A' }, '왜군 수군 대장 와키자카 야스하루가 칼을 뽑았다! 한산도의 원한을 갚겠다고 한다…',
-      ['blades', 'fan', 'ring', 'slam', 'hook', 'laser', 'whirl', 'bomb', 'clones'], { immune: null, frames: { idle: 'ys_boss', atk1: 'ys_boss_atk1', atk2: 'ys_boss_atk2', cast: 'ys_boss_cast', hit: 'ys_boss_hit', walk: ['ys_boss_walk1', 'ys_boss_walk2'] }, bh: 380, skCd: [0.8, 1.1], slamR: 210, slamCd: 0.6, bladeR: 76, bladeSpread: 1.5, ysBoss: true, spdK: 2 });   // v177 선생님 11/23: 와키자카 이동 속도 2배 (137 → 274 · 광폭화 때 다시 ×2)   // 광개토대왕(0.9~1.3초 · 195 · 70)보다 조금 더 어렵게
+      ['blades', 'fan', 'ring', 'slam', 'hook', 'laser', 'whirl', 'bomb', 'clones'], { immune: null, frames: { idle: 'ys_boss', atk1: 'ys_boss_atk1', atk2: 'ys_boss_atk2', cast: 'ys_boss_cast', hit: 'ys_boss_hit', walk: ['ys_boss_walk1', 'ys_boss_walk2'] }, bh: 380, skCd: [0.8, 1.1], slamR: 210, slamCd: 0.6, bladeR: 76, bladeSpread: 1.5, ysBoss: true, spdK: 2, aspd: 1.5, noCC: true });   // v177 와키자카: 모든 상태 이상(불탐·느림·밀침·기절·저주) 무시 · 공격 속도 1.5배   // v177 선생님 11/23: 와키자카 이동 속도 2배 (137 → 274 · 광폭화 때 다시 ×2)   // 광개토대왕(0.9~1.3초 · 195 · 70)보다 조금 더 어렵게
     // v174 선생님 11/22: 어귀 지킴이는 이야기만 · 벽화 퍼즐은 회합 바로 앞 '왜장의 길목'(ys_v5)의 빈 벽화 틀에서
     const npc = { name: '통제영 군관 송희립', img: 'ys_npc', h: 70, color: '#9AE6FF', nearSay: '벽화를… 장군님 벽화를 도둑맞았소!',
       av: { skin: 's2', hair: 'h_topknot', hat: 'hat_gat', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black', back: 'bk_cape' },
@@ -765,6 +775,7 @@
         '벽화 속 장군님의 기운이 두려웠던 와키자카 야스하루가 벽화를 <b>아홉 조각</b>으로 쪼개 왜장 아홉에게 하나씩 나누어 숨기게 했다 하오.',
         '왜장들은 이 바닷길 곳곳에 진을 치고 있소. 하나를 이길 때마다 조각을 하나씩 되찾을 수 있을 것이오. 되찾은 조각은 그대가 계속 지니게 되오.',
         '조각 아홉을 모두 모으면 남쪽 끝 <b>왜장의 길목</b>으로 가시오. 왜군이 벽화를 떼어 가고 남은 <b>빈 벽화 틀</b>이 그곳에 있소. 거기서 조각을 맞춰 주시오.',
+        '왜장들은 저마다 통하지 않는 원소가 둘씩 있다 하오. 그 원소가 섞인 융합 마법도 통하지 않으니, 마법을 잘 골라 가시오.',
         '벽화 없이 와키자카에게 덤비는 것은 말리고 싶소. 그놈은 궁지에 몰리면 왜선을 불러 바다째 불바다로 만든다 하오…'] };
     const frame = { name: '빈 벽화 틀', color: '#FFD23F', lines: ['벽화가 떼어진 자리에 못 자국만 남아 있다…'] };
     return { on: true, rows, gens, boss, npc, frame, muralAt: 'ys_v5', only: ['파워복복'], home: 'v7', entry: 'ys_in', top: [4, 0], mural: 'ys_mural', n: GEN.length, genName: GEN.map(g => g[1]), lv: { all: 400, boss: 500 } };
