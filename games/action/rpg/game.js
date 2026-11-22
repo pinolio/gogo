@@ -1321,7 +1321,11 @@
         const M = G.map.M; G.mons = [];
         if (M.hell) return spawnHell();
         if (M.sx && M.sx !== 'path') return spawnSasin(M);
-        if (M.ys && M.id === D.YS.muralAt) G.npcs = [{ key: 'ysmural', def: D.YS.frame, mural: true, x: (G.map.w >> 1) * TS + 150, y: ((G.map.h >> 1) - 2.2) * TS, face: -1, ph: 1, smith: true }];   // v174 빈 벽화 틀 (퍼즐)
+        if (M.ys && M.id === D.YS.muralAt) {   // v177 쌍룡 벽화 틀 + 석등·벽화 빛 (어두운 곳에서도 보이게)
+          const fx0 = (G.map.w >> 1) * TS + 165, fy0 = ((G.map.h >> 1) - 1.2) * TS;
+          G.npcs = [{ key: 'ysmural', def: D.YS.frame, mural: true, x: fx0, y: fy0, face: -1, ph: 1, smith: true }];
+          if (!G.map.ysFrameGlow) { G.map.ysFrameGlow = 1; G.map.glows.push({ x: fx0 - 116, y: fy0 - 62, r: 90, col: '#FFB050' }, { x: fx0 + 116, y: fy0 - 62, r: 90, col: '#FFB050' }, { x: fx0, y: fy0 - 120, r: 170, col: '#FFE9A0' }); }
+        }   // v174 빈 벽화 틀 (퍼즐)
         if (M.ys && M.ys !== 'path') return spawnYs(M);   // v172 이순신 장군님 던전 장수·회합·본진·어귀   // v150 사신의 땅 보스 방 · 어귀
         if (M.custom) {   // v134 특별 지역: 메이커에서 고른 몬스터 · 레벨 · 마릿수 (+ 보스) · v143 몬스터마다 레벨 따로
           if (M.bossMon) G.mons.push(makeMon(M.bossMon, M.bossLv, true));
@@ -1968,7 +1972,7 @@
         const m = { def, name: def.name, lvl, boss: !!boss, kind: boss ? 'boss' : def.kind, x: p.x, y: p.y, hx: p.x, hy: p.y, hp, max: hp,
           atk: Math.round(F.monAtk(lvl) * (boss ? B.atk : 1)), mdef: F.monDef(lvl), spr, r: boss ? 30 : 14, hr: def.bh >= 250 ? Math.round(def.bh * 0.3) : 0,   // v150 큰 그림(사방신)은 맞는 범위도 크게
           exp: Math.round(F.monExp(lvl) * (boss ? B.exp : 1)), gold: Math.round(F.monGold(lvl) * (boss ? B.gold : 1)),
-          spd: boss ? 137 : def.kind === 'shoot' ? 60 : 80, cd: rand(0.5, 1.5), wt: 0, wx: 0, wy: 0, aggro: false, flash: 0,   /* v157 선생님 11/17: 모든 보스 이동 속도 1.3배 (70 → 91) · v171 선생님 11/20: 1.5배 더 (91 → 137) */
+          spd: (boss ? 137 : def.kind === 'shoot' ? 60 : 80) * (def.spdK || 1), cd: rand(0.5, 1.5), wt: 0, wx: 0, wy: 0, aggro: false, flash: 0,   /* v157 선생님 11/17: 모든 보스 이동 속도 1.3배 (70 → 91) · v171 선생님 11/20: 1.5배 더 (91 → 137) */
           burn: null, slow: 0, stun: 0, dead: false, respawn: 0, slam: null, el: def.el || null, cast: null, skCd: 2.5 };
         if (boss && !def.skills && !def.noSkill) { const FS = { fire: 'mines', water: 'bomb', wind: 'laser', earth: 'mines', thunder: 'laser', light: 'laser', dark: 'bomb' }; m.skl = ['slam', 'fan', FS[m.el] || 'laser']; }   // v173 사냥터 보스도 기술 3개 (기본 2 + 속성별 1)
         return m;
@@ -2932,21 +2936,26 @@
         if (n.say && n.sayT > 0) (G.sayQ || (G.sayQ = [])).push([n, top]);   // v158 말풍선은 맨 마지막에 (비석·건물에 가려지지 않게) — sayFlush
       }
       let ysMuralImg = null;
-      function drawYsFrame(c, n, now) {   // v174 돌벽 + 나무 틀 · 되찾은 조각은 그 자리에 · 다 맞추면 빛남
+      function drawYsFrame(c, n, now) {   // v177 Gemini 쌍룡 벽화 틀(img/v79/ys_frame.png · 선생님 11/23 A안) · 되찾은 조각은 그 자리에 · '?' = 아직 · 다 맞추면 금빛
         if (!ysMuralImg) { ysMuralImg = new Image(); ysMuralImg.src = 'games/action/rpg/img/v79/' + D.YS.mural + '.jpg?v=172'; }
-        const w = 132, h = 96, x = Math.round(n.x - w / 2), y = Math.round(n.y - h - 18), have = S.ysp, done = S.ysMural, ok = ysMuralImg.complete && ysMuralImg.naturalWidth;
-        c.save(); c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(n.x, n.y, 70, 9, 0, 0, Math.PI * 2); c.fill();
-        c.fillStyle = '#6B5A48'; rr(c, x - 14, y - 12, w + 28, h + 34, 6); c.fill(); c.fillStyle = '#8A7560'; for (let i = 0; i < 5; i++) c.fillRect(x - 14, y - 6 + i * 22, w + 28, 2);
-        c.fillStyle = '#7A4A22'; c.fillRect(x - 6, y - 6, w + 12, h + 12); c.fillStyle = '#1D2340'; c.fillRect(x, y, w, h);
+        const fim = img79('ys_frame'), FW = 270, FH = fim ? Math.round(fim.naturalHeight * FW / fim.naturalWidth) : 212, fx = Math.round(n.x - FW / 2), fy = Math.round(n.y - FH + 6);
+        const x = Math.round(fx + FW * 0.1908), y = Math.round(fy + FH * 0.2867), w = Math.round(FW * 0.6196), h = Math.round(FH * 0.4197), have = S.ysp, done = S.ysMural, ok = ysMuralImg.complete && ysMuralImg.naturalWidth;
+        c.save(); c.fillStyle = 'rgba(0,0,0,.32)'; c.beginPath(); c.ellipse(n.x, n.y, FW * 0.46, 10, 0, 0, Math.PI * 2); c.fill();
+        if (fim) c.drawImage(fim, fx, fy, FW, FH); else { c.fillStyle = '#7A4A22'; c.fillRect(x - 8, y - 8, w + 16, h + 16); }
+        c.fillStyle = '#1D2340'; c.fillRect(x, y, w, h);
         const cw = w / 3, ch = h / 3, iw = ok ? ysMuralImg.naturalWidth / 3 : 0, ih = ok ? ysMuralImg.naturalHeight / 3 : 0;
-        for (let i = 0; i < 9; i++) { const cx = x + (i % 3) * cw, cy = y + Math.floor(i / 3) * ch;
-          if (done && ok) continue;
-          if (ok && have[i]) c.drawImage(ysMuralImg, (i % 3) * iw, Math.floor(i / 3) * ih, iw, ih, cx, cy, cw, ch);
-          else { c.strokeStyle = '#3C78F0'; c.lineWidth = 1; c.strokeRect(cx + 1, cy + 1, cw - 2, ch - 2); c.fillStyle = have[i] ? '#FFD23F' : '#9AE6FF'; c.font = '16px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(have[i] ? '✔' : '?', cx + cw / 2, cy + ch / 2 + 1); } }
-        if (done && ok) { c.drawImage(ysMuralImg, x, y, w, h); c.strokeStyle = `rgba(255,210,63,${0.6 + 0.4 * Math.sin(now / 300)})`; c.lineWidth = 3; c.strokeRect(x - 3, y - 3, w + 6, h + 6); }
+        if (done && ok) {
+          c.save(); c.shadowColor = '#FFD23F'; c.shadowBlur = 14 + 6 * Math.sin(now / 300); c.strokeStyle = '#FFD23F'; c.lineWidth = 3; c.strokeRect(x - 2, y - 2, w + 4, h + 4); c.restore();
+          c.drawImage(ysMuralImg, x, y, w, h);
+        } else {
+          c.font = '15px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+          for (let i = 0; i < 9; i++) { const cx = x + (i % 3) * cw, cy = y + Math.floor(i / 3) * ch;
+            if (ok && have[i]) c.drawImage(ysMuralImg, (i % 3) * iw, Math.floor(i / 3) * ih, iw, ih, cx, cy, cw, ch);
+            else { c.strokeStyle = '#3C78F0'; c.lineWidth = 1.5; c.strokeRect(cx + 1.5, cy + 1.5, cw - 3, ch - 3); c.fillStyle = '#9AE6FF'; c.fillText('?', cx + cw / 2, cy + ch / 2 + 1); } }
+        }
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
-        const label = done ? '이순신 장군님 벽화' : `${n.def.name} (${have.filter(Boolean).length}/9)`; c.strokeText(label, n.x, y - 18); c.fillStyle = n.def.color; c.fillText(label, n.x, y - 18); c.restore();
-        if (n.say && n.sayT > 0) (G.sayQ || (G.sayQ = [])).push([n, y - 30]);
+        const label = done ? '이순신 장군님 벽화' : `${n.def.name} (${have.filter(Boolean).length}/9)`; c.strokeText(label, n.x, fy - 4); c.fillStyle = n.def.color; c.fillText(label, n.x, fy - 4); c.restore();
+        if (n.say && n.sayT > 0) (G.sayQ || (G.sayQ = [])).push([n, fy - 16]);
       }
       // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
       function drawPeer(c, p, now) {
