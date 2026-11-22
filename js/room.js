@@ -165,7 +165,7 @@
     c.translate(x, y);
     if (e.face < 0) c.scale(-1, 1);
     const view = e.view || 'f';   // v106 방향 (멈춰도 마지막 방향 유지)
-    AV.draw(c, av, -18, -56 + (moving ? 0 : bob), 2, moving && !reduce ? { walk: e.walkT * Math.PI * 3.5, view } : { frame, view: view === 's' ? 'f' : view, breathe: !reduce });   // v105 부드러운 걷기 · v154 서 있을 때 숨쉬기
+    AV.draw(c, av, -18, -56 + (moving ? 0 : bob), 2, moving && !reduce ? { walk: e.walkT * Math.PI * 3.5, view, hold: e } : { frame, view: view === 's' ? 'f' : view, breathe: !reduce, hold: e });   // v172 hold = 새 그림을 받는 동안 전 그림 (깜빡임 방지)   // v105 부드러운 걷기 · v154 서 있을 때 숨쉬기
     c.restore();
   }
   // v163 그림 가구에 맞춘 자세 — 값은 그림 가로(w) 대비 비율 · 가운데 아래 기준 (fx 오른쪽 +, fy 위쪽 +)

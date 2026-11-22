@@ -132,7 +132,7 @@
         mob2: { name: '칼 든 원혼', img: 'hell1_mob2', art: 'h_soldier', shape: 'skeleton', colors: { a: '#D8D0C0', b: '#7A6A5A', c: '#FFF4E0', d: '#FF3A3A' }, kind: 'shoot' },
         guard: { name: '우두 옥졸', img: 'npc_guard', h: 68, img: 'hell1_guard', art: 'h_ox', shape: 'beast', colors: { a: '#7A3A2A', b: '#4A2018', c: '#E8C8A0', d: '#FFD23F' }, kind: 'boss', say: '소머리 옥졸이 쇠몽둥이를 들고 길을 막습니다!', skills: ['charge', 'slam'] },
         judge: { name: '도산 판관', img: 'hell1_judge', art: 'h_judge', shape: 'imp', colors: { a: '#3A3A7A', b: '#20204A', c: '#F0D8B0', d: '#FFD23F' }, kind: 'boss', say: '명부를 잃은 판관이 당신의 죄를 묻습니다!', skills: ['fan', 'ring', 'summon'] },
-        boss: { name: '진광대왕', img: 'hell1_king', art: 'h_king1', shape: 'golem', colors: { a: '#C83A3A', b: '#7A1A1A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '첫째 관문의 대왕이 시험을 시작합니다!', skills: ['blades', 'ring', 'charge', 'summon', 'slam'] } },
+        boss: { name: '진광대왕', img: 'hell1_king', art: 'h_king1', shape: 'golem', colors: { a: '#C83A3A', b: '#7A1A1A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '첫째 관문의 대왕이 시험을 시작합니다!', skills: ['blades', 'ring', 'charge', 'summon', 'slam', 'bomb'] } },
       { no: 2, king: '초강대왕', hell: '화탕지옥', short: '화탕', day: '둘째 7일', el: 'fire',
         about: '둘째 7일에 지나는 관문. 남의 것을 빼앗은 죄를 묻고, 펄펄 끓는 가마솥이 줄지어 있습니다. 전쟁 중 마을을 불태운 혼들이 여기서 떠돌고 있습니다.',
         stageName: ['가마솥 거리', '끓는 물 다리', '마두 옥졸의 문', '화탕 판관의 뜰', '초강대왕 전'],
@@ -140,7 +140,7 @@
         mob2: { name: '불타는 원혼', img: 'hell2_mob2', shape: 'skeleton', colors: { a: '#FF6A3D', b: '#8A2B1A', c: '#FFD8A0', d: '#FFD23F' }, kind: 'shoot' },
         guard: { name: '마두 옥졸', img: 'hell2_guard', shape: 'beast', colors: { a: '#3A2A2A', b: '#1A1010', c: '#E8C8A0', d: '#FF6A3D' }, kind: 'boss', say: '말머리 옥졸이 삼지창을 겨눕니다!', skills: ['charge', 'fan', 'slam'] },
         judge: { name: '화탕 판관', img: 'hell2_judge', shape: 'imp', colors: { a: '#A82A2A', b: '#5A1414', c: '#F0D8B0', d: '#FFD23F' }, kind: 'boss', say: '화탕 판관이 부채로 불길을 일으킵니다!', skills: ['fan', 'ring', 'summon'] },
-        boss: { name: '초강대왕', img: 'hell2_king', shape: 'golem', colors: { a: '#FF8A3D', b: '#A83A1A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '둘째 관문의 대왕이 불길 속에서 일어납니다!', skills: ['ring', 'fan', 'charge', 'summon', 'slam'] } },
+        boss: { name: '초강대왕', img: 'hell2_king', shape: 'golem', colors: { a: '#FF8A3D', b: '#A83A1A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '둘째 관문의 대왕이 불길 속에서 일어납니다!', skills: ['ring', 'fan', 'charge', 'summon', 'slam', 'laser'] } },
       { no: 3, king: '송제대왕', hell: '한빙지옥', short: '한빙', day: '셋째 7일', el: 'water',
         about: '셋째 7일에 지나는 관문. 은혜를 저버린 죄를 묻고, 모든 것이 얼어붙은 얼음 벌판이 펼쳐집니다. 겨울 전투에서 얼어 죽은 혼들이 이곳을 헤맵니다.',
         stageName: ['얼음 벌판', '서리 골짜기', '얼음 옥졸의 굴', '한빙 판관의 얼음 대청', '송제대왕 전'],
@@ -148,7 +148,7 @@
         mob2: { name: '얼어붙은 원혼', img: 'hell3_mob2', shape: 'skeleton', colors: { a: '#D8F0FF', b: '#5A8AB0', c: '#FFFFFF', d: '#3BA8F5' }, kind: 'shoot' },
         guard: { name: '얼음 옥졸', img: 'hell3_guard', shape: 'golem', colors: { a: '#7FC8F0', b: '#3A6A9A', c: '#E8F8FF', d: '#FFFFFF' }, kind: 'boss', say: '얼음 도깨비 옥졸이 고드름 몽둥이를 듭니다!', skills: ['slam', 'blades', 'charge'] },
         judge: { name: '한빙 판관', img: 'hell3_judge', shape: 'imp', colors: { a: '#5A9AD0', b: '#2A4A7A', c: '#F0E8D8', d: '#BDE8FF' }, kind: 'boss', say: '얼어붙은 명부를 든 판관이 노려봅니다!', skills: ['ring', 'fan', 'summon'] },
-        boss: { name: '송제대왕', img: 'hell3_king', shape: 'golem', colors: { a: '#BDE8FF', b: '#5A8AC0', c: '#FFFFFF', d: '#3BA8F5' }, kind: 'boss', say: '셋째 관문의 대왕이 얼음 홀을 듭니다!', skills: ['blades', 'ring', 'fan', 'summon', 'slam'] } },
+        boss: { name: '송제대왕', img: 'hell3_king', shape: 'golem', colors: { a: '#BDE8FF', b: '#5A8AC0', c: '#FFFFFF', d: '#3BA8F5' }, kind: 'boss', say: '셋째 관문의 대왕이 얼음 홀을 듭니다!', skills: ['blades', 'ring', 'fan', 'summon', 'slam', 'gaze'] } },
       { no: 4, king: '오관대왕', hell: '검수지옥', short: '검수', day: '넷째 7일', el: 'wind',
         about: '넷째 7일에 지나는 관문. 거짓 맹세를 한 죄를 묻고, 잎이 칼날인 나무 숲에 바람이 불 때마다 칼잎이 쏟아집니다.',
         stageName: ['칼잎 숲 어귀', '바람 부는 칼나무 길', '까마귀 옥졸의 둥지', '검수 판관의 정자', '오관대왕 전'],
@@ -156,7 +156,7 @@
         mob2: { name: '회오리 망령', img: 'hell4_mob2', shape: 'ghost', colors: { a: '#B8F0D8', b: '#5AA88A', c: '#FFFFFF', d: '#7FE0C4' }, kind: 'aggro' },
         guard: { name: '까마귀 옥졸', img: 'hell4_guard', shape: 'bat', colors: { a: '#2A2A3A', b: '#14141E', c: '#E8E0D0', d: '#FFD23F' }, kind: 'boss', say: '까마귀머리 옥졸이 낫을 휘두릅니다!', skills: ['charge', 'blades', 'fan'] },
         judge: { name: '검수 판관', img: 'hell4_judge', shape: 'imp', colors: { a: '#3A9A6A', b: '#1A5A3A', c: '#F0D8B0', d: '#FFD23F' }, kind: 'boss', say: '깃털 붓을 든 판관이 바람을 일으킵니다!', skills: ['fan', 'ring', 'summon'] },
-        boss: { name: '오관대왕', img: 'hell4_king', shape: 'golem', colors: { a: '#5AC88A', b: '#2A7A4A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '넷째 관문의 대왕이 칼잎 폭풍을 부릅니다!', skills: ['blades', 'fan', 'charge', 'summon', 'ring'] } },
+        boss: { name: '오관대왕', img: 'hell4_king', shape: 'golem', colors: { a: '#5AC88A', b: '#2A7A4A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '넷째 관문의 대왕이 칼잎 폭풍을 부릅니다!', skills: ['blades', 'fan', 'charge', 'summon', 'ring', 'windwall'] } },
       { no: 5, king: '염라대왕', hell: '발설지옥', short: '발설', day: '다섯째 7일', el: 'thunder',
         about: '다섯째 7일에 지나는 관문. 거짓말과 헐뜯은 죄를 묻습니다. 염라대왕의 업경대(거울)에는 살아서 한 일이 모두 비칩니다.',
         stageName: ['번개 구름길', '사슬 다리', '천둥 옥졸의 북', '발설 판관의 대청', '염라대왕 전'],
@@ -164,7 +164,7 @@
         mob2: { name: '거짓말쟁이 원혼', img: 'hell5_mob2', shape: 'imp', colors: { a: '#A86AE0', b: '#5A2A8A', c: '#FFE0F0', d: '#FFD23F' }, kind: 'aggro' },
         guard: { name: '천둥 옥졸', img: 'hell5_guard', shape: 'golem', colors: { a: '#6A5AD0', b: '#2A2A7A', c: '#E8E0FF', d: '#FFE45C' }, kind: 'boss', say: '북을 둘러멘 천둥 옥졸이 번개 망치를 듭니다!', skills: ['slam', 'ring', 'charge'] },
         judge: { name: '발설 판관', img: 'hell5_judge', shape: 'imp', colors: { a: '#7A3AB0', b: '#3A1A5A', c: '#F0D8B0', d: '#FFE45C' }, kind: 'boss', say: '번개 붓을 든 판관이 거짓을 밝힙니다!', skills: ['fan', 'ring', 'summon'] },
-        boss: { name: '염라대왕', img: 'hell5_king', shape: 'golem', colors: { a: '#2A2A3A', b: '#14141E', c: '#FFD23F', d: '#C8A8FF' }, kind: 'boss', say: '업경대 앞의 염라대왕이 당신을 내려다봅니다!', skills: ['ring', 'blades', 'fan', 'charge', 'summon', 'slam'] } },
+        boss: { name: '염라대왕', img: 'hell5_king', shape: 'golem', colors: { a: '#2A2A3A', b: '#14141E', c: '#FFD23F', d: '#C8A8FF' }, kind: 'boss', say: '업경대 앞의 염라대왕이 당신을 내려다봅니다!', skills: ['ring', 'blades', 'fan', 'charge', 'summon', 'slam', 'gaze', 'barrage'] } },
       { no: 6, king: '변성대왕', hell: '독사지옥', short: '독사', day: '여섯째 7일', el: 'earth',
         about: '여섯째 7일에 지나는 관문. 남을 해친 죄를 묻고, 독사가 우글거리는 늪 바위 길이 이어집니다.',
         stageName: ['독 이끼 길', '뱀 굴 입구', '뱀팔 옥졸의 굴', '독사 판관의 바위', '변성대왕 전'],
@@ -172,7 +172,7 @@
         mob2: { name: '뱀꼬리 원혼', img: 'hell6_mob2', shape: 'scorpion', colors: { a: '#6AB86A', b: '#2A5A2A', c: '#F0D8B0', d: '#C8FF5A' }, kind: 'shoot' },
         guard: { name: '뱀팔 옥졸', img: 'hell6_guard', shape: 'beast', colors: { a: '#4A8A4A', b: '#1A4A1A', c: '#E8E0C0', d: '#FFD23F' }, kind: 'boss', say: '팔에 뱀을 감은 옥졸이 갈고리를 휘두릅니다!', skills: ['charge', 'blades', 'slam'] },
         judge: { name: '독사 판관', img: 'hell6_judge', shape: 'imp', colors: { a: '#6A7A2A', b: '#3A4A14', c: '#F0D8B0', d: '#C8FF5A' }, kind: 'boss', say: '어깨에 뱀을 올린 판관이 명부를 펼칩니다!', skills: ['fan', 'summon', 'ring'] },
-        boss: { name: '변성대왕', img: 'hell6_king', shape: 'golem', colors: { a: '#3A7A3A', b: '#1A3A1A', c: '#FFD23F', d: '#C8FF5A' }, kind: 'boss', say: '여섯째 관문의 대왕 뒤로 거대한 뱀이 똬리를 틉니다!', skills: ['summon', 'blades', 'charge', 'fan', 'slam'] } },
+        boss: { name: '변성대왕', img: 'hell6_king', shape: 'golem', colors: { a: '#3A7A3A', b: '#1A3A1A', c: '#FFD23F', d: '#C8FF5A' }, kind: 'boss', say: '여섯째 관문의 대왕 뒤로 거대한 뱀이 똬리를 틉니다!', skills: ['summon', 'blades', 'charge', 'fan', 'slam', 'mines'] } },
       { no: 7, king: '태산대왕', hell: '거해지옥', short: '거해', day: '일곱째 7일', el: 'thunder',
         about: '일곱째 7일에 지나는 관문. 나라와 백성을 배신한 죄를 묻습니다. 거대한 톱니바퀴가 번개를 튀기며 돌아갑니다.',
         stageName: ['톱니 회랑', '불꽃 튀는 공방', '톱 옥졸의 작업장', '거해 판관의 도장실', '태산대왕 전'],
@@ -180,7 +180,7 @@
         mob2: { name: '태엽 원혼', img: 'hell7_mob2', shape: 'golem', colors: { a: '#B08A5A', b: '#6A4A2A', c: '#F0D8B0', d: '#FFE45C' }, kind: 'aggro' },
         guard: { name: '톱 옥졸', img: 'hell7_guard', shape: 'beast', colors: { a: '#8A6A4A', b: '#4A3A2A', c: '#E8C8A0', d: '#FFE45C' }, kind: 'boss', say: '큰 톱을 멘 옥졸이 불꽃을 튀깁니다!', skills: ['charge', 'slam', 'ring'] },
         judge: { name: '거해 판관', img: 'hell7_judge', shape: 'imp', colors: { a: '#C8A030', b: '#7A5A14', c: '#F0D8B0', d: '#FFE45C' }, kind: 'boss', say: '톱니 도장을 든 판관이 판결을 내립니다!', skills: ['fan', 'ring', 'summon'] },
-        boss: { name: '태산대왕', img: 'hell7_king', shape: 'golem', colors: { a: '#C8A030', b: '#7A5A14', c: '#FFE45C', d: '#FFF4C0' }, kind: 'boss', say: '일곱째 관문의 대왕 뒤에서 번개 톱니바퀴가 돕니다!', skills: ['ring', 'charge', 'blades', 'summon', 'slam', 'fan'] } },
+        boss: { name: '태산대왕', img: 'hell7_king', shape: 'golem', colors: { a: '#C8A030', b: '#7A5A14', c: '#FFE45C', d: '#FFF4C0' }, kind: 'boss', say: '일곱째 관문의 대왕 뒤에서 번개 톱니바퀴가 돕니다!', skills: ['ring', 'charge', 'blades', 'summon', 'slam', 'fan', 'laser', 'bomb'] } },
       { no: 8, king: '평등대왕', hell: '철상지옥', short: '철상', day: '여덟째 100일', el: 'fire',
         about: '죽은 지 100일에 지나는 관문. 생명을 업신여긴 죄를 묻고, 벌겋게 달군 쇠 침상과 쇠사슬이 가득합니다.',
         stageName: ['쇠사슬 복도', '달군 쇠 바닥', '쇠갑옷 옥졸의 대장간', '철상 판관의 저울', '평등대왕 전'],
@@ -188,7 +188,7 @@
         mob2: { name: '달군 쇠 원혼', img: 'hell8_mob2', shape: 'golem', colors: { a: '#C83A2A', b: '#5A1A14', c: '#FFB08A', d: '#FFD23F' }, kind: 'shoot' },
         guard: { name: '쇠갑옷 옥졸', img: 'hell8_guard', shape: 'golem', colors: { a: '#5A5A6A', b: '#2A2A3A', c: '#FF8A3D', d: '#FFD23F' }, kind: 'boss', say: '달군 쇠갑옷 옥졸이 철퇴를 돌립니다!', skills: ['slam', 'charge', 'ring'] },
         judge: { name: '철상 판관', img: 'hell8_judge', shape: 'imp', colors: { a: '#8A1A1A', b: '#4A0A0A', c: '#F0D8B0', d: '#FF8A3D' }, kind: 'boss', say: '쇠 명부를 든 판관이 쇠 도장을 찍습니다!', skills: ['fan', 'summon', 'ring'] },
-        boss: { name: '평등대왕', img: 'hell8_king', shape: 'golem', colors: { a: '#7A7A8A', b: '#C83A2A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '여덟째 관문의 대왕이 정의의 저울을 기울입니다!', skills: ['blades', 'ring', 'slam', 'charge', 'summon', 'fan'] } },
+        boss: { name: '평등대왕', img: 'hell8_king', shape: 'golem', colors: { a: '#7A7A8A', b: '#C83A2A', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '여덟째 관문의 대왕이 정의의 저울을 기울입니다!', skills: ['blades', 'ring', 'slam', 'charge', 'summon', 'fan', 'hook'] } },
       { no: 9, king: '도시대왕', hell: '풍도지옥', short: '풍도', day: '아홉째 1년', el: 'wind',
         about: '죽은 지 1년에 지나는 관문. 남을 속인 죄를 묻고, 끝없는 회오리바람이 혼을 이리저리 날려 보냅니다.',
         stageName: ['모래바람 들판', '회오리 언덕', '바람주머니 옥졸', '풍도 판관의 누각', '도시대왕 전'],
@@ -196,7 +196,7 @@
         mob2: { name: '날리는 원혼', img: 'hell9_mob2', shape: 'skeleton', colors: { a: '#B8C8D8', b: '#5A6A7A', c: '#FFFFFF', d: '#7FE0C4' }, kind: 'aggro' },
         guard: { name: '바람주머니 옥졸', img: 'hell9_guard', shape: 'golem', colors: { a: '#8AB8B0', b: '#3A6A64', c: '#E8F0E8', d: '#FFD23F' }, kind: 'boss', say: '바람주머니를 멘 거인 옥졸이 볼을 부풀립니다!', skills: ['fan', 'charge', 'ring'] },
         judge: { name: '풍도 판관', img: 'hell9_judge', shape: 'imp', colors: { a: '#5AB0E0', b: '#2A5A7A', c: '#F0D8B0', d: '#7FE0C4' }, kind: 'boss', say: '소매가 펄럭이는 판관이 명부를 날립니다!', skills: ['fan', 'ring', 'summon'] },
-        boss: { name: '도시대왕', img: 'hell9_king', shape: 'golem', colors: { a: '#3AA8A0', b: '#1A5A54', c: '#E8F0F0', d: '#FFD23F' }, kind: 'boss', say: '아홉째 관문의 대왕이 큰 부채로 회오리를 부릅니다!', skills: ['fan', 'ring', 'charge', 'blades', 'summon', 'slam'] } },
+        boss: { name: '도시대왕', img: 'hell9_king', shape: 'golem', colors: { a: '#3AA8A0', b: '#1A5A54', c: '#E8F0F0', d: '#FFD23F' }, kind: 'boss', say: '아홉째 관문의 대왕이 큰 부채로 회오리를 부릅니다!', skills: ['fan', 'ring', 'charge', 'blades', 'summon', 'slam', 'whirl'] } },
       { no: 10, king: '오도전륜대왕', hell: '흑암지옥', short: '흑암', day: '마지막 3년', el: 'dark',
         about: '죽은 지 3년에 지나는 마지막 관문. 다음 생이 정해지는 곳입니다. 명부를 훔친 왜장의 원혼이 어둠 속에 숨어 있습니다. 대왕을 이기면 명부를 되찾습니다!',
         stageName: ['어둠의 문', '그림자 미로', '그림자 옥졸의 등불', '흑암 판관의 마지막 심판', '오도전륜대왕 전'],
@@ -204,7 +204,7 @@
         mob2: { name: '명부 도둑 왜장 원혼', img: 'hell10_mob2', shape: 'samurai', colors: { a: '#2A2A36', b: '#16161E', c: '#C8A8FF', d: '#B08AFF' }, kind: 'shoot' },
         guard: { name: '그림자 옥졸', img: 'hell10_guard', shape: 'golem', colors: { a: '#3A2A5A', b: '#14102A', c: '#C8A8FF', d: '#FFD23F' }, kind: 'boss', say: '등불을 든 그림자 옥졸이 낫을 듭니다!', skills: ['summon', 'charge', 'blades'] },
         judge: { name: '흑암 판관', img: 'hell10_judge', shape: 'imp', colors: { a: '#1A1430', b: '#0A0818', c: '#F0D8B0', d: '#B08AFF' }, kind: 'boss', say: '빛나는 명부를 든 판관이 마지막 심판을 시작합니다!', skills: ['ring', 'fan', 'summon'] },
-        boss: { name: '오도전륜대왕', img: 'hell10_king', shape: 'golem', colors: { a: '#3A2A5A', b: '#B08AFF', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '마지막 대왕 뒤에서 윤회의 바퀴가 돌기 시작합니다!', skills: ['ring', 'blades', 'fan', 'charge', 'summon', 'slam'] } }
+        boss: { name: '오도전륜대왕', img: 'hell10_king', shape: 'golem', colors: { a: '#3A2A5A', b: '#B08AFF', c: '#FFD23F', d: '#FFF4C0' }, kind: 'boss', say: '마지막 대왕 뒤에서 윤회의 바퀴가 돌기 시작합니다!', skills: ['ring', 'blades', 'fan', 'charge', 'summon', 'slam', 'realm', 'barrage'] } }
     ]
   };
   HELL.gates.forEach(g => { ['mob', 'mob2', 'guard', 'judge', 'boss'].forEach(k => { if (g[k]) g[k].el = g.el; }); });
@@ -319,6 +319,9 @@
     desc: '어디선가 굴러들어온 검.', descKing: '어느 날 광개토대왕을 죽인 검.' };
   ITEMS.rgKing = { id: 'rgKing', slot: 'ring', name: '광개토대왕의 반지', tier: 9, rare: true, legend: true, req: 100, st: { mp: Math.round(ITEMS.rg10.st.mp * 1.2), mag: Math.round(ITEMS.rg10.st.mag * 1.2) }, price: ITEMS.rg10.price * 2,
     noTrade: true, icon79: 'ic_rg_king', desc: '사방신을 거느린 대왕의 반지. 잡을 때마다 하나씩.', goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'] };
+  /* v173 이순신 장군의 신발 (선생님 11/20): 와키자카 야스하루를 이기면 · 전설 신발(bt10)의 1.2배 · 옵션 4개 = ① 이동 속도 고정(spd, 선생님이 정함) ② 좋은 옵션 1개 최대치 ③④ 무작위 · 거래 안 됨 */
+  ITEMS.btYi = { id: 'btYi', slot: 'boots', name: '이순신 장군의 신발', tier: 9, rare: true, legend: true, req: 100, st: { def: Math.round(ITEMS.bt10.st.def * 1.2), spd: Math.round(ITEMS.bt10.st.spd * 1.2) }, price: ITEMS.bt10.price * 2,
+    noTrade: true, icon79: 'ic_bt_yi', desc: '바다를 지킨 장군의 신발. 와키자카를 이길 때마다 하나씩.', spdOpt: 15, goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'] };
 
   /* ---------------- v60 장비 옵션 (떨어질 때 무작위로 붙음) ----------------
    *  max = 가장 높은 단계(전설)에서 나올 수 있는 최댓값(%). 낮은 단계일수록 작게: max × (0.25 + 0.75 × 단계/9) × (0.2~1)
@@ -644,18 +647,18 @@
       if (id === 'sx_v3') ex.d = 'f18';   // 맨 아래 → 18번 사냥터 (돌아가는 길만, 18번 쪽에는 길을 안 뚫음 · noBack)
       const P = PATH[id], mons = P ? { list: P.mob.map((f, i) => ({ f, lv: P.lv, n: [8, 6, 5][i] })) } : {};
       const [tex, region] = P ? [P.tex || null, P.region] : LOOK[kind];
-      return { id, name, data: { w: W2, h: H2, region, t: grid(id, ex, kind), exits: ex, mons, pub: true, noBack: id === 'sx_v3', sx: kind, tex, art: kind === 'all' ? 'arena_sx_all' : kind === 'king' ? 'arena_sx_king' : GOD_ART.includes(kind) ? 'arena_sx_' + kind : null, rec: P ? P.lv : kind === 'king' ? 400 : kind === 'npc' ? 150 : 250, solo: true } };
+      return { id, name, pos: [cx, cy], kind, data: { w: W2, h: H2, region, t: grid(id, ex, kind), exits: ex, mons, pub: true, noBack: id === 'sx_v3', sx: kind, tex, art: kind === 'all' ? 'arena_sx_all' : kind === 'king' ? 'arena_sx_king' : GOD_ART.includes(kind) ? 'arena_sx_' + kind : null, rec: P ? P.lv : kind === 'king' ? 400 : kind === 'npc' ? 150 : 250, solo: true } };
     });
     const B = (name, img, el, imm, light, colors, say, skills) => ({ name, img, h: 150, el, immune: imm, light, shape: 'golem', colors, kind: 'boss', say, skills });
     const SXF = k => ({ idle: 'sx_' + k, atk1: 'sx_' + k + '_atk', atk2: 'sx_' + k + '_atk', cast: 'sx_' + k + '_cast', hit: 'sx_' + k + '_hit' });   // v150 사방신 자세 그림 (Gemini · 공격·마법·맞음)
     const boss = {
-      cr: Object.assign(B('청룡', 'sx_cr', 'thunder', 'thunder', '#FFE45C', { a: '#2FBF8F', b: '#1A6A5A', c: '#9AE6FF', d: '#5AD8FF' }, '동쪽을 지키는 푸른 용이 눈을 떴다! (번개 힘은 통하지 않는다)', ['charge', 'ring', 'fan', 'slam']),
+      cr: Object.assign(B('청룡', 'sx_cr', 'thunder', 'thunder', '#FFE45C', { a: '#2FBF8F', b: '#1A6A5A', c: '#9AE6FF', d: '#5AD8FF' }, '동쪽을 지키는 푸른 용이 눈을 떴다! (번개 힘은 통하지 않는다)', ['charge', 'ring', 'fan', 'slam', 'laser']),
         { bh: 380, float: true, base: 'sx_cr_pool', baseCol: '#5AD8FF', frames: SXF('cr') }),   // v150 선생님 그림 (11/15) · 2배 크기 · 둥실둥실 떠다님 + 발밑 소용돌이 물
-      jj: Object.assign(B('주작', 'sx_jj', 'fire', 'fire', '#FF4A3A', { a: '#FF4A3A', b: '#8A1E22', c: '#FFD23F', d: '#FFFFFF' }, '남쪽을 지키는 붉은 새가 날개를 폈다! (불의 힘은 통하지 않는다)', ['fan', 'ring', 'charge', 'blades']),
+      jj: Object.assign(B('주작', 'sx_jj', 'fire', 'fire', '#FF4A3A', { a: '#FF4A3A', b: '#8A1E22', c: '#FFD23F', d: '#FFFFFF' }, '남쪽을 지키는 붉은 새가 날개를 폈다! (불의 힘은 통하지 않는다)', ['fan', 'ring', 'charge', 'blades', 'mines']),
         { bh: 380, float: true, baseCol: '#FF9A3D', frames: SXF('jj') }),   // v150 선생님 그림 · 날갯짓하며 떠 있음 + 발밑 불꽃 물결
-      bh: Object.assign(B('백호', 'sx_bh', 'earth', 'earth', '#B07A45', { a: '#F0E8D8', b: '#7A6A5A', c: '#B07A45', d: '#FFFFFF' }, '서쪽을 지키는 흰 범이 으르렁거린다! (땅의 힘은 통하지 않는다)', ['charge', 'slam', 'blades', 'ring']),
+      bh: Object.assign(B('백호', 'sx_bh', 'earth', 'earth', '#B07A45', { a: '#F0E8D8', b: '#7A6A5A', c: '#B07A45', d: '#FFFFFF' }, '서쪽을 지키는 흰 범이 으르렁거린다! (땅의 힘은 통하지 않는다)', ['charge', 'slam', 'blades', 'ring', 'blink']),
         { bh: 380, aura: true, baseCol: '#BDE8FF', frames: SXF('bh') }),   // v150 선생님 그림 · 땅을 딛고 섬 + 발밑 바람·번개 기운
-      hm: Object.assign(B('현무', 'sx_hm', 'water', 'water', '#3C78F0', { a: '#3A4A7A', b: '#1D2340', c: '#3C78F0', d: '#9AE6FF' }, '북쪽을 지키는 검은 거북이 깨어났다! (물의 힘은 통하지 않는다)', ['slam', 'ring', 'fan', 'blades']),
+      hm: Object.assign(B('현무', 'sx_hm', 'water', 'water', '#3C78F0', { a: '#3A4A7A', b: '#1D2340', c: '#3C78F0', d: '#9AE6FF' }, '북쪽을 지키는 검은 거북이 깨어났다! (물의 힘은 통하지 않는다)', ['slam', 'ring', 'fan', 'blades', 'windwall']),
         { bh: 380, aura: true, baseCol: '#3C78F0', frames: SXF('hm') }),   // v150 선생님 그림 · 땅을 딛고 섬 + 발밑 물결
       king: Object.assign(B('광개토대왕', 'sx_king_idle', 'light', 'all', '#FFD23F', { a: '#FFD23F', b: '#8A5A10', c: '#FFFFFF', d: '#FF4A3A' }, '광개토대왕께서 일어나셨다! 어떤 공격도 통하지 않는다…', ['blades', 'ring', 'charge', 'slam', 'fan']), { noFx: true,
         // v150 선생님 Gemini 그림 7장 (11/15) · 사방신과 같은 380px · 땅을 딛고 섬 · 칼(blades·charge·slam)=들기→내려치기 · 마법(ring·fan)=손 뻗기 · 걸을 때 두 장 번갈아 · 맞으면 잠깐 움찔
@@ -675,6 +678,93 @@
     // on: false = 아직 숨김 (선생님 그림이 오면 true 로 · v150). 꺼져 있으면 지도 20장·18번 입구·39번 검 떨어짐이 모두 없음
     return { on: true, rows, boss, lv, rock, npc, gateMap: 'f18', entry: 'sx_v3', rockImg: 'sx_rock' /* v151 입구 바위 그림(img/v79/sx_rock.png)이 들어오면 'sx_rock' */, home: 'f18', swordMap: 'f39', swordRate: { mob: 0.03, boss: 0.3 },
       gods: ['cr', 'jj', 'bh', 'hm'], godName: { cr: '청룡', jj: '주작', bh: '백호', hm: '현무' }, fire: { cr: '#FFE45C', jj: '#FF4A3A', bh: '#B07A45', hm: '#3C78F0' } };
+  })();
+  /* v172 이순신 장군님 던전 (선생님 11/20 엑셀 지도) — 통영(마을 7) 남쪽 출구 → 아래로 내려가는 던전
+   *  왜장 9명을 하나씩 이기면 벽화 조각 9개(S.ysp · 계속 남음) → 어귀 지킴이에게서 3×3 밀기 퍼즐(열 때마다 섞임)로 이순신·거북선 벽화 완성(S.ysMural)
+   *  → 왜장들의 회합(9명 한꺼번에) 열림 → 이기면(S.ysAll) 와키자카 야스하루의 본진 열림 → 이기면 벽화·회합만 처음으로 (조각은 그대로)
+   *  on 이어도 pub:false = 관리자만 보임 (선생님이 해 보고 균형이 맞으면 pub:true 로 열기) */
+  const YS = (() => {
+    const W2 = 40, H2 = 28;
+    // 왜장 9명: [열쇠, 이름, 열, 행, 속성, 색, 한마디]
+    const GEN = [
+      ['g1', '도도 다카토라', 1, 4, 'water', '#3C78F0', '수군 대장 도도 다카토라가 길을 막는다!'],
+      ['g2', '구루시마 미치유키', 0, 3, 'wind', '#9AF0B0', '바다의 사나이 구루시마 미치유키가 나타났다!'],
+      ['g3', '구키 요시타카', 7, 2, 'fire', '#FF4A3A', '철갑선의 구키 요시타카가 대포를 겨눈다!'],
+      ['g4', '가토 요시아키', 8, 3, 'earth', '#B07A45', '가토 요시아키가 창을 고쳐 잡았다!'],
+      ['g5', '구루시마 미치후사', 2, 5, 'wind', '#9AE6FF', '형의 원수를 갚겠다! 구루시마 미치후사가 달려든다!'],
+      ['g6', '구로다 나가마사', 6, 7, 'dark', '#8A5AD8', '구로다 나가마사가 검은 투구를 썼다!'],
+      ['g7', '가토 기요마사', 7, 5, 'thunder', '#FFE45C', '가토 기요마사가 긴 창을 휘두른다!'],
+      ['g8', '고니시 유키나가', 1, 7, 'light', '#FFD23F', '선봉장 고니시 유키나가가 앞을 가로막는다!'],
+      ['g9', '시마즈 요시히로', 5, 9, 'fire', '#FF9A3D', '귀신 같은 시마즈 요시히로가 칼을 뽑았다!']
+    ];
+    // 엑셀 배치 (열, 행) · 0행 = 통영(지도에만 표시)
+    const cells = [
+      ['ys_in', 4, 1, '통영 남쪽 바닷길', 'path'], ['ys_npc', 4, 2, '이순신 장군님 던전 어귀', 'npc'],
+      ['ys_a1', 1, 3, '서쪽 갯바위길', 'path'], ['ys_a2', 2, 3, '왜선 잔해 모래톱', 'path'], ['ys_a3', 3, 3, '봉수대 언덕', 'path'], ['ys_x1', 4, 3, '한산 갈림길', 'path'], ['ys_a4', 5, 3, '견내량 물목', 'path'], ['ys_a5', 6, 3, '판옥선 나루', 'path'], ['ys_a6', 7, 3, '동쪽 해안 초소', 'path'],
+      ['ys_v1', 4, 4, '학익진 길', 'path'], ['ys_v2', 4, 5, '거북 등 바위길', 'path'],
+      ['ys_b1', 1, 6, '조총 소리 고개', 'path'], ['ys_b2', 2, 6, '불탄 왜성 터', 'path'], ['ys_b3', 3, 6, '모래 언덕', 'path'], ['ys_x2', 4, 6, '명량 갈림길', 'path'], ['ys_b4', 5, 6, '울돌목 소용돌이', 'path'], ['ys_b5', 6, 6, '노량 물가', 'path'], ['ys_b6', 7, 6, '동쪽 갈대밭', 'path'],
+      ['ys_v3', 4, 7, '수군 진영 길', 'path'], ['ys_v4', 4, 8, '안개 낀 바닷길', 'path'], ['ys_v5', 4, 9, '왜장의 길목', 'path'],
+      ['ys_all', 4, 10, '왜장들의 회합', 'all'], ['ys_boss', 4, 11, '와키자카 야스하루의 본진', 'boss']
+    ].concat(GEN.map((g, i) => ['ys_' + g[0], g[2], g[3], g[1] + '의 진', 'gen', i]));
+    const at = {}; cells.forEach(c => { at[c[1] + ',' + c[2]] = c[0]; });
+    // 길 칸: 레벨 (입구 230 → 회합 앞 290) · 왜군 몬스터 3종 · 지역(나무·바위 모양) · 무더기 · 연못(바다 웅덩이)
+    const PATH = {
+      ys_in: { region: 6, lv: 230, mob: ['f66', 'f68', 'f74'], tree: 4, rock: 8, pond: 3 },
+      ys_x1: { region: 6, lv: 240, mob: ['f74', 'f79', 'f68'], tree: 6, rock: 6, pond: 3 },
+      ys_a3: { region: 6, lv: 245, mob: ['f79', 'f74', 'f66'], tree: 8, rock: 6, pond: 1 }, ys_a2: { region: 7, lv: 250, mob: ['f81', 'f79', 'f74'], tree: 3, rock: 10, pond: 4 }, ys_a1: { region: 7, lv: 258, mob: ['f81', 'f84', 'f79'], tree: 4, rock: 14, pond: 4 },
+      ys_a4: { region: 6, lv: 245, mob: ['f79', 'f74', 'f68'], tree: 4, rock: 5, pond: 6 }, ys_a5: { region: 7, lv: 250, mob: ['f81', 'f84', 'f74'], tree: 3, rock: 6, pond: 6 }, ys_a6: { region: 7, lv: 258, mob: ['f84', 'f81', 'f79'], tree: 8, rock: 8, pond: 2 },
+      ys_v1: { region: 7, lv: 255, mob: ['f81', 'f84', 'f79'], tree: 5, rock: 8, pond: 4 }, ys_v2: { region: 8, lv: 262, mob: ['f84', 'f81', 'f89'], tree: 3, rock: 14, pond: 3 },
+      ys_x2: { region: 8, lv: 268, mob: ['f89', 'f84', 'f81'], tree: 6, rock: 8, pond: 3 },
+      ys_b3: { region: 8, lv: 272, mob: ['f84', 'f89', 'f81'], tree: 2, rock: 6, pond: 2 }, ys_b2: { region: 8, lv: 276, mob: ['f89', 'f84', 'f81'], tree: 3, rock: 12, pond: 1 }, ys_b1: { region: 8, lv: 280, mob: ['f89', 'f81', 'f84'], tree: 6, rock: 12, pond: 1 },
+      ys_b4: { region: 8, lv: 272, mob: ['f84', 'f89', 'f81'], tree: 2, rock: 4, pond: 9 }, ys_b5: { region: 7, lv: 276, mob: ['f89', 'f81', 'f84'], tree: 4, rock: 5, pond: 7 }, ys_b6: { region: 7, lv: 280, mob: ['f81', 'f89', 'f84'], tree: 14, rock: 3, pond: 3 },
+      ys_v3: { region: 8, lv: 280, mob: ['f89', 'f84', 'f81'], tree: 5, rock: 10, pond: 2 }, ys_v4: { region: 8, lv: 285, mob: ['f89', 'f84', 'f81'], tree: 3, rock: 6, pond: 6 }, ys_v5: { region: 8, lv: 290, mob: ['f89', 'f84', 'f81'], tree: 4, rock: 12, pond: 2 }
+    };
+    function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+    function grid(id, ex, kind) {
+      const r = seeded('ys-' + id), t = new Array(W2 * H2).fill(0), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < W2 && y < H2) t[y * W2 + x] = v; }, get = (x, y) => (x < 0 || y < 0 || x >= W2 || y >= H2 ? 2 : t[y * W2 + x]);
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) if (x < 2 || y < 2 || x >= W2 - 2 || y >= H2 - 2) set(x, y, r() < 0.5 ? 2 : 3);
+      const cx = W2 >> 1, cy = H2 >> 1, room = kind !== 'path';
+      Object.keys(ex).forEach(sd => {
+        if (sd === 'u' || sd === 'd') { for (let x = cx - 3; x <= cx + 2; x++) for (let k = 0; k < 3; k++) set(x, sd === 'u' ? k : H2 - 1 - k, 0); for (let y = (sd === 'u' ? 0 : cy); y <= (sd === 'u' ? cy : H2 - 1); y++) for (let x = cx - 1; x <= cx; x++) set(x, y, 1); }
+        else { for (let y = cy - 3; y <= cy + 2; y++) for (let k = 0; k < 3; k++) set(sd === 'l' ? k : W2 - 1 - k, y, 0); for (let x = (sd === 'l' ? 0 : cx); x <= (sd === 'l' ? cx : W2 - 1); x++) for (let y = cy - 1; y <= cy; y++) set(x, y, 1); }
+      });
+      if (room) {   // 장수·회합·본진·어귀: 가운데 넓은 마당 + 돌기둥(본진은 여섯)
+        const rx = kind === 'all' || kind === 'boss' ? 15 : 11, ry = kind === 'all' || kind === 'boss' ? 10 : 7;
+        for (let y = cy - ry; y <= cy + ry - 1; y++) for (let x = cx - rx; x <= cx + rx - 1; x++) if (get(x, y) !== 1) set(x, y, 0);
+        (kind === 'boss' ? [[-13, -8], [12, -8], [-13, 0], [12, 0], [-13, 8], [12, 8]] : kind === 'all' ? [[-13, -8], [12, -8], [-13, 8], [12, 8]] : [[-9, -5], [8, -5], [-9, 4], [8, 4]]).forEach(([dx, dy]) => set(cx + dx, cy + dy, 3));
+      }
+      const near = (x, y, d) => { for (let b = -d; b <= d; b++) for (let a = -d; a <= d; a++) if (get(x + a, y + b) === 1) return true; return false; };
+      const P = PATH[id], nClu = room ? 5 : P.tree + P.rock;
+      for (let k = 0; k < nClu; k++) {
+        const x0 = 4 + Math.floor(r() * (W2 - 8)), y0 = 4 + Math.floor(r() * (H2 - 8)), n = 2 + Math.floor(r() * 5), v = room ? (r() < 0.5 ? 2 : 3) : (k < P.tree ? 2 : 3);
+        if (room && Math.abs(x0 - cx) < 17 && Math.abs(y0 - cy) < 11) continue;
+        for (let i = 0; i < n; i++) { const x = x0 + Math.floor(r() * 3) - 1, y = y0 + Math.floor(r() * 3) - 1; if (get(x, y) === 0 && !near(x, y, 2)) set(x, y, v); }
+      }
+      if (!room) for (let k = 0; k < P.pond; k++) { const x0 = 7 + r() * (W2 - 14), y0 = 6 + r() * (H2 - 12), big = k % 2 === 0, rx = (big ? 3.2 : 2.2) + r() * 1.2, ry = (big ? 2.2 : 1.5) + r() * 0.8; for (let y = Math.floor(y0 - ry); y <= y0 + ry; y++) for (let x = Math.floor(x0 - rx); x <= x0 + rx; x++) if (get(x, y) === 0 && !near(x, y, 2) && ((x + 0.5 - x0) / rx) ** 2 + ((y + 0.5 - y0) / ry) ** 2 <= 1) set(x, y, 4); }
+      for (let y = 2; y < H2 - 2; y++) for (let x = 2; x < W2 - 2; x++) if (get(x, y) === 0 && r() < 0.04) set(x, y, 5);
+      return t;
+    }
+    const LOOK = { npc: 6, gen: 7, all: 8, boss: 8 };
+    const rows = cells.map(([id, cx, cy, name, kind, gi]) => {
+      const ex = {}; [['u', 0, -1], ['d', 0, 1], ['l', -1, 0], ['r', 1, 0]].forEach(([sd, dx, dy]) => { const to = at[(cx + dx) + ',' + (cy + dy)]; if (to) ex[sd] = to; });
+      if (id === 'ys_in') ex.u = 'v7';   // 맨 위 → 통영 (통영 쪽 길은 world.js 가 따로 뚫음)
+      const P = PATH[id], mons = P ? { list: P.mob.map((f, i) => ({ f, lv: P.lv, n: [8, 6, 5][i] })) } : {};
+      return { id, name, pos: [cx, cy], kind, data: { w: W2, h: H2, region: P ? P.region : LOOK[kind], t: grid(id, ex, kind), exits: ex, mons, pub: false, noBack: id === 'ys_in', ys: kind, yi: gi == null ? -1 : gi, rec: P ? P.lv : kind === 'boss' ? 500 : kind === 'all' ? 400 : kind === 'gen' ? 300 + gi * 12 : 230 } };
+    });
+    const B = (name, img, el, light, colors, say, skills, more) => Object.assign({ name, img, h: 150, el, immune: el, light, shape: 'golem', colors, kind: 'boss', say, skills, noKnock: true, hard: true, bh: 300, aura: true, baseCol: light,
+      frames: { idle: img, atk1: img + '_atk', atk2: img + '_atk', cast: img + '_cast', hit: img + '_hit', walk: [img + '_walk1', img + '_walk2'] } }, more || {});   // v173 걷기 두 장 (선생님 11/20)
+    // v173 대표 기술 (선생님 11/21 · 롤 아이디어): 앞 2개 = 기본(체력 70%까지) · 뒤 = 대표 기술(70% 아래부터)
+    const SK = [['fan', 'slam', 'mines', 'whirl'], ['ring', 'fan', 'windwall', 'laser'], ['fan', 'ring', 'laser', 'barrage', 'bomb'], ['slam', 'charge', 'hook', 'mines'], ['fan', 'charge', 'clones', 'blink'], ['blades', 'ring', 'realm', 'gaze'], ['charge', 'slam', 'hook', 'laser'], ['ring', 'fan', 'blink', 'bomb'], ['charge', 'slam', 'charge3', 'barrage']];
+    const gens = GEN.map((g, i) => B(g[1], 'ys_' + g[0], g[4], g[5], { a: g[5], b: '#1D2340', c: '#FFFFFF', d: '#FF4A3A' }, g[6], SK[i], { gi: i, undying: i === 8 }));   // v173 시마즈 = 죽지 않는 분노
+    const boss = B('와키자카 야스하루', 'ys_boss', 'dark', '#FF4A8A', { a: '#2A1F48', b: '#8A1E22', c: '#FFD23F', d: '#FF4A3A' }, '왜군 수군 대장 와키자카 야스하루가 칼을 뽑았다! 한산도의 원한을 갚겠다고 한다…',
+      ['blades', 'fan', 'ring', 'slam', 'hook', 'laser', 'whirl', 'bomb', 'clones'], { immune: null, frames: { idle: 'ys_boss', atk1: 'ys_boss_atk1', atk2: 'ys_boss_atk2', cast: 'ys_boss_cast', hit: 'ys_boss_hit', walk: ['ys_boss_walk1', 'ys_boss_walk2'] }, bh: 380, skCd: [0.8, 1.1], slamR: 210, slamCd: 0.6, bladeR: 76, bladeSpread: 1.5, ysBoss: true });   // 광개토대왕(0.9~1.3초 · 195 · 70)보다 조금 더 어렵게
+    const npc = { name: '이순신 장군님 던전 지킴이', img: 'ys_npc', h: 70, color: '#9AE6FF', nearSay: '왜장 아홉을 이기고 벽화를 되찾아 다오',
+      av: { skin: 's2', hair: 'h_topknot', hat: 'hat_gat', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black', back: 'bk_cape' },
+      lines: ['여기는 이순신 장군님 던전이다. 왜장 아홉 명이 장군님과 거북선을 그린 벽화를 아홉 조각으로 나누어 빼앗아 갔지.',
+        '왜장을 하나 이길 때마다 벽화 조각을 하나씩 되찾을 수 있다. 되찾은 조각은 계속 네가 지니고 있게 된다.',
+        '조각 아홉 개를 모두 모아 오면 나에게서 벽화를 맞춰라. 조각을 밀어서 제자리에 놓으면 된다.',
+        '벽화가 완성되면 아래쪽 왜장들의 회합이 열린다. 그 너머 본진에는 와키자카 야스하루가 기다리고 있다.'] };
+    return { on: true, rows, gens, boss, npc, home: 'v7', entry: 'ys_in', top: [4, 0], mural: 'ys_mural', n: GEN.length, genName: GEN.map(g => g[1]), lv: { all: 400, boss: 500 } };
   })();
   // v131 환생: 저승 10-5(오도전륜대왕)를 깨면 할 수 있음 · Lv.1 로 돌아가고 환생마다 스탯 포인트 +20 · 장비·가방·골드는 그대로 · 마법은 기본 마법만 · 스탯마다 최대치 +10 · 최대 10번 · 10-5를 깰 때마다 한 번
   const REBIRTH = { max: 10, bonus: 20, statUp: 10 };   // v131 환생마다 스탯 최대치 +10 (50 → 60 → … → 150)
@@ -701,5 +791,5 @@
         lines: ['대왕께서 돌아가신 뒤 아드님 장수왕께서 그 업적을 비석에 새기셨다네.'] }
     ]
   };
-  window.GoRPGData = { GURI, SASIN, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  window.GoRPGData = { GURI, SASIN, YS, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();

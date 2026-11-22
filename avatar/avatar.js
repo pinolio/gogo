@@ -1015,7 +1015,10 @@
     const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
     const view = opt.view === 'b' || opt.view === 's' ? opt.view : 'f';   // v106 방향: 'f' 앞 · 'b' 뒤 · 's' 옆(오른쪽)
     // v120 늘 새 몸 그림 (예전 도트 그리기는 뺐음) · 몸 그림을 받는 중이면 아무것도 안 그림 → 받으면 onBody 로 다시
-    const crop = opt.crop || 'full', bc = bodyCanvas(av, view, opt.onBody);
+    const crop = opt.crop || 'full', H0 = opt.hold;
+    let bc = bodyCanvas(av, view, opt.onBody);
+    // v172 옷·모자·장비가 바뀌어 새 그림을 받는 동안 캐릭터가 잠깐 투명해지던 것: 같은 사람(hold)의 바로 전 그림을 대신 그림
+    if (bc && H0) H0['_avbc' + view] = bc; else if (!bc && H0) bc = H0['_avbc' + view] || H0._avbcf || null;
     if (!bc) { ctx.imageSmoothingEnabled = sm; return; }
     if (crop !== 'full') {   // 얼굴·상반신 칸: 몸 그림에서 그 부분만 (1칸 = 4점)
       ctx.imageSmoothingEnabled = crop !== 'feet'; ctx.drawImage(bc, cx * 4, cy * 4, cw * 4, ch * 4, x, y, cw * scale, ch * scale);   // v137 신발 카드는 또렷한 도트로
@@ -1072,7 +1075,16 @@
   }
 
   try { if (typeof document !== 'undefined') setTimeout(() => clothAtlas(null), 300); } catch (e) { /* noop */ }   // v120 옷 색 그림 미리 받기 (게임 속 몸 그림용)
+  /* v172 로그인한 내 아바타 그림(앞·옆·뒤 몸 · 옷 색 · 신발 · 머리·모자·얼굴 장식 · 등 장식)을 사이트를 열자마자 미리 받아 둠
+   *  → 내 방·skillcom RPG 에 처음 들어갈 때 캐릭터가 늦게 나타나거나 잠깐 사라지는 것 줄이기 */
+  function preload(av) {
+    if (!av) return; const noop = () => {};
+    try { ['f', 's', 'b'].forEach(v => bodyCanvas(av, v, noop)); const bk = byId[normalize(av).back]; if (bk && bk.img) loadImg(bk.img, noop); } catch (e) { /* noop */ }
+  }
+  setTimeout(() => { clothAtlas(); shoeAtlas(); }, 0);   // v172 옷 색·신발 그림을 미리 받아 둠
+  { let tries = 0, lastK = ''; const iv = setInterval(() => { const u = window.GameHub && window.GameHub.user; if (u && u.avatar) { const k = JSON.stringify(u.avatar); if (k !== lastK) { lastK = k; preload(u.avatar); } } if (++tries > 60) clearInterval(iv); }, 500); }
   window.GoAvatar = {
+    preload,
     SLOTS, DEFAULT, OPTIONAL, ITEMS: SHOP_I, ALL_ITEMS: I, byId, bodyImg, useBody, bodyNorm, bodySrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, CLOTH, SHOES,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
     normalize, draw, paint, paintAll, random, legs, OUT, rig, rigSide,

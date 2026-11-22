@@ -124,12 +124,12 @@
     Object.keys(LINKS).forEach(k => { delete LINKS[k]; });
     Object.keys(mapCache).forEach(k => { delete mapCache[k]; });
     const list = [];
-    (rows || []).concat(D.SASIN && D.SASIN.on ? D.SASIN.rows : []).forEach(r => {   // v150 숨은 던전 '사신의 땅' 20장은 늘 함께 등록
+    (rows || []).concat(D.SASIN && D.SASIN.on ? D.SASIN.rows : [], D.YS && D.YS.on ? D.YS.rows : []).forEach(r => {   // v172 이순신 장군님 던전(관리자만 · pub:false)   // v150 숨은 던전 '사신의 땅' 20장은 늘 함께 등록
       const d = r && r.data, w = d && +d.w, h = d && +d.h;
       if (!d || !(w >= 20 && w <= 80 && h >= 14 && h <= 60) || !Array.isArray(d.t) || d.t.length !== w * h) return;
       if (!/^[a-z0-9_-]{2,40}$/.test(r.id) || MAPBY[r.id]) return;   // 게임에 원래 있는 맵 아이디(f1·v1…)는 덮어쓰지 않음
       if (!d.pub && !admin) return;
-      const mo = d.mons || {}, region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1), LV = v => clamp(Math.floor(+v || 1), 1, d.sx ? 400 : D.MAX_LV);   /* v150 사신의 땅 Lv.150 */
+      const mo = d.mons || {}, region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1), LV = v => clamp(Math.floor(+v || 1), 1, d.ys ? 520 : d.sx ? 400 : D.MAX_LV);   /* v150 사신의 땅 Lv.150 */
       let list = [], boss = null, bossLv = 1;
       if (Array.isArray(mo.list)) {   // v143 몬스터마다 레벨·마릿수 (합쳐서 30마리까지)
         let left = 30;
@@ -146,7 +146,8 @@
       const M = { id: r.id, kind: 'field', custom: true, test: !d.pub, region, name: String(r.name || r.id).slice(0, 30), rec: lvs.length ? Math.max(...lvs) : 1, boss: !!boss,
         monList: list.map(e => ({ mon: e.mon, lv: e.lv, n: e.n, old: !!e.old })), bossMon: boss ? boss.mon : null, bossLv,
         lvMin: lvs.length ? Math.min(...lvs) : 1, dropR: first ? first.region : region, dropNo: first ? first.no : 1, def: d };
-      if (d.sx) { M.sx = d.sx; M.solo = !!d.solo; M.tex = d.tex; M.rec = M.lvMin = +d.rec || M.rec; }   // v150 사신의 땅
+      if (d.sx) { M.sx = d.sx; M.solo = !!d.solo; M.tex = d.tex; M.rec = M.lvMin = +d.rec || M.rec; }
+      if (d.ys) { M.ys = d.ys; M.yi = d.yi; M.solo = true; M.rec = M.lvMin = +d.rec || M.rec; }   // v172 이순신 장군님 던전 (혼자 · 다른 사람 안 보임)   // v150 사신의 땅
       CUSTOM[M.id] = M; MAPBY[M.id] = M; list.push(M);
     });
     const add = (to, L) => { (LINKS[to] = LINKS[to] || []).push(L); };
@@ -156,6 +157,7 @@
       Object.keys(ex).forEach(s => { const T = MAPBY[ex[s]]; if (!OPP[s] || !back(T) || T.id === M.id || M.def.noBack) return; if (T.custom && (T.def.exits || {})[OPP[s]] === M.id) return; add(T.id, { side: OPP[s], to: M.id }); });
       (M.def.dungeons || []).forEach(dg => { const T = MAPBY[dg.to]; if (!back(T) || T.id === M.id) return; if (T.custom && (T.def.exits || {}).d === M.id) return; add(T.id, { side: 'd', to: M.id, dg: true }); });
     });
+    if (D.YS && MAPBY[D.YS.entry] && MAPBY[D.YS.home]) add(D.YS.home, { side: 'd', to: D.YS.entry });   // v172 통영 아래쪽 출구 → 이순신 장군님 던전 (던전이 등록된 사람 = 관리자만)
     return list.map(M => M.id);
   }
   // 가장자리 출구 자리 (칸 범위 a0~a1) · idx = 그쪽에 몇 번째로 뚫는 출구인지
@@ -788,7 +790,7 @@
     }
     if (map.roads) drawRoads(x, map, ok ? pat : null, rnd, nz);
     // 3) 물: 깊이에 따라 진하게 · 물가 모래 테두리 · 위쪽 물보라
-    const W0 = R.water, soft = !!(map.M.hell || map.M.sx);   // v152 사신의 땅 길 연못도 부드럽게   // v135 저승 용암·얼음·독늪 = 부드러운 웅덩이 (네모 칸 대신)
+    const W0 = R.water, soft = !!(map.M.hell || map.M.sx || map.M.ys);   // v152 사신의 땅 길 연못도 부드럽게   // v135 저승 용암·얼음·독늪 = 부드러운 웅덩이 (네모 칸 대신)
     const PK = poolKind(map, TX[2]); if (LAVA_ART && soft && map.M.hell && img79(POOL_ART[PK][0]) && img79(POOL_ART[PK][1])) lavaArt(x, map, PK); else if (soft) softPool(x, map, ok ? pat[2] : null, nz, TX[2]);   // v164 저승 용암 = Gemini 용암 웅덩이 그림
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
       if (at(tx, ty) !== 4) continue;
@@ -1310,7 +1312,15 @@
     const keys = Object.keys(avCache); if (keys.length > 240) delete avCache[keys[0]];
     return (avCache[key] = c);
   }
+  /* v172 장비(갑옷 등)가 바뀌어 새 몸 그림(옷 색 그림)을 받는 동안 캐릭터가 잠깐 투명해지던 것 → 같은 사람의 바로 전 그림을 대신 씀 */
+  const spLast = {}; let spLastN = 0;
   function avatarSprite(av, eq, hide, frame, view, part) {
+    const r = avatarSprite0(av, eq, hide, frame, view, part), k = JSON.stringify([av, view || 'f', part || '', frame]);
+    if (r === blankC) return spLast[k] || r;
+    if (!spLast[k]) { if (++spLastN > 400) { Object.keys(spLast).forEach(q => delete spLast[q]); spLastN = 1; } }
+    spLast[k] = r; return r;
+  }
+  function avatarSprite0(av, eq, hide, frame, view, part) {
     if (view === 'b' || view === 's') return dirSprite(av, eq, hide, view, part);
     const bodyI = bodyOf(av, 'f', eq, hide);
     if (!bodyI) return blankSp(2);   // v120
