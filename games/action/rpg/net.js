@@ -94,7 +94,7 @@
       connect(net.room, no, net.seq);
       return { ok: true, ch: no };
     };
-    function stateNow() { const m = h.me(); return { cid: Hub.clientId, uid: Hub.user ? Hub.user.id : '', nick: m.nick, lv: m.lv, av: m.av, eq: m.eq, hide: !!m.hide, pet: String(m.pet || '').slice(0, 8), x: Math.round(m.x), y: Math.round(m.y) }; }
+    function stateNow() { const m = h.me(); return { cid: Hub.clientId, uid: Hub.user ? Hub.user.id : '', nick: m.nick, title: String(m.title || '').slice(0, 12), lv: m.lv, av: m.av, eq: m.eq, hide: !!m.hide, pet: String(m.pet || '').slice(0, 8), x: Math.round(m.x), y: Math.round(m.y) }; }
     net.retrack = () => { net.retrackT = 1.5; };   // 레벨·장비가 바뀌면 1.5초 뒤 한 번만 알림
 
     function onPeers(list) {
@@ -105,7 +105,7 @@
         seen.add(st.cid);
         let p = net.peers.get(st.cid);
         if (!p) { p = { cid: st.cid, x: st.x, y: st.y, tx: st.x, ty: st.y, vx: 0, vy: 0, face: 1, at: performance.now(), walk: 0 }; net.peers.set(st.cid, p); fresh = true; }
-        Object.assign(p, { nick: String(st.nick || '').slice(0, 12), lv: +st.lv || 1, av: st.av, eq: st.eq || {}, hide: !!st.hide, pet: String(st.pet || '').slice(0, 8), uid: String(st.uid || '') });   // v149 pet = 데리고 다니는 펫 id   // v143 uid = 결투 기록용
+        Object.assign(p, { title: String(st.title || '').slice(0, 12), nick: String(st.nick || '').slice(0, 12), lv: +st.lv || 1, av: st.av, eq: st.eq || {}, hide: !!st.hide, pet: String(st.pet || '').slice(0, 8), uid: String(st.uid || '') });   // v149 pet = 데리고 다니는 펫 id   // v143 uid = 결투 기록용
       });
       net.peers.forEach((p, k) => { if (!seen.has(k)) { net.peers.delete(k); h.onLeave && h.onLeave(k); } });
       if (fresh) { net.lastKey = ''; net.sendT = 9; net.forceOnce = true; }   // 새로 온 사람에게 내 자리를 바로 알려 줌

@@ -143,6 +143,7 @@
     s.kingAt = +s.kingAt || (s.petOpen.legend ? Date.now() : 0);   // v158 광개토대왕을 처음 이긴 때(ms) — 예전에 이긴 사람(전설 펫 열림)은 지금 시각으로 · 메인 카드 '광개토대왕 최초 토벌자'
     const sa = s.sasin && typeof s.sasin === 'object' ? s.sasin : {}; s.sasin = {}; D.SASIN.gods.forEach(k => { s.sasin[k] = sa[k] ? 1 : 0; }); s.sasinAll = s.sasinAll ? 1 : 0;
     const yp = Array.isArray(s.ysp) ? s.ysp : []; s.ysp = [0, 0, 0, 0, 0, 0, 0, 0, 0].map((_, i) => yp[i] ? 1 : 0); s.ysMural = s.ysMural ? 1 : 0; s.ysAll = s.ysAll ? 1 : 0;   // v172
+    s.title = (D.TITLES || []).some(t => t.id === s.title) ? s.title : '';   // v176 고른 타이틀
     const bw = s.bossWon && typeof s.bossWon === 'object' ? s.bossWon : {}; s.bossWon = {}; Object.keys(bw).slice(0, 400).forEach(k => { if (k.length <= 40) s.bossWon[k] = clamp(Math.floor(+bw[k] || 1), 1, 600); });   // v174 이긴 보스 (Skillcom Fight 보스 도전)
     const total = (s.lv - 1) * (CFG.statPerLevel || 2) + s.reb * D.REBIRTH.bonus, used = D.STAT.keys.reduce((a, k) => a + s.stat[k], 0);
     if (used > total) { D.STAT.keys.forEach(k => { s.stat[k] = 0; }); s.sp = total; } else s.sp = total - used;
@@ -390,6 +391,9 @@
   .rg-reb .cnt { font-size: 13px; color: #C9D0F0; } .rg-reb .cnt b { color: #F3D27A; font-family: var(--f-display); font-size: 17px; }
   .rg-rebbtn { width: 100%; font-family: var(--f-display); font-size: 16px; padding: 7px 10px; border-radius: 8px; cursor: pointer; border: 2px solid #6B4A12; background: linear-gradient(180deg, #FFE79A, #E8A92A); color: #1D2340; box-shadow: 0 0 0 1px #0A0E24, 0 0 12px rgba(255,210,90,.55); }
   .rg-rebbtn[disabled] { background: linear-gradient(180deg, #2C3A66, #1A2446); color: #AEB7E0; border-color: #4A5A8A; box-shadow: 0 0 0 1px #0A0E24; cursor: default; }
+  .rg-king10 { margin-top: 10px; padding: 8px 10px; border: 2px solid #F3D27A; border-radius: 10px; background: #1D2340; } .rg-king10 .tt { color: #FFD23F; display: block; margin-bottom: 6px; } .rg-king10 ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; } .rg-king10 li { display: grid; grid-template-columns: 26px 1fr auto; gap: 6px; align-items: center; font-size: 13px; color: #FFFFFF; } .rg-king10 li .no { color: #FFD23F; font-weight: bold; text-align: center; } .rg-king10 li small { color: #9AE6FF; font-size: 11px; } .rg-king10 li.me b { color: #9AF0B0; }
+  .rg-god { margin-top: 6px; font-size: 12px; color: #FFD23F; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+  .rg-ttl { width: 100%; display: grid; gap: 4px; justify-items: center; margin-top: 6px; } .rg-ttl label { font-size: 12px; color: #F3D27A; display: flex; white-space: nowrap; gap: 6px; align-items: center; } .rg-ttl select { max-width: 150px; font-size: 11px; padding: 2px 4px; border-radius: 6px; border: 1px solid #F3D27A; background: #1D2340; color: #FFE45C; } .rg-ttl small { font-size: 10px; color: #9AE6FF; line-height: 1.4; text-align: left; }
   .rg-reb small { font-size: 11px; color: #AEB7E0; text-align: center; line-height: 1.35; }
   .rg-rebwin { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 12px; }
   .rg-rebinfo, .rg-rebwarn { border: 2px solid #C9A24A; border-radius: 8px; padding: 10px 12px; background: linear-gradient(180deg, #172A47, #0E1A30); }
@@ -737,6 +741,9 @@
         st.atkCd = T.atkCd;
         return st;
       }
+      /* v176 무적 아이디 (선생님 11/22): 관리자 + 닉네임 '파워복복' 만 · 어디서든 피해 0 · 스탯 창에서 켜고 끌 수 있음(S.godOff) */
+      const godAcct = () => !!(Hub.user && Hub.isAdmin && Hub.isAdmin() && Hub.user.nickname === '파워복복');
+      const godOn = () => godAcct() && !S.godOff;
       function fightCard() {   // v174 Skillcom Fight 용: 지금 능력치(장비·옵션·강화·펫·스탯 다 반영) + 마법 8칸(1~4 · QWER)
         const K = ['id', 'name', 'el', 'els', 'lv', 'kind', 'pow', 'mp', 'cd', 'count', 'radius', 'len', 'w', 'dur', 'pierce', 'speed'];
         const sl = S.slots.concat(S.fslots).map(id => { const sk = skill(id); if (!sk) return null; const o = {}; K.forEach(k => { if (sk[k] != null) o[k] = sk[k]; }); return o; });
@@ -846,7 +853,7 @@
       const baseEq = () => { const o = {}; Object.keys(S.eq).forEach(k => { const it = ITEMS[S.eq[k]]; if (it) o[k] = it.base || it.id; }); return o; };   // v60 다른 사람에게는 기본 장비 id 만 (그림용)
       function makeNet() {
         net = window.GoRPGNet.create({
-          me: () => ({ nick: Hub.user ? Hub.user.nickname : '손님', lv: S.lv, av: Hub.user ? Hub.user.avatar : AV.normalize({}), eq: baseEq(), hide: S.hide, pet: myPetId(), x: G.px, y: G.py }),
+          me: () => ({ nick: Hub.user ? Hub.user.nickname : '손님', title: myTitle(), lv: S.lv, av: Hub.user ? Hub.user.avatar : AV.normalize({}), eq: baseEq(), hide: S.hide, pet: myPetId(), x: G.px, y: G.py }),
           onPeers: () => {},
           onFx: (m, p) => { if (p) p.poseUntil = performance.now() + 380; peerFx(m, p); },   // v79 다른 사람이 마법 쓰면 팔 들기
           onTrade: (m, p) => onTrade(m, p),
@@ -1735,7 +1742,7 @@
           const u = newUid(), base = ITEMS.rgKing, good = base.goodOpts.slice().sort(() => Math.random() - 0.5).slice(0, 1), rest = rollOpts(9, 5).filter(o => !good.includes(o[0]) && o[0] !== 'e_all').slice(0, 2);   // v149 선생님 11/15: ① 모든 속성 방어 15% 고정 ② 좋은 옵션 1개 최대치 ③④ 무작위
           S.gear[u] = { b: 'rgKing', en: 0, op: [['e_all', 15]].concat(good.map(q => [q, OPTS[q].max]), rest) };
           const id = regGear(u, S.gear[u]); const got = addItem(id, 1);
-          if (!S.kingAt) S.kingAt = Date.now(); setTimeout(() => submitRank(0, true), 500);   // v158 최초 토벌 기록 (메인 카드)
+          if (!S.kingAt) S.kingAt = Date.now(); setTimeout(() => submitRank(0, true), 500); setTimeout(() => { G.kingTop = null; }, 4000);   /* v176 10명 목록 새로 */   // v158 최초 토벌 기록 (메인 카드)
           S.petOpen.legend = 1; D.SASIN.gods.forEach(q => { S.sasin[q] = 0; }); S.sasinAll = 0;
           G.title = { t: 0, text: '광개토대왕을 이겼다!', sub: (got ? '광개토대왕의 반지를 얻었다 · ' : '가방이 가득 차서 반지를 못 받았어요… · ') + '이장 댁 펫 뽑기에 「전설」이 열렸어요' }; G.flash = 0.6; G.shake = 14; Fx.levelUp(G.px, G.py);
           save(true); setTimeout(() => { if (!G.dead && inKingRoom()) { enter(SX.home, { from: SX.entry }); say('광개토대왕 던전이 처음으로 돌아갔어요. 다시 사방신을 이기면 광개토대왕을 만날 수 있어요', 5); } }, 6000);
@@ -1812,6 +1819,7 @@
         Fx.nova(G.px, G.py - 10, 90, ['dark', 'dark']);
       }
       function ysCannon() {
+        if (godOn()) { G.texts.push({ x: G.px, y: G.py - 70, text: '무적', color: '#FFD23F', t: 0, big: true }); return; }   // v176
         const dmg = 10000000; S.hp -= dmg; G.hurt = 0.45; G.shake = Math.max(G.shake, 14);
         G.texts.push({ x: G.px + rand(-10, 10), y: G.py - 70, text: '-' + fmtN(dmg), color: '#FF4A3A', t: 0, big: true, dmg: true });
         if (S.hp <= 0) { S.hp = 0; G.pst.stun = 0; die(); }
@@ -2079,6 +2087,7 @@
       }
       function hitPlayer(dmg0, lvl, el, src) {
         if (G.inv > 0 || G.dead) return;
+        if (godOn()) { if (!(G.godT > 0)) { G.godT = 0.6; G.texts.push({ x: G.px, y: G.py - 64, text: '무적', color: '#FFD23F', t: 0 }); } return 0; }   // v176 무적 아이디
         if (G.ysNav && G.ysNav.bless && !G.ysNav.done) return;   // v173 거북선 방패 안 = 무적
         const diff = lvl - S.lv, lvF = diff > 0 ? 1 + 0.08 * diff : Math.max(0.5, 1 + 0.05 * diff);
         let dmg = (dmg0 * rand(0.9, 1.1) - ST.def * 0.5) * lvF;
@@ -2098,6 +2107,7 @@
         return dmg;
       }
       function die() {
+        if (godOn()) { S.hp = Math.max(1, ST.hp); return; }   // v176 무적 아이디는 쓰러지지 않음
         if (G.duel) { duelLose('ko'); return; }   // v143 결투에서 쓰러짐 = 패배 (경험치 안 잃음)
         G.dead = true; const loss = Math.round(D.F.need(S.lv) * (CFG.deathExpLoss || 0.05));
         S.exp = Math.max(0, S.exp - loss);
@@ -2291,9 +2301,9 @@
         if (G.trade && G.trade.pend && (G.trade.pendT += dt) > 8) tradeUnlock('상대의 답이 없어요. 다시 확인을 눌러 주세요');   // v146
         if (G.pst) {   // v87 내 상태 효과 시간
           const P = G.pst; ['slow', 'stun', 'stunImm', 'curse', 'root', 'silence', 'fear', 'ccImm', 'air'].forEach(k2 => { if (P[k2] > 0) P[k2] -= dt; });
-          if (P.burn) { P.burn.t -= dt; P.burn.tick -= dt; if (P.burn.tick <= 0 && !G.dead) { P.burn.tick = 0.5; const bd = Math.max(1, Math.round(P.burn.dps * 0.5)); S.hp -= bd; G.texts.push({ x: G.px + rand(-6, 6), y: G.py - 60, text: '-' + bd, color: '#FF8A3D', t: 0, dmg: true }); if (S.hp <= 0) { S.hp = 0; die(); } } if (P.burn && P.burn.t <= 0) P.burn = null; }
+          if (P.burn) { P.burn.t -= dt; P.burn.tick -= dt; if (P.burn.tick <= 0 && !G.dead && !godOn()) { P.burn.tick = 0.5; const bd = Math.max(1, Math.round(P.burn.dps * 0.5)); S.hp -= bd; G.texts.push({ x: G.px + rand(-6, 6), y: G.py - 60, text: '-' + bd, color: '#FF8A3D', t: 0, dmg: true }); if (S.hp <= 0) { S.hp = 0; die(); } } if (P.burn && P.burn.t <= 0) P.burn = null; }
         }
-        G.shake = Math.max(0, G.shake * Math.pow(0.002, dt) - dt); G.hurt = Math.max(0, G.hurt - dt); G.flash = Math.max(0, G.flash - dt); if (G.title) G.title.t += dt;
+        if (G.godT > 0) G.godT -= dt; G.shake = Math.max(0, G.shake * Math.pow(0.002, dt) - dt); G.hurt = Math.max(0, G.hurt - dt); G.flash = Math.max(0, G.flash - dt); if (G.title) G.title.t += dt;
         Fx.updateParts(dt, { x: G.px, y: G.py }); Fx.updateFx(dt); if (!G.room) Fx.ambient(M.region, dt, W, H, cam);
         Object.keys(G.cds).forEach(k => { G.cds[k] -= dt; });
         if (G.shield && (G.shield.t -= dt) <= 0) G.shield = null;
@@ -2746,6 +2756,7 @@
         if (G.shield) Fx.drawShield(c, G.px, G.py - 28, now, G.shield.el, G.shield.t, G.shield.sid);
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         const nm = (Hub.user ? Hub.user.nickname : '손님') + ' Lv.' + S.lv; c.strokeText(nm, G.px, y - 6); c.fillStyle = '#FFE45C'; c.fillText(nm, G.px, y - 6);
+        if (myTitle()) { c.save(); drawTitle(c, myTitle(), G.px, y - 6 + 6); c.restore(); }   // v176 타이틀
         if (G.pst) {   // v87 내 상태 효과 표시 (이름 위 작은 딱지) + 효과 그림
           const P = G.pst, chips = [];
           if (P.burn) chips.push(['화상', '#FF6A3D']); if (P.slow > 0) chips.push(['느림', '#3BA8F5']); if (P.stun > 0) chips.push(['기절', '#FFE45C']); if (P.curse > 0) chips.push(['저주', '#B08AFF']); if (P.root > 0) chips.push(['속박', '#9AF0B0']); if (P.silence > 0) chips.push(['침묵', '#C8A8FF']); if (P.fear > 0) chips.push(['공포', '#FF8A8E']);
@@ -2947,6 +2958,7 @@
         drawFig(c, img, x, y, w, h, p.face, (p.walk || 0) * Math.PI * 4, p.moving && !posing, p.eq && p.eq.weapon && !p.hide ? 'left' : true, fs.side);
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         const nm = p.nick + ' Lv.' + p.lv; c.strokeText(nm, p.x, y - 6); c.fillStyle = '#9AE6FF'; c.fillText(nm, p.x, y - 6);
+        if (p.title) { c.save(); drawTitle(c, p.title, p.x, y); c.restore(); }   // v176 다른 사람 타이틀
       }
       // 건물 안 움직이는 장식 (마법진 · 벽난로 불 · 촛불 · 가마솥 거품 · 떠다니는 책)
       function drawRoomFx(c, now, floor) {
@@ -3293,6 +3305,19 @@
         return (faceC[d.img] = cv.toDataURL());
       }
       const npcBox = () => { const a = paneArg; if (!a || !a.npc) return ''; const d = a.npc.def; return `<div class="rg-npc"><img src="${npcFace(d)}" alt=""><div><b style="color:${d.color}">${d.name}</b><p>“${a.hello}”</p></div></div>`; };
+      /* v176 타이틀: 얻었는지 · 스탯 창 고르기 칸 · 이름 위 표시 */
+      const TT = D.TITLES || [], ttBy = id => TT.find(t => t.id === id);
+      const titleHave = id => id === 'reb10' ? (S.reb || 0) >= D.REBIRTH.max : id === 'king' ? !!S.kingAt : id === 'king1' ? !!(Hub.user && G.kingFirst && G.kingFirst === Hub.user.id) : false;
+      const myTitle = () => (S && S.title && titleHave(S.title) ? S.title : '');
+      const titleBox = () => { const have = TT.filter(t => titleHave(t.id));
+        return `<div class="rg-ttl"><label>🏅 타이틀 <select data-title${have.length ? '' : ' disabled'}><option value="">${have.length ? '보이지 않기' : '아직 없음'}</option>${have.map(t => `<option value="${t.id}"${myTitle() === t.id ? ' selected' : ''}>${t.name}</option>`).join('')}</select></label><small>${TT.map(t => `${titleHave(t.id) ? '✔' : '·'} ${t.name} — ${t.how}`).join('<br>')}</small></div>`; };
+      function drawTitle(c, id, x, y) {   // 이름 위 작은 띠 (y = 이름 글자 밑줄 높이)
+        const t = ttBy(id); if (!t) return y;
+        c.font = '11px "Jua", "Malgun Gothic", sans-serif'; const w = c.measureText(t.name).width + 14, yy = y - 26;
+        c.fillStyle = '#1D2340'; rr(c, x - w / 2, yy - 8, w, 16, 7); c.fill(); c.strokeStyle = t.color; c.lineWidth = 1.5; rr(c, x - w / 2, yy - 8, w, 16, 7); c.stroke();
+        c.fillStyle = t.color; c.textBaseline = 'middle'; c.fillText(t.name, x, yy + 0.5); c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
+        return yy - 10;
+      }
       const rebBox = () => { const n = S.reb || 0, max = D.REBIRTH.max, ok = S.rebReady && n < max;   // v131 스탯 창 아바타 아래 환생 칸
         return `<div class="rg-reb"><span class="cnt">환생 <b>${n}</b> / ${max}</span><button type="button" class="rg-rebbtn" data-rg2="rebirth" ${ok ? '' : 'disabled'}>♻ 환생하기</button><small>${n >= max ? '환생을 모두 마쳤어요' : ok ? '지금 환생할 수 있어요!' : '저승 10-5 오도전륜대왕을 이기면 열려요'}</small></div>`; };
       function wmapHtml() {
@@ -3505,6 +3530,11 @@
           const n = godsDone();
           h = head(SX.npc.name, '광개토대왕 던전 어귀 · 혼자 들어온 곳 (다른 사람은 보이지 않아요)') + `<div class="rg-fuse" style="text-align:left;line-height:1.7">${SX.npc.lines.map(l => `<p style="margin:0 0 6px">${l}</p>`).join('')}</div>`;
           h += `<div class="rg-petrates">${SX.gods.map(g => `<div style="--c:${SX.fire[g]}" class="${S.sasin[g] ? '' : 'lock'}"><b>${SX.godName[g]}</b><span>${S.sasin[g] ? '🔥' : '·'}</span><small>${S.sasin[g] ? '불이 켜졌다' : '아직'}</small></div>`).join('')}<div style="--c:#FFD23F" class="${S.sasinAll ? '' : 'lock'}"><b>사방신 모두</b><span>${S.sasinAll ? '🔥' : n === 4 ? '열림' : '🔒'}</span><small>${S.sasinAll ? '광개토대왕의 방 열림' : `불 ${n}/4`}</small></div></div>`;
+          {   // v176 광개토대왕을 먼저 이긴 10명 (서버 기록 · 날짜·시간)
+            const esc2 = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]), K = G.kingTop, fmt = v => { const d = new Date(9e12 - v); return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+            if (!K && !G.kingTopReq && Hub.extraTopN) { G.kingTopReq = 1; Hub.extraTopN(GAME, 'king', 10).then(r => { G.kingTop = r || []; G.kingTopReq = 0; if (pane === 'sxnpc') renderPanel(); }).catch(() => { G.kingTop = []; G.kingTopReq = 0; if (pane === 'sxnpc') renderPanel(); }); }
+            h += `<div class="rg-king10"><b class="tt">👑 광개토대왕을 먼저 이긴 용사 10명</b>${!K ? '<p class="sub">불러오는 중…</p>' : !K.length ? '<p class="sub">아직 아무도 광개토대왕을 이기지 못했어요. 첫 번째 용사가 되어 보세요!</p>' : `<ol>${K.map((r, i) => `<li${Hub.user && r.user_id === Hub.user.id ? ' class="me"' : ''}><span class="no">${i + 1}</span><b>${esc2(r.nickname)}</b><small>${fmt(r.value)}</small></li>`).join('')}</ol>`}</div>`;
+          }
         } else if (k === 'pet') {   // v149 펫 창 (P)
           h = petPaneHtml();
         } else if (k === 'castle') {
@@ -3549,7 +3579,7 @@
           const T = D.STAT, a = S.stat, PT = stats(true), used = T.keys.reduce((x, q) => x + a[q], 0), per = CFG.statPerLevel || 2;
           const av = Hub.user ? Hub.user.avatar : AV.normalize({}), fig = avatarSprite(av, S.eq, S.hide, 0).toDataURL(), ex = S.lv >= D.MAX_LV ? 100 : S.exp / D.F.need(S.lv) * 100;
           h = head('스탯', `레벨이 오를 때마다 포인트 ${per}개 · 원하는 스탯에 올려요 · 최대치 없음${petBonus(S) ? ` · 펫 올스탯 +${petBonus(S)}` : ''}`);
-          h += `<div class="rg-statui"><div class="rg-statwin"><section class="rg-doll rg-statfig"><div class="rg-fig"><img src="${fig}" alt="내 캐릭터"><span class="lv">Lv.${S.lv}</span></div><b class="nm">${Hub.user ? Hub.user.nickname : '손님'}</b><div class="rg-xp"><i style="width:${ex.toFixed(1)}%"></i></div><small>경험치 ${ex.toFixed(1)}%</small>${rebBox()}</section>`;
+          h += `<div class="rg-statui"><div class="rg-statwin"><section class="rg-doll rg-statfig"><div class="rg-fig"><img src="${fig}" alt="내 캐릭터"><span class="lv">Lv.${S.lv}</span></div><b class="nm">${Hub.user ? Hub.user.nickname : '손님'}</b><div class="rg-xp"><i style="width:${ex.toFixed(1)}%"></i></div><small>경험치 ${ex.toFixed(1)}%</small>${rebBox()}${titleBox()}${godAcct() ? `<label class="rg-god"><input type="checkbox" data-god${S.godOff ? '' : ' checked'}> 🛡 무적 (파워복복 전용)</label>` : ''}</section>`;
           h += `<section class="rg-bag rg-alloc"><div class="rg-sp">남은 포인트 <b>${S.sp}</b></div>${T.keys.map(q => { const full = a[q] >= statMax(S); return `<div class="rg-st" style="--c:${T[q].color}"><div class="lab"><b>${T[q].name}</b><span>${a[q]}${petBonus(S) ? `<small class="mx"> +펫 ${petBonus(S)}</small>` : ''}</span></div><small>${T[q].desc}</small><div class="btns"><button type="button" class="rg-mini" data-addst="${q}:1" ${S.sp < 1 || full ? 'disabled' : ''}>+1</button><button type="button" class="rg-mini ghost" data-addst="${q}:5" ${S.sp < 1 || full ? 'disabled' : ''}>+5</button></div></div>`; }).join('')}<div class="rg-srvact"><button type="button" class="rg-mini ghost" data-streset ${used ? '' : 'disabled'}>포인트 다시 나누기 (무료)</button></div></section></div>`;
           const OK2 = { atk: 'atkP', mag: 'magP', hp: 'hpP', mp: 'mpP', spd: 'spdP', crit: 'crit', dmg: 'dmg', mpRegen: 'mpReg', pdef: 'pdef' };
           const fm = v => (Math.round(v * 10) / 10).toLocaleString('ko-KR'), sg = v => (v < 0 ? '−' + fm(-v) : '+' + fm(v)), pt = (k2, unit) => { const b = PT.base[k2] || 0, sv = PT.sta[k2] || 0, g = PT.gear[k2] || 0, op = PT.opt[OK2[k2]] || 0; return [b ? `기본 ${fm(b)}${unit}` : '', sv ? `<em class="s">스탯 +${fm(sv)}${unit}</em>` : '', g ? `<em class="g">장비 +${fm(g)}${unit}</em>` : '', op ? `<em class="g">옵션 ${sg(op)}%</em>` : ''].filter(Boolean).join(' · ') || '—'; };
@@ -3688,6 +3718,8 @@
       panel.addEventListener('change', e => {
         const t = e.target;
         if (t.matches('[data-trgold]')) { const T = G.trade; if (!T || tradeLocked()) { if (T) t.value = T.mine.gold; return; } T.mine.gold = clamp(Math.floor(+t.value || 0), 0, S.gold); sendOffer(); renderPanel(); return; }
+        if (t.matches('[data-god]')) { S.godOff = !t.checked; markDirty(true); say(t.checked ? '무적을 켰어요 (피해를 받지 않아요)' : '무적을 껐어요 (밸런스 시험용)', 2.5); return; }   // v176
+        if (t.matches('[data-title]')) { S.title = t.value; markDirty(true); if (net) net.retrack(); renderPanel(); return; }   // v176
         if (t.matches('[data-hide]')) { S.hide = t.checked; markDirty(); if (net) net.retrack(); renderPanel(); }
         else if (t.matches('[data-fa]')) { tab.fa = t.value; if (tab.fb === t.value || (SKILLS[tab.fb] && SKILLS[tab.fb].el === SKILLS[t.value].el)) tab.fb = null; renderPanel(); }
         else if (t.matches('[data-fb]')) { tab.fb = t.value; renderPanel(); }
@@ -3934,6 +3966,7 @@
         if (!S.help) openPanel('help');
         else if (Hub.user) { G.srvAsked = true; openPanel('servers'); }
         loadRank();
+        if (Hub.extraTop) Hub.extraTop(GAME, 'king').then(t => { G.kingFirst = t ? t.user_id : ''; if (net) net.retrack(); if (pane === 'stat') renderPanel(); }).catch(() => {});   // v176 '최초로 광개토대왕을 죽인 자' 타이틀 (서버 기록 1위)
         if (Hub.user) Hub.myBest(GAME).then(b => { if ((b || 0) < rankScore()) submitRank(); }).catch(() => {});
         window.__rpg = { bsk: (m, k) => newSkill(m, k, Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x)), sxBlock: t => sxBlock(t), godsDone: () => godsDone(), roomKey: () => roomKey(), kingSwordOn: () => kingSwordOn(), petDraw, petEnh, petRates, petRoll, petBonus: () => petBonus(S), stats: () => stats(), hitMon: (m, b, e, o) => hitMon(m, b, e, o), hitPlayer: (a, b, c2, d) => hitPlayer(a, b, c2, d), pStatus: (a, b, c2) => pStatus(a, b, c2), stationGo, rig, rigKind, rollOpts, optCount, step: dt => update(dt), drawNow: () => draw(performance.now()), usePotion, basicAttack, net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, mkGear: (b, en, op) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
       })();

@@ -257,6 +257,12 @@
         const u = db().users[best.user_id];
         return { user_id: best.user_id, nickname: u ? u.nickname : '?', value: best.value };
       },
+      // v176 extra 숫자 상위 n명 (한 사람 한 번 · 사람마다 가장 큰 값) — RPG '광개토대왕 먼저 이긴 사람 10명'
+      async extraTopN(game, key, n) {
+        const best = {};
+        db().records.forEach(r => { const v = +(r.extra && r.extra[key]) || 0; if (r.game_id !== game || v <= 0) return; const b = best[r.user_id]; if (!b || v > b.value) best[r.user_id] = { user_id: r.user_id, value: v, at: r.played_at }; });
+        return Object.values(best).sort((a, b) => b.value - a.value || (a.at < b.at ? -1 : 1)).slice(0, n || 10).map(x => { const u = db().users[x.user_id]; return { user_id: x.user_id, nickname: u ? u.nickname : '?', value: x.value }; });
+      },
       async myBest(game) {
         if (!Hub.user) return null;
         return db().records.filter(r => r.user_id === Hub.user.id && r.game_id === game).reduce((m, r) => Math.max(m, r.score), 0);
@@ -689,6 +695,17 @@
         if (!v) return null;
         const { data: ps } = await sb.from('profiles').select('nickname').eq('id', r.user_id).limit(1);
         return { user_id: r.user_id, nickname: (ps && ps[0] && ps[0].nickname) || '?', value: v };
+      },
+      async extraTopN(game, key, n) {   // v176 상위 n명 (한 사람 한 번)
+        const { data, error } = await sb.from('play_records').select('user_id,extra,played_at').eq('game_id', game)
+          .order('extra->' + key, { ascending: false, nullsFirst: false }).order('played_at', { ascending: true }).limit(400);
+        if (error) throw error;
+        const seen = new Set(), top = [];
+        (data || []).forEach(r => { const v = r.extra ? +r.extra[key] || 0 : 0; if (!v || seen.has(r.user_id) || top.length >= (n || 10)) return; seen.add(r.user_id); top.push({ user_id: r.user_id, value: v }); });
+        if (!top.length) return [];
+        const { data: ps } = await sb.from('profiles').select('id,nickname').in('id', top.map(t => t.user_id));
+        const nm = {}; (ps || []).forEach(p => { nm[p.id] = p.nickname; });
+        return top.map(t => Object.assign(t, { nickname: nm[t.user_id] || '?' }));
       },
       async myBest(game) {
         if (!Hub.user) return null;

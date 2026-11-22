@@ -808,5 +808,12 @@
         lines: ['옛날 한산도 통제영에는 이순신 장군님과 거북선을 그린 커다란 벽화가 있었지. 내 스승님께서 평생을 바쳐 그리신 그림이라오.', '그 벽화 앞에 서면 장군님이 금방이라도 걸어 나오실 것 같았지. 왜군들은 그 그림만 봐도 벌벌 떨었다네.', '그런데 얼마 전 왜군이 그 벽화를 몰래 떼어 남쪽 바다로 가져갔다는 소문이 돌더군… 누가 꼭 되찾아 주면 좋으련만.'] }
     ]
   };
-  window.GoRPGData = { GURI, YSFOLK, SASIN, YS, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  /* v176 타이틀 (선생님 11/22) — 스탯 창 환생 칸 아래에서 고르면 게임 중 이름 위에 보임 (다른 사람 화면에도)
+   *  reb10 = 환생 10번을 모두 마침 · king1 = 서버 기록상 가장 먼저 광개토대왕을 이긴 한 사람 (메인 카드 '광개토대왕 최초 토벌자'와 같은 기록) */
+  const TITLES = [
+    { id: 'reb10', name: '환생 10회를 마친 자', color: '#9AF0B0', how: '환생 10번을 모두 마치면' },
+    { id: 'king', name: '광개토대왕을 죽인 자', color: '#FF9A3D', how: '광개토대왕을 이기면' },
+    { id: 'king1', name: '최초로 광개토대왕을 죽인 자', color: '#FFD23F', how: '가장 먼저 광개토대왕을 이긴 단 한 사람' }
+  ];
+  window.GoRPGData = { GURI, YSFOLK, TITLES, SASIN, YS, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();
