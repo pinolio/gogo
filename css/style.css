@@ -163,6 +163,7 @@ a.card:hover { transform: translate(-2px, -3px); box-shadow: 6px 7px 0 var(--sha
 .card-foot b { color: var(--ink); font-size: 11px; }
 .tag { font-family: var(--f-pixel); font-size: 8px; padding: 4px 5px 3px; border-radius: 4px; background: var(--accent); color: #fff; }
 .tag.new { background: var(--leaf); color: #0F1430; }
+.tag.beta { background: #FF9A3D; color: #1D2340; }   /* v174 베타테스트 */
 .cat { font-size: 12px; font-weight: 700; color: var(--blue); }
 
 .card.soon { box-shadow: none; border-style: dashed; border-color: var(--border); background: transparent; }

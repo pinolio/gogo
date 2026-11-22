@@ -758,13 +758,16 @@
     const gens = GEN.map((g, i) => B(g[1], 'ys_' + g[0], g[4], g[5], { a: g[5], b: '#1D2340', c: '#FFFFFF', d: '#FF4A3A' }, g[6], SK[i], { gi: i, undying: i === 8 }));   // v173 시마즈 = 죽지 않는 분노
     const boss = B('와키자카 야스하루', 'ys_boss', 'dark', '#FF4A8A', { a: '#2A1F48', b: '#8A1E22', c: '#FFD23F', d: '#FF4A3A' }, '왜군 수군 대장 와키자카 야스하루가 칼을 뽑았다! 한산도의 원한을 갚겠다고 한다…',
       ['blades', 'fan', 'ring', 'slam', 'hook', 'laser', 'whirl', 'bomb', 'clones'], { immune: null, frames: { idle: 'ys_boss', atk1: 'ys_boss_atk1', atk2: 'ys_boss_atk2', cast: 'ys_boss_cast', hit: 'ys_boss_hit', walk: ['ys_boss_walk1', 'ys_boss_walk2'] }, bh: 380, skCd: [0.8, 1.1], slamR: 210, slamCd: 0.6, bladeR: 76, bladeSpread: 1.5, ysBoss: true });   // 광개토대왕(0.9~1.3초 · 195 · 70)보다 조금 더 어렵게
-    const npc = { name: '이순신 장군님 던전 지킴이', img: 'ys_npc', h: 70, color: '#9AE6FF', nearSay: '왜장 아홉을 이기고 벽화를 되찾아 다오',
+    // v174 선생님 11/22: 어귀 지킴이는 이야기만 · 벽화 퍼즐은 회합 바로 앞 '왜장의 길목'(ys_v5)의 빈 벽화 틀에서
+    const npc = { name: '통제영 군관 송희립', img: 'ys_npc', h: 70, color: '#9AE6FF', nearSay: '벽화를… 장군님 벽화를 도둑맞았소!',
       av: { skin: 's2', hair: 'h_topknot', hat: 'hat_gat', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black', back: 'bk_cape' },
-      lines: ['여기는 이순신 장군님 던전이다. 왜장 아홉 명이 장군님과 거북선을 그린 벽화를 아홉 조각으로 나누어 빼앗아 갔지.',
-        '왜장을 하나 이길 때마다 벽화 조각을 하나씩 되찾을 수 있다. 되찾은 조각은 계속 네가 지니고 있게 된다.',
-        '조각 아홉 개를 모두 모아 오면 나에게서 벽화를 맞춰라. 조각을 밀어서 제자리에 놓으면 된다.',
-        '벽화가 완성되면 아래쪽 왜장들의 회합이 열린다. 그 너머 본진에는 와키자카 야스하루가 기다리고 있다.'] };
-    return { on: true, rows, gens, boss, npc, home: 'v7', entry: 'ys_in', top: [4, 0], mural: 'ys_mural', n: GEN.length, genName: GEN.map(g => g[1]), lv: { all: 400, boss: 500 } };
+      lines: ['큰일 났소! 한산도 통제영에 모셔 두었던 <b>이순신 장군님 벽화</b>를 지난밤 왜군이 훔쳐 갔소.',
+        '벽화 속 장군님의 기운이 두려웠던 와키자카 야스하루가 벽화를 <b>아홉 조각</b>으로 쪼개 왜장 아홉에게 하나씩 나누어 숨기게 했다 하오.',
+        '왜장들은 이 바닷길 곳곳에 진을 치고 있소. 하나를 이길 때마다 조각을 하나씩 되찾을 수 있을 것이오. 되찾은 조각은 그대가 계속 지니게 되오.',
+        '조각 아홉을 모두 모으면 남쪽 끝 <b>왜장의 길목</b>으로 가시오. 왜군이 벽화를 떼어 가고 남은 <b>빈 벽화 틀</b>이 그곳에 있소. 거기서 조각을 맞춰 주시오.',
+        '벽화 없이 와키자카에게 덤비는 것은 말리고 싶소. 그놈은 궁지에 몰리면 왜선을 불러 바다째 불바다로 만든다 하오…'] };
+    const frame = { name: '빈 벽화 틀', color: '#FFD23F', lines: ['벽화가 떼어진 자리에 못 자국만 남아 있다…'] };
+    return { on: true, rows, gens, boss, npc, frame, muralAt: 'ys_v5', only: ['파워복복'], home: 'v7', entry: 'ys_in', top: [4, 0], mural: 'ys_mural', n: GEN.length, genName: GEN.map(g => g[1]), lv: { all: 400, boss: 500 } };
   })();
   // v131 환생: 저승 10-5(오도전륜대왕)를 깨면 할 수 있음 · Lv.1 로 돌아가고 환생마다 스탯 포인트 +20 · 장비·가방·골드는 그대로 · 마법은 기본 마법만 · 스탯마다 최대치 +10 · 최대 10번 · 10-5를 깰 때마다 한 번
   const REBIRTH = { max: 10, bonus: 20, statUp: 10 };   // v131 환생마다 스탯 최대치 +10 (50 → 60 → … → 150)

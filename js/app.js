@@ -274,7 +274,7 @@
     grid.innerHTML = live.map(g => `
       <a class="card" data-cat="${g.cat}" href="#${g.id}">
         <div class="thumb-wrap">${THUMB_IMG[g.id] ? `<img class="thumb" src="${THUMB_IMG[g.id]}?v=157" alt="" loading="lazy" draggable="false">` : `<canvas class="thumb" data-thumb="${g.id}" aria-hidden="true"></canvas>`}
-          <span class="cat">${g.cat}</span>${g.tag ? `<span class="tag ${g.tag === 'NEW' ? 'new' : g.tag === 'VS' ? 'vs' : ''}">${g.tag}</span>` : ''}</div>
+          <span class="cat">${g.cat}</span>${g.tag ? `<span class="tag ${g.tag === 'NEW' ? 'new' : g.tag === 'VS' ? 'vs' : g.tag === '베타테스트' ? 'beta' : ''}">${g.tag}</span>` : ''}</div>
         <div class="card-body">
           <h3>${g.name}</h3>
           <p>${g.blurb}</p>
@@ -309,6 +309,11 @@
           if (!foot.isConnected) return;
           foot.classList.add('rec3');
           foot.innerHTML = ['🥇', '🥈', '🥉'].map((m, i) => recLine('r-rank', `<i>${m} </i>${i + 1}위`, tops[i] && tops[i].nickname, tops[i] ? sfmt(g.id, tops[i].best_score) : '-')).join('');
+          return;
+        }
+        if (SET.get(g.id) && SET.get(g.id).recSoon) {   // v174 Skillcom Fight 베타테스트: 기록은 추후 예정 (선생님 11/22)
+          foot.classList.add('rec3');
+          foot.innerHTML = recLine('r-all', '<i>🏆 </i>신기록', '', '추후 예정') + recLine('r-season', '<i>⭐ </i>' + season.label, '', '추후 예정') + recLine('r-me', '<i>🙂 </i>내 기록', '', '추후 예정');
           return;
         }
         const st = SET.get(g.id) || {};

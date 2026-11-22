@@ -50,7 +50,7 @@
   const SMALL = ['...ooo', '...obb', 'oo.obb', 'obooob', 'obbbbb', 'ooobbc', '...obb', '....ob', '.....o'];
   const BOMBER = ['......ooo', '......obb', 'ooooooobb', 'obbbbbbbb', 'obbdbbbbb', 'ooobbbbbc', '..odo.obb', '..ooo.obb', '......obb', '.......ob', '........o'];
   /* v46 Meshy 그림 (img/*.png — Meshy 3D 비행기·보스 15개를 위에서 찍어 도트로). 못 불러오면 아래 도트 그림 */
-  const IMGDIR = 'games/shooting/sky/img/', IMGV = 147, IMG = {};
+  const IMGDIR = 'games/shooting/sky/img/', IMGV = 174, IMG = {};
   function img(n) { let i = IMG[n]; if (!i) { i = IMG[n] = new Image(); i.src = IMGDIR + n + '.png?v=' + IMGV; } return i.complete && i.naturalWidth ? i : null; }
   ['p0', 'p1', 'p0_tf', 'p1_tf', 'p0_robot', 'p1_robot', 'small', 'red', 'dive', 'bomber', 'big', 'tank', 'boat', 'item_p', 'item_b', 'item_star'].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => 'boss' + n)).forEach(img);   // 미리 받기
   const SPR = {};
@@ -179,12 +179,16 @@
   }
 
   /* ---------- 그리기: 비행기 · 적 · 보스 ---------- */
-  function drawPlane(ctx, slot, x, y, blink, t, fm) {
+  function drawPlane(ctx, slot, x, y, blink, t, fm, bank) {
     if (blink && Math.floor(t * 12) % 2) return;
     const fi = fm ? img('p' + slot + (fm === 2 ? '_robot' : '_tf')) : null;   // v147 변신: 1·3 = 변신 중, 2 = 로봇
     if (fi) { ctx.drawImage(fi, Math.round(x - fi.width / 2), Math.round(y - fi.height / 2)); return; }
-    const im = spr('p' + slot);
-    ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(y - im.height / 2));
+    const im = spr('p' + slot), bk = bank || 0;
+    ctx.save(); ctx.globalAlpha = 0.28; ctx.drawImage(shadowOf(im), Math.round(x - im.width / 2 + 16), Math.round(y - im.height / 2 + 26)); ctx.restore();   // v173 바다·땅 위 그림자
+    flame(ctx, x - 6, y + im.height / 2 - 6, 5, 12, t); flame(ctx, x + 6, y + im.height / 2 - 6, 5, 12, t + 0.3);   // v173 엔진 불꽃
+    ctx.save(); ctx.translate(x, y); ctx.rotate(bk * 0.14); ctx.scale(1 - 0.22 * Math.abs(bk), 1);   // v173 옆으로 갈 때 기울기
+    ctx.drawImage(im, -im.width / 2, -im.height / 2); ctx.restore();
+    if (true) return;
     ctx.fillStyle = Math.floor(t * 20) % 2 ? '#FFD23F' : '#FF9A3D';   // 엔진 불꽃
     ctx.fillRect(Math.round(x - 2), Math.round(y + im.height / 2 - 1), 4, 4 + (Math.floor(t * 20) % 2) * 2);
   }
@@ -214,16 +218,36 @@
     ctx.fillStyle = e.flash > 0 ? '#FFFFFF' : '#B8B090'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
-  function drawEnemy(ctx, e) {
+  function drawEnemy(ctx, e, t) {
     const name = e.type === 'sweep' ? (e.red ? 'red' : 'small') : e.type === 'dive' ? 'dive' : e.type === 'bomber' ? 'bomber' : e.type === 'big' ? 'big' : 'small';
     const im = spr(name);
-    ctx.drawImage(im, Math.round(e.x - im.width / 2), Math.round(e.y - im.height / 2));
-    if (e.flash > 0) { ctx.save(); ctx.globalAlpha = 0.6; ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(im, Math.round(e.x - im.width / 2), Math.round(e.y - im.height / 2)); ctx.restore(); }
+    // v173 날아가는 방향으로 머리를 돌리고(부드럽게), 옆으로 갈 때 기울고, 아래에 그림자
+    const vx = e.vx_ || 0, vy = e.vy_ || 0, sp = Math.hypot(vx, vy), want = sp > 25 ? clamp(Math.atan2(vy, vx) - Math.PI / 2, -1.1, 1.1) : 0;
+    e.rot = (e.rot || 0) + (want - (e.rot || 0)) * 0.12; const bank = clamp(vx / 160, -1, 1);
+    ctx.save(); ctx.globalAlpha = 0.25; ctx.translate(e.x + 14, e.y + 24); ctx.rotate(e.rot); ctx.drawImage(shadowOf(im), -im.width / 2, -im.height / 2); ctx.restore();
+    if (e.type === 'big' || e.type === 'bomber') { flame(ctx, e.x - im.width * 0.18, e.y - im.height / 2 + 4, 5, -10, t || 0); flame(ctx, e.x + im.width * 0.18, e.y - im.height / 2 + 4, 5, -10, (t || 0) + 0.2); }
+    ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.rot); ctx.scale(1 - 0.2 * Math.abs(bank), 1);
+    ctx.drawImage(im, -im.width / 2, -im.height / 2);
+    if (e.flash > 0) { ctx.globalAlpha = 0.6; ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(im, -im.width / 2, -im.height / 2); }
+    ctx.restore();
   }
   function shade(hex, k) {
     const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
     r = clamp(Math.round(r * k), 0, 255); g = clamp(Math.round(g * k), 0, 255); b = clamp(Math.round(b * k), 0, 255);
     return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+  }
+  /* v173 움직임 꾸미기 (선생님 11/22: 부드러운 무빙 · 총 · 미사일 · 적 움직임) */
+  const SHADOW = new Map();
+  function shadowOf(im) {   // 그림의 검은 그림자 (한 번만 만들어 둠 · 휴대폰 사파리도 되게 filter 안 씀)
+    let c = SHADOW.get(im); if (c) return c;
+    c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d');
+    g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#0A1020'; g.fillRect(0, 0, c.width, c.height); SHADOW.set(im, c); return c;
+  }
+  function flame(ctx, x, y, w, len, t) {   // 엔진 불꽃 (깜빡임)
+    const f = 0.75 + 0.25 * Math.sin(t * 60), L = len * f;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createLinearGradient(x, y, x, y + L); g.addColorStop(0, 'rgba(255,255,220,.95)'); g.addColorStop(0.35, 'rgba(255,190,60,.85)'); g.addColorStop(1, 'rgba(255,90,30,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - w / 2, y); ctx.quadraticCurveTo(x, y + L * 1.3, x + w / 2, y); ctx.fill(); ctx.restore();
   }
   function drawBoss(ctx, b, def, t, aimAng) {
     const bi = img('boss' + (STAGES.findIndex(s => s.boss === def) + 1));
@@ -569,12 +593,14 @@
           if (e.cd <= 0 && fireOK) { e.cd = Math.max(1.3, 2.4 - s * 0.08); const n = 12 + s, o = Math.random() * Math.PI; for (let i = 0; i < n; i++) shoot(e.x, e.y + 10, o + (i / n) * Math.PI * 2, sp * 0.8, 1); aimed(e.x, e.y + 20, sp * 1.1, 3, 0.16); }
         }
         e.vx_ = (e.x - px) / dt; e.vy_ = (e.y - py) / dt;
+        if (e.type !== 'ground' && e.hp < e.max * 0.5 && Math.random() < dt * 14) FX.push({ smoke: true, dark: true, x: e.x + (Math.random() - 0.5) * 14, y: e.y - 4, vx: (Math.random() - 0.5) * 16, vy: 30, life: 0.6, max: 0.6, s: 4 });   // v173 다친 적은 검은 연기
       }
       const gone = e => e.y > H + 70 || e.y < -260 || (!e.enter && (e.x < -90 || e.x > W + 90)) || e.t > 32;
       function hurtEnemy(e, dmg, owner) {
         e.hp -= dmg; e.flash = 0.06;
         if (e.hp > 0) return;
         e.dead = true;
+        if (e.type !== 'ground') FX.push({ wreck: e.type === 'sweep' ? (e.red ? 'red' : 'small') : e.type === 'line' || e.type === 'vee' ? 'small' : e.type, x: e.x, y: e.y, vx: (e.vx_ || 0) * 0.3, vy: 50, rot: e.rot || 0, vr: (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 4), life: 0.75, max: 0.75 });   // v173 빙글빙글 떨어지는 잔해
         const p = P[owner]; if (p) p.score += SCORE[e.type] || 100;
         boom(e.x, e.y, e.type === 'big' ? 4 : e.type === 'bomber' ? 2.4 : 1.2);
         if (e.type === 'bomber') dropItem(e.x, e.y, Math.random() < 0.65 ? 'P' : 'B');
@@ -646,7 +672,8 @@
         if (p.local) {
           let dx = (ctl(p, 'right') ? 1 : 0) - (ctl(p, 'left') ? 1 : 0), dy = (ctl(p, 'down') ? 1 : 0) - (ctl(p, 'up') ? 1 : 0);
           if (dx && dy) { dx *= 0.7071; dy *= 0.7071; }
-          p.x = clamp(p.x + dx * 270 * dt, 14, W - 14); p.y = clamp(p.y + dy * 270 * dt, 30, H - 22);
+          const k = Math.min(1, dt * 15); p.vx = (p.vx || 0) + (dx * 270 - (p.vx || 0)) * k; p.vy = (p.vy || 0) + (dy * 270 - (p.vy || 0)) * k;   // v173 부드럽게 빨라지고 멈춤
+          p.x = clamp(p.x + p.vx * dt, 14, W - 14); p.y = clamp(p.y + p.vy * dt, 30, H - 22);
         } else if (p.tx != null) { const k = Math.min(1, dt * 18); p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; }
       }
       function fire(p, dt, list, real) {
@@ -656,7 +683,7 @@
         const x = p.x, y = p.y - 14, v = -900, add = (dx, ang) => list.push({ x: x + dx, y, vx: Math.sin(ang || 0) * -v, vy: Math.cos(ang || 0) * v, o: p.slot, real });
         const pw = p.power;
         if (p.fm !== 2) {   // v147 비행기: 일직선 총알 2줄 + P 카드마다 옆 미사일 한 쌍씩 (v148: P 1장 = 1쌍 … 4장 = 4쌍)
-          if (p.cd <= 0) { p.cd = 0.09; add(-5); add(5); }
+          if (p.cd <= 0) { p.cd = 0.09; add(-5); add(5); p.mf = 0.05; }
           if (pw >= 2 && p.mcd <= 0) {
             p.mcd = 0.34;
             for (let k = 1; k < Math.min(5, pw); k++) [-1, 1].forEach(sd => list.push({ x: x + sd * (9 + k * 11), y: y + 10, vx: 0, vy: -620, o: p.slot, real, d: 3, m: 1 }));
@@ -702,7 +729,7 @@
         B.forEach(b => { b.x += b.vx * dt; b.y += b.vy * dt; });
         B = B.filter(b => b.x > -20 && b.x < W + 20 && b.y > -30 && b.y < H + 20);
         // 내 총알
-        SHOT.forEach(s => { s.x += s.vx * dt; s.y += s.vy * dt; });
+        SHOT.forEach(s => { if (s.m) steer(s, dt); s.x += s.vx * dt; s.y += s.vy * dt; });
         const def = boss ? stageOf(stage).boss : null;
         SHOT = SHOT.filter(s => {
           if (s.y < -20 || s.x < -20 || s.x > W + 20) return false;
@@ -737,8 +764,17 @@
         if (boss && boss.t >= 2.6 && boss.hp > 0) { const def = stageOf(stage).boss; if (def.type !== 'ship' && def.type !== 'tank' && Math.abs(p.x - boss.x) < def.hw * 0.6 && Math.abs(p.y - boss.y) < def.hh * 0.5) return true; }
         return false;
       }
+      function steer(s, dt) {   // v173 미사일: 0.12초 뒤부터 가까운 적을 따라 휘어짐 + 연기
+        s.age = (s.age || 0) + dt;
+        if (s.age > 0.12) {
+          if (!s.tg || s.tg.dead || (s.tg === 'boss' && !boss)) { let best = null, bd = 380 * 380; E.forEach(e => { if (e.dead || e.y > s.y + 20) return; const d = (e.x - s.x) ** 2 + (e.y - s.y) ** 2; if (d < bd) { bd = d; best = e; } }); if (!best && boss && boss.hp > 0) best = 'boss'; s.tg = best; }
+          const tg = s.tg === 'boss' ? boss : s.tg;
+          if (tg) { const ta = Math.atan2(tg.y - s.y, tg.x - s.x), ca = Math.atan2(s.vy, s.vx); let da = ta - ca; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2; const na = ca + clamp(da, -5 * dt, 5 * dt), v = Math.min(820, Math.hypot(s.vx, s.vy) + 300 * dt); s.vx = Math.cos(na) * v; s.vy = Math.sin(na) * v; }
+        }
+        s.st = (s.st || 0) - dt; if (s.st <= 0) { s.st = 0.035; FX.push({ smoke: true, x: s.x - s.vx * 0.02, y: s.y - s.vy * 0.02, vx: (Math.random() - 0.5) * 20, vy: 10, life: 0.45, max: 0.45, s: 3 }); }
+      }
       function stepFx(dt) {
-        FX.forEach(f => { f.life -= dt; if (f.ring) f.r += f.vr * dt; else { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.96; f.vy *= 0.96; } });
+        FX.forEach(f => { f.life -= dt; if (f.wreck) { f.rot += f.vr * dt; if (Math.random() < 0.5) FX.push({ smoke: true, dark: true, x: f.x, y: f.y, vx: 0, vy: 0, life: 0.5, max: 0.5, s: 4 }); } if (f.ring) f.r += f.vr * dt; else { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.96; f.vy *= 0.96; } });
         FX = FX.filter(f => f.life > 0);
         BOMBFX.forEach(b => { b.t += dt; }); BOMBFX = BOMBFX.filter(b => b.t < 1.3);
       }
@@ -853,7 +889,7 @@
         IT.forEach(it => { it.y += 30 * dt; });
         // 보이기만 하는 총알 (실제 맞히기는 방장이 계산)
         if (phase === 'play' || phase === 'warning' || phase === 'boss') P.forEach(p => fire(p, dt, SHOT, false));
-        SHOT.forEach(s => { s.x += s.vx * dt; s.y += s.vy * dt; });
+        SHOT.forEach(s => { if (s.m) steer(s, dt); s.x += s.vx * dt; s.y += s.vy * dt; });
         const def = boss ? stageOf(stage).boss : null;
         SHOT = SHOT.filter(s => {
           if (s.y < -20) return false;
@@ -873,24 +909,28 @@
         E.forEach(e => { if (e.type === 'ground') drawGround(ctx, e, e.water != null ? e.water : water, t); });
         if (boss && (stageOf(stage).boss.type === 'ship' || stageOf(stage).boss.type === 'tank')) drawBossNow();
         IT.forEach(it => drawItem(ctx, it, t));
-        E.forEach(e => { if (e.type !== 'ground') drawEnemy(ctx, e); });
+        E.forEach(e => { if (e.type !== 'ground') drawEnemy(ctx, e, t); });
         if (boss && !(stageOf(stage).boss.type === 'ship' || stageOf(stage).boss.type === 'tank')) drawBossNow();
+        if (boss && boss.max && boss.hp > 0 && boss.hp < boss.max * 0.5 && Math.random() < (boss.hp < boss.max * 0.25 ? 0.7 : 0.35)) { const d = stageOf(stage).boss; FX.push({ smoke: true, dark: true, x: boss.x + (Math.random() * 2 - 1) * d.hw * 0.6, y: boss.y + (Math.random() * 2 - 1) * d.hh * 0.5, vx: 0, vy: 40, life: 0.7, max: 0.7, s: 6 }); }   // v173 다친 보스 연기
         // 내 총알
         SHOT.forEach(s => {
-          if (s.m) {   // v147 비행기 옆 미사일 (그림 + 불꽃·연기)
-            const x = Math.round(s.x), y = Math.round(s.y), im = shotImg('m', s.o ? 1 : 0), f = Math.floor(gameT * 24) % 2;
-            ctx.fillStyle = 'rgba(220,235,255,.35)'; ctx.fillRect(x - 1, y + 13, 2, 10);
-            ctx.fillStyle = f ? '#FFD23F' : '#FF7A2A'; ctx.fillRect(x - 2, y + 8, 4, 5 + f * 3);
-            ctx.fillStyle = '#FFF6C8'; ctx.fillRect(x - 1, y + 8, 2, 3);
-            ctx.drawImage(im, x - 5, y - 13);
+          if (s.m) {   // v147 비행기 옆 미사일 · v173 날아가는 방향으로 돌리고 불꽃
+            const im = shotImg('m', s.o ? 1 : 0), f = Math.floor(gameT * 24) % 2;
+            ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(Math.atan2(s.vy, s.vx) + Math.PI / 2);
+            ctx.fillStyle = f ? '#FFD23F' : '#FF7A2A'; ctx.fillRect(-2, 8, 4, 6 + f * 4); ctx.fillStyle = '#FFF6C8'; ctx.fillRect(-1, 8, 2, 3);
+            ctx.drawImage(im, -5, -13); ctx.restore();
             return;
           }
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = s.o ? 'rgba(120,200,255,.35)' : 'rgba(255,200,60,.35)'; ctx.fillRect(Math.round(s.x) - 2, Math.round(s.y) - 4, 4, 22); ctx.restore();   // v173 총알 꼬리 빛
           ctx.drawImage(shotImg('b', s.o ? 1 : 0), Math.round(s.x) - 5, Math.round(s.y) - 10);   // v147 금빛 총알
         });
         // 비행기
         P.forEach(p => {
           if (!p.alive) return;
-          drawPlane(ctx, p.slot, p.x, p.y, p.inv > 0, t, p.fm);
+          const bt = clamp((p.x - (p.lx == null ? p.x : p.lx)) * 0.35, -1, 1); p.bank = (p.bank || 0) + (bt - (p.bank || 0)) * 0.18; p.lx = p.x;   // v173 기울기
+          drawPlane(ctx, p.slot, p.x, p.y, p.inv > 0, t, p.fm, p.bank);
+          if ((p.firing || p.mf > 0) && !p.fm && Math.floor(t * 30) % 2) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; [-5, 5].forEach(dx => { const g = ctx.createRadialGradient(p.x + dx, p.y - 22, 0, p.x + dx, p.y - 22, 8); g.addColorStop(0, 'rgba(255,255,220,.95)'); g.addColorStop(1, 'rgba(255,170,40,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x + dx, p.y - 22, 8, 0, Math.PI * 2); ctx.fill(); }); ctx.restore(); }   // v173 총구 불꽃
+          if (p.mf > 0) p.mf -= 1 / 60;
           if (P.length > 1 || online()) S.text(ctx, p.slot ? '2P' : '1P', p.x, p.y + 26, 11, p.slot ? '#9FD8FF' : '#FFB0B0');
           if (p.mine || p.local) { ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2); ctx.fill(); }
         });
@@ -900,6 +940,8 @@
         FX.forEach(f => {
           const a = Math.max(0, f.life / f.max);
           if (f.txt) { ctx.globalAlpha = a; S.text(ctx, f.txt, f.x, f.y, 12, '#FFE48A'); ctx.globalAlpha = 1; return; }
+          if (f.smoke) { ctx.globalAlpha = a * (f.dark ? 0.55 : 0.4); ctx.fillStyle = f.dark ? '#2A2A30' : '#E8ECF4'; ctx.beginPath(); ctx.arc(f.x, f.y, f.s * (1 + (1 - a) * 1.8), 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; return; }   // v173 연기
+          if (f.wreck) { const im = spr(f.wreck), k = 0.45 + 0.55 * a; ctx.save(); ctx.globalAlpha = Math.min(1, a * 1.4); ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.scale(k, k); ctx.drawImage(im, -im.width / 2, -im.height / 2); ctx.restore(); return; }   // v173 잔해
           if (f.ring) { ctx.globalAlpha = a; ctx.strokeStyle = '#FFE48A'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; return; }
           ctx.globalAlpha = Math.min(1, a * 1.5); ctx.fillStyle = f.c; ctx.fillRect(Math.round(f.x - f.s / 2), Math.round(f.y - f.s / 2), Math.ceil(f.s), Math.ceil(f.s)); ctx.globalAlpha = 1;
         });

@@ -143,6 +143,7 @@
     s.kingAt = +s.kingAt || (s.petOpen.legend ? Date.now() : 0);   // v158 광개토대왕을 처음 이긴 때(ms) — 예전에 이긴 사람(전설 펫 열림)은 지금 시각으로 · 메인 카드 '광개토대왕 최초 토벌자'
     const sa = s.sasin && typeof s.sasin === 'object' ? s.sasin : {}; s.sasin = {}; D.SASIN.gods.forEach(k => { s.sasin[k] = sa[k] ? 1 : 0; }); s.sasinAll = s.sasinAll ? 1 : 0;
     const yp = Array.isArray(s.ysp) ? s.ysp : []; s.ysp = [0, 0, 0, 0, 0, 0, 0, 0, 0].map((_, i) => yp[i] ? 1 : 0); s.ysMural = s.ysMural ? 1 : 0; s.ysAll = s.ysAll ? 1 : 0;   // v172
+    const bw = s.bossWon && typeof s.bossWon === 'object' ? s.bossWon : {}; s.bossWon = {}; Object.keys(bw).slice(0, 400).forEach(k => { if (k.length <= 40) s.bossWon[k] = clamp(Math.floor(+bw[k] || 1), 1, 600); });   // v174 이긴 보스 (Skillcom Fight 보스 도전)
     const total = (s.lv - 1) * (CFG.statPerLevel || 2) + s.reb * D.REBIRTH.bonus, used = D.STAT.keys.reduce((a, k) => a + s.stat[k], 0);
     if (used > total) { D.STAT.keys.forEach(k => { s.stat[k] = 0; }); s.sp = total; } else s.sp = total - used;
     return s;
@@ -736,6 +737,12 @@
         st.atkCd = T.atkCd;
         return st;
       }
+      function fightCard() {   // v174 Skillcom Fight 용: 지금 능력치(장비·옵션·강화·펫·스탯 다 반영) + 마법 8칸(1~4 · QWER)
+        const K = ['id', 'name', 'el', 'els', 'lv', 'kind', 'pow', 'mp', 'cd', 'count', 'radius', 'len', 'w', 'dur', 'pierce', 'speed'];
+        const sl = S.slots.concat(S.fslots).map(id => { const sk = skill(id); if (!sk) return null; const o = {}; K.forEach(k => { if (sk[k] != null) o[k] = sk[k]; }); return o; });
+        const st = {}; ['atk', 'mag', 'def', 'hp', 'mp', 'spd', 'dmg', 'mpRegen', 'crit', 'critD', 'pdef', 'edefs'].forEach(k => { st[k] = ST[k]; });
+        return { v: 1, lv: S.lv, reb: S.reb || 0, st, slots: sl, at: Date.now() };
+      }
       let ST = null; const restat = () => { ST = stats(); S.hp = clamp(S.hp, 0, ST.hp); S.mp = clamp(S.mp, 0, ST.mp); };
 
       /* ---------- 가방 ---------- */
@@ -1307,6 +1314,7 @@
         const M = G.map.M; G.mons = [];
         if (M.hell) return spawnHell();
         if (M.sx && M.sx !== 'path') return spawnSasin(M);
+        if (M.ys && M.id === D.YS.muralAt) G.npcs = [{ key: 'ysmural', def: D.YS.frame, mural: true, x: (G.map.w >> 1) * TS + 150, y: ((G.map.h >> 1) - 2.2) * TS, face: -1, ph: 1, smith: true }];   // v174 빈 벽화 틀 (퍼즐)
         if (M.ys && M.ys !== 'path') return spawnYs(M);   // v172 이순신 장군님 던전 장수·회합·본진·어귀   // v150 사신의 땅 보스 방 · 어귀
         if (M.custom) {   // v134 특별 지역: 메이커에서 고른 몬스터 · 레벨 · 마릿수 (+ 보스) · v143 몬스터마다 레벨 따로
           if (M.bossMon) G.mons.push(makeMon(M.bossMon, M.bossLv, true));
@@ -1740,7 +1748,7 @@
         save(true);
       }
       /* ================= v172 이순신 장군님 던전 ================= */
-      const YS = D.YS, ysHave = () => S.ysp.filter(Boolean).length, isAdm = () => !!(Hub.isAdmin && Hub.isAdmin());
+      const YS = D.YS, ysHave = () => S.ysp.filter(Boolean).length, isAdm = () => !!(Hub.isAdmin && Hub.isAdmin() && Hub.user && YS.only.includes(Hub.user.nickname));   // v174 관리자 '파워복복'만
       function spawnYs(M) {
         const k = M.ys, cx = G.map.w * TS / 2, cy = (G.map.h >> 1) * TS, mk = (def, lv, dx, dy) => { const m = makeMon(def, lv, true); m.noRespawn = true; m.x = m.hx = cx + dx; m.y = m.hy = cy + dy; return m; };
         if (k === 'gen') { const i = M.yi, g = YS.gens[i]; if (!S.ysp[i]) { G.mons.push(mk(Object.assign({ ysGen: i }, g), M.rec, 0, 120)); G.title = { t: 0, text: `${g.name} (Lv.${M.rec})`, sub: g.say }; G.shake = 6; } else say(`${g.name}의 벽화 조각은 이미 되찾았어요`, 3); return; }
@@ -1780,7 +1788,7 @@
         const P = tab.ysPz; if (!P || P.done) return; const e = P.b.indexOf(8), ex = e % 3, ey = Math.floor(e / 3), x = i % 3, y = Math.floor(i / 3);
         if (Math.abs(ex - x) + Math.abs(ey - y) !== 1) return;
         P.b[e] = P.b[i]; P.b[i] = 8; P.moves++;
-        if (P.b.every((v, k) => v === k)) { P.done = true; S.ysMural = 1; S.ysAll = 0; save(true); setTimeout(() => { if (pane === 'ysnpc') closePanel(); showToon(ysCuts(), { title: '⚓ 이순신 장군님 벽화', go: '⚔ 왜장들의 회합으로', done: () => { G.flash = 0.5; say('이순신의 축복을 받았어요! (이 던전 안에서만) 아래쪽 왜장들의 회합이 열렸어요', 5); } }); }, 1400); }   // v173 벽화 완성 → 이순신 장군 웹툰
+        if (P.b.every((v, k) => v === k)) { P.done = true; S.ysMural = 1; S.ysAll = 0; save(true); setTimeout(() => { if (pane === 'ysmural') closePanel(); showToon(ysCuts(), { title: '⚓ 이순신 장군님 벽화', go: '⚔ 왜장들의 회합으로', done: () => { G.flash = 0.5; say('이순신의 축복을 받았어요! (이 던전 안에서만) 아래쪽 왜장들의 회합이 열렸어요', 5); } }); }, 1400); }   // v173 벽화 완성 → 이순신 장군 웹툰
       }
       /* v173 선생님 11/20: 벽화를 완성하면 벽화에서 이순신 장군이 나와 축복 (웹툰 · Gemini 그림 img/v79/toon_ys1~3.jpg · ys_yi.png) */
       const ysCuts = () => {
@@ -1876,9 +1884,9 @@
         c.save(); c.fillStyle = '#1D2340'; rr(c, x, y, w, h, 7); c.fill(); c.strokeStyle = `rgba(255,210,63,${k})`; c.lineWidth = 2; rr(c, x, y, w, h, 7); c.stroke();
         c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#FFD23F'; c.fillText('⚓ 이순신의 축복', x + 10, y + h / 2 + 1); c.restore();
       }
-      function ysPaneHtml() {
+      function ysPaneHtml(fr) {
         const n = ysHave(), img = 'games/action/rpg/img/v79/' + YS.mural + '.jpg?v=172', P = tab.ysPz;
-        let h = head(YS.npc.name, '이순신 장군님 던전 어귀 · 혼자 들어온 곳 (다른 사람은 보이지 않아요)');
+        let h = fr ? head(YS.frame.name, '왜장의 길목 · 왜군이 벽화를 떼어 간 자리') : head(YS.npc.name, '이순신 장군님 던전 어귀 · 혼자 들어온 곳 (다른 사람은 보이지 않아요)');
         if (P) {
           h += `<p class="sub">조각을 눌러 빈칸으로 밀어요. 그림이 제자리에 오면 벽화가 완성돼요. (움직인 수 ${P.moves})</p><div class="rg-ys-pz${P.done ? ' done' : ''}">`
             + P.b.map((v, i) => v === 8 && !P.done ? `<button type="button" class="rg-ys-t blank" disabled></button>` : `<button type="button" class="rg-ys-t" data-yss="${i}" style="background-image:url(${img});background-position:${(v % 3) * 50}% ${Math.floor(v / 3) * 50}%"></button>`).join('') + '</div>';
@@ -1886,10 +1894,10 @@
             : '<div class="rg-srvact"><button type="button" class="rg-mini ghost" data-yspz="0">그만하기</button><button type="button" class="rg-mini ghost" data-yspz="1">다시 섞기</button></div>';
           return h;
         }
-        h += `<div class="rg-fuse" style="text-align:left;line-height:1.7">${YS.npc.lines.map(l => `<p style="margin:0 0 6px">${l}</p>`).join('')}</div>`;
+        h += `<div class="rg-fuse" style="text-align:left;line-height:1.7">${(fr ? (S.ysMural ? ['이순신 장군님 벽화가 제자리에 걸려 은은하게 빛나고 있다.'] : n >= 9 ? ['빈 벽화 틀 앞에 서자 지니고 있던 조각 아홉 개가 함께 울린다. 조각을 밀어서 제자리에 맞춰 보자.'] : ['왜군이 벽화를 떼어 가고 못 자국만 남은 빈 틀이다.', `왜장을 이겨 조각 아홉을 모두 되찾아 오면 여기서 벽화를 맞출 수 있다. (지금 ${n}/9)`]) : YS.npc.lines).map(l => `<p style="margin:0 0 6px">${l}</p>`).join('')}</div>`;
         h += `<div class="rg-ys-have">${S.ysp.map((v, i) => `<div class="${v ? 'on' : ''}" style="${v ? `background-image:url(${img});background-position:${(i % 3) * 50}% ${Math.floor(i / 3) * 50}%` : ''}">${v ? '' : '?'}</div>`).join('')}</div>`;
         h += `<p class="sub" style="text-align:center">되찾은 벽화 조각 <b style="color:#FFD23F">${n}/9</b>${S.ysMural ? ' · 벽화 완성 ✔ (왜장들의 회합 열림)' : ''}${S.ysAll ? ' · 본진 열림 ✔' : ''}</p>`;
-        h += `<div class="rg-srvact">${S.ysMural ? '' : `<button type="button" class="rg-mini" data-yspz="1"${n < 9 ? ' disabled' : ''}>🧩 벽화 맞추기${n < 9 ? ' (조각 9개 필요)' : ''}</button>`}<button type="button" class="rg-mini ghost" data-x>닫기</button></div>`;
+        h += `<div class="rg-srvact">${S.ysMural || !fr ? '' : `<button type="button" class="rg-mini" data-yspz="1"${n < 9 ? ' disabled' : ''}>🧩 벽화 맞추기${n < 9 ? ' (조각 9개 필요)' : ''}</button>`}<button type="button" class="rg-mini ghost" data-x>닫기</button></div>`;
         return h;
       }
       function hellKill(m) {
@@ -2005,7 +2013,8 @@
         if (m.def.undying && !m.undyUsed) { m.dead = false; m.hp = 1; m.undyUsed = true; m.inv2 = 4; return; }
         if (m.def.egg && !m.eggUsed) { m.dead = false; m.eggUsed = true; m.eggT = 6; m.cast = null; m.slam = null; m.hp = Math.round(m.max * 0.2); float(m.x, m.y - m.spr.h - 30, '알이 되었다! 6초 안에 깨세요', '#FF9A3D', true); return; }   // v173 59 알 부활
         if (m.def.ysBoss && !m.ysPh) { ysNavStart(m); return; }   // v173 불 등으로 한 번에 쓰러져도 먼저 왜선 단계
-        m.dead = true; m.respawn = m.boss ? (CFG.bossRespawnSec || 30) : (CFG.respawnSec || 3); S.kills++;   // v43 다시 나오는 시간 단축
+        m.dead = true; m.respawn = m.boss ? (CFG.bossRespawnSec || 30) : (CFG.respawnSec || 3); S.kills++;
+        if (m.boss || m.def.kind === 'boss') { const bk = m.def.name; if (bk && !m.allRoom) { const W = S.bossWon || (S.bossWon = {}); W[bk] = Math.max(W[bk] || 0, m.lvl || 1); } }   // v174 Fight 보스 도전 열림   // v43 다시 나오는 시간 단축
         if (G.map.M.hell) hellKill(m);   // v69 저승 단계 진행
         if (G.map.M.sx) sasinKill(m);   // v150 사신의 땅
         if (G.map.M.ys) ysKill(m);   // v172 이순신 장군님 던전
@@ -2252,7 +2261,7 @@
       // v69 저승차사 강림: Lv.100 이 되면 마지막 마을(도원수 진영) 큰길 오른쪽에 나타남
       const hellNpc = map => (map.M.region === D.REGIONS.length - 1 && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: window.__GoRPGParts.VXf(30.5) * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);   // v158 넓은 마을
       function talk(n) {
-        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station', 'sxnpc', 'ysnpc'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
+        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station', 'sxnpc', 'ysnpc', 'ysmural'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
         n.say = null; openPanel(n.key, { npc: n, hello: pick(n.def.hello) });
       }
       function updateNpcs(dt) {
@@ -2885,6 +2894,7 @@
         return { img, side: view === 's' ? { body: avatarSprite(av, eq, hide, 0, 's', 'noArm'), arm: avatarSprite(av, eq, hide, 0, 's', 'arm') } : null };
       }
       function drawNpc(c, n, now) {
+        if (n.mural) return drawYsFrame(c, n, now);   // v174 빈 벽화 틀
         if (n.baked) return npcTags(c, n, n.topY, now);   // v129 실내 그림 속 사람 (몸은 바닥 그림에 있음)
         if (n.def.img && (!n.def.av || img79(n.def.img))) return drawArmy(c, n, now);   // v110 NPC 그림 (못 불러오면 예전 아바타)
         const nv = n.moving ? 's' : 'f', fs = nv === 's' ? figSet(AV.normalize(n.def.av), {}, true, 0, 's') : null, img = fs ? fs.img : npcSprite(n.def.av, 0);   // v107 걸어 다니는 마을 사람은 옆모습
@@ -2900,6 +2910,23 @@
           c.fillStyle = '#1D2340'; c.fillRect(n.x - 1.5, by - 7, 3, 8); c.fillRect(n.x - 1.5, by + 3, 3, 3); top = by - 16;
         }
         if (n.say && n.sayT > 0) (G.sayQ || (G.sayQ = [])).push([n, top]);   // v158 말풍선은 맨 마지막에 (비석·건물에 가려지지 않게) — sayFlush
+      }
+      let ysMuralImg = null;
+      function drawYsFrame(c, n, now) {   // v174 돌벽 + 나무 틀 · 되찾은 조각은 그 자리에 · 다 맞추면 빛남
+        if (!ysMuralImg) { ysMuralImg = new Image(); ysMuralImg.src = 'games/action/rpg/img/v79/' + D.YS.mural + '.jpg?v=172'; }
+        const w = 132, h = 96, x = Math.round(n.x - w / 2), y = Math.round(n.y - h - 18), have = S.ysp, done = S.ysMural, ok = ysMuralImg.complete && ysMuralImg.naturalWidth;
+        c.save(); c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(n.x, n.y, 70, 9, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#6B5A48'; rr(c, x - 14, y - 12, w + 28, h + 34, 6); c.fill(); c.fillStyle = '#8A7560'; for (let i = 0; i < 5; i++) c.fillRect(x - 14, y - 6 + i * 22, w + 28, 2);
+        c.fillStyle = '#7A4A22'; c.fillRect(x - 6, y - 6, w + 12, h + 12); c.fillStyle = '#1D2340'; c.fillRect(x, y, w, h);
+        const cw = w / 3, ch = h / 3, iw = ok ? ysMuralImg.naturalWidth / 3 : 0, ih = ok ? ysMuralImg.naturalHeight / 3 : 0;
+        for (let i = 0; i < 9; i++) { const cx = x + (i % 3) * cw, cy = y + Math.floor(i / 3) * ch;
+          if (done && ok) continue;
+          if (ok && have[i]) c.drawImage(ysMuralImg, (i % 3) * iw, Math.floor(i / 3) * ih, iw, ih, cx, cy, cw, ch);
+          else { c.strokeStyle = '#3C78F0'; c.lineWidth = 1; c.strokeRect(cx + 1, cy + 1, cw - 2, ch - 2); c.fillStyle = have[i] ? '#FFD23F' : '#9AE6FF'; c.font = '16px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(have[i] ? '✔' : '?', cx + cw / 2, cy + ch / 2 + 1); } }
+        if (done && ok) { c.drawImage(ysMuralImg, x, y, w, h); c.strokeStyle = `rgba(255,210,63,${0.6 + 0.4 * Math.sin(now / 300)})`; c.lineWidth = 3; c.strokeRect(x - 3, y - 3, w + 6, h + 6); }
+        c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
+        const label = done ? '이순신 장군님 벽화' : `${n.def.name} (${have.filter(Boolean).length}/9)`; c.strokeText(label, n.x, y - 18); c.fillStyle = n.def.color; c.fillText(label, n.x, y - 18); c.restore();
+        if (n.say && n.sayT > 0) (G.sayQ || (G.sayQ = [])).push([n, y - 30]);
       }
       // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
       function drawPeer(c, p, now) {
@@ -3200,6 +3227,7 @@
         const at = G.room ? G.room.back : { x: G.px, y: G.py };   // 건물 안이면 그 건물 문 앞을 저장
         S.x = Math.round(at.x); S.y = Math.round(at.y); S.savedAt = Date.now();
         if (!G.trade) pruneGear(S);   // v60 판 장비·부서진 장비 정보 지우기 (거래 중에는 그대로)
+        if (ST) S.fc = fightCard();   // v174 Skillcom Fight 가 읽는 대결 카드
         const copy = JSON.parse(JSON.stringify(S));
         if (G.duel) { copy.hp = G.duel.hp0; copy.mp = G.duel.mp0; }   // v143 결투 중 저장: HP·MP 는 결투 전 값
         Store.setLocal(Hub.user && Hub.user.id, copy); G.saveT = 0;
@@ -3462,8 +3490,8 @@
           });
           h += '<p class="sub" style="margin-top:8px">※ 퀘스트는 준비 중이에요. 나중에 마지막 마을의 성에서 나눠 줄 예정이에요.</p>';
           }
-        } else if (k === 'ysnpc') {   // v172 이순신 장군님 던전 지킴이 · 벽화 퍼즐
-          h = ysPaneHtml();
+        } else if (k === 'ysnpc' || k === 'ysmural') {   // v172 이순신 장군님 던전 지킴이(이야기) · v174 빈 벽화 틀(퍼즐)
+          h = ysPaneHtml(k === 'ysmural');
         } else if (k === 'sxnpc') {   // v150 사신의 땅 지킴이
           const n = godsDone();
           h = head(SX.npc.name, '광개토대왕 던전 어귀 · 혼자 들어온 곳 (다른 사람은 보이지 않아요)') + `<div class="rg-fuse" style="text-align:left;line-height:1.7">${SX.npc.lines.map(l => `<p style="margin:0 0 6px">${l}</p>`).join('')}</div>`;
@@ -3661,7 +3689,7 @@
         if ('x' in d) { closePanel(); return; }
         if (d.tab) { const [k, v] = d.tab.split(':'); tab[k] = v; if (k === 'potion' && v === 'xchg') xchgLoad(); renderPanel(); return; }
         if ('yss' in d) { ysSlide(+d.yss); renderPanel(); return; }   // v172 벽화 퍼즐
-        if ('yspz' in d) { tab.ysPz = d.yspz === '1' && ysHave() >= 9 && !S.ysMural ? { b: ysShuffle(), moves: 0 } : null; renderPanel(); return; }
+        if ('yspz' in d) { tab.ysPz = d.yspz === '1' && pane === 'ysmural' && ysHave() >= 9 && !S.ysMural ? { b: ysShuffle(), moves: 0 } : null; renderPanel(); return; }
         if ('petdraw' in d) { petDraw(); renderPanel(); return; }   // v149 펫
         if ('peton' in d) { S.petOn = d.peton; markDirty(true); petNet(); renderPanel(); return; }
         if ('petsel' in d) { tab.petSel = d.petsel; tab.petEnhRes = null; renderPanel(); return; }
