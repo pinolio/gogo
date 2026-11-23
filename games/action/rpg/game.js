@@ -2885,20 +2885,25 @@
       /* v150 지역 보스 9마리: Gemini 그림 4장 (기본·공격·마법·맞음) — 그림이 다 들어간 지역만 RB_ART 에 적음 */
       const RB_ART = P.RB_ART || [];
       const rbFrames = def => def && def.kind === 'boss' && def.ri != null && !def.dot && !def.img && !def.img79 && RB_ART.includes(def.ri) ? (def._rbF || (def._rbF = { idle: 'rb' + def.ri + '_idle', atk1: 'rb' + def.ri + '_atk', atk2: 'rb' + def.ri + '_atk', cast: 'rb' + def.ri + '_cast', hit: 'rb' + def.ri + '_hit' })) : null;
+      const BIG_CAST = { ring: 1, laser: 1, mines: 1, windwall: 1, whirl: 1, bomb: 1, realm: 1, hook: 1, barrage: 1 };
       function kingFrame(m, now, F) {
         F = F || m.def.frames; const c = m.cast;
-        if (!m._pre) { m._pre = 1; [F.idle, F.atk1, F.atk2, F.cast, F.hit].concat(F.walk || []).forEach(n => n && img79(n)); }
+        if (!m._pre) { m._pre = 1; [F.idle, F.atk1, F.atk2, F.cast, F.hit, F.melee, F.cast2].concat(F.walk || []).forEach(n => n && img79(n)); }
+        /* v192 선생님 11/23: 기본 공격·마법 공격 그림 더 넣음 — melee(돌진·박치기·순간이동·몸통 박치기) · cast2(큰 마법: 고리·레이저·지뢰·바람벽 …) · 그림이 없으면 예전대로 */
         let k = 'idle';
-        if (c && (c.k === 'blades' || c.k === 'charge')) k = c.t < 0.7 ? 'atk1' : 'atk2';
+        if (c && F.melee && (c.k === 'charge' || c.k === 'blink' || c.k === 'kick')) k = 'melee';
+        else if (c && (c.k === 'blades' || c.k === 'charge')) k = c.t < 0.7 ? 'atk1' : 'atk2';
         else if (m.slam) k = m.slam.t < 0.6 ? 'atk1' : 'atk2';
-        else if (c && (c.k === 'ring' || c.k === 'fan')) k = 'cast';
+        else if (c && F.cast2 && BIG_CAST[c.k]) k = 'cast2';
+        else if (c && (c.k === 'ring' || c.k === 'fan' || BIG_CAST[c.k])) k = 'cast';
+        else if (m.lunge > 0) k = F.melee ? 'melee' : 'atk2';
         else if (m._hold && now < m._hold.until) k = m._hold.k;
         else if (m.flash > 0 && now > (m._hitNext || 0)) { m._hitNext = now + 1400; m._hold = { k: 'hit', until: now + 220 }; k = 'hit'; }
         else {
           if (m._lx != null && Math.hypot(m.x - m._lx, m.y - m._ly) > 0.3) m._mvT = now;
           if (now - (m._mvT || -1e9) < 160) k = 'walk';
         }
-        if (k === 'atk2' || k === 'cast') m._hold = { k, until: now + 300 };
+        if (k === 'atk2' || k === 'cast' || k === 'melee' || k === 'cast2') m._hold = { k, until: now + 300 };
         m._lx = m.x; m._ly = m.y; m._fr = k;
         const n = k === 'walk' ? (F.walk ? F.walk[Math.floor(now / 260) % 2] : F.idle) : F[k] || F.idle;
         return img79(n) || img79(F.idle) || m.spr.img;

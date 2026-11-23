@@ -654,7 +654,7 @@
       return { id, name, pos: [cx, cy], kind, data: { w: W2, h: H2, region, t: grid(id, ex, kind), exits: ex, mons, pub: true, noBack: id === 'sx_v3', sx: kind, tex, art: kind === 'all' ? 'arena_sx_all' : kind === 'king' ? 'arena_sx_king' : GOD_ART.includes(kind) ? 'arena_sx_' + kind : null, rec: P ? P.lv : kind === 'king' ? 400 : kind === 'npc' ? 150 : 250, solo: true } };
     });
     const B = (name, img, el, imm, light, colors, say, skills) => ({ name, img, h: 150, el, immune: imm, light, shape: 'golem', colors, kind: 'boss', say, skills });
-    const SXF = k => ({ idle: 'sx_' + k, atk1: 'sx_' + k + '_atk', atk2: 'sx_' + k + '_atk', cast: 'sx_' + k + '_cast', hit: 'sx_' + k + '_hit' });   // v150 사방신 자세 그림 (Gemini · 공격·마법·맞음)
+    const SXF = k => ({ idle: 'sx_' + k, atk1: 'sx_' + k + '_atk', atk2: 'sx_' + k + '_atk', cast: 'sx_' + k + '_cast', hit: 'sx_' + k + '_hit', melee: 'sx_' + k + '_melee', cast2: 'sx_' + k + '_cast2' });   // v150 사방신 자세 그림 (Gemini · 공격·마법·맞음) · v192 기본 공격(melee)·큰 마법(cast2) 더함
     const boss = {
       cr: Object.assign(B('청룡', 'sx_cr', 'thunder', 'thunder', '#FFE45C', { a: '#2FBF8F', b: '#1A6A5A', c: '#9AE6FF', d: '#5AD8FF' }, '동쪽을 지키는 푸른 용이 눈을 떴다! (번개 힘은 통하지 않는다)', ['charge', 'ring', 'fan', 'slam', 'laser']),
         { bh: 380, float: true, base: 'sx_cr_pool', baseCol: '#5AD8FF', frames: SXF('cr') }),   // v150 선생님 그림 (11/15) · 2배 크기 · 둥실둥실 떠다님 + 발밑 소용돌이 물
@@ -668,7 +668,7 @@
         // v150 선생님 Gemini 그림 7장 (11/15) · 사방신과 같은 380px · 땅을 딛고 섬 · 칼(blades·charge·slam)=들기→내려치기 · 마법(ring·fan)=손 뻗기 · 걸을 때 두 장 번갈아 · 맞으면 잠깐 움찔
         bh: 380, aura: true, baseCol: '#FF4A3A', ax: 234 / 417, skCd: [0.9, 1.3], slamR: 195, slamCd: 0.7, bladeR: 70, bladeSpread: 1.4,   // v171 선생님 11/20: 범위 기술 쿨타임 더 짧게(1.5~2.2 → 0.9~1.3초 · 내려찍기 뒤 1.2 → 0.7초) · 범위 1.5배(내려찍기 130 → 195 · 칼비 46 → 70, 퍼지는 폭 1.4배)
         castAt: [0.39, 0.66], castCol: '#FF4A8A',
-        frames: { idle: 'sx_king_idle', walk: ['sx_king_walk1', 'sx_king_walk2'], atk1: 'sx_king_atk1', atk2: 'sx_king_atk2', cast: 'sx_king_cast', hit: 'sx_king_hit' } })   // v149 선생님 11/15: 넉백(움찔·밀어내기)은 안 걸림 · 상태 이상(불·느려짐·기절·저주)은 왕을 죽인 검을 끼면 걸림
+        frames: { idle: 'sx_king_idle', walk: ['sx_king_walk1', 'sx_king_walk2'], atk1: 'sx_king_atk1', atk2: 'sx_king_atk2', cast: 'sx_king_cast', hit: 'sx_king_hit', melee: 'sx_king_melee', cast2: 'sx_king_cast2' } })   // v149 선생님 11/15: 넉백(움찔·밀어내기)은 안 걸림 · 상태 이상(불·느려짐·기절·저주)은 왕을 죽인 검을 끼면 걸림
     };
     ['cr', 'jj', 'bh', 'hm'].forEach(k => { boss[k].fxQ = 0.25; });
     ['cr', 'jj', 'bh', 'hm', 'king'].forEach(k => { boss[k].noKnock = true; boss[k].hard = true; });   // v157 선생님 11/17: 사방신·광개토대왕 넉백(움찔·밀려남) 없음 · 더 어렵게(hard = 공격 빨리 · 마법 자주·많이 · 쿨타임 짧게, game.js bossSkill)   // v152 선생님 11/16: 사방신은 넉백·상태 이상이 1/4 만 걸림 (광개토대왕 noFx = 안 걸림 · 왕을 죽인 검을 끼면 1/4)
