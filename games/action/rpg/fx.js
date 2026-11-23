@@ -34,7 +34,7 @@
     x.fillStyle = g; x.fillRect(0, 0, r * 2, r * 2);
     return (glowC[k] = c);
   }
-  const drawGlow = (ctx, x, y, r, color, a) => { const g = glow(color, r); ctx.globalAlpha = a == null ? 1 : a; ctx.drawImage(g, x - g.width / 2, y - g.height / 2); ctx.globalAlpha = 1; };
+  const drawGlow = (ctx, x, y, r, color, a) => { const g = glow(color, r * 0.85);   /* v185 빛 번짐 전체 15% 작게 */ ctx.globalAlpha = a == null ? 1 : a; ctx.drawImage(g, x - g.width / 2, y - g.height / 2); ctx.globalAlpha = 1; };
 
   /* ---------- 번개 모양 (꺾인 선) ---------- */
   function boltPath(x1, y1, x2, y2, jag, seg) {
@@ -53,7 +53,7 @@
 
   /* ================= 입자 ================= */
   const parts = [];        // 세계 좌표
-  const MAX = 700;   // v174 렉 줄이기 (1400 → 700)
+  const MAX = 550;   // v174 렉 줄이기 (1400 → 700) · v185 700 → 550
   // o: { x, y, vx, vy, life, size, color, g(중력), drag, shape: 'sq'|'glow'|'spark'|'ring'|'star'|'rock'|'leaf'|'coin'|'drop', grow, add(빛남), spin, target }
   function emit(o) { if (parts.length >= MAX) parts.shift(); o.t = 0; o.life = o.life || 0.6; o.size = o.size || 4; o.drag = o.drag == null ? 1.5 : o.drag; o.rot = o.rot || Math.random() * TAU; parts.push(o); return o; }
   function burst(x, y, n, P, opt) {
@@ -83,7 +83,7 @@
       const m = p.add ? 'lighter' : 'source-over'; if (m !== mode) { ctx.globalCompositeOperation = m; mode = m; }
       ctx.globalAlpha = clamp(a, 0, 1);
       switch (p.shape) {
-        case 'glow': { const g = glow(p.color, s * 2); ctx.drawImage(g, p.x - g.width / 2, p.y - g.height / 2); break; }
+        case 'glow': { const g = glow(p.color, s * 1.7);   /* v185 2→1.7 */ ctx.drawImage(g, p.x - g.width / 2, p.y - g.height / 2); break; }
         case 'spark': { ctx.strokeStyle = p.color; ctx.lineWidth = Math.max(1, s * 0.5); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.04, p.y - p.vy * 0.04); ctx.stroke(); break; }
         case 'ring': { ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, s, 0, TAU); ctx.stroke(); break; }
         case 'star': { ctx.fillStyle = p.color; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-s, -s / 4, s * 2, s / 2); ctx.fillRect(-s / 4, -s, s / 2, s * 2); ctx.restore(); break; }
@@ -464,7 +464,7 @@
    *  느린 컴퓨터를 위해 효과·입자가 많으면(busy) 덜 그림 */
   let CUR = null;
   const use = id => { CUR = id || null; };
-  const busy = () => fxs.length > 60 || parts.length > 600;
+  const busy = () => fxs.length > 50 || parts.length > 450;   // v185 60·600 → 50·450
   const SFX = {
     // 1. 마법 화살: 금빛 화살 + 긴 빛줄기, 맞으면 금빛 빛살이 퍼짐
     magicarrow: {
