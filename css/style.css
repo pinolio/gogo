@@ -1545,7 +1545,7 @@ a.nm-t:hover { text-decoration: underline; }
 .gpick button img { width: 54px; height: auto; image-rendering: auto; }
 .gpick button[aria-checked="true"] { background: #FFD23F; box-shadow: 0 0 0 3px #4C7DFF; }
 .g-shop { margin-top: 16px; }
-.g-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.g-shop .g-row, div.g-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }   /* v181 상점 전용 — 관리자 게임별 집계 표의 tr.g-row 까지 바꿔 버렸음 */
 .g-fig { margin: 0; display: grid; justify-items: center; gap: 4px; padding: 8px 10px; border: 2px solid #1D2340; border-radius: 12px; background: #FFF7D6; color: #1D2340; font-weight: 700; }
 .g-fig.on { background: #FFD23F; }
 .g-arrow { font-size: 26px; font-weight: 800; color: #4C7DFF; }
