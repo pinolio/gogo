@@ -395,7 +395,18 @@
     map.startL = { x: 2.5 * TS, y: (mid + 1) * TS };
     map.startR = { x: (w - 2.5) * TS, y: (mid + 1) * TS };
     // v150 18번 사냥터 위쪽: 숨은 던전 입구(dg_ruin) + 글씨 새긴 바위 — 길은 따로 안 뚫고 입구 아래만 풀밭으로 비움
-    if (D.SASIN && D.SASIN.on && id === D.SASIN.gateMap) {
+    if (D.SASIN && D.SASIN.on && id === D.SASIN.gateMap && M.kind === 'village') {
+      // v188 선생님 11/23: 광개토대왕 던전 입구 = 평양 마을 12시 방향 (18번 사냥터 입구를 그대로 옮김) · 입구 앞 바위는 없앰 (마을에 광개토대왕비가 있음)
+      const DG = DUNGEON.dg_ruin, x0 = (w >> 1) - 3, y0 = 1, di = 2, rr = seeded('sxgate-' + id), dw = DG.t[0].length, dh = DG.t.length;
+      map.props = (map.props || []).filter(p => { const hit = p.x < x0 + dw + 1 && p.x + p.fw > x0 - 1 && p.y < y0 + dh + 2 && p.y + p.fh > y0; if (hit) for (let y = p.y; y < p.y + p.fh; y++) for (let x = p.x; x < p.x + p.fw; x++) if (at(x, y) === 10) set(x, y, 0); return !hit; });   // 겹치는 진영 소품은 치움
+      for (let y = y0; y < y0 + dh + 1; y++) for (let x = x0 - 1; x <= x0 + dw; x++) if ([2, 3, 5].includes(at(x, y))) set(x, y, 0);
+      DG.t.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'X') set(x0 + i, y0 + j, 10); else if (ch === 'D') set(x0 + i, y0 + j, 13); else if (ch === 'r') set(x0 + i, y0 + j, 12); }));
+      // 입구에서 큰길까지 오솔길 (풀밭 칸 · 폭 2 · 나무·바위 치움)
+      for (let y = y0 + dh, tx2 = x0 + di; y < h - 2 && at(tx2, y) !== 1 && at(tx2 + 1, y) !== 1; y++) for (let x = tx2; x <= tx2 + 1; x++) if ([2, 3, 5].includes(at(x, y))) set(x, y, 0);
+      // 입구 양옆에 나무 몇 그루 (숲 입구 느낌)
+      [[x0 - 2, y0 + 1], [x0 - 2, y0 + 3], [x0 - 3, y0 + 2], [x0 + dw + 1, y0 + 1], [x0 + dw + 1, y0 + 3], [x0 + dw + 2, y0 + 2]].forEach(([x, y]) => { if (at(x, y) === 0 && rr() < 0.85) set(x, y, 2); });
+      map.dgs = [{ k: 'dg_ruin', x: x0, y: y0, to: D.SASIN.entry, sx: true }];
+    } else if (D.SASIN && D.SASIN.on && id === D.SASIN.gateMap) {
       const DG = DUNGEON.dg_ruin, x0 = (w >> 1) - 3, y0 = 2, di = 2, rr = seeded('sxgate-' + id), X0 = x0 - 6, X1 = x0 + 12, Y1 = y0 + 9;   // v151 선생님 11/16: 지도 12시 방향 숲속에 숨은 입구 (길은 그대로 왼→오)
       // 입구 둘레의 연못 그림은 치움 (숲으로 덮음)
       map.ponds = (map.ponds || []).filter(pd => { const T = POND[pd.k].t, tw = T[0].length, th = T.length; if (pd.x + tw < X0 || pd.x > X1 || pd.y > Y1) return true; for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++) { const v = at(pd.x + i, pd.y + j); if (v === 4 || v === 12) set(pd.x + i, pd.y + j, 0); } return false; });
@@ -468,7 +479,7 @@
    *  U 자리 = 훈련장과 도술 서원 사이(큰길 위) · L 자리 = 분수 아래(마을 모습) */
   const LANDMARKS = [
     [{ n: 'lm_tonggun', cx: 26.6, by: 10.3, pw: 200, label: '통군정' }, { n: 'lm_naru', cx: 26, by: 30.6, pw: 196, label: '압록강 나루' }],   // 0 의주
-    [{ n: 'lm_yeongwang', cx: 26.6, by: 10.3, pw: 200, label: '연광정' }],        // 1 평양
+    [{ n: 'lm_yeongwang', cx: 27, by: 30.6, pw: 200, label: '연광정' }],        // 1 평양 · v188 12시 방향에 광개토대왕 던전 입구가 생겨 아래쪽 가운데로 옮김
     [{ n: 'lm_seonggwak', cx: 26.6, by: 10.3, pw: 196, label: '한양 도성 성곽' }],  // 2 한양
     [{ n: 'lm_tangeum', cx: 26, by: 30.6, pw: 204, label: '탄금대' }],          // 3 충주
     [{ n: 'lm_gwanghan', cx: 26.6, by: 10.4, pw: 210, label: '광한루 · 오작교' }],  // 4 남원
@@ -506,6 +517,7 @@
     if (map.station) { const t = map.station; mark(t.x - 1, t.y - 4, t.x + t.w, t.y + t.h); }
     if (map.fx != null) mark(map.fx - 2, map.fy - 3, map.fx + 3, map.fy + 2);
     if (map.ysSign) mark(map.ysSign.x / TS - 3, map.ysSign.y / TS - 3, map.ysSign.x / TS + 3, map.ysSign.y / TS + 1);
+    if (D.SASIN && D.SASIN.on && map.M.id === D.SASIN.gateMap) mark((w >> 1) - 6, 0, (w >> 1) + 5, 9);   // v188 광개토대왕 던전 입구 자리 (평양 12시 방향)
     (map.props || []).forEach(q => { const ww = q.pw / TS; mark(q.x + q.fw / 2 - ww / 2, q.y + q.fh - ww * 0.8, q.x + q.fw / 2 + ww / 2, q.y + q.fh); });   // 진영 소품 · 명소 그림
     const fits = (x0, y0, H0) => {
       if (x0 < 2 || y0 < 3 || x0 + H0.fw > w - 2 || y0 + H0.fh > h - 2) return false;

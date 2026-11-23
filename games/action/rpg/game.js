@@ -2356,7 +2356,7 @@
         if (!G.room) {
           const gt = gateAt(map, G.px, G.py);
           if (gt) { const bm = sxBlock(gt.to) || ysBlock(gt.to); if (bm) { sxPush(); say(bm, 3.5); return; } }   // v150 사신의 땅 문
-          if (gt) { const T = MAPBY[gt.to]; if (T) { enter(gt.to, T.kind === 'village' && !map.M.ys ? 'door' : gt.legacy ? (gt.side === 'l' ? 'R' : 'L') : { from: map.id }); return; } }
+          if (gt) { const T = MAPBY[gt.to]; if (T) { enter(gt.to, T.kind === 'village' && !map.M.ys && !map.M.sx ? 'door' : gt.legacy ? (gt.side === 'l' ? 'R' : 'L') : { from: map.id }); return; } }
           const dg = dungeonAt(map, G.px, G.py);
           if (dg) { const bm = sxBlock(dg.to); if (bm) { G.py += 30; say(bm, 4); return; } }   // v150 숨은 입구: 환생 1번 이상
           if (dg) { const T = MAPBY[dg.to]; if (T) { enter(dg.to, T.kind === 'village' ? 'door' : { from: map.id }); return; } if (!G.dgSaid) { G.dgSaid = true; say('이 던전 입구는 아직 아무 데도 이어지지 않았어요', 2.4); setTimeout(() => { G.dgSaid = false; }, 3000); } }

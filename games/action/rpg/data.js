@@ -648,7 +648,7 @@
     }
     const rows = cells.map(([id, cx, cy, name, kind]) => {
       const ex = {}; [['u', 0, -1], ['d', 0, 1], ['l', -1, 0], ['r', 1, 0]].forEach(([sd, dx, dy]) => { const to = at[(cx + dx) + ',' + (cy + dy)]; if (to) ex[sd] = to; });
-      if (id === 'sx_v3') ex.d = 'f18';   // 맨 아래 → 18번 사냥터 (돌아가는 길만, 18번 쪽에는 길을 안 뚫음 · noBack)
+      if (id === 'sx_v3') ex.d = 'v2';   // 맨 아래 → 평양 마을 (v188 선생님 11/23: 18번 사냥터 → 평양 12시 방향 입구로 옮김 · noBack)
       const P = PATH[id], mons = P ? { list: P.mob.map((f, i) => ({ f, lv: P.lv, n: [8, 6, 5][i] })) } : {};
       const [tex, region] = P ? [P.tex || null, P.region] : LOOK[kind];
       return { id, name, pos: [cx, cy], kind, data: { w: W2, h: H2, region, t: grid(id, ex, kind), exits: ex, mons, pub: true, noBack: id === 'sx_v3', sx: kind, tex, art: kind === 'all' ? 'arena_sx_all' : kind === 'king' ? 'arena_sx_king' : GOD_ART.includes(kind) ? 'arena_sx_' + kind : null, rec: P ? P.lv : kind === 'king' ? 400 : kind === 'npc' ? 150 : 250, solo: true } };
@@ -673,14 +673,14 @@
     ['cr', 'jj', 'bh', 'hm'].forEach(k => { boss[k].fxQ = 0.25; });
     ['cr', 'jj', 'bh', 'hm', 'king'].forEach(k => { boss[k].noKnock = true; boss[k].hard = true; });   // v157 선생님 11/17: 사방신·광개토대왕 넉백(움찔·밀려남) 없음 · 더 어렵게(hard = 공격 빨리 · 마법 자주·많이 · 쿨타임 짧게, game.js bossSkill)   // v152 선생님 11/16: 사방신은 넉백·상태 이상이 1/4 만 걸림 (광개토대왕 noFx = 안 걸림 · 왕을 죽인 검을 끼면 1/4)
     const lv = { path: 150, god: 250, king: 400 };
-    const rock = '돌에 새겨진 글씨: 이 너머는 한 번 생을 다시 산 자만 지날 수 있다.';
+    const rock = '광개토대왕 던전은 한 번 환생한 사람만 들어갈 수 있어요.';   // v188 입구 바위는 없앰 (평양에 광개토대왕비가 있음) → 막힐 때 알림 글로만 씀
     const npc = { name: '광개토대왕 던전 지킴이', img: 'sx_npc', h: 70, color: '#9AE6FF', nearSay: '왕을 죽일 준비된 자만 들어와라',   // v162 선생님 11/17: 가까이 오면 머리 위 말풍선 av: { skin: 's2', hair: 'h_long', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black', back: 'bk_cape' },
       lines: ['여기는 광개토대왕 던전, 네 신이 지키는 땅이다. 동쪽 청룡, 남쪽 주작, 서쪽 백호, 북쪽 현무가 저마다 자기 땅을 지키고 있지.',
         '청룡에게는 번개가, 주작에게는 불이, 현무에게는 물이, 백호에게는 땅의 힘이 통하지 않는다. 다른 힘으로 맞서라.',
         '네 신을 모두 이기면 위쪽 문에 네 개의 불이 켜지고, 네 신이 한꺼번에 기다리는 방이 열린다.',
         '그 너머에는 광개토대왕께서 계신다. 그분께는 어떤 공격도 통하지 않는다고 하지… 준비가 다 된 자만 들어가라.'] };
     // on: false = 아직 숨김 (선생님 그림이 오면 true 로 · v150). 꺼져 있으면 지도 20장·18번 입구·39번 검 떨어짐이 모두 없음
-    return { on: true, rows, boss, lv, rock, npc, gateMap: 'f18', entry: 'sx_v3', rockImg: 'sx_rock' /* v151 입구 바위 그림(img/v79/sx_rock.png)이 들어오면 'sx_rock' */, home: 'f18', swordMap: 'f39', swordRate: { mob: 0.03, boss: 0.3 },
+    return { on: true, rows, boss, lv, rock, npc, gateMap: 'v2', entry: 'sx_v3', rockImg: 'sx_rock' /* v151 입구 바위 그림(img/v79/sx_rock.png)이 들어오면 'sx_rock' */, home: 'v2', swordMap: 'f18',   /* v188 선생님 11/23: 입구 = 평양(마을 2) 12시 방향 · 왕을 죽인 검 = 18번 사냥터 (예전 39번) */ swordRate: { mob: 0.03, boss: 0.3 },
       gods: ['cr', 'jj', 'bh', 'hm'], godName: { cr: '청룡', jj: '주작', bh: '백호', hm: '현무' }, fire: { cr: '#FFE45C', jj: '#FF4A3A', bh: '#B07A45', hm: '#3C78F0' } };
   })();
   /* v172 이순신 장군님 던전 (선생님 11/20 엑셀 지도) — 통영(마을 7) 남쪽 출구 → 아래로 내려가는 던전
@@ -802,7 +802,7 @@
       { name: '꼬마 범이', img: 'gw_kid3', h: 50, at: [9.6, 13.4], range: 0, color: '#9AF0B0', av: { skin: 's3', hair: 'h_spiky', top: 't_vest', bottom: 'b_shorts', shoes: 'sh_black' },
         lines: ['저 큰 비석 봤어? 글씨가 빼곡해서 하나도 못 읽겠어…'] },
       { name: '이야기꾼 할아버지', img: 'gw_grandpa', h: 62, at: [13.6, 12.7], range: 0, color: '#FFE45C', av: { skin: 's3', hair: 'h_topknot', hat: 'hat_gat', face: 'f_mustache', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
-        lines: ['광개토대왕께서는 18살에 임금이 되셨고, 39살에 세상을 떠나셨지.'] },
+        lines: ['광개토대왕께서는 18살에 임금이 되셨단다.'] },   // v188 선생님 11/23: 39살 이야기 뺌
       { name: '빨래터 아주머니', img: 'gw_aunt', h: 62, at: [15.6, 12.9], range: 30, color: '#FF9AA0', av: { skin: 's2', hair: 'h_bun', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black' },
         lines: ['강 건너에서 이끼 낀 큰 돌비석이 나왔다는 소문이 있더라고요.'] },
       { name: '글 읽는 선비', img: 'gw_scholar', h: 64, at: [20.2, 12.6], range: 30, color: '#D8B8FF', av: { skin: 's1', hair: 'h_topknot', hat: 'hat_gat', top: 't_hanbok_m', bottom: 'b_hanbok_m', shoes: 'sh_black' },
