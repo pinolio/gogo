@@ -2953,11 +2953,10 @@
         } else {
           c.font = '15px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
           for (let i = 0; i < 9; i++) { const cx = x + (i % 3) * cw, cy = y + Math.floor(i / 3) * ch;
-            if (ok && have[i]) c.drawImage(ysMuralImg, (i % 3) * iw, Math.floor(i / 3) * ih, iw, ih, cx, cy, cw, ch);
-            else { c.strokeStyle = '#3C78F0'; c.lineWidth = 1.5; c.strokeRect(cx + 1.5, cy + 1.5, cw - 3, ch - 3); c.fillStyle = '#9AE6FF'; c.fillText('?', cx + cw / 2, cy + ch / 2 + 1); } }
+            /* v179 선생님 11/23: 조각은 캐릭터가 들고 있음 → 퍼즐을 맞추기 전까지 틀은 비어 있음 */ { c.strokeStyle = '#3C78F0'; c.lineWidth = 1.5; c.strokeRect(cx + 1.5, cy + 1.5, cw - 3, ch - 3); c.fillStyle = '#9AE6FF'; c.fillText('?', cx + cw / 2, cy + ch / 2 + 1); } }
         }
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
-        const label = done ? '이순신 장군님 벽화' : `${n.def.name} (${have.filter(Boolean).length}/9)`; c.strokeText(label, n.x, fy - 4); c.fillStyle = n.def.color; c.fillText(label, n.x, fy - 4); c.restore();
+        const nh = have.filter(Boolean).length, label = done ? '이순신 장군님 벽화' : nh >= 9 ? `조각 9/9 · 말을 걸어 맞추기!` : `${n.def.name} · 조각 ${nh}/9`; c.strokeText(label, n.x, fy - 4); c.fillStyle = n.def.color; c.fillText(label, n.x, fy - 4); c.restore();
         if (n.say && n.sayT > 0) (G.sayQ || (G.sayQ = [])).push([n, fy - 16]);
       }
       // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
