@@ -327,11 +327,11 @@
       try {
         if (SET.get(g.id) && SET.get(g.id).rebRank) {   // v144 RPG 카드 3줄: 스테이지 1위(가장 멀리 · 같으면 먼저 깬 사람) · 환생 1위 · 10초 딜 1위
           const xt = k => (Hub.extraTop ? Hub.extraTop(g.id, k).catch(() => null) : Promise.resolve(null));
-          const [kg, rb, dp] = await Promise.all([xt('king'), xt('reb'), xt('dps')]);   // v158 선생님 11/17: 스테이지 1위 → 광개토대왕 최초 토벌자
+          const [kg, rb, dp] = await Promise.all([xt('ys'), xt('reb'), xt('dps')]);   // v182 선생님 11/23: 광개토대왕 최초 토벌자 → 이순신 던전 첫 공략자   // v158 선생님 11/17: 스테이지 1위 → 광개토대왕 최초 토벌자
           if (!foot.isConnected) return;
           const kf = v => { v = Math.round(v || 0); return v >= 1e12 ? Math.floor(v / 1e11) / 10 + '조' : v >= 1e8 ? Math.floor(v / 1e7) / 10 + '억' : v >= 1e4 ? Math.floor(v / 1e3) / 10 + '만' : fmt(v); };
           foot.classList.add('rec3');
-          foot.innerHTML = `<div class="rec r-rank r-king"><span class="rec-l"><i>👑 </i>광개토대왕 최초 토벌자</span></div><div class="rec r-king2"><span class="rec-v">${kg ? `<span class="rec-who">${esc(kg.nickname)}</span>` : '<b class="num">아직 없음</b>'}</span></div>`
+          foot.innerHTML = `<div class="rec r-rank r-king"><span class="rec-l"><i>⚓ </i>이순신 던전 첫 공략자</span></div><div class="rec r-king2"><span class="rec-v">${kg ? `<span class="rec-who">${esc(kg.nickname)}</span>` : '<b class="num">아직 없음</b>'}</span></div>`
             + recLine('r-rank r-reb', '<i>♻ </i>환생 1위', rb && rb.nickname, rb ? rb.value + '회' : '-')
             + recLine('r-rank r-dps', '<i>🎯 </i>10초 딜 1위', dp && dp.nickname, dp ? kf(dp.value) + '/초' : '-');
           return;
@@ -410,8 +410,11 @@
   // v152 메인 새 단장: 그림(글자 없음) + 글자는 HTML (선명 · 높이 고정). theme = 왼쪽 글자 밑 색
   // v158 선생님 11/17: 큰 배너 그림도 실제 게임 화면 (사신의 회합 · 6.25. 하늘 로봇 변신 중 · 신호등 구구단)
   const HERO_SLIDES = [
+    // v182 선생님 11/23: 이순신 장군님 던전 배너 (11:33 던전 공개와 함께 모두에게) · adminOnly: true 를 넣으면 관리자에게만
+    { id: 'ysdungeon', href: '#rpg', art: 'img/hero/ys.jpg', pos: '70% 50%', theme: ['#0E2A4A', '#1E6FB0'],
+      tag: 'NEW · skillcom RPG 숨은 던전', title: '이순신 장군님 던전 오픈!', sub: '통영 아래쪽 <b>남쪽 바닷길</b>로 누구나 들어갈 수 있어요 · 왜장 아홉을 이겨 도둑맞은 벽화를 되찾고 <b>와키자카</b>에게 도전하세요. 첫 공략자는 메인 화면에 이름이 올라가요!', cta: '바닷길로 출정' },
     { id: 'dungeon', href: '#rpg', art: 'img/hero/dungeon.jpg', pos: '50% 55%', theme: ['#2A1B5E', '#6A3FC8'],
-      tag: 'NEW · skillcom RPG 숨은 던전', title: '광개토대왕 던전 오픈!', sub: '환생한 용사만 찾을 수 있는 숲속 입구 · 사방신 넷을 이기고 <b>광개토대왕</b>에게 도전해 보세요. 첫 토벌자는 메인 화면에 이름이 올라가요!', cta: '던전 찾으러 가기' },
+      tag: 'NEW · skillcom RPG 숨은 던전', title: '광개토대왕 던전 오픈!', sub: '환생한 용사만 찾을 수 있는 숲속 입구 · 사방신 넷을 이기고 <b>광개토대왕</b>에게 도전해 보세요. 먼저 이긴 10명은 던전 어귀 지킴이 곁에 이름이 남아요!', cta: '던전 찾으러 가기' },
     { id: 'sky', href: '#sky', art: 'img/hero/sky.jpg', pos: '50% 92%', theme: ['#123E7A', '#2F8FE0'],
       tag: 'UPDATE · 6.25. 하늘', title: '로봇으로 변신!', sub: '<b>C</b> 키로 10초 동안 로봇 변신 · P 카드 4장 · 새 적·보스와 하늘 배경 10장. 친구와 둘이서도 할 수 있어요.', cta: '출격하기' },
     { id: 'event', art: 'img/hero/gugu.jpg', pos: '50% 50%', theme: ['#1E2A6B', '#3E7BD8'],
@@ -420,7 +423,7 @@
   function startHeroRain() {
     const box = $('#heroSlides'); if (!box) return;
     const evg = SET.listAll().find(g => g.event && !g.hidden);
-    const slides = HERO_SLIDES.filter(s => s.id !== 'event' || evg).map(s => Object.assign({}, s, { href: s.href || '#' + evg.id }));
+    const slides = HERO_SLIDES.filter(s => !s.adminOnly || (Hub.isAdmin && Hub.isAdmin())).filter(s => s.id !== 'event' || evg).map(s => Object.assign({}, s, { href: s.href || '#' + evg.id }));
     if (!slides.length) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     box.innerHTML = slides.map((g, i) => `

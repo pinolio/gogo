@@ -128,7 +128,7 @@
       const d = r && r.data, w = d && +d.w, h = d && +d.h;
       if (!d || !(w >= 20 && w <= 80 && h >= 14 && h <= 60) || !Array.isArray(d.t) || d.t.length !== w * h) return;
       if (!/^[a-z0-9_-]{2,40}$/.test(r.id) || MAPBY[r.id]) return;   // 게임에 원래 있는 맵 아이디(f1·v1…)는 덮어쓰지 않음
-      if (d.ys && !(admin && D.YS.only.includes(((Hub && Hub.user) || {}).nickname))) return;   // v174 이순신 장군님 던전 = 관리자 '파워복복'만 (선생님 11/22)
+      // v182 선생님 11/23 11:33: 이순신 장군님 던전 공개 (예전 v174: 관리자 '파워복복'만)
       if (!d.pub && !admin) return;
       const mo = d.mons || {}, region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1), LV = v => clamp(Math.floor(+v || 1), 1, d.ys ? 520 : d.sx ? 400 : D.MAX_LV);   /* v150 사신의 땅 Lv.150 */
       let list = [], boss = null, bossLv = 1;

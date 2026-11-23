@@ -317,10 +317,10 @@
   //  광개토대왕의 반지: Lv.100 · 전설 반지(rg10)의 1.2배 · 옵션 4개 = ① 모든 속성 방어 15% 고정 ② 좋은 옵션 1개 최대치 ③④ 무작위(마이너스 가능) · 거래 안 됨(팔기만)
   ITEMS.swKing = { id: 'swKing', slot: 'weapon', name: '왕을 죽인 검', tier: 8, rare: false, legend: false, req: 80, st: { atk: 120 }, price: Math.round(20 + 80 * 80 * 0.9), look: 'sword', kingSword: true,
     desc: '어디선가 굴러들어온 검.', descKing: '어느 날 광개토대왕을 죽인 검.' };
-  ITEMS.rgKing = { id: 'rgKing', slot: 'ring', name: '광개토대왕의 반지', tier: 9, rare: true, legend: true, req: 100, st: { mp: Math.round(ITEMS.rg10.st.mp * 1.2), mag: Math.round(ITEMS.rg10.st.mag * 1.2) }, price: ITEMS.rg10.price * 2,
+  ITEMS.rgKing = { id: 'rgKing', slot: 'ring', name: '광개토대왕의 반지', tier: 9, rare: true, legend: true, req: 100, st: { mp: Math.round(ITEMS.rg10.st.mp * 1.2), mag: Math.round(ITEMS.rg10.st.mag * 1.2) }, price: ITEMS.rg10.price /* v182 선생님 11/23: 팔 때 전설과 같은 값 */,
     noTrade: true, icon79: 'ic_rg_king', desc: '사방신을 거느린 대왕의 반지. 잡을 때마다 하나씩.', goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'] };
   /* v173 이순신 장군의 신발 (선생님 11/20): 와키자카 야스하루를 이기면 · 전설 신발(bt10)의 1.2배 · 옵션 4개 = ① 이동 속도 고정(spd, 선생님이 정함) ② 좋은 옵션 1개 최대치 ③④ 무작위 · 거래 안 됨 */
-  ITEMS.btYi = { id: 'btYi', slot: 'boots', name: '이순신 장군의 신발', tier: 9, rare: true, legend: true, req: 100, st: { def: Math.round(ITEMS.bt10.st.def * 1.2), spd: Math.round(ITEMS.bt10.st.spd * 1.2) }, price: ITEMS.bt10.price * 2,
+  ITEMS.btYi = { id: 'btYi', slot: 'boots', name: '이순신 장군의 신발', tier: 9, rare: true, legend: true, req: 100, st: { def: Math.round(ITEMS.bt10.st.def * 1.2), spd: Math.round(ITEMS.bt10.st.spd * 1.2) }, price: ITEMS.bt10.price /* v182 선생님 11/23: 팔 때 전설과 같은 값 */,
     noTrade: true, icon79: 'ic_bt_yi', desc: '바다를 지킨 장군의 신발. 와키자카를 이길 때마다 하나씩.', spdOpt: 10, goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'] };
 
   /* ---------------- v60 장비 옵션 (떨어질 때 무작위로 붙음) ----------------
@@ -563,7 +563,11 @@
     .forEach((list, g) => list.forEach((mon, i) => PETS.push({ id: PET_GRADE[g].k + (i + 1), g, name: mon, mon })));
   // 영웅·전설: 선생님 그림이 오기 전까지 비슷한 몬스터 그림을 임시로 (img 가 생기면 그 그림)
   [['h1', 3, '청룡', '자수정 용', 'pet_blue', 'sx_cr'], ['h2', 3, '주작', '불꽃 정령', 'pet_red', 'sx_jj'], ['h3', 3, '백호', '수정 늑대', 'pet_white', 'sx_bh'], ['h4', 3, '현무', '빙하 전갈', 'pet_black', 'sx_hm'],
-   ['l1', 4, '광개토대왕', '왜성 수문장', 'pet_king', 'sx_king_idle']].forEach(([id, g, name, mon, img, art]) => PETS.push({ id, g, name, mon, img, art }));   // art = 선생님 그림(있으면 몬스터 그림 대신)
+   ['l1', 4, '광개토대왕', '왜성 수문장', 'pet_king', 'sx_king_idle']].forEach(([id, g, name, mon, img, art]) => PETS.push({ id, g, name, mon, img, art }));
+  // v182 선생님 11/23: 이순신 장군님 던전 펫 — 등급 능력치는 광개토대왕 때와 같음(영웅 +20 · 전설 +40) · 펫마다 따로 잠김(plock)
+  //  거북선(영웅) · 이순신(전설) 모두 = 던전을 처음 깨면(와키자카) — 선생님 11/23 11:31 → 그 뒤 이장 댁 뽑기에 나옴 (던전이 리셋돼도 계속 열림)
+  PETS.push({ id: 'h5', g: 3, name: '거북선', mon: '자수정 용', img: 'pet_turtle', art: 'ys_turtle', ph: 46, plock: 'ysY', lockTxt: '이순신 장군님 던전을 공략하면(와키자카를 이기면)' },   // v182 선생님 11/23: 두 펫 모두 던전을 깬 사람만
+    { id: 'l2', g: 4, name: '이순신', mon: '왜성 수문장', img: 'pet_yi', art: 'ys_yi', ph: 80, plock: 'ysY', lockTxt: '이순신 장군님 던전을 공략하면(와키자카를 이기면)' });   // art = 선생님 그림(있으면 몬스터 그림 대신)
   const PET = { price: 10000, max: 10, per: 0.1, keep: i => (i < 4 ? 1 : i < 7 ? 0.7 : 0.5), maxOwn: 300, scale: 0.46 };
 
   /* ---------------- v150 숨은 던전 '사신의 땅' (설계서 claude/v149-설계서_숨은던전·사방신·펫.md 1~5장) ----------------
@@ -749,7 +753,7 @@
       const ex = {}; [['u', 0, -1], ['d', 0, 1], ['l', -1, 0], ['r', 1, 0]].forEach(([sd, dx, dy]) => { const to = at[(cx + dx) + ',' + (cy + dy)]; if (to) ex[sd] = to; });
       if (id === 'ys_in') ex.u = 'v7';   // 맨 위 → 통영 (통영 쪽 길은 world.js 가 따로 뚫음)
       const P = PATH[id], mons = P ? { list: P.mob.map((f, i) => ({ f, lv: P.lv, n: [8, 6, 5][i] })) } : {};
-      return { id, name, pos: [cx, cy], kind, data: { w: W2, h: H2, region: P ? P.region : LOOK[kind], t: grid(id, ex, kind), exits: ex, mons, pub: false, noBack: id === 'ys_in', ys: kind, yi: gi == null ? -1 : gi, rec: P ? P.lv : kind === 'boss' ? 500 : kind === 'all' ? 400 : kind === 'gen' ? 300 + gi * 12 : 230 } };
+      return { id, name, pos: [cx, cy], kind, data: { w: W2, h: H2, region: P ? P.region : LOOK[kind], t: grid(id, ex, kind), exits: ex, mons, pub: true /* v182 선생님 11/23 11:33 공개 */, noBack: id === 'ys_in', ys: kind, yi: gi == null ? -1 : gi, rec: P ? P.lv : kind === 'boss' ? 500 : kind === 'all' ? 400 : kind === 'gen' ? 300 + gi * 12 : 230 } };
     });
     const B = (name, img, el, light, colors, say, skills, more) => Object.assign({ name, img, h: 150, el, immune: el, light, shape: 'golem', colors, kind: 'boss', say, skills, noKnock: true, hard: true, bh: 300, aura: true, baseCol: light,
       frames: { idle: img, atk1: img + '_atk', atk2: img + '_atk', cast: img + '_cast', hit: img + '_hit', walk: [img + '_walk1', img + '_walk2'] } }, more || {});   // v173 걷기 두 장 (선생님 11/20)
@@ -824,7 +828,9 @@
   const TITLES = [
     { id: 'reb10', name: '환생 10회를 마친 자', color: '#9AF0B0', how: '환생 10번을 모두 마치면' },
     { id: 'king', name: '광개토대왕을 죽인 자', color: '#FF9A3D', how: '광개토대왕을 이기면' },
-    { id: 'king1', name: '최초로 광개토대왕을 죽인 자', color: '#FFD23F', how: '가장 먼저 광개토대왕을 이긴 단 한 사람' }
+    { id: 'king1', name: '최초로 광개토대왕을 죽인 자', color: '#FFD23F', how: '가장 먼저 광개토대왕을 이긴 단 한 사람' },
+    { id: 'ys', name: '이순신과 함께한 자', color: '#9AE6FF', how: '이순신 장군님 던전에서 와키자카를 이기면' },
+    { id: 'ys1', name: '처음으로 이순신과 함께한 자', color: '#FF9AE0', how: '가장 먼저 이순신 장군님 던전을 깬 단 한 사람' }
   ];
   window.GoRPGData = { GURI, YSFOLK, TITLES, SASIN, YS, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();

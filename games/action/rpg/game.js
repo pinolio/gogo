@@ -139,7 +139,8 @@
     // v149 펫 확인 (없는 펫·이상한 값 지움)
     s.pets = (Array.isArray(s.pets) ? s.pets : []).filter(p => p && PETBY[p.id] && /^[a-z0-9]{4,16}$/.test(String(p.u || ''))).slice(0, D.PET.maxOwn).map(p => ({ u: String(p.u), id: p.id, en: clamp(Math.floor(+p.en || 0), 0, D.PET.max) }));
     if (!s.pets.some(p => p.u === s.petOn)) s.petOn = '';
-    s.petOpen = { hero: s.petOpen && s.petOpen.hero ? 1 : 0, legend: s.petOpen && s.petOpen.legend ? 1 : 0 };
+    s.petOpen = { hero: s.petOpen && s.petOpen.hero ? 1 : 0, legend: s.petOpen && s.petOpen.legend ? 1 : 0, ysT: s.petOpen && s.petOpen.ysT ? 1 : 0, ysY: s.petOpen && s.petOpen.ysY ? 1 : 0 };   // v182 거북선·이순신 펫
+    s.ysAt = +s.ysAt || 0;   // v182 이순신 던전을 처음 깬 때(ms) — 메인 카드 '이순신 던전 첫 공략자' · 10명 순위
     s.kingAt = +s.kingAt || (s.petOpen.legend ? Date.now() : 0);   // v158 광개토대왕을 처음 이긴 때(ms) — 예전에 이긴 사람(전설 펫 열림)은 지금 시각으로 · 메인 카드 '광개토대왕 최초 토벌자'
     const sa = s.sasin && typeof s.sasin === 'object' ? s.sasin : {}; s.sasin = {}; D.SASIN.gods.forEach(k => { s.sasin[k] = sa[k] ? 1 : 0; }); s.sasinAll = s.sasinAll ? 1 : 0;
     const yp = Array.isArray(s.ysp) ? s.ysp : []; s.ysp = [0, 0, 0, 0, 0, 0, 0, 0, 0].map((_, i) => yp[i] ? 1 : 0); s.ysMural = s.ysMural ? 1 : 0; s.ysAll = s.ysAll ? 1 : 0;   // v172
@@ -763,7 +764,7 @@
       }
       /* ---------- v149 펫 ---------- */
       const PG = D.PET_GRADE, petCache = {};
-      const petDef = id => { const P = PETBY[id]; if (!P) return null; if (P.art) return { name: 'pet:' + P.name, img79: P.art, h: 72 }; const F = D.MAPS.find(m => m.kind === 'field' && m.mon && m.mon.name === P.mon); return F ? F.mon : null; };
+      const petDef = id => { const P = PETBY[id]; if (!P) return null; if (P.art) return { name: 'pet:' + P.name, img79: P.art, h: P.ph || 72 }; const F = D.MAPS.find(m => m.kind === 'field' && m.mon && m.mon.name === P.mon); return F ? F.mon : null; };
       function petSpr(id) {   // 몬스터 그림(작게 줄이기 전) — Meshy 그림이 늦게 오면 다시 받음
         const c = petCache[id]; if (c && !c.wait) return c;
         const m = petDef(id); if (!m) return null;
@@ -779,7 +780,7 @@
       function petRoll() {
         const R = petRates(); let r = Math.random() * 100, gi = R.filter(x => x.on).slice(-1)[0].i;
         for (const x of R) { if (!x.on) continue; if (r < x.p) { gi = x.i; break; } r -= x.p; }
-        const list = D.PETS.filter(p => p.g === gi); return list[Math.floor(Math.random() * list.length)];
+        const list = D.PETS.filter(p => p.g === gi && (!p.plock || (S.petOpen && S.petOpen[p.plock]))); return list[Math.floor(Math.random() * list.length)];   // v182 펫마다 잠김(거북선·이순신)
       }
       function petDraw() {
         if (S.gold < D.PET.price) { say('골드가 모자라요 (' + fmtN(D.PET.price) + ' G 필요)'); return; }
@@ -1770,7 +1771,7 @@
       // 들어갈 수 있는지 (막히면 까닭) — 입구 = 광개토대왕을 이긴 사람(관리자는 시험용으로 통과) · 회합 = 벽화 완성 · 본진 = 회합을 깸
       function ysBlock(to) {
         const T = MAPBY[to]; if (!T || !T.ys) return '';
-        if (to === YS.entry && G.map.M.id === YS.home && !S.kingAt && !isAdm()) return '광개토대왕을 이긴 사람만 이 바닷길로 내려갈 수 있다';
+        // v182 선생님 11/23: 광개토대왕을 못 이긴 사람도 누구나 들어갈 수 있음 (예전: 광개토대왕을 이긴 사람만)
         if (T.ys === 'boss' && S.ysMural && !S.ysAll) return '이순신 장군님 벽화가 완성되어 왜장 아홉이 깨어났다! 회합에서 아홉을 모두 이겨야 본진이 열린다';   // v173 선생님 11/20: 벽화가 없으면 회합은 빈 방 · 본진은 그냥 열림
         return '';
       }
@@ -1781,13 +1782,15 @@
           S.gear[u] = { b: 'btYi', en: 0, op: [['spdP', base.spdOpt]].concat(good.map(q => [q, OPTS[q].max]), rest) };
           const got = addItem(regGear(u, S.gear[u]), 1);
           S.ysp = S.ysp.map(() => 0); S.ysMural = 0; S.ysAll = 0; S.ysWin = (S.ysWin || 0) + 1;
+          const firstYs = !S.ysAt; if (firstYs) S.ysAt = Date.now(); if (!S.petOpen.ysY) { S.petOpen.ysY = 1; setTimeout(() => say('👑 이장 댁 펫 뽑기에 「이순신」(전설) · 「거북선」(영웅)이 나오기 시작해요! · 타이틀 「이순신과 함께한 자」를 얻었어요', 6), 2500); }   // v182 첫 공략 시각 · 이순신 펫 · 타이틀
+          setTimeout(() => submitRank(0, true), 800); setTimeout(() => { G.ysTop = null; }, 4500);
           G.title = { t: 0, text: '와키자카 야스하루를 이겼다!', sub: got ? '이순신 장군의 신발을 얻었다!' : '가방이 가득 차서 신발을 못 받았어요…' }; G.flash = 0.6; G.shake = 14; Fx.levelUp(G.px, G.py);
           save(true); setTimeout(() => { if (!G.dead && G.map && G.map.M.ys === 'boss') { enter(YS.entry, { from: YS.home }); say('이순신 장군님 던전이 처음으로 돌아갔어요. 왜장 아홉을 다시 이기면 또 도전할 수 있어요', 5); } }, 6000);
           return;
         }
         if (d.ysGen == null) return;
         if (d.allRoom) { if (G.mons.every(x => x.dead || !x.def.allRoom)) { S.ysAll = 1; G.title = { t: 0, text: '왜장 아홉을 모두 이겼다!', sub: '아래쪽 와키자카 야스하루의 본진이 열렸어요' }; G.flash = 0.5; save(true); } return; }
-        if (!S.ysp[d.ysGen]) { S.ysp[d.ysGen] = 1; const n = ysHave(); G.title = { t: 0, text: `${d.name}을(를) 이겼다!`, sub: `벽화 조각을 되찾았다 (${n}/9)` + (n === 9 ? ' · 어귀 지킴이에게 가서 벽화를 맞춰 보세요' : '') }; G.flash = 0.45; save(true); }
+        if (!S.ysp[d.ysGen]) { S.ysp[d.ysGen] = 1; const n = ysHave(); G.title = { t: 0, text: `${d.name}을(를) 이겼다!`, sub: `벽화 조각을 되찾았다 (${n}/9)` + (n === 9 ? ' · 왜장의 길목의 빈 벽화 틀로 가서 맞춰 보세요' : '') }; G.flash = 0.45; save(true); }
       }
       // 3×3 밀기 퍼즐: 0~8 = 조각 자리 (8 = 빈칸) · 열 때마다 무작위로 섞음 (빈칸을 300번 움직여서 늘 풀 수 있게)
       function ysShuffle() {
@@ -1910,6 +1913,11 @@
         h += `<div class="rg-ys-have">${S.ysp.map((v, i) => `<div class="${v ? 'on' : ''}" style="${v ? `background-image:url(${img});background-position:${(i % 3) * 50}% ${Math.floor(i / 3) * 50}%` : ''}">${v ? '' : '?'}</div>`).join('')}</div>`;
         h += `<p class="sub" style="text-align:center">되찾은 벽화 조각 <b style="color:#FFD23F">${n}/9</b>${S.ysMural ? ' · 벽화 완성 ✔ (왜장들의 회합 열림)' : ''}${S.ysAll ? ' · 본진 열림 ✔' : ''}</p>`;
         h += `<div class="rg-srvact">${S.ysMural || !fr ? '' : `<button type="button" class="rg-mini" data-yspz="1"${n < 9 ? ' disabled' : ''}>🧩 벽화 맞추기${n < 9 ? ' (조각 9개 필요)' : ''}</button>`}<button type="button" class="rg-mini ghost" data-x>닫기</button></div>`;
+        if (!fr) {   // v182 이순신 던전을 먼저 깬 10명 (서버 기록 · 날짜·시간 · 관리자 시험은 기록 안 됨)
+          const esc2 = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]), K = G.ysTop, fmt = v => { const d = new Date(9e12 - v); return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+          if (!K && !G.ysTopReq && Hub.extraTopN) { G.ysTopReq = 1; Hub.extraTopN(GAME, 'ys', 10).then(r => { G.ysTop = r || []; G.ysTopReq = 0; if (pane === 'ysnpc') renderPanel(); }).catch(() => { G.ysTop = []; G.ysTopReq = 0; if (pane === 'ysnpc') renderPanel(); }); }
+          h += `<div class="rg-king10" style="border-color:#9AE6FF"><b class="tt" style="color:#9AE6FF">⚓ 이순신 장군님 던전을 먼저 깬 용사 10명</b>${!K ? '<p class="sub">불러오는 중…</p>' : !K.length ? '<p class="sub">아직 아무도 와키자카를 이기지 못했어요. 첫 번째 용사가 되어 보세요!</p>' : `<ol>${K.map((r, i) => `<li${Hub.user && r.user_id === Hub.user.id ? ' class="me"' : ''}><span class="no">${i + 1}</span><b>${esc2(r.nickname)}</b><small>${fmt(r.value)}</small></li>`).join('')}</ol>`}</div>`;
+        }
         return h;
       }
       function hellKill(m) {
@@ -3273,7 +3281,7 @@
         if (!Hub.user) return;
         const now = Date.now(); if (now - G.lastSubmit < 4000 && !pd && !force) return; G.lastSubmit = now;
         const sec = Math.min(86400, Math.round(S.play - G.playMark)); G.playMark = S.play;
-        try { await Hub.submitScore({ game_id: GAME, score: rankScore(), duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills, hell: S.hell ? hellTxt(S.hell) : null, reb: S.reb || 0, dps: Math.min(1e13, Math.round(S.dpsBest || 0)), king: S.kingAt ? 9e12 - S.kingAt : 0 } });   /* v158 king = 9조 − 처음 이긴 시각 → 클수록 먼저 이김 (extraTop 이 큰 값 1위) */ loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }   // v134 환생 횟수(reb)도 기록 (메인 카드 '환생 1위')
+        try { await Hub.submitScore({ game_id: GAME, score: rankScore(), duration_sec: Math.max(0, sec), result: null, points_delta: pd || 0, extra: { lv: S.lv, map: S.map, kills: S.kills, hell: S.hell ? hellTxt(S.hell) : null, reb: S.reb || 0, dps: Math.min(1e13, Math.round(S.dpsBest || 0)), king: S.kingAt ? 9e12 - S.kingAt : 0, ys: S.ysAt && !(Hub.isAdmin && Hub.isAdmin()) ? 9e12 - S.ysAt : 0 } });   /* v182 ys = 9조 − 이순신 던전을 처음 깬 시각 (관리자는 기록에서 뺌 — 선생님 시험이 '첫 공략자'가 되지 않게) */   /* v158 king = 9조 − 처음 이긴 시각 → 클수록 먼저 이김 (extraTop 이 큰 값 1위) */ loadRank(); } catch (e) { console.warn('[rpg] 랭킹 저장 실패', e.message); }   // v134 환생 횟수(reb)도 기록 (메인 카드 '환생 1위')
       }
       function bossReward() { const p = (CFG.points && CFG.points.boss) || 0; if (p) { submitRank(p); A.toast(`보스 처치! +${p}P`); } }
       async function loadRank() {
@@ -3321,7 +3329,7 @@
       const npcBox = () => { const a = paneArg; if (!a || !a.npc) return ''; const d = a.npc.def; return `<div class="rg-npc"><img src="${npcFace(d)}" alt=""><div><b style="color:${d.color}">${d.name}</b><p>“${a.hello}”</p></div></div>`; };
       /* v176 타이틀: 얻었는지 · 스탯 창 고르기 칸 · 이름 위 표시 */
       const TT = D.TITLES || [], ttBy = id => TT.find(t => t.id === id);
-      const titleHave = id => id === 'reb10' ? (S.reb || 0) >= D.REBIRTH.max : id === 'king' ? !!S.kingAt : id === 'king1' ? !!(Hub.user && G.kingFirst && G.kingFirst === Hub.user.id) : false;
+      const titleHave = id => id === 'reb10' ? (S.reb || 0) >= D.REBIRTH.max : id === 'king' ? !!S.kingAt : id === 'ys' ? !!S.ysAt : id === 'ys1' ? !!(Hub.user && G.ysFirst && G.ysFirst === Hub.user.id) : id === 'king1' ? !!(Hub.user && G.kingFirst && G.kingFirst === Hub.user.id) : false;
       const myTitle = () => (S && S.title && titleHave(S.title) ? S.title : '');
       const titleBox = () => { const have = TT.filter(t => titleHave(t.id));
         return `<div class="rg-ttl"><label>🏅 타이틀 <select data-title${have.length ? '' : ' disabled'}><option value="">${have.length ? '보이지 않기' : '아직 없음'}</option>${have.map(t => `<option value="${t.id}"${myTitle() === t.id ? ' selected' : ''}>${t.name}</option>`).join('')}</select></label><small>${TT.map(t => `${titleHave(t.id) ? '✔' : '·'} ${t.name} — ${t.how}`).join('<br>')}</small></div>`; };
@@ -3367,6 +3375,8 @@
             + (petOpenOf(leg) ? '' : `<span style="color:${leg.color}">👑 전설</span> <span style="color:#FFFFFF">광개토대왕 — 광개토대왕 던전 가장 깊은 곳에서 <b style="color:${leg.color}">광개토대왕을 이기면</b> 열려요</span><br>`)
             + `<small style="color:#9AE6FF">${soon ? '광개토대왕 던전은 곧 열려요! (환생한 사람만 들어갈 수 있어요)' : '환생한 사람만 들어갈 수 있는 숨은 입구를 찾아보세요'}</small></div>`;
         }
+        { const yl = D.PETS.filter(p => p.plock && !(S.petOpen && S.petOpen[p.plock]));   // v182 거북선·이순신 펫 잠김 안내
+          if (yl.length) h += `<div class="rg-petlock" style="margin:8px 0;padding:9px 12px;border-radius:10px;background:#1D2340;border:2px solid #9AE6FF;line-height:1.55"><b style="color:#9AE6FF">⚓ 이순신 장군님 던전 펫</b><br>${yl.map(p => `<span style="color:${PG[p.g].color}">${p.g === 4 ? '👑' : '🐢'} ${p.name}(${PG[p.g].name})</span> <span style="color:#FFFFFF">— ${p.lockTxt} 뽑기에 나와요</span>`).join('<br>')}</div>`; }
         h += `<div class="rg-srvact" style="justify-content:center"><button type="button" class="go rg-petgo" data-petdraw ${ok ? '' : 'disabled'}>${ok ? `🎁 펫 뽑기 · ${fmtN(D.PET.price)} G` : `골드가 모자라요 (${fmtN(D.PET.price)} G 필요)`}</button></div>`;
         if (r) { const P = PETBY[r.id], g = PG[P.g]; h += `<div class="rg-petres g${P.g}" style="--c:${g.color}" data-age="${Math.round(performance.now() - r.t)}">${petCard(r.id, `<em>올스탯 +${g.stat}${r.dup ? ' · 같은 펫이 있어서 펫 창(P)에서 강화할 수 있어요' : ''}</em>`, 'flip')}</div>`; }
         h += `<p class="sub" style="text-align:center">뽑은 펫은 모두 스탯에 더해져요 (지금 올스탯 <b>+${petBonus(S)}</b>) · 펫 창(P)에서 데리고 다닐 펫을 골라요</p></div>`;
@@ -3980,6 +3990,7 @@
         if (!S.help) openPanel('help');
         else if (Hub.user) { G.srvAsked = true; openPanel('servers'); }
         loadRank();
+        if (Hub.extraTop) Hub.extraTop(GAME, 'ys').then(t => { G.ysFirst = t ? t.user_id : ''; if (net) net.retrack(); }).catch(() => {});   // v182 '처음으로 이순신과 함께한 자'
         if (Hub.extraTop) Hub.extraTop(GAME, 'king').then(t => { G.kingFirst = t ? t.user_id : ''; if (net) net.retrack(); if (pane === 'stat') renderPanel(); }).catch(() => {});   // v176 '최초로 광개토대왕을 죽인 자' 타이틀 (서버 기록 1위)
         if (Hub.user) Hub.myBest(GAME).then(b => { if ((b || 0) < rankScore()) submitRank(); }).catch(() => {});
         window.__rpg = { bsk: (m, k) => newSkill(m, k, Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x)), sxBlock: t => sxBlock(t), godsDone: () => godsDone(), roomKey: () => roomKey(), kingSwordOn: () => kingSwordOn(), petDraw, petEnh, petRates, petRoll, petBonus: () => petBonus(S), stats: () => stats(), hitMon: (m, b, e, o) => hitMon(m, b, e, o), hitPlayer: (a, b, c2, d) => hitPlayer(a, b, c2, d), pStatus: (a, b, c2) => pStatus(a, b, c2), stationGo, rig, rigKind, rollOpts, optCount, step: dt => update(dt), drawNow: () => draw(performance.now()), usePotion, basicAttack, net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, mkGear: (b, en, op) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
