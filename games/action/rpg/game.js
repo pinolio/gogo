@@ -2278,7 +2278,7 @@
       const hellNpc = map => (map.M.region === D.REGIONS.length - 1 && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: window.__GoRPGParts.VXf(30.5) * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);   // v158 넓은 마을
       function talk(n) {
         if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station', 'sxnpc', 'ysnpc', 'ysmural'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
-        n.say = null; openPanel(n.key, { npc: n, hello: pick(n.def.hello) });
+        n.say = null; openPanel(n.key, { npc: n, hello: n.def.hello && n.def.hello.length ? pick(n.def.hello) : '' });   // v180 인사말이 없는 NPC(송희립·벽화 틀)도 열리게
       }
       function updateNpcs(dt) {
         (G.npcs || []).forEach(n => {
@@ -2301,6 +2301,7 @@
       /* ---------- 한 틱 ---------- */
       function update(dt) {
         const map = G.map, M = map.M;
+        if (pane === 'ysmural' && M.ys) { G.inv = Math.max(G.inv, 0.3); if (G.title) G.title.t += dt; return; }   // v180 선생님 11/23: 벽화 퍼즐 중엔 시간이 멈춤 (몬스터·탄·기술 모두 멈추고 나도 안 다침, 혼자 하는 던전)
         S.play += dt; G.saveT += dt; G.srvT += dt; if (msgT > 0 && (msgT -= dt) <= 0) msgEl.hidden = true;
         G.atkCd -= dt; G.inv -= dt; G.lastHit += dt;
         duelTick(dt);   // v143 결투
@@ -2358,7 +2359,7 @@
         updateNpcs(dt);
         // v60 대장장이 가까이 → 강화 창 (멀어졌다가 다시 오면 또 열림)
         for (const sm of (!G.room && G.npcs ? G.npcs.filter(n => n.smith) : [])) {   // v69 대장장이 · 저승차사 (가까이 가면 창)
-          const nearS = Math.hypot(G.px - sm.x, G.py - sm.y) < 40; if (nearS && G.onNpc !== sm) { G.onNpc = sm; talk(sm); return; } if (!nearS && G.onNpc === sm) G.onNpc = null;
+          const nearS = sm.mural ? Math.abs(G.px - sm.x) < 125 && G.py > sm.y - 40 && G.py < sm.y + 46 : Math.hypot(G.px - sm.x, G.py - sm.y) < 40; /* v180 벽화 틀은 틀 앞 어디든 다가가면 열림 */ if (nearS && G.onNpc !== sm) { G.onNpc = sm; talk(sm); return; } if (!nearS && G.onNpc === sm) G.onNpc = null;
         }
         // 건물 문
         //  문 칸에 들어가거나, 문 바로 아래 칸에서 위(↑)로 걸으면 들어감
@@ -2558,6 +2559,7 @@
         drawHud(c, now);
         if (map.M.ys && S.ysMural && !G.room) drawYsBless(c, now);   // v173 이순신의 축복 (이 던전 안에서만)
         if (G.touch) drawTouch(c);
+        if (pane === 'ysmural' && G.map.M.ys) { c.save(); c.fillStyle = 'rgba(60,120,240,.16)'; c.fillRect(0, 0, W, H); c.font = '16px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = '#1D2340'; c.fillStyle = '#9AE6FF'; c.strokeText('⏳ 벽화를 맞추는 동안 시간이 멈췄다', W / 2, H - 92); c.fillText('⏳ 벽화를 맞추는 동안 시간이 멈췄다', W / 2, H - 92); c.restore(); }   // v180
         if (!G.dead) drawMenuTab(c, now);   // v173 지도 아래 메뉴 탭 (휴대폰 큰 화면용 · 터치 버튼보다 위에)
       }
 
@@ -2956,7 +2958,8 @@
             /* v179 선생님 11/23: 조각은 캐릭터가 들고 있음 → 퍼즐을 맞추기 전까지 틀은 비어 있음 */ { c.strokeStyle = '#3C78F0'; c.lineWidth = 1.5; c.strokeRect(cx + 1.5, cy + 1.5, cw - 3, ch - 3); c.fillStyle = '#9AE6FF'; c.fillText('?', cx + cw / 2, cy + ch / 2 + 1); } }
         }
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
-        const nh = have.filter(Boolean).length, label = done ? '이순신 장군님 벽화' : nh >= 9 ? `조각 9/9 · 말을 걸어 맞추기!` : `${n.def.name} · 조각 ${nh}/9`; c.strokeText(label, n.x, fy - 4); c.fillStyle = n.def.color; c.fillText(label, n.x, fy - 4); c.restore();
+        const nh = have.filter(Boolean).length, label = done ? '이순신 장군님 벽화' : nh >= 9 ? `들고 있는 벽화 조각 9개 · 틀 앞으로 다가가면 맞추기` : `${n.def.name} · 들고 있는 조각 ${nh}/9`; c.strokeText(label, n.x, fy - 4); c.fillStyle = n.def.color; c.fillText(label, n.x, fy - 4); c.restore();
+        if (!done && nh >= 9 && Math.hypot(G.px - n.x, G.py - n.y) > 60) { const by = n.y + 26 + Math.sin(now / 250) * 4; c.save(); c.fillStyle = '#FFD23F'; c.strokeStyle = '#1D2340'; c.lineWidth = 3; c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.strokeText('▲ 여기로 오면 벽화 맞추기', n.x, by + 14); c.fillText('▲ 여기로 오면 벽화 맞추기', n.x, by + 14); c.restore(); }   // v180 어디로 가야 하는지
         if (n.say && n.sayT > 0) (G.sayQ || (G.sayQ = [])).push([n, fy - 16]);
       }
       // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
