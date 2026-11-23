@@ -53,7 +53,7 @@
     const B = ITEMS[g.b]; if (!B || !B.slot || B.base) return null;
     const seen = {}, op = (Array.isArray(g.op) ? g.op : []).slice(0, 5)
       .filter(o => Array.isArray(o) && OPTS[o[0]] && !seen[o[0]] && (seen[o[0]] = 1) && isFinite(+o[1]))
-      .map(o => [o[0], clamp(r1(+o[1]), -OPTS[o[0]].max, OPTS[o[0]].max)]).filter(o => o[1] !== 0);
+      .map(o => { const fx = B.fixOpt && B.fixOpt[o[0]]; return [o[0], fx != null ? fx : clamp(r1(+o[1]), -OPTS[o[0]].max, OPTS[o[0]].max)]; }).filter(o => o[1] !== 0);   // v187 고침: 광개토대왕의 반지(모든 속성 방어 15)·이순신 장군의 신발(이동 속도 10) 고정 옵션이 다시 불러올 때 최대치(8)로 깎이던 것 → 고정값으로 되돌림
     return { b: g.b, en: clamp(Math.floor(+g.en || 0), 0, ENH.max), op };
   }
   function regGear(uid, g) {
@@ -302,7 +302,7 @@
   .rg-sp { font-size: 14px; color: #C9D0F0; } .rg-sp b { font-family: var(--f-display); font-size: 22px; color: #FFD23F; margin-left: 6px; }
   .rg-st { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "lab btns" "ds btns"; gap: 0 10px; align-items: center; background: #141A3C; border: 2px solid #0A0E24; border-left: 5px solid var(--c); border-radius: 10px; padding: 5px 10px; }
   .rg-st .lab { grid-area: lab; display: flex; align-items: baseline; gap: 10px; } .rg-st .lab b { color: var(--c); font-family: var(--f-display); font-size: 18px; } .rg-st .lab span { font-family: var(--f-display); font-size: 20px; color: #FFFFFF; }
-  .rg-st small { grid-area: ds; color: #AEB7E0; font-size: 12px; } .rg-st .lab small.mx { font-size: 12px; color: #8A93C0; }
+  .rg-st small { grid-area: ds; color: #AEB7E0; font-size: 12px; } .rg-st .lab .rg-stmax { font-style: normal; font-size: 12px; font-weight: 700; color: #14193A; background: #FFD23F; border-radius: 999px; padding: 1px 8px; align-self: center; }   /* v187 최대 도달 */ .rg-st .lab small.mx { font-size: 12px; color: #8A93C0; }
   .rg-st .btns { grid-area: btns; display: flex; gap: 6px; } .rg-st .btns .rg-mini { font-size: 15px; padding: 6px 12px; }
   .rg-detailgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
   .rg-detailgrid div { background: #141A3C; border: 2px solid #0A0E24; border-radius: 10px; padding: 7px 9px; display: grid; gap: 1px; }
@@ -1116,7 +1116,7 @@
         const D2 = G.duel; if (!D2 || D2.opp !== m.cid) return;
         if (m.k === 'dhit' && D2.st === 'fight') {
           const el = ELEM[m.el] ? m.el : null, raw = clamp(+m.d || 0, 0, 1e7);
-          const d = hitPlayer(raw, clamp(+m.lv || 1, 1, 200), el, { x: +m.x || G.px, y: +m.y || G.py });
+          const d = hitPlayer(raw, clamp(+m.lv || 1, 1, 200), el, { x: +m.x || G.px, y: +m.y || G.py, pvp: 1 });
           if (d && G.duel && G.duel.st === 'fight') { D2.hpLast = S.hp / ST.hp; net.trade({ k: 'dhp', to: D2.opp, hp: +D2.hpLast.toFixed(3), d, c: m.c ? 1 : 0 }); }
           return;
         }
@@ -2107,7 +2107,7 @@
         if (G.inv > 0 || G.dead) return;
         if (godOn()) { if (!(G.godT > 0)) { G.godT = 0.6; G.texts.push({ x: G.px, y: G.py - 64, text: '무적', color: '#FFD23F', t: 0 }); } return 0; }   // v176 무적 아이디
         if (G.ysNav && G.ysNav.bless && !G.ysNav.done) return;   // v173 거북선 방패 안 = 무적
-        const diff = lvl - S.lv, lvF = diff > 0 ? 1 + 0.08 * diff : Math.max(0.5, 1 + 0.05 * diff);
+        const diff = lvl - S.lv, lvF = src && src.pvp ? 1 : diff > 0 ? 1 + 0.08 * diff : Math.max(0.5, 1 + 0.05 * diff);   // v187 선생님 11/23: 결투(PvP)는 레벨 차이 보정 없음 (몬스터는 그대로 +8% · −5%)
         let dmg = (dmg0 * rand(0.9, 1.1) - ST.def * 0.5) * lvF;
         dmg *= 1 - (el ? (ST.edefs[el] || 0) : ST.pdef) / 100;
         if (G.shield) dmg *= 1 - G.shield.pow;
@@ -2389,7 +2389,7 @@
           if (m.dead) { if (m.noRespawn) return; if ((m.respawn -= dt) <= 0) { const n = makeMon(m.def, m.lvl, m.boss); Object.assign(m, n); } return; }
           if (m.ysInv) { m.flash -= dt; return; }   // v173 왜선 단계: 와키자카는 멈춰 서서 지켜봄
           m.flash -= dt; m.cd -= dt * (m.def.aspd || 1); if (m.lunge > 0) m.lunge -= dt; if (m.knock) m.knock *= Math.pow(0.001, dt);
-          if (m.burn) { m.burn.t -= dt; m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 0.5; m.hp -= Math.max(1, Math.round(m.burn.dps * 0.5)); float(m.x, m.y - m.spr.h, Math.max(1, Math.round(m.burn.dps * 0.5)), '#FF9A3D'); if (m.hp <= 0) { killMon(m); return; } } if (m.burn.t <= 0) m.burn = null; }
+          if (m.burn) { m.burn.t -= dt; m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 0.5; let bd = Math.max(1, Math.round(m.burn.dps * 0.5)); if (m.inv2 > 0 || m.hidden) bd = 0; else if (m.shieldHp > 0) { const k = Math.min(m.shieldHp, bd); m.shieldHp -= k; bd -= k; } if (bd > 0) { m.hp -= bd; float(m.x, m.y - m.spr.h, bd, '#FF9A3D'); if (m.hp <= 0) { killMon(m); return; } } } if (m.burn.t <= 0) m.burn = null; }   // v187 고침: 화상이 '죽지 않는 분노'·땅속·보호막을 뚫고 피해를 주던 것
           if (m.curse > 0) m.curse -= dt;
           if (m.def.noCC) { m.stun = 0; m.slow = 0; m.burn = null; m.curse = 0; }   // v177 와키자카: 어디서 걸려도 바로 풀림
           if (m.stun > 0) { m.stun -= dt; return; }
@@ -3609,7 +3609,7 @@
           const av = Hub.user ? Hub.user.avatar : AV.normalize({}), fig = avatarSprite(av, S.eq, S.hide, 0).toDataURL(), ex = S.lv >= D.MAX_LV ? 100 : S.exp / D.F.need(S.lv) * 100;
           h = head('스탯', `레벨이 오를 때마다 포인트 ${per}개 · 원하는 스탯에 올려요 · 최대치 없음${petBonus(S) ? ` · 펫 올스탯 +${petBonus(S)}` : ''}`);
           h += `<div class="rg-statui"><div class="rg-statwin"><section class="rg-doll rg-statfig"><div class="rg-fig"><img src="${fig}" alt="내 캐릭터"><span class="lv">Lv.${S.lv}</span></div><b class="nm">${Hub.user ? Hub.user.nickname : '손님'}</b><div class="rg-xp"><i style="width:${ex.toFixed(1)}%"></i></div><small>경험치 ${ex.toFixed(1)}%</small>${rebBox()}${titleBox()}${godAcct() ? `<label class="rg-god"><input type="checkbox" data-god${S.godOff ? '' : ' checked'}> 🛡 무적 (파워복복 전용)</label>` : ''}</section>`;
-          h += `<section class="rg-bag rg-alloc"><div class="rg-sp">남은 포인트 <b>${S.sp}</b></div>${T.keys.map(q => { const full = a[q] >= statMax(S); return `<div class="rg-st" style="--c:${T[q].color}"><div class="lab"><b>${T[q].name}</b><span>${a[q]}${petBonus(S) ? `<small class="mx"> +펫 ${petBonus(S)}</small>` : ''}</span></div><small>${T[q].desc}</small><div class="btns"><button type="button" class="rg-mini" data-addst="${q}:1" ${S.sp < 1 || full ? 'disabled' : ''}>+1</button><button type="button" class="rg-mini ghost" data-addst="${q}:5" ${S.sp < 1 || full ? 'disabled' : ''}>+5</button></div></div>`; }).join('')}<div class="rg-srvact"><button type="button" class="rg-mini ghost" data-streset ${used ? '' : 'disabled'}>포인트 다시 나누기 (무료)</button></div></section></div>`;
+          h += `<section class="rg-bag rg-alloc"><div class="rg-sp">남은 포인트 <b>${S.sp}</b></div>${T.keys.map(q => { const full = a[q] >= statMax(S), cap = T.defCap, pF = ST.pdef >= cap, eF = Object.values(ST.edefs).every(v => v >= cap), mx = q === 'dex' && ST.spd >= (T.spdMax || 100) ? '최대 도달' : q === 'res' && pF && eF ? '최대 도달' : q === 'res' && pF ? '물리 방어 최대' : q === 'res' && eF ? '속성 방어 최대' : '';   /* v187 선생님 11/23: 효과가 최대에 닿은 스탯 표시 (민첩 = 이동 속도 +100% · 저항 = 방어 75%) */ return `<div class="rg-st" style="--c:${T[q].color}"><div class="lab"><b>${T[q].name}</b><span>${a[q]}${petBonus(S) ? `<small class="mx"> +펫 ${petBonus(S)}</small>` : ''}</span>${mx ? `<em class="rg-stmax" title="더 올려도 효과가 늘지 않아요 (장비·옵션 포함)">${mx}</em>` : ''}</div><small>${T[q].desc}</small><div class="btns"><button type="button" class="rg-mini" data-addst="${q}:1" ${S.sp < 1 || full ? 'disabled' : ''}>+1</button><button type="button" class="rg-mini ghost" data-addst="${q}:5" ${S.sp < 1 || full ? 'disabled' : ''}>+5</button></div></div>`; }).join('')}<div class="rg-srvact"><button type="button" class="rg-mini ghost" data-streset ${used ? '' : 'disabled'}>포인트 다시 나누기 (무료)</button></div></section></div>`;
           const OK2 = { atk: 'atkP', mag: 'magP', hp: 'hpP', mp: 'mpP', spd: 'spdP', crit: 'crit', dmg: 'dmg', mpRegen: 'mpReg', pdef: 'pdef' };
           const fm = v => (Math.round(v * 10) / 10).toLocaleString('ko-KR'), sg = v => (v < 0 ? '−' + fm(-v) : '+' + fm(v)), pt = (k2, unit) => { const b = PT.base[k2] || 0, sv = PT.sta[k2] || 0, g = PT.gear[k2] || 0, op = PT.opt[OK2[k2]] || 0; return [b ? `기본 ${fm(b)}${unit}` : '', sv ? `<em class="s">스탯 +${fm(sv)}${unit}</em>` : '', g ? `<em class="g">장비 +${fm(g)}${unit}</em>` : '', op ? `<em class="g">옵션 ${sg(op)}%</em>` : ''].filter(Boolean).join(' · ') || '—'; };
           const rows = [

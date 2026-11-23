@@ -318,10 +318,10 @@
   ITEMS.swKing = { id: 'swKing', slot: 'weapon', name: '왕을 죽인 검', tier: 8, rare: false, legend: false, req: 80, st: { atk: 120 }, price: Math.round(20 + 80 * 80 * 0.9), look: 'sword', kingSword: true,
     desc: '어디선가 굴러들어온 검.', descKing: '어느 날 광개토대왕을 죽인 검.' };
   ITEMS.rgKing = { id: 'rgKing', slot: 'ring', name: '광개토대왕의 반지', tier: 9, rare: true, legend: true, req: 100, st: { mp: Math.round(ITEMS.rg10.st.mp * 1.2), mag: Math.round(ITEMS.rg10.st.mag * 1.2) }, price: ITEMS.rg10.price /* v182 선생님 11/23: 팔 때 전설과 같은 값 */,
-    noTrade: true, icon79: 'ic_rg_king', desc: '사방신을 거느린 대왕의 반지. 잡을 때마다 하나씩.', goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'] };
+    noTrade: true, icon79: 'ic_rg_king', desc: '사방신을 거느린 대왕의 반지. 잡을 때마다 하나씩.', goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'], fixOpt: { e_all: 15 } };   // v187 fixOpt = 고정 옵션 (보통 최대치 8 을 넘어도 그대로)
   /* v173 이순신 장군의 신발 (선생님 11/20): 와키자카 야스하루를 이기면 · 전설 신발(bt10)의 1.2배 · 옵션 4개 = ① 이동 속도 고정(spd, 선생님이 정함) ② 좋은 옵션 1개 최대치 ③④ 무작위 · 거래 안 됨 */
   ITEMS.btYi = { id: 'btYi', slot: 'boots', name: '이순신 장군의 신발', tier: 9, rare: true, legend: true, req: 100, st: { def: Math.round(ITEMS.bt10.st.def * 1.2), spd: Math.round(ITEMS.bt10.st.spd * 1.2) }, price: ITEMS.bt10.price /* v182 선생님 11/23: 팔 때 전설과 같은 값 */,
-    noTrade: true, icon79: 'ic_bt_yi', desc: '바다를 지킨 장군의 신발. 와키자카를 이길 때마다 하나씩.', spdOpt: 10, goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'] };
+    noTrade: true, icon79: 'ic_bt_yi', desc: '바다를 지킨 장군의 신발. 와키자카를 이길 때마다 하나씩.', spdOpt: 10, goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'], fixOpt: { spdP: 10 } };
 
   /* ---------------- v60 장비 옵션 (떨어질 때 무작위로 붙음) ----------------
    *  max = 가장 높은 단계(전설)에서 나올 수 있는 최댓값(%). 낮은 단계일수록 작게: max × (0.25 + 0.75 × 단계/9) × (0.2~1)
