@@ -822,6 +822,9 @@
       const float = (x, y, text, color, big) => { if (G.texts.length >= 40) { const i = G.texts.findIndex(t => !t.big); G.texts.splice(i < 0 ? 0 : i, 1); } G.texts.push({ x, y, text, color: color || '#FFFFFF', t: 0, big }); };   // v174 렉: 떠오르는 글자 최대 40개
 
       /* ---------- 지도 들어가기 ---------- */
+      /* v183 보스 방 앞 가방 가득 참 경고 */
+      function bagFull() { return S.inv.length >= bagMax(); }
+      function bagWarn() { if (bagFull()) say(`⚠️ 가방이 가득 차있어서 아이템을 얻을 수 없습니다. (가방 ${bagMax()}칸이 가득 찼어요)`, 7); }
       function enter(id, side, quiet) {
         const M = MAPBY[id]; if (!M) return;
         const map = getMap(id); G.ysNav = null; G.bfx = []; G.dmark = null; G.stackN = 0; G.slideV = null;
@@ -834,6 +837,7 @@
         if (!S.visited.includes(id)) S.visited.push(id);
         if (M.kind === 'village') { S.home = id; spawnNone(); }
         else { spawnAll(); if (!M.hell && M.rec > S.lv + 6) say(`권장 Lv.${M.rec} — 지금 레벨로는 위험해요!`, 3); }
+        if ((M.sx === 'king' && S.sasinAll) || (M.ys === 'boss' && (!S.ysMural || S.ysAll))) bagWarn();   // v183 보스 방에 들어갈 때 가방이 가득 차 있으면 경고
         G.onDoor = null; markDirty(!quiet); netRoom();
       }
       // v41 건물 안: 문으로 걸어 들어가면 실내 지도 · 아래 가운데 문으로 나가면 그 건물 문 앞
@@ -1753,7 +1757,7 @@
           save(true); setTimeout(() => { if (!G.dead && inKingRoom()) { enter(SX.home, { from: SX.entry }); say('광개토대왕 던전이 처음으로 돌아갔어요. 다시 사방신을 이기면 광개토대왕을 만날 수 있어요', 5); } }, 6000);
           return;
         }
-        if (m.def.allRoom) { if (G.mons.every(x => x.dead || !x.def.allRoom)) { S.sasinAll = 1; G.title = { t: 0, text: '사방신을 모두 이겼다!', sub: '위쪽 광개토대왕의 방이 열렸어요' }; G.flash = 0.5; save(true); } return; }
+        if (m.def.allRoom) { if (G.mons.every(x => x.dead || !x.def.allRoom)) { S.sasinAll = 1; G.title = { t: 0, text: '사방신을 모두 이겼다!', sub: '위쪽 광개토대왕의 방이 열렸어요' }; G.flash = 0.5; save(true); bagWarn(); } return; }
         S.sasin[g] = 1; const n = godsDone();
         G.title = { t: 0, text: `${SX.godName[g]}을(를) 이겼다!`, sub: `광개토대왕 던전 어귀 문에 ${SX.godName[g]}의 불이 켜졌어요 (${n}/4)` }; G.flash = 0.45;
         if (n === 4 && !S.petOpen.hero) { S.petOpen.hero = 1; setTimeout(() => say('사방신을 모두 이겼어요! 이장 댁 펫 뽑기에 「영웅」(청룡·주작·백호·현무)이 열렸어요', 5), 2500); }
@@ -1789,7 +1793,7 @@
           return;
         }
         if (d.ysGen == null) return;
-        if (d.allRoom) { if (G.mons.every(x => x.dead || !x.def.allRoom)) { S.ysAll = 1; G.title = { t: 0, text: '왜장 아홉을 모두 이겼다!', sub: '아래쪽 와키자카 야스하루의 본진이 열렸어요' }; G.flash = 0.5; save(true); } return; }
+        if (d.allRoom) { if (G.mons.every(x => x.dead || !x.def.allRoom)) { S.ysAll = 1; G.title = { t: 0, text: '왜장 아홉을 모두 이겼다!', sub: '아래쪽 와키자카 야스하루의 본진이 열렸어요' }; G.flash = 0.5; save(true); bagWarn(); } return; }
         if (!S.ysp[d.ysGen]) { S.ysp[d.ysGen] = 1; const n = ysHave(); G.title = { t: 0, text: `${d.name}을(를) 이겼다!`, sub: `벽화 조각을 되찾았다 (${n}/9)` + (n === 9 ? ' · 왜장의 길목의 빈 벽화 틀로 가서 맞춰 보세요' : '') }; G.flash = 0.45; save(true); }
       }
       // 3×3 밀기 퍼즐: 0~8 = 조각 자리 (8 = 빈칸) · 열 때마다 무작위로 섞음 (빈칸을 300번 움직여서 늘 풀 수 있게)
