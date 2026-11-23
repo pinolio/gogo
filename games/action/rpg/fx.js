@@ -820,9 +820,9 @@
         add({ dur: 1.4, under: true, draw(c, k) { const a = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85; c.globalAlpha = a * 0.75; c.fillStyle = '#5A1408'; c.beginPath(); c.ellipse(x, fy, r, r * 0.5, 0, 0, TAU); c.fill();
           c.globalCompositeOperation = 'lighter'; c.strokeStyle = P[2]; c.lineWidth = 3; cr.forEach(([a0, d]) => { c.beginPath(); c.moveTo(x, fy); c.lineTo(x + Math.cos(a0) * r * d * 0.5, fy + Math.sin(a0) * r * d * 0.25 + 4); c.lineTo(x + Math.cos(a0 + 0.2) * r * d, fy + Math.sin(a0 + 0.2) * r * d * 0.5); c.stroke(); }); } });
         add({ dur: 0.9, draw(c, k, now) { c.globalCompositeOperation = 'lighter'; const e = 1 - Math.pow(1 - Math.min(1, k * 1.5), 3), rr = r * 0.42 * e, a = k < 0.5 ? 1 : 1 - (k - 0.5) / 0.5;
-          drawGlow(c, x, y - 10, rr * 1.4, P[3], a * 0.6); c.globalAlpha = a; c.fillStyle = P[2]; c.beginPath(); c.arc(x, y - 10, rr, 0, TAU); c.fill(); c.fillStyle = P[1]; c.beginPath(); c.arc(x, y - 10, rr * 0.7, 0, TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(x, y - 10, rr * 0.35, 0, TAU); c.fill();
-          c.strokeStyle = P[2]; c.lineWidth = 4; for (let i = 0; i < 12; i++) { const t = i * TAU / 12 + now / 300; c.beginPath(); c.moveTo(x + Math.cos(t) * rr * 1.05, y - 10 + Math.sin(t) * rr * 1.05); c.lineTo(x + Math.cos(t) * rr * 1.35, y - 10 + Math.sin(t) * rr * 1.35); c.stroke(); } } });
-        burst(x, y, busy() ? 10 : 32, P, { min: r, max: r * 2.4, up: -60, g: -40, lmin: 0.4, lmax: 0.9, shape: 'glow', smin: 4, smax: 8 });
+          drawGlow(c, x, y - 10, rr * 1.1, P[3], a * 0.65);   /* v184 렉: 1.4→1.1 */ c.globalAlpha = a; c.fillStyle = P[2]; c.beginPath(); c.arc(x, y - 10, rr, 0, TAU); c.fill(); c.fillStyle = P[1]; c.beginPath(); c.arc(x, y - 10, rr * 0.7, 0, TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(x, y - 10, rr * 0.35, 0, TAU); c.fill();
+          c.strokeStyle = P[2]; c.lineWidth = 4; for (let i = 0; i < 8; i++) { const t = i * TAU / 8 + now / 300; c.beginPath(); c.moveTo(x + Math.cos(t) * rr * 1.05, y - 10 + Math.sin(t) * rr * 1.05); c.lineTo(x + Math.cos(t) * rr * 1.35, y - 10 + Math.sin(t) * rr * 1.35); c.stroke(); } } });
+        burst(x, y, busy() ? 6 : 16, P, { min: r, max: r * 2.4, up: -60, g: -40, lmin: 0.4, lmax: 0.9, shape: 'glow', smin: 4, smax: 8 });
         return true;
       }
     },
@@ -891,10 +891,10 @@
     add({ t: -delay, dur: lead + 0.5, draw(c, k) { const tt = k * (lead + 0.5); c.globalCompositeOperation = 'lighter';
       if (tt < lead) { const q = tt / lead, mx = sx0 + (x - sx0) * q, my = sy0 + (y - sy0) * q, ang = Math.atan2(y - sy0, x - sx0);
         c.save(); c.translate(mx, my); c.rotate(ang); const g = c.createLinearGradient(-110, 0, 0, 0); g.addColorStop(0, 'rgba(232,64,42,0)'); g.addColorStop(1, P[1]); c.fillStyle = g; c.beginPath(); c.moveTo(-110, 0); c.lineTo(0, -12); c.lineTo(0, 12); c.fill(); c.restore();
-        drawGlow(c, mx, my, 40, P[2], 1); c.fillStyle = P[3]; c.beginPath(); c.arc(mx, my, 11, 0, TAU); c.fill(); c.fillStyle = P[1]; c.beginPath(); c.arc(mx + 2, my - 2, 6, 0, TAU); c.fill(); return; }
-      const q = (tt - lead) / 0.5; c.globalAlpha = 1 - q; drawGlow(c, x, y, r * 1.1 * (0.6 + q), P[2], (1 - q) * 0.55);
+        drawGlow(c, mx, my, 28, P[2], 1);   /* v184 렉: 40→28 */ c.fillStyle = P[3]; c.beginPath(); c.arc(mx, my, 11, 0, TAU); c.fill(); c.fillStyle = P[1]; c.beginPath(); c.arc(mx + 2, my - 2, 6, 0, TAU); c.fill(); return; }
+      const q = (tt - lead) / 0.5; c.globalAlpha = 1 - q; drawGlow(c, x, y, r * 0.8 * (0.6 + q), P[2], (1 - q) * 0.6);   /* v184 렉: 빛 번짐 1.1→0.8 */
       for (let i = 0; i < 10; i++) { const a = i * TAU / 10, h = (22 + (i % 3) * 8) * (1 - q * 0.5), px = x + Math.cos(a) * r * 0.5 * (0.5 + q), py = y + Math.sin(a) * r * 0.25 * (0.5 + q); c.fillStyle = P[1 + (i % 3)]; c.beginPath(); c.moveTo(px - 6, py); c.quadraticCurveTo(px, py - h * 0.6, px, py - h); c.quadraticCurveTo(px, py - h * 0.6, px + 6, py); c.fill(); } },
-      update(dt, f) { if (!f.boom && f.t >= lead) { f.boom = 1; burst(x, y, busy() ? 6 : 18, P, { min: 60, max: r * 3.4, up: -80, g: -40, lmin: 0.3, lmax: 0.7, shape: 'glow', smin: 3, smax: 7 }); } } });
+      update(dt, f) { if (!f.boom && f.t >= lead) { f.boom = 1; burst(x, y, busy() ? 4 : 10, P, { min: 60, max: r * 3.4, up: -80, g: -40, lmin: 0.3, lmax: 0.7, shape: 'glow', smin: 3, smax: 7 }); } } });
   }
   // 공통: 땅에서 솟는 바위 가시 하나
   function rockSpike(px, py, h, w, lean, delay, P) {
