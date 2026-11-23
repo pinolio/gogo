@@ -2675,6 +2675,7 @@
         }
         if (o.sign) { const ri = D.SASIN.rockImg && img79(D.SASIN.rockImg); if (ri) { const ww = 104, hh = ri.naturalHeight * ww / ri.naturalWidth, cx = o.x + o.img.width / 2; c.drawImage(ri, Math.round(cx - ww / 2), Math.round(o.sy - hh + 8), ww, Math.round(hh)); } else c.drawImage(o.img, Math.round(o.x), Math.round(o.y)); return; }   // v151 입구 바위: Gemini 그림(SASIN.rockImg)이 들어오면 그림   // v150 글씨 새긴 바위
         if (o.p79) { const im = img79(o.p79); if (im) { const hh = im.naturalHeight * o.pw / im.naturalWidth; c.drawImage(im, Math.round(o.cx - o.pw / 2), Math.round(o.by - hh), o.pw, Math.round(hh));
+          if (o.fire) { const fl = 0.7 + 0.3 * Math.sin(performance.now() / 95 + o.cx) * Math.sin(performance.now() / 157); c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, o.cx, o.by - hh * 0.6, o.pw * 0.6, '#FF8A2A', 0.32 * fl); c.restore(); }   // v186 불타는 집: 불빛이 일렁임
           if (o.label) { c.font = '13px "Jua", "Malgun Gothic", sans-serif'; const lw = c.measureText(o.label).width + 20, ly = Math.max(o.by - hh - 2, 16), lx = o.cx; c.fillStyle = 'rgba(10,14,36,.82)'; c.fillRect(lx - lw / 2, ly - 11, lw, 22); c.fillStyle = '#5AD1FF'; c.fillRect(lx - lw / 2, ly + 10, lw, 2); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#9AE6FF'; c.fillText(o.label, lx, ly + 1); } } return; }   // v80 진영 소품   // v169 명소 이름표
         // Meshy 그림이 있으면: 장애물은 칸 아래 가운데에 세움, 건물은 건물 칸 폭에 맞춤 (+ 이름표)
         if (o.fountain && imgOk('bld_fountain')) {   // v86 분수: Meshy 그림 (6×4 칸, 가운데 맞춤) + 물 반짝임

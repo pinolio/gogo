@@ -344,6 +344,7 @@
       if (ysHome && MAPBY[D.YS.entry]) { const gx = (w >> 1) + 3.6; map.ysSign = { x: (gx + 1) * TS, y: (h - 2.6) * TS }; }   // v174 이순신 던전 푯말 (아래쪽 입구 오른쪽)
       villageRoads(map, rnd);   // v109 직각 길 → 부드럽게 굽은 흙길·마당·디딤돌 (칸도 새 길 모양에 맞춤)
       armyCamp(map, rnd);   // v80 임진왜란 진영 꾸미기 (천막·대포·깃발 + 조선 병사 · 다친 병사)
+      villageHouses(map, rnd);   // v186 민가 · 불타는 집 · 집 둘레 나무 · 작은 바위 (선생님: 마을이 너무 삭막하다)
     } else {
       if (M.hell) {   // 저승: 예전 칸 길 그대로
         let y = mid;
@@ -484,6 +485,64 @@
       for (let y = y0; y < y0 + fh; y++) for (let x = x0; x < x0 + fw; x++) if ([0, 2, 3, 5].includes(at(x, y))) set(x, y, 10);
       map.props.push({ n: L.n, x: x0, y: y0, fw, fh, pw: L.pw, label: L.label, lm: true });
     });
+  }
+  /* v186 마을 꾸미기 (Gemini 그림 img/v79/vh_*.png): 빈 풀밭에 민가 몇 채 + 집 둘레 나무 + 작은 바위
+   *  전쟁 마을(WAR_VIL)은 불타는 집 · 불탄 터 · 잔해를 섞음. 집 칸은 10(못 지나감), 그림은 map.props → map.objs */
+  const HOUSES = { vh_choga: { fw: 4, fh: 2, pw: 150, up: 2 }, vh_small: { fw: 3, fh: 2, pw: 136, up: 2 }, vh_giwa: { fw: 4, fh: 2, pw: 148, up: 3 }, vh_fire: { fw: 4, fh: 2, pw: 162, up: 5, fire: 1 }, vh_ruin: { fw: 4, fh: 2, pw: 150, up: 2 }, vh_rubble: { fw: 3, fh: 2, pw: 112, up: 1 } };
+  const WAR_VIL = { 7: 'some', 8: 'burn' };   // 7 동래(동래성 싸움) · 8 부산(임진왜란이 시작된 곳)
+  function villageHouses(map, rnd) {
+    const { at, set, w, h } = map, ri = map.M.region, war = WAR_VIL[ri];
+    const pool = war === 'burn' ? ['vh_fire', 'vh_ruin', 'vh_rubble', 'vh_choga', 'vh_fire', 'vh_small', 'vh_ruin']
+      : war === 'some' ? ['vh_fire', 'vh_choga', 'vh_small', 'vh_ruin', 'vh_giwa', 'vh_small', 'vh_choga']
+      : ['vh_choga', 'vh_giwa', 'vh_small', 'vh_choga', 'vh_giwa', 'vh_small', 'vh_choga'];
+    const want = map.R.castle ? 5 : 7;
+    const folk = (map.army || []).map(a => [a.x, a.y]);
+    if (D.GURI && ri === D.GURI.region) D.GURI.folk.forEach(f => folk.push([VXf(f.at[0]), VYf(f.at[1])]));
+    if (D.YSFOLK && map.M.id === D.YSFOLK.village) D.YSFOLK.folk.forEach(f => folk.push([f.at[0], f.at[1]]));
+    const GRASS = [0, 2, 3, 5], placed = [];
+    const busy = new Set(), mark = (x0, y0, x1, y1) => { for (let y = Math.floor(y0); y <= Math.ceil(y1); y++) for (let x = Math.floor(x0); x <= Math.ceil(x1); x++) busy.add(x + ',' + y); };
+    map.buildings.forEach(b => { const ww = (b.w * TS + (b.type === 'castle' ? 150 : 34)) / TS, hh = ww * (b.type === 'castle' ? 0.75 : 0.8), cx = b.x + b.w / 2, by = b.y + b.h; mark(cx - ww / 2 - 0.5, by - hh, cx + ww / 2 + 0.5, by); });   // 건물 그림이 덮는 곳 (칸보다 큼)
+    if (map.forge) { const f = map.forge; mark(f.x - 1, f.y - 3, f.x + f.w, f.y + f.h); }
+    if (map.station) { const t = map.station; mark(t.x - 1, t.y - 4, t.x + t.w, t.y + t.h); }
+    if (map.fx != null) mark(map.fx - 2, map.fy - 3, map.fx + 3, map.fy + 2);
+    if (map.ysSign) mark(map.ysSign.x / TS - 3, map.ysSign.y / TS - 3, map.ysSign.x / TS + 3, map.ysSign.y / TS + 1);
+    (map.props || []).forEach(q => { const ww = q.pw / TS; mark(q.x + q.fw / 2 - ww / 2, q.y + q.fh - ww * 0.8, q.x + q.fw / 2 + ww / 2, q.y + q.fh); });   // 진영 소품 · 명소 그림
+    const fits = (x0, y0, H0) => {
+      if (x0 < 2 || y0 < 3 || x0 + H0.fw > w - 2 || y0 + H0.fh > h - 2) return false;
+      for (let y = y0 - 2; y < y0 + H0.fh; y++) for (let x = x0; x < x0 + H0.fw; x++) if (!GRASS.includes(at(x, y))) return false;   // 집 칸 + 지붕이 올라가는 위 2줄 = 풀밭
+      for (let y = y0 - 1; y <= y0 + H0.fh; y++) for (let x = x0 - 1; x <= x0 + H0.fw; x++) { const u = at(x, y); if (!GRASS.includes(u) && u !== 1) return false; }   // 둘레 1칸 = 풀밭이나 길 (문·건물·물 옆은 안 됨)
+      for (let x = x0; x < x0 + H0.fw; x++) if (at(x, y0 + H0.fh) === 1 && at(x, y0 + H0.fh + 1) !== 1 && !GRASS.includes(at(x, y0 + H0.fh + 1))) return false;
+      for (let y = y0 - H0.up; y <= y0 + H0.fh; y++) for (let x = x0; x < x0 + H0.fw; x++) if (busy.has(x + ',' + y)) return false;   // 집 그림(불타는 집은 연기까지)이 다른 건물 그림을 덮지 않게
+      const cx = x0 + H0.fw / 2, cy = y0 + H0.fh / 2;
+      if (folk.some(([fx, fy]) => Math.abs(fx - cx) < 3.5 && Math.abs(fy - cy) < 3)) return false;
+      if (placed.some(p => Math.abs(p.x + p.fw / 2 - cx) < 6 && Math.abs(p.y - y0) < 4)) return false;
+      return true;
+    };
+    const spots = []; for (let y = 3; y < h - 3; y++) for (let x = 2; x < w - 6; x++) spots.push([x, y]);
+    for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
+    for (const [x0, y0] of spots) {
+      if (placed.length >= want) break;
+      let n = null, H0 = null;
+      for (let pass = 0; pass < 2 && !n; pass++) for (let k = 0; k < pool.length && !n; k++) { const n1 = pool[(placed.length + k) % pool.length]; if ((HOUSES[n1].fw === 4) === !pass && fits(x0, y0, HOUSES[n1])) { n = n1; H0 = HOUSES[n1]; } }   // 큰 집부터 차례대로 · 좁으면 작은 집(잔해)
+      if (!n) continue;
+      if (war && H0.fw === 4 && n !== 'vh_fire' && !placed.some(q => q.n === 'vh_fire') && fits(x0, y0, HOUSES.vh_fire)) { n = 'vh_fire'; H0 = HOUSES[n]; }   // 전쟁 마을엔 불타는 집이 꼭 하나
+      for (let y = y0 - 4; y < y0; y++) for (let x = x0; x < x0 + H0.fw; x++) if (at(x, y) === 2 || at(x, y) === 3) set(x, y, rnd() < 0.5 ? 5 : 0);   // 지붕 뒤 나무는 치움
+      for (let y = y0; y < y0 + H0.fh; y++) for (let x = x0; x < x0 + H0.fw; x++) set(x, y, 10);
+      const P = { n, x: x0, y: y0, fw: H0.fw, fh: H0.fh, pw: H0.pw, fire: !!H0.fire, house: true };
+      map.props.push(P); placed.push(P);
+      // 집 옆·뒤에 나무 1~3그루
+      const tr = [[x0 - 1, y0 - 1], [x0 + H0.fw, y0 - 1], [x0 - 1, y0], [x0 + H0.fw, y0], [x0 + 1, y0 - 3]];
+      let nt = 1 + Math.floor(rnd() * 3);
+      for (const [tx, ty] of tr) { if (nt <= 0) break; if (rnd() < 0.55 && at(tx, ty) === 0 && GRASS.includes(at(tx, ty + 1))) { set(tx, ty, 2); nt--; } }
+    }
+    // 작은 바위 · 꽃 (길 옆이 아닌 빈 풀밭)
+    for (let i = 0, nr = 0; i < 400 && nr < 9; i++) {
+      const x = 2 + Math.floor(rnd() * (w - 4)), y = 2 + Math.floor(rnd() * (h - 4)); if (at(x, y) !== 0 || nearDoor(map, x, y)) continue;
+      let near = false; for (let k = -1; k <= 1; k++) for (let j = -1; j <= 1; j++) { const v = at(x + j, y + k); if (v === 1 || v === 7 || v === 10 || v === 6) near = true; }
+      if (near || folk.some(([fx, fy]) => Math.abs(fx - x) < 2 && Math.abs(fy - y) < 2)) continue;
+      set(x, y, 3); nr++;
+    }
+    map.houses = placed.length;
   }
   function armyCamp(map, rnd) {
     const { at, set, w, h } = map, last = map.M.region === D.REGIONS.length - 1;   // v169 성 마을이 여럿 → 마지막 마을(부산)만
@@ -861,7 +920,8 @@
     (map.props || []).forEach(p => {   // v80 진영 소품 (Meshy) — 그림 폭 pw 에 맞춰 칸 아래 가운데에 세움
       const cx0 = (p.x + p.fw / 2) * TS, by = (p.y + p.fh) * TS + 2;
       x.fillStyle = 'rgba(0,0,0,.22)'; x.beginPath(); x.ellipse(cx0, by - 6, p.pw * 0.42, 9, 0, 0, Math.PI * 2); x.fill();
-      map.objs.push({ p79: p.n, pw: p.pw, cx: cx0, by, img: { width: p.pw, height: p.pw * 1.2 }, x: cx0 - p.pw / 2, y: by - p.pw * 1.2, sy: by - 3, label: p.label });
+      map.objs.push({ p79: p.n, pw: p.pw, cx: cx0, by, img: { width: p.pw, height: p.pw * 1.4 }, x: cx0 - p.pw / 2, y: by - p.pw * 1.4, sy: by - 3, label: p.label, fire: p.fire });   // v186 집 그림이 높아 1.2→1.4
+      if (p.fire) map.glows.push({ x: cx0, y: by - p.pw * 0.55, r: 120, col: '#FF8A2A' });   // v186 불타는 집: 어두운 지역에서 둘레가 밝게
     });
     const FX = map.fx, FY = map.fy;   // v158 분수 자리 (넓은 마을)
     if (FX != null && map.at(FX, FY) === 8) {
