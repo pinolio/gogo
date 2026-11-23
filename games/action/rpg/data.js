@@ -702,26 +702,28 @@
       ['g9', '시마즈 요시히로', 5, 9, 'fire', '#FF9A3D', '귀신 같은 시마즈 요시히로가 칼을 뽑았다!']
     ];
     // 엑셀 배치 (열, 행) · 0행 = 통영(지도에만 표시)
-    const cells = [
-      ['ys_in', 4, 1, '통영 남쪽 바닷길', 'path'], ['ys_npc', 4, 2, '이순신 장군님 던전 어귀', 'npc'],
-      ['ys_a1', 1, 3, '서쪽 갯바위길', 'path'], ['ys_a2', 2, 3, '왜선 잔해 모래톱', 'path'], ['ys_a3', 3, 3, '봉수대 언덕', 'path'], ['ys_x1', 4, 3, '한산 갈림길', 'path'], ['ys_a4', 5, 3, '견내량 물목', 'path'], ['ys_a5', 6, 3, '판옥선 나루', 'path'], ['ys_a6', 7, 3, '동쪽 해안 초소', 'path'],
-      ['ys_v1', 4, 4, '학익진 길', 'path'], ['ys_v2', 4, 5, '거북 등 바위길', 'path'],
-      ['ys_b1', 1, 6, '조총 소리 고개', 'path'], ['ys_b2', 2, 6, '불탄 왜성 터', 'path'], ['ys_b3', 3, 6, '모래 언덕', 'path'], ['ys_x2', 4, 6, '명량 갈림길', 'path'], ['ys_b4', 5, 6, '울돌목 소용돌이', 'path'], ['ys_b5', 6, 6, '노량 물가', 'path'], ['ys_b6', 7, 6, '동쪽 갈대밭', 'path'],
-      ['ys_v3', 4, 7, '수군 진영 길', 'path'], ['ys_v4', 4, 8, '안개 낀 바닷길', 'path'], ['ys_v5', 4, 9, '왜장의 길목', 'path'],
-      ['ys_all', 4, 10, '왜장들의 회합', 'all'], ['ys_boss', 4, 11, '와키자카 야스하루의 본진', 'boss']
-    ].concat(GEN.map((g, i) => ['ys_' + g[0], g[2], g[3], g[1] + '의 진', 'gen', i]));
-    const at = {}; cells.forEach(c => { at[c[1] + ',' + c[2]] = c[0]; });
+    // v190 선생님 11/23: '지도가 너무 복잡하다' → 한 바퀴 고리 길. 어귀에서 시계 방향으로 한산(장수 1~3) → 명량(4~6) → 노량(7~9) → 다시 어귀.
+    //   가운데 줄 = 어귀 아래로 벽화의 방(ys_v5) → 왜장들의 회합 → 와키자카 본진. 칸은 붙어 있어도 LINKS 로 이은 곳만 길이 남 (고리 안쪽과 섞이지 않게)
+    //   열 0~4 · 행 0 = 통영(지도에만) · 1 = 바닷길 · 2~7 = 고리 (위 줄 2 · 아래 줄 7 · 왼쪽 열 0 · 오른쪽 열 4)
+    const RING = [[3, 2, 'g', 0], [4, 2, 'ys_r1', '견내량 물목'], [4, 3, 'g', 1], [4, 4, 'ys_r2', '학익진 바다'], [4, 5, 'g', 2], [4, 6, 'ys_r3', '거북 등 바위길'], [4, 7, 'g', 3],
+      [3, 7, 'ys_r4', '울돌목 소용돌이'], [2, 7, 'g', 4], [1, 7, 'ys_r5', '명량 물살길'], [0, 7, 'g', 5], [0, 6, 'ys_r6', '노량 물가'], [0, 5, 'g', 6], [0, 4, 'ys_r7', '관음포 바닷길'], [0, 3, 'g', 7],
+      [0, 2, 'ys_r8', '왜장의 길목'], [1, 2, 'g', 8]];
+    const cells = [['ys_in', 2, 1, '통영 남쪽 바닷길', 'path'], ['ys_npc', 2, 2, '이순신 장군님 던전 어귀', 'npc'],
+      ['ys_v5', 2, 3, '벽화의 바다 신전', 'path'], ['ys_all', 2, 4, '왜장들의 회합', 'all'], ['ys_boss', 2, 5, '와키자카 야스하루의 본진', 'boss']]
+      .concat(RING.map(([x, y, id, nm]) => id === 'g' ? ['ys_' + GEN[nm][0], x, y, GEN[nm][1] + '의 진', 'gen', nm] : [id, x, y, nm, 'path']));
+    const ringIds = cells.filter(c => RING.some(r => r[0] === c[1] && r[1] === c[2])).map(c => c[0]);
+    const order = RING.map(([x, y]) => cells.find(c => c[1] === x && c[2] === y)[0]);
+    const LINKS = [['ys_in', 'ys_npc'], ['ys_npc', order[0]], ['ys_npc', order[order.length - 1]], ['ys_npc', 'ys_v5'], ['ys_v5', 'ys_all'], ['ys_all', 'ys_boss']];
+    for (let i = 0; i < order.length - 1; i++) LINKS.push([order[i], order[i + 1]]);
+    const at = {}; cells.forEach(c => { at[c[1] + ',' + c[2]] = c[0]; }); const linked = (a, b) => LINKS.some(([p, q]) => (p === a && q === b) || (p === b && q === a));
     // 길 칸: 레벨 (입구 230 → 회합 앞 290) · 왜군 몬스터 3종 · 지역(나무·바위 모양) · 무더기 · 연못(바다 웅덩이)
-    const PATH = {
+    const PATH = {   // v190 고리 길 (시계 방향으로 레벨이 오름 · 반대로 돌아도 됨)
       ys_in: { region: 6, lv: 230, mob: ['f66', 'f68', 'f74'], tree: 4, rock: 8, pond: 3 },
-      ys_x1: { region: 6, lv: 240, mob: ['f74', 'f79', 'f68'], tree: 6, rock: 6, pond: 3 },
-      ys_a3: { region: 6, lv: 245, mob: ['f79', 'f74', 'f66'], tree: 8, rock: 6, pond: 1 }, ys_a2: { region: 7, lv: 250, mob: ['f81', 'f79', 'f74'], tree: 3, rock: 10, pond: 4 }, ys_a1: { region: 7, lv: 258, mob: ['f81', 'f84', 'f79'], tree: 4, rock: 14, pond: 4 },
-      ys_a4: { region: 6, lv: 245, mob: ['f79', 'f74', 'f68'], tree: 4, rock: 5, pond: 6 }, ys_a5: { region: 7, lv: 250, mob: ['f81', 'f84', 'f74'], tree: 3, rock: 6, pond: 6 }, ys_a6: { region: 7, lv: 258, mob: ['f84', 'f81', 'f79'], tree: 8, rock: 8, pond: 2 },
-      ys_v1: { region: 7, lv: 255, mob: ['f81', 'f84', 'f79'], tree: 5, rock: 8, pond: 4 }, ys_v2: { region: 8, lv: 262, mob: ['f84', 'f81', 'f89'], tree: 3, rock: 14, pond: 3 },
-      ys_x2: { region: 8, lv: 268, mob: ['f89', 'f84', 'f81'], tree: 6, rock: 8, pond: 3 },
-      ys_b3: { region: 8, lv: 272, mob: ['f84', 'f89', 'f81'], tree: 2, rock: 6, pond: 2 }, ys_b2: { region: 8, lv: 276, mob: ['f89', 'f84', 'f81'], tree: 3, rock: 12, pond: 1 }, ys_b1: { region: 8, lv: 280, mob: ['f89', 'f81', 'f84'], tree: 6, rock: 12, pond: 1 },
-      ys_b4: { region: 8, lv: 272, mob: ['f84', 'f89', 'f81'], tree: 2, rock: 4, pond: 9 }, ys_b5: { region: 7, lv: 276, mob: ['f89', 'f81', 'f84'], tree: 4, rock: 5, pond: 7 }, ys_b6: { region: 7, lv: 280, mob: ['f81', 'f89', 'f84'], tree: 14, rock: 3, pond: 3 },
-      ys_v3: { region: 8, lv: 280, mob: ['f89', 'f84', 'f81'], tree: 5, rock: 10, pond: 2 }, ys_v4: { region: 8, lv: 285, mob: ['f89', 'f84', 'f81'], tree: 3, rock: 6, pond: 6 }, ys_v5: { region: 8, lv: 290, mob: ['f89', 'f84', 'f81'], tree: 4, rock: 12, pond: 2 }
+      ys_r1: { region: 6, lv: 240, mob: ['f74', 'f79', 'f68'], tree: 4, rock: 5, pond: 6 }, ys_r2: { region: 7, lv: 248, mob: ['f81', 'f79', 'f74'], tree: 5, rock: 8, pond: 4 },
+      ys_r3: { region: 7, lv: 256, mob: ['f81', 'f84', 'f79'], tree: 3, rock: 14, pond: 3 }, ys_r4: { region: 8, lv: 264, mob: ['f84', 'f89', 'f81'], tree: 2, rock: 4, pond: 9 },
+      ys_r5: { region: 8, lv: 272, mob: ['f89', 'f84', 'f81'], tree: 3, rock: 12, pond: 1 }, ys_r6: { region: 7, lv: 278, mob: ['f89', 'f81', 'f84'], tree: 4, rock: 5, pond: 7 },
+      ys_r7: { region: 8, lv: 284, mob: ['f89', 'f84', 'f81'], tree: 6, rock: 12, pond: 2 }, ys_r8: { region: 8, lv: 290, mob: ['f89', 'f84', 'f81'], tree: 4, rock: 12, pond: 2 },
+      ys_v5: { region: 8, lv: 290, mob: ['f89', 'f84', 'f81'], tree: 4, rock: 12, pond: 2 }
     };
     function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
     function grid(id, ex, kind) {
@@ -750,7 +752,7 @@
     }
     const LOOK = { npc: 6, gen: 7, all: 8, boss: 8 };
     const rows = cells.map(([id, cx, cy, name, kind, gi]) => {
-      const ex = {}; [['u', 0, -1], ['d', 0, 1], ['l', -1, 0], ['r', 1, 0]].forEach(([sd, dx, dy]) => { const to = at[(cx + dx) + ',' + (cy + dy)]; if (to) ex[sd] = to; });
+      const ex = {}; [['u', 0, -1], ['d', 0, 1], ['l', -1, 0], ['r', 1, 0]].forEach(([sd, dx, dy]) => { const to = at[(cx + dx) + ',' + (cy + dy)]; if (to && linked(id, to)) ex[sd] = to; });   // v190 LINKS 로 이은 칸만
       if (id === 'ys_in') ex.u = 'v7';   // 맨 위 → 통영 (통영 쪽 길은 world.js 가 따로 뚫음)
       const P = PATH[id], mons = P ? { list: P.mob.map((f, i) => ({ f, lv: P.lv, n: [8, 6, 5][i] })) } : {};
       return { id, name, pos: [cx, cy], kind, data: { w: W2, h: H2, region: P ? P.region : LOOK[kind], t: grid(id, ex, kind), exits: ex, mons, pub: true /* v182 선생님 11/23 11:33 공개 */, noBack: id === 'ys_in', ys: kind, yi: gi == null ? -1 : gi, rec: P ? P.lv : kind === 'boss' ? 500 : kind === 'all' ? 400 : kind === 'gen' ? 300 + gi * 12 : 230 } };
@@ -782,7 +784,7 @@
         '왜장들은 저마다 통하지 않는 원소가 둘씩 있다 하오. 그 원소가 섞인 융합 마법도 통하지 않으니, 마법을 잘 골라 가시오.',
         '벽화 없이 와키자카에게 덤비는 것은 말리고 싶소. 그놈은 궁지에 몰리면 왜선을 불러 바다째 불바다로 만든다 하오…'] };
     const frame = { name: '빈 벽화 틀', color: '#FFD23F', hello: ['벽화가 걸려 있던 틀이다.'], lines: ['벽화가 떼어진 자리에 못 자국만 남아 있다…'] };   // v180 hello 없으면 말 걸 때 멈췄음
-    return { on: true, rows, gens, boss, npc, frame, muralAt: 'ys_v5', only: ['파워복복'], home: 'v7', entry: 'ys_in', top: [4, 0], mural: 'ys_mural', n: GEN.length, genName: GEN.map(g => g[1]), lv: { all: 400, boss: 500 } };
+    return { on: true, rows, gens, boss, npc, frame, muralAt: 'ys_v5', only: ['파워복복'], home: 'v7', entry: 'ys_in', top: [2, 0], mural: 'ys_mural', n: GEN.length, genName: GEN.map(g => g[1]), lv: { all: 400, boss: 500 } };
   })();
   // v131 환생: 저승 10-5(오도전륜대왕)를 깨면 할 수 있음 · Lv.1 로 돌아가고 환생마다 스탯 포인트 +20 · 장비·가방·골드는 그대로 · 마법은 기본 마법만 · 스탯마다 최대치 +10 · 최대 10번 · 10-5를 깰 때마다 한 번
   const REBIRTH = { max: 10, bonus: 20, statUp: 10 };   // v131 환생마다 스탯 최대치 +10 (50 → 60 → … → 150)

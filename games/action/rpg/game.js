@@ -237,6 +237,7 @@
   .rg-wm-grid { display: grid; gap: 4px; grid-auto-rows: minmax(44px, auto); }
   .rg-wm-c { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3px; font-size: 11px; line-height: 1.25; }
   .rg-wm-grid.tall { grid-auto-rows: minmax(30px, auto); gap: 3px; } .rg-wm-grid.tall .rg-wm-c { font-size: 10px; padding: 2px; }
+  .rg-wm-c.kill, .rg-wm-key.kill { position: relative; background: #4A1630; color: #FFE0E0; border-color: #FF6A6A; } .rg-wm-c.kill::after, .rg-wm-key.kill::before { content: '✖'; color: #FF5A5A; font-weight: 900; text-shadow: 0 0 3px #0A0E24; } .rg-wm-c.kill::after { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 30px; opacity: .85; pointer-events: none; } .rg-wm-grid.tall .rg-wm-c.kill::after { font-size: 22px; } .rg-wm-key.kill::before { margin-right: 4px; }   /* v190 이긴 방 ✖ */
   .rg-wm-v.vis, .rg-wm-f.vis, .rg-wm-c.vis, .rg-wm-key.vis { background: #2F6BFF; color: #FFFFFF; border-color: #9AE6FF; }
   .rg-wm-v.cur, .rg-wm-f.cur, .rg-wm-c.cur, .rg-wm-key.cur { background: #FFD23F; color: #1D2340; border-color: #FFFFFF; font-weight: bold; }
   .rg-wm-key { display: inline-block; padding: 2px 8px; margin-right: 4px; }
@@ -2311,10 +2312,22 @@
       }
 
       /* ---------- 한 틱 ---------- */
+      /* v190 선생님 11/23: 지역마다 다른 배경음악 (Suno) — 마을·사냥터 = bgm.mp3 · 저승 = hell · 광개토대왕 던전 = sx · 이순신 던전 = ys · 가까이(700px) 살아 있는 보스가 있으면 boss
+       *  GoBGM 의 audio 하나에서 src 만 바꿈 (음악 끄기·켜기는 그대로) · 보스가 사라져도 4초 동안은 보스 음악 유지 */
+      const TRACK = { bgm: 'bgm/bgm.mp3', hell: 'bgm/hell.mp3', sx: 'bgm/sx.mp3', ys: 'bgm/ys.mp3', boss: 'bgm/boss.mp3' };
+      function bgmPick(M) {
+        let k = M.hell ? 'hell' : M.sx ? 'sx' : M.ys ? 'ys' : 'bgm';
+        if (!G.room && G.mons.some(m => !m.dead && m.boss && Math.abs(m.x - G.px) < 700 && Math.abs(m.y - G.py) < 500)) G.bossMusic = 4; else G.bossMusic = Math.max(0, (G.bossMusic || 0) - 0.5);
+        if (G.bossMusic > 0) k = 'boss';
+        const a = BGM.audio; if (!a) return; const cur = ((a.getAttribute('src') || a.src || '').match(/bgm\/(\w+)\.mp3/) || [])[1]; if (!cur || cur === k) return;
+        const st = window.GoSettings && window.GoSettings.get(GAME); if (!st) return;
+        try { a.src = st.folder + '/' + TRACK[k]; a.load(); if (BGM.wanted && !BGM.isMuted()) a.play().catch(() => {}); } catch (e) { /* noop */ }
+      }
       function update(dt) {
         const map = G.map, M = map.M;
         if (pane === 'ysmural' && M.ys) { G.inv = Math.max(G.inv, 0.3); if (G.title) G.title.t += dt; return; }   // v180 선생님 11/23: 벽화 퍼즐 중엔 시간이 멈춤 (몬스터·탄·기술 모두 멈추고 나도 안 다침, 혼자 하는 던전)
         S.play += dt; G.saveT += dt; G.srvT += dt; if (msgT > 0 && (msgT -= dt) <= 0) msgEl.hidden = true;
+        if ((G.trackT = (G.trackT || 0) - dt) <= 0) { G.trackT = 0.5; bgmPick(M); }   // v190 지역·보스 음악
         G.atkCd -= dt; G.inv -= dt; G.lastHit += dt;
         duelTick(dt);   // v143 결투
         if (G.trade && G.trade.pend && (G.trade.pendT += dt) > 8) tradeUnlock('상대의 답이 없어요. 다시 확인을 눌러 주세요');   // v146
@@ -3352,12 +3365,15 @@
         const cls = id => id === cur ? 'cur' : vis.has(id) ? 'vis' : '';
         const dungeon = (title, sub, rows, extra, hide) => {
           const all = rows.concat(extra || []), cols = Math.max(...all.map(r => r.pos[0])) + 1, nr = Math.max(...all.map(r => r.pos[1])) + 1;
-          const show = all.filter(r => !(hide && hide(r)) || r.id === cur);   // v172 이순신 던전: 장수·회합·본진 칸은 지도에 아예 안 그림 (지금 그 방에 있을 때만 📍)
-          return head(title, sub) + `<div class="rg-wm-grid${nr > 9 ? ' tall' : ''}" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${nr},minmax(${nr > 9 ? 30 : 44}px,auto))">${show.map(r => { const hid = hide && hide(r); return `<div class="rg-wm-c ${cls(r.id)}" style="grid-column:${r.pos[0] + 1};grid-row:${r.pos[1] + 1}">${r.id === cur ? '📍' + (hid ? '' : '<br>') : ''}${hid ? '' : r.name}</div>`; }).join('')}</div>`
-            + '<p class="sub" style="margin-top:8px"><span class="rg-wm-key cur">📍 지금 있는 곳</span> <span class="rg-wm-key vis">가 본 곳</span> <span class="rg-wm-key">아직 안 가 본 곳</span></p>';
+          // v190 선생님 11/23: 보스·장수를 이긴 방은 큰 지도에 ✖ (이순신 던전의 숨은 칸도 이기면 보임)
+          const kill = r => { const k = r.kind, d = r.data || {}; if (M.sx) return SX.gods.includes(k) ? !!S.sasin[k] : k === 'all' ? !!S.sasinAll : k === 'king' ? !!S.kingAt : false;
+            return k === 'gen' ? !!(S.ysp && S.ysp[d.yi]) : k === 'all' ? !!S.ysAll : k === 'boss' ? !!S.ysAt : false; };
+          const show = all.filter(r => !(hide && hide(r)) || r.id === cur || kill(r));   // v172 이순신 던전: 장수·회합·본진 칸은 지도에 아예 안 그림 (지금 그 방에 있을 때만 📍 · v190 이긴 방은 ✖ 로 보임)
+          return head(title, sub) + `<div class="rg-wm-grid${nr > 9 ? ' tall' : ''}" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${nr},minmax(${nr > 9 ? 30 : 44}px,auto))">${show.map(r => { const x = kill(r), hid = hide && hide(r) && !x; return `<div class="rg-wm-c ${cls(r.id)}${x ? ' kill' : ''}" style="grid-column:${r.pos[0] + 1};grid-row:${r.pos[1] + 1}"${x ? ` title="${r.kind === 'king' || r.kind === 'boss' ? '이긴 적 있음 (다시 도전할 수 있어요)' : '이긴 곳'}"` : ''}>${r.id === cur ? '📍' + (hid ? '' : '<br>') : ''}${hid ? '' : r.name}</div>`; }).join('')}</div>`
+            + '<p class="sub" style="margin-top:8px"><span class="rg-wm-key cur">📍 지금 있는 곳</span> <span class="rg-wm-key vis">가 본 곳</span> <span class="rg-wm-key">아직 안 가 본 곳</span> <span class="rg-wm-key kill">보스·장수를 이긴 곳</span></p>';
         };
         if (M.sx && D.SASIN) return dungeon('🗺 광개토대왕 던전', '이 던전 안의 지도예요', D.SASIN.rows);
-        if (M.ys && D.YS) return dungeon('🗺 이순신 장군님 던전', '이 던전 안의 지도예요 (장수·보스가 있는 곳은 직접 찾아보세요)', D.YS.rows, [{ id: 'v7', name: '통영', pos: [D.YS.top[0], D.YS.top[1]] }], r => ['gen', 'all', 'boss'].includes(r.kind));
+        if (M.ys && D.YS) return dungeon('🗺 이순신 장군님 던전', '어귀에서 한 바퀴 돌며 왜장 아홉을 만나요 (한산 → 명량 → 노량) · 가운데 길 = 벽화 → 회합 → 본진', D.YS.rows, [{ id: 'v7', name: '통영', pos: [D.YS.top[0], D.YS.top[1]] }]);   // v190 고리 길: 장수 칸도 처음부터 보임 (선생님 11/23 '지도가 너무 복잡하다')
         const rowsH = D.REGIONS.map((R, ri) => { const v = 'v' + (ri + 1); let s = `<div class="rg-wm-row"><span class="rg-wm-v ${cls(v)}">${ri + 1}. ${R.name}${R.castle ? ' 🏯' : ''}</span>`;
           for (let k2 = 0; k2 < 10; k2++) { const n = ri * 10 + k2 + 1, id = 'f' + n; s += `<span class="rg-wm-f ${cls(id)}" title="${R.fields[k2]}">${id === cur ? '📍' : n}</span>`; }
           return s + '</div>'; }).join('');

@@ -23,6 +23,7 @@ GoSettings.register({
   rankSub: '가장 오래 버틴 시간 TOP 10',
   sides: '혼자 또는 둘이서',
   vsText: '총알을 피해 오래 버티기',
+  bgm: { file: 'bgm/bgm.mp3', volume: 0.4 },   // v189 Suno 「Bullet Rain Escape」 (11/23)
 
   // 총알 (원래 닷지처럼: 화면 가장자리에서 나를 노리고 날아옴, 시간이 갈수록 많아짐)
   bulletStart: 12,                     // 처음 총알 수
