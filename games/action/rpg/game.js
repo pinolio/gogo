@@ -185,7 +185,10 @@
       const uid = Hub.user && Hub.user.id;
       let s = this.local(uid);
       const srv = await this.server();
-      if (srv && (!s || (srv.savedAt || 0) > (s.savedAt || 0))) s = srv;
+      // v203 고침(선생님 11/24 '파워복복 Lv.1'): 이 기기 저장이 더 '나중'이어도 서버 캐릭터가 더 많이 진행했으면(처치 수 — 절대 줄지 않음) 서버 것을 씀
+      //   (로그인이 늦게 붙어 손님 Lv.1 로 시작한 판이 계정 칸에 저장되면, 다음에 그 Lv.1 이 '더 최근'이라 불려 나오던 것)
+      const kk = o => +(o && o.kills) || 0;
+      if (srv && (!s || kk(srv) > kk(s) || (kk(srv) === kk(s) && (srv.savedAt || 0) > (s.savedAt || 0)))) s = srv;
       if (!s && uid) { const g = this.local(null); if (g && g.lv > 1) s = g; }   // 손님으로 하던 기록을 로그인 계정으로 이어서
       return fixSave(s);
     }
@@ -418,6 +421,12 @@
   .rg-srv { position: relative; display: grid; gap: 6px; text-align: left; background: linear-gradient(180deg, #2A3266, #182050); color: #EEF1FF; border: 2px solid #0A0E24; border-radius: 12px; padding: 10px 10px 8px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.3); transition: transform .1s, filter .1s; }
   .rg-srv:hover:not([disabled]) { transform: translateY(-2px); filter: brightness(1.12); }
   .rg-srv[disabled] { opacity: .5; cursor: default; }
+  .rg-guest { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); z-index: 2; font: 700 13px/1.2 inherit; background: #FFD23F; color: #1D2340; border: 2px solid #1D2340; border-radius: 999px; padding: 5px 12px; box-shadow: 0 3px 0 #1D2340; cursor: pointer; animation: rgGuestB 1.6s ease-in-out infinite; }
+  @keyframes rgGuestB { 50% { transform: translateX(-50%) scale(1.05); } }
+  .rg-guestwarn { background: rgba(255,210,63,.12); border: 2px solid #FFD23F; border-radius: 10px; padding: 8px 14px; margin: 8px 0; line-height: 1.6; } .rg-guestwarn ul { margin: 4px 0 0; padding-left: 20px; }
+  .rg-srv.busy { background: linear-gradient(180deg, #FFB25C, #E0701E); color: #1D2340; border-color: #7A3A00; }   /* v203 50명부터 주황 */
+  .rg-srv.full { background: linear-gradient(180deg, #FF6E73, #C8282E); color: #FFFFFF; border-color: #5A0A0E; opacity: 1; }   /* v203 60명 빨강 */
+  .rg-srv.busy small, .rg-srv.full small { font-weight: 700; }
   .rg-srv.cur { border-color: #9AE6FF; box-shadow: 0 0 0 2px #9AE6FF inset, 0 3px 0 rgba(0,0,0,.3); }
   .rg-srv b { font-family: var(--f-display); font-size: 18px; }
   .rg-srv em { position: absolute; right: 6px; top: 6px; font-style: normal; font-size: 11px; background: #3DDC84; color: #0A0E24; border-radius: 6px; padding: 0 6px; }
@@ -687,6 +696,7 @@
             <div class="cabinet cab-blue" style="--cw:960px;--ar:1.7778"><div class="screen" id="rgScreen" tabindex="0">
               <canvas id="rgCanvas" aria-label="${CFG.name} 게임 화면"></canvas>
               <div class="rg-msg" id="rgMsg" hidden></div>
+              <button type="button" class="rg-guest" id="rgGuest" hidden>⚠ 손님 플레이 중 · 계정에 저장되지 않아요 · 눌러서 로그인</button>
               <button type="button" class="rg-chbtn" id="rgChBtn" hidden aria-label="채널 이동"><span>1채널</span><small>채널 이동</small></button>
               <button type="button" class="rg-full" id="rgFull" aria-label="화면 크게 보기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
               <div class="rg-panel" id="rgPanel" hidden></div>
@@ -3312,7 +3322,9 @@
         if (ST) S.fc = fightCard();   // v174 Skillcom Fight 가 읽는 대결 카드
         const copy = JSON.parse(JSON.stringify(S));
         if (G.duel) { copy.hp = G.duel.hp0; copy.mp = G.duel.mp0; }   // v143 결투 중 저장: HP·MP 는 결투 전 값
-        Store.setLocal(Hub.user && Hub.user.id, copy); G.saveT = 0;
+        const uidNow = (Hub.user && Hub.user.id) || null;
+        if (uidNow !== G.loadUid) { G.saveT = 0; if (!G.uidWarn) { G.uidWarn = 1; say('⚠ 로그인 상태가 바뀌었어요. 내 계정 캐릭터를 다시 불러옵니다…', 6); } return false; }   // v203 손님으로 시작한 캐릭터를 계정에 저장하지 않음
+        Store.setLocal(uidNow, copy); G.saveT = 0;
         if (server) { G.srvT = 0; G.dirty = false; return Store.push(copy); }
         return true;
       }
@@ -3676,19 +3688,21 @@
               return `<button type="button" class="rg-srv${cur ? ' cur' : ''}" data-ch="${r.ch}" ${full || cur ? 'disabled' : ''}><b>${r.ch}채널</b>${cur ? '<em class="me">지금</em>' : n === 0 ? '<em>빈 채널</em>' : ''}<span class="bar"><i style="width:${pct}%;background:${col}"></i></span><small>${n} / ${cap}명${full ? ' · 가득' : ''}</small></button>`; }).join('')}</div>`;
             h += `<p class="sub">지금 ${L.rows.filter(r => r.players > 0).length}개 채널에 사람이 있어요. 자리가 있는 채널을 누르면 바로 옮겨요. ${L.demo ? '(체험 모드)' : ''}</p>`;
           }
+        } else if (k === 'guest') {   // v203 로그인 경고
+          h = `<h3 style="color:#FFD23F">⚠ 로그인하지 않았어요!</h3><div class="rg-guestwarn"><p><b>로그인하지 않고 하면 캐릭터가 계정에 저장되지 않아요.</b></p><ul><li>레벨·아이템·환생이 <b>이 컴퓨터에만</b> 잠깐 남고, 다른 컴퓨터나 다음 시간에는 이어지지 않아요.</li><li>랭킹·Skillcom Fight 카드에도 올라가지 않아요.</li><li>로그인하면 <b>내 계정 캐릭터</b>가 그대로 불러와져요.</li></ul></div><div class="rg-srvact"><button type="button" class="rg-mini" data-login>🔑 로그인하기</button><button type="button" class="rg-mini ghost" data-x>잠깐 손님으로 해 보기</button></div>`;
         } else if (k === 'servers') {   // v42 서버 고르기
           const cap = net.opt.cap, L = srvList;
           h = head('서버 고르기', '같은 서버의 같은 지도에 있는 사람이 보여요. 아이템·마법·레벨은 <b>계정에 저장</b>돼서 어느 서버에서나 그대로 이어져요.');
-          if (!Hub.user) h += `<div class="rg-fuse">로그인하면 다른 사람과 함께 모험할 수 있어요. 손님은 혼자 하기로 이어져요.</div><button type="button" class="btn btn-primary" data-x>혼자 하기</button>`;
+          if (!Hub.user) h += `<div class="rg-fuse">로그인하면 다른 사람과 함께 모험할 수 있어요.</div><button type="button" class="btn btn-primary" data-x>확인</button>`;   // v203 선생님 11/24: '혼자 하기' 없앰
           else if (!L) h += '<p class="sub">서버 인원을 불러오는 중…</p>';
-          else if (L.error) h += `<div class="rg-fuse">${L.error === 'sql' ? '온라인 서버 준비가 아직 안 됐어요. (관리자: supabase/rpg_online_v42.sql 실행 필요)' : '서버 인원을 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.'}</div><button type="button" class="btn btn-primary" data-solo>혼자 하기</button>`;
+          else if (L.error) h += `<div class="rg-fuse">${L.error === 'sql' ? '온라인 서버 준비가 아직 안 됐어요. (관리자: supabase/rpg_online_v42.sql 실행 필요)' : '서버 인원을 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.'}</div><button type="button" class="btn btn-primary" data-x>닫기</button>`;
           else {
             const rows = L.rows, low = rows.reduce((a, r) => (r.players != null && r.players < cap && (a == null || r.players < a.players) ? r : a), null);
             h += `<div class="rg-srvs"${rows.length === 1 ? ' style="grid-template-columns:minmax(0,280px)"' : ''}>${rows.map(r => { const n = r.players, full = n != null && n >= cap, pct = n == null ? 0 : Math.round(n / cap * 100), cur = net.joined && net.server === r.server;
-              const lab = n == null ? '체험 모드' : full ? '가득' : n >= cap * 2 / 3 ? '혼잡' : n >= cap / 3 ? '보통' : '여유', col = full ? '#FF5A5F' : n >= cap * 2 / 3 ? '#FF9A3D' : n >= cap / 3 ? '#FFD23F' : '#3DDC84';
-              return `<button type="button" class="rg-srv${cur ? ' cur' : ''}" data-srv="${r.server}" ${full && !cur ? 'disabled' : ''}><b>${net.name(r.server)}</b>${low && low.server === r.server && !cur ? '<em>추천</em>' : ''}${cur ? '<em class="me">지금</em>' : ''}<span class="bar"><i style="width:${pct}%;background:${col}"></i></span><small>${n == null ? lab : `${n} / ${cap}명 · <span style="color:${col}">${lab}</span>`}</small></button>`; }).join('')}</div>`;
-            h += `<div class="rg-srvact"><button type="button" class="rg-mini" data-srv="auto">${rows.length === 1 ? net.name(rows[0].server) + ' 들어가기' : '가장 한산한 서버로 들어가기'}</button><button type="button" class="rg-mini ghost" data-solo>${net.joined ? '서버에서 나와 혼자 하기' : '혼자 하기'}</button></div>`;
-            h += `<p class="sub">${rows.length === 1 ? `서버 하나에 모두 모여요 · ${cap}명까지 · 같은 지도에서는 ${net.opt.chCap || 5}명씩 채널로 나뉘어 서로 보여요.` : `한 서버에 ${cap}명까지 · 서버 ${rows.length}개.`} 몬스터와 떨어진 물건은 각자 따로예요. ${L.demo ? '(체험 모드: 같은 브라우저의 다른 탭끼리만 연결돼요)' : ''}</p>`;
+              const busy = n != null && !full && n >= cap * 5 / 6;   // v203 선생님 11/24: 인원 숫자는 안 보임 · 50명(60의 5/6)부터 주황 · 60명(가득) 빨강
+              return `<button type="button" class="rg-srv${cur ? ' cur' : ''}${full ? ' full' : busy ? ' busy' : ''}" data-srv="${r.server}" ${full && !cur ? 'disabled' : ''}><b>${net.name(r.server)}</b>${low && low.server === r.server && !cur && !busy ? '<em>추천</em>' : ''}${cur ? '<em class="me">지금</em>' : ''}${full ? '<small>가득 찼어요</small>' : busy ? '<small>사람이 많아요</small>' : ''}</button>`; }).join('')}</div>`;
+            h += `<div class="rg-srvact"><button type="button" class="rg-mini" data-srv="auto">${rows.length === 1 ? net.name(rows[0].server) + ' 들어가기' : '가장 한산한 서버로 들어가기'}</button></div>`;
+            h += `<p class="sub">${rows.length === 1 ? `서버 하나에 모두 모여요 · 같은 지도에서는 ${net.opt.chCap || 5}명씩 채널로 나뉘어 서로 보여요.` : `한 서버에 ${cap}명까지 · 서버 ${rows.length}개.`} 몬스터와 떨어진 물건은 각자 따로예요. ${L.demo ? '(체험 모드: 같은 브라우저의 다른 탭끼리만 연결돼요)' : ''}</p>`;
           }
         } else if (k === 'dead') {
           h = `<h3>쓰러졌어요…</h3><p class="sub">경험치를 ${fmtN(paneArg.loss)} 잃었어요. (레벨은 그대로)<br>마지막으로 들른 마을(${MAPBY[S.home].name})의 이장 댁 앞에서 다시 시작해요.</p><button type="button" class="btn btn-primary" data-revive>마을에서 다시 시작</button>`;
@@ -3891,6 +3905,7 @@
         else if (d.ch) { moveChan(+d.ch); return; }
         else if ('rebgo' in d) { if (!confirm(`정말 환생할까요? Lv.1로 돌아가고 배운 마법이 모두 사라져요. (환생 ${(S.reb || 0) + 1}/${D.REBIRTH.max})`)) return; doRebirth(); return; }   // v131
         else if (d.rg2) { openPanel(d.rg2); return; }
+        else if ('login' in d) { closePanel(); if (window.GoOpenAuth) window.GoOpenAuth('login'); return; }   // v203 로그인 경고 → 로그인 창
         else if ('solo' in d) { if (net.joined) { net.leave(); say('혼자 하기로 바꿨어요', 2); } closePanel(); return; }
         else if ('savenow' in d) { save(true).then(ok => say(ok || !Store.online() ? '저장했어요' : '이 기기에 저장했어요 (서버 저장은 준비 중)')); return; }
         else if ('revive' in d) { G.dead = false; pane = null; panel.hidden = true; G.paused = false; restat(); S.hp = ST.hp; S.mp = ST.mp; if (G.map && G.map.M.sx) enter(SX.home, { from: SX.entry }); else if (G.map && G.map.M.ys) enter(YS.home, { from: YS.entry }); else enter(S.home, 'door'); return; }   // v150 사신의 땅에서 쓰러지면 18번 사냥터
@@ -4019,6 +4034,7 @@
       /* ================= 시작 ================= */
       (async () => {
         loadingText = '그림 불러오는 중…';
+        G.loadUid = (Hub.user && Hub.user.id) || null;   // v203 어느 계정으로 불러왔는지 (중간에 바뀌면 저장 안 함 · 다시 불러옴)
         const [s] = await Promise.all([loadCustom().then(() => Store.load()), loadImages(6000)]); if (!alive) return; loadingText = '';   // v134 메이커 공식 맵을 먼저 등록 (저장된 자리가 특별 지역일 수 있음)
         S = s; restat(); if (!S.hp) S.hp = ST.hp; if (!S.mp) S.mp = ST.mp;
         G.touch = window.matchMedia && matchMedia('(pointer: coarse)').matches;
@@ -4029,8 +4045,9 @@
         fitScreen();
         if (S.statReset) { delete S.statReset; markDirty(true); setTimeout(() => say(`스탯이 힘·민첩·지혜·체력 4가지로 바뀌었어요! 포인트 ${S.sp}개를 다시 나눠 주세요 (왼쪽 위 얼굴)`, 5), 900); }
         else if (G.touch && innerHeight < 520 && !fsNow()) setTimeout(() => say('오른쪽 위 [ ] 버튼을 누르면 화면이 크게 보여요', 3.5), 1200);
-        if (!S.help) openPanel('help');
-        else if (Hub.user) { G.srvAsked = true; openPanel('servers'); }
+        if (!Hub.user) openPanel('guest');   // v203 선생님 11/24: 손님이면 꼭 경고 (로그인하고 플레이) — 도움말보다 먼저
+        else if (!S.help) openPanel('help');
+        else { G.srvAsked = true; openPanel('servers'); }
         loadRank();
         if (Hub.extraTop) Hub.extraTop(GAME, 'ys').then(t => { G.ysFirst = t ? t.user_id : ''; if (net) net.retrack(); }).catch(() => {});   // v182 '처음으로 이순신과 함께한 자'
         if (Hub.extraTop) Hub.extraTop(GAME, 'king').then(t => { G.kingFirst = t ? t.user_id : ''; if (net) net.retrack(); if (pane === 'stat') renderPanel(); }).catch(() => {});   // v176 '최초로 광개토대왕을 죽인 자' 타이틀 (서버 기록 1위)
@@ -4059,7 +4076,12 @@
       chatSync(); const chatT = setInterval(chatSync, 1200);
       $('#rgChatBox').addEventListener('click', e => { if (e.target.closest('[data-rg="servers"]') && S) openPanel('servers'); });
 
+      // v203 로그인 상태가 바뀌면(늦게 로그인됨·로그인·로그아웃) 그 계정 캐릭터로 다시 불러옴 — 손님 캐릭터가 계정 저장을 덮지 않게
+      const guestEl = $('#rgGuest'); const showGuest = () => { if (guestEl) guestEl.hidden = !!Hub.user; }; showGuest();
+      if (guestEl) guestEl.addEventListener('click', () => { if (window.GoOpenAuth) window.GoOpenAuth('login'); });
+      const offUser = Hub.onChange ? Hub.onChange(u => { showGuest(); const id = (u && u.id) || null; if (alive && S && id !== G.loadUid) { say('계정이 바뀌어 캐릭터를 다시 불러와요…', 4); setTimeout(() => { if (alive) location.reload(); }, 1200); } }) : null;
       return () => {
+        if (offUser) offUser();
         alive = false; cancelAnimationFrame(raf); clearInterval(srvTimer); clearInterval(chatT); offChat(); offComments();
         if (S) save(true);
         if (net) net.leave();

@@ -102,6 +102,7 @@
     $('#loginErr').hidden = true; $('#signupErr').hidden = true;
     setTimeout(() => (tab === 'signup' ? $('#su-id') : $('#li-id')).focus(), 30);
   }
+  window.GoOpenAuth = (tab, cb) => openAuth(tab, cb);   // v203 RPG 손님 경고에서 로그인 창 열기
   // 창을 닫으면 입력한 아이디·비밀번호를 지움 (학교 공용 PC 대비)
   function closeAuth() { $('#authModal').hidden = true; afterAuth = null; $('#loginForm').reset(); $('#signupForm').reset(); $('#loginErr').hidden = true; $('#signupErr').hidden = true; }
   function setTab(t) {
