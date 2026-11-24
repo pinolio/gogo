@@ -189,7 +189,8 @@
       /* ---------- 그리기 ---------- */
       function render() {
         ctx.fillStyle = '#121735'; ctx.fillRect(0, 0, W, H);
-        if (T.scene(ctx, 'games/study/wordchain/img/bg.jpg', W, H, 0.2)) { if (g) T.glass(ctx, 60, 120, W - 120, H - 150, 0.62); }   // v39 밤 도서관 배경
+        let INK = { ink: '#EEF1FF', sub: '#8A93C0', accent: '#9AE6FF' }, lit = false;
+        if (T.scene(ctx, 'games/study/wordchain/img/bg.jpg', W, H, 0)) { if (g) { INK = T.panel(ctx, 'board', 110, 120, W - 220, H - 150); lit = true; } }   // v206 밝은 숲속 도서관 + 나무 틀 종이판
         else { ctx.fillStyle = 'rgba(91,140,255,.06)'; for (let y = 0; y < H; y += 24) ctx.fillRect(0, y, W, 1); }
         if (!g) { T.text(ctx, D ? '끝말잇기' : '사전을 불러오는 중…', W / 2, H / 2, 40, '#EEF1FF', 'center'); return; }
         // 위쪽: 참가자 카드
@@ -210,30 +211,32 @@
         const big = Math.min(96, 640 / Math.max(2, cur.length)), pop = g.flash > 0 ? 1 + g.flash * 0.12 : 1;
         ctx.save(); ctx.translate(W / 2, 205); ctx.scale(pop, pop);
         ctx.font = `700 ${big}px Galmuri11, Pretendard, sans-serif`; const tw = ctx.measureText(cur).width, lw = ctx.measureText(cur.slice(-1)).width;
-        T.text(ctx, cur.slice(0, -1), -tw / 2, 0, big, '#EEF1FF', 'left');
-        T.round(ctx, tw / 2 - lw - 8, -big * 0.62, lw + 16, big * 1.24, 12, 'rgba(255,210,63,.18)', '#FFD23F', 3);
-        T.text(ctx, cur.slice(-1), tw / 2 - lw, 0, big, '#FFD23F', 'left');
+        T.text(ctx, cur.slice(0, -1), -tw / 2, 0, big, INK.ink, 'left');
+        T.round(ctx, tw / 2 - lw - 8, -big * 0.62, lw + 16, big * 1.24, 12, lit ? '#FFD23F' : 'rgba(255,210,63,.18)', lit ? '#C98A00' : '#FFD23F', 3);
+        T.text(ctx, cur.slice(-1), tw / 2 - lw, 0, big, lit ? '#1D2340' : '#FFD23F', 'left');
         ctx.restore();
         if (g.phase === 'play') {
           const p = g.P[g.turn], secs = Math.max(0, Math.ceil((g.deadline - performance.now()) / 1000));
-          T.text(ctx, `다음 글자: ${req.map(c => '「' + c + '」').join(' 또는 ')}`, W / 2, 292, 26, '#FFFFFF', 'center');
-          T.text(ctx, `${whose(p)} 차례 · ${secs}초`, W / 2, 330, 22, secs <= 3 ? '#FF5A5F' : '#9AE6FF', 'center');
+          T.text(ctx, `다음 글자: ${req.map(c => '「' + c + '」').join(' 또는 ')}`, W / 2, 292, 26, INK.ink, 'center');
+          T.text(ctx, `${whose(p)} 차례 · ${secs}초`, W / 2, 330, 22, secs <= 3 ? '#E0313A' : INK.accent, 'center');
         }
         // 지나온 낱말들
         const hist = g.chain.slice(-7, -1);
-        if (hist.length) T.text(ctx, hist.map(c => c.w).join(' → ') + ' →', W / 2, 372, 16, '#8A93C0', 'center', 400);
+        if (hist.length) T.text(ctx, hist.map(c => c.w).join(' → ') + ' →', W / 2, 372, 16, INK.sub, 'center', 400);
         // 알림 (틀린 이유는 입력한 사람에게만)
-        if (g.msg && performance.now() - g.msgT < 3500 && (g.msgFor === -1 || canType(g.P[g.msgFor]))) T.text(ctx, g.msg, W / 2, 410, 20, g.msgBad ? '#FF8A8A' : '#7DFFC4', 'center');
-        if (g.phase === 'play' && !canType(g.P[g.turn])) T.text(ctx, g.P[g.turn].cpu ? '컴퓨터가 생각하는 중…' : g.P[g.turn].name + ' 님이 입력하는 중…', W / 2, 478, 18, '#9AA4D8', 'center', 400);
+        if (g.msg && performance.now() - g.msgT < 3500 && (g.msgFor === -1 || canType(g.P[g.msgFor]))) T.text(ctx, g.msg, W / 2, 410, 20, g.msgBad ? (lit ? '#D9333A' : '#FF8A8A') : (lit ? '#1E9E5A' : '#7DFFC4'), 'center');
+        if (g.phase === 'play' && !canType(g.P[g.turn])) T.text(ctx, g.P[g.turn].cpu ? '컴퓨터가 생각하는 중…' : g.P[g.turn].name + ' 님이 입력하는 중…', W / 2, 418 + 30, 18, INK.sub, 'center', 400);
       }
-      let lastBc = 0;
+      let lastBc = 0; const fx = []; let fxLen = 0, fxT = 0;   // v206 효과
       function loop() {
         raf = requestAnimationFrame(loop);
         if (g && g.phase === 'play' && isHost() && performance.now() > g.deadline) knockOut(g.turn, '시간 초과');
         // 온라인 방장: 1초마다 상태를 다시 보냄 (늦게 준비된 사람·시간 맞추기)
         if (g && g.phase === 'play' && online() && net && net.host && performance.now() - lastBc > 1000) { lastBc = performance.now(); broadcast(); }
         if (g && g.flash > 0) g.flash = Math.max(0, g.flash - 0.06);
-        render();
+        if (g && g.chain.length !== fxLen) { if (fxLen && g.chain.length > fxLen) T.burst(fx, W / 2, 205, 24); fxLen = g.chain.length; }   // v206 새 낱말 반짝
+        const now = performance.now(), fdt = Math.min(0.08, (now - (fxT || now)) / 1000); fxT = now;
+        render(); if (fx.length) T.fxDraw(ctx, fx, fdt);
       }
       raf = requestAnimationFrame(loop);
       T.dict().then(d => { D = d; render(); }).catch(() => {});

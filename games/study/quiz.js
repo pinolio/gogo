@@ -35,7 +35,7 @@
         const ctx = window.GoPixel.setup(page.canvas, W, H), best = T.bestKeeper(spec.id);
         const MKEY = 'gogogogo.' + spec.id + '.mode';
         let mode = (() => { try { const m = localStorage.getItem(MKEY); return spec.modes && spec.modes.some(x => x.id === m) ? m : (spec.modes ? spec.modes[0].id : ''); } catch (e) { return spec.modes ? spec.modes[0].id : ''; } })();
-        let st = { phase: 'ready' }, raf = 0, last = 0;
+        let st = { phase: 'ready' }, raf = 0, last = 0; const fx = []; let shake = 0;   // v206 효과
         const fitView = () => T.fitView(page.canvas.closest('.ult-stage'), box);
 
         function start() {
@@ -61,6 +61,7 @@
           if (ok) { st.right++; st.streak++; st.maxStreak = Math.max(st.maxStreak, st.streak); const g = (q.worth || cfg.scoreRight || 100) + Math.min(10, st.streak - 1) * (cfg.streakBonus || 20); st.score += g; st.gain = g; st.lock = 700; }
           else { st.wrong++; st.streak = 0; st.gain = 0; st.lock = 1600; }
           st.lastOk = ok; drawChoices();
+          if (spec.panel) { if (ok) T.burst(fx, W / 2, 215, 30); else shake = 0.45; }
         }
         const rec = s => ({ score: s.score, duration_sec: Math.round(LIMIT / 1000), extra: { mode: s.mode, right: s.right, wrong: s.wrong, streak: s.maxStreak } });
         function over() {
@@ -93,7 +94,11 @@
         function draw() {
           const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, spec.colors.top); bg.addColorStop(1, spec.colors.bottom);
           ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-          if (spec.bg && T.scene(ctx, spec.bg, W, H, 0.12)) T.glass(ctx, 22, 74, W - 44, H - 92, st.phase === 'play' ? 0.74 : 0.35);   // v39 배경 그림 + 유리판
+          let INK = { ink: '#FFFFFF', sub: '#EEF1FF' };
+          if (spec.panel) {   // v206 밝은 배경 그림 + 칠판·두루마리 문제판
+            T.scene(ctx, spec.bg, W, H, 0);
+            if (st.phase === 'play' && st.q) INK = T.panel(ctx, spec.panel, 70, 132, W - 140, 200, shake > 0 ? Math.sin(shake * 60) * 6 : 0);
+          } else if (spec.bg && T.scene(ctx, spec.bg, W, H, 0.12)) T.glass(ctx, 22, 74, W - 44, H - 92, st.phase === 'play' ? 0.74 : 0.35);   // v39 배경 그림 + 유리판
           ctx.fillStyle = 'rgba(15,20,48,.92)'; ctx.fillRect(0, 0, W, 56);
           const sc = st.score || 0;
           T.text(ctx, '점수', 16, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, A.fmt(sc), 16, 38, 22, '#FFD23F', 'left');
@@ -103,21 +108,24 @@
           const sec = Math.max(0, Math.ceil((st.left == null ? LIMIT : st.left) / 1000));
           T.text(ctx, '남은 시간', 580, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, sec + '초', 580, 38, 22, sec <= 10 && st.phase === 'play' ? '#FF5A5F' : '#9AE6FF', 'left');
           ctx.fillStyle = '#0B0F28'; ctx.fillRect(0, 56, W, 6); ctx.fillStyle = '#FFD23F'; ctx.fillRect(0, 56, W * Math.max(0, (st.left == null ? LIMIT : st.left) / LIMIT), 6);
-          const q = st.q; if (!q || st.phase !== 'play') { T.text(ctx, spec.watermark, W / 2, 300, 72, spec.bg ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.12)', 'center'); return; }
+          const q = st.q; if (!q || st.phase !== 'play') { if (!spec.panel) T.text(ctx, spec.watermark, W / 2, 300, 72, spec.bg ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.12)', 'center'); return; }
           ctx.font = '700 17px Galmuri11, Pretendard, sans-serif'; const bw = Math.max(300, ctx.measureText(q.badge).width + 40);
           T.round(ctx, W / 2 - bw / 2, 84, bw, 34, 17, q.badgeColor || '#3B5BDB');
           T.text(ctx, q.badge, W / 2, 102, 17, '#FFFFFF', 'center');
-          if (q.big) T.text(ctx, q.prompt, W / 2, 215, q.prompt.length > 12 ? 48 : 64, '#FFFFFF', 'center');
-          else { const lines = wrap(ctx, q.prompt, W - 110, 27).slice(0, 5); lines.forEach((l, i) => T.text(ctx, l, W / 2, 225 - (lines.length - 1) * 20 + i * 40, 27, '#FFFFFF', 'center')); }
+          const PW = spec.panel ? W - 190 : W - 110;
+          if (q.big) T.text(ctx, q.prompt, W / 2, spec.panel ? 240 : 215, q.prompt.length > 12 ? 48 : 64, INK.ink, 'center');
+          else { const lines = wrap(ctx, q.prompt, PW, 27).slice(0, spec.panel ? 4 : 5); lines.forEach((l, i) => T.text(ctx, l, W / 2, (spec.panel ? 240 : 225) - (lines.length - 1) * 20 + i * 40, 27, INK.ink, 'center')); }
           if (q.picked >= 0) {
             const ok = st.lastOk;
-            T.round(ctx, 40, 360, W - 80, 140, 16, ok ? 'rgba(61,220,132,.16)' : 'rgba(255,90,95,.16)', ok ? '#3DDC84' : '#FF5A5F', 3);
+            if (spec.panel) T.round(ctx, 40, 360, W - 80, 140, 16, 'rgba(18,24,58,.92)', ok ? '#3DDC84' : '#FF5A5F', 4);
+            else T.round(ctx, 40, 360, W - 80, 140, 16, ok ? 'rgba(61,220,132,.16)' : 'rgba(255,90,95,.16)', ok ? '#3DDC84' : '#FF5A5F', 3);
             T.text(ctx, ok ? '정답! +' + st.gain : '아쉬워요! 정답은', W / 2, 390, 24, ok ? '#7DFFC4' : '#FF8A8A', 'center');
             const tl = wrap(ctx, q.revealTitle, W - 140, 24).slice(0, 1);
             T.text(ctx, tl[0] || '', W / 2, 428, 24, '#FFD23F', 'center');
             if (q.revealSub) wrap(ctx, q.revealSub, W - 140, 16).slice(0, 2).forEach((l, i) => T.text(ctx, l, W / 2, 461 + i * 23, 16, '#EEF1FF', 'center', 400));
           }
         }
+        function drawFx(dt) { if (fx.length) T.fxDraw(ctx, fx, dt); if (shake > 0) shake = Math.max(0, shake - dt); }
         function loop(t) {
           raf = requestAnimationFrame(loop);
           const dt = Math.min(80, t - (last || t)); last = t;
@@ -126,7 +134,7 @@
             if (st.lock > 0) { st.lock -= dt; if (st.lock <= 0 && st.left > 0) next(); }
             if (st.left <= 0) { st.left = 0; over(); }
           }
-          draw();
+          draw(); drawFx(dt / 1000);
         }
         const onKey = e => {
           const tag = (e.target.tagName || '').toLowerCase(); if (tag === 'input' || tag === 'textarea') return;

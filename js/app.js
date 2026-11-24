@@ -229,8 +229,8 @@
   async function renderHome() {
     current = 'home'; setNav('home');
     view().innerHTML = `
-      <div class="home">
-        <div class="home-main">
+      <div class="home">${XMAS ? '<div class="xsnow" aria-hidden="true"><i></i><i></i><b class="x-sleigh"></b></div><i class="x-garland" aria-hidden="true"></i>' : ''}
+        <div class="home-main">${XMAS ? '<div class="xdeco" aria-hidden="true"><i class="x-cap"></i><i class="x-wreath"></i><i class="x-holly"></i></div>' : ''}
           <section class="hero hero-img" id="heroBox" aria-roledescription="carousel" aria-label="이벤트 · 업데이트 소개">
             <div class="hero-slides" id="heroSlides" aria-live="polite"></div>
             <div class="hero-timer" aria-hidden="true"><i id="heroBar"></i></div>
@@ -251,6 +251,7 @@
             <div class="mini-tabs" id="rankTabs">${GAMES.map(g => `<button type="button" data-g="${g.id}" aria-pressed="${g.id === homeRankGame}">${g.name}</button>`).join('')}</div>
             <ol class="rank" id="rankList"><li class="empty">불러오는 중…</li></ol>
           </div>
+          ${XMAS ? '<div class="xtree-box" aria-hidden="true"><span class="xt-sign">Merry Christmas!</span><i class="xt-glow"></i><i class="xt-glow g2"></i></div>' : ''}
         </aside>
       </div>`;
     renderGrid();
@@ -300,7 +301,8 @@
   // v157 카드 그림 = 실제 게임 화면 (img/thumbs/게임id.jpg · 640×400). 없으면 예전처럼 코드로 그린 그림
   const THUMB_IMG = {};
   ['rpg', 'scfight', 'battle', 'p512', 'mines', 'snake', 'dodge', 'omok', 'janggi', 'chess', 'alkkagi', 'volley', 'tennis', 'fight', 'mecha', 'sky', 'wordchain', 'typing', 'idiom', 'english', 'history', 'gugu'].forEach(id => { THUMB_IMG[id] = 'img/thumbs/' + id + '.jpg'; });
-  const THUMB_V = { battle: 205, p512: 205, mines: 205, snake: 205, dodge: 205 };   // v205 그래픽 업그레이드한 게임은 새 카드 사진
+  const THUMB_V = { battle: 205, p512: 205, mines: 205, snake: 205, dodge: 206, omok: 206, janggi: 206, chess: 206, alkkagi: 206, english: 206, history: 206, idiom: 206, wordchain: 206, typing: 206 };   // v205 그래픽 업그레이드한 게임은 새 카드 사진
+  const BEST_GAMES = ['rpg', 'battle'];   // v206 선생님 11/24: 메인 카드에 작게 '대표 게임'
   async function renderGrid() {
     const grid = $('#gameGrid'); if (!grid) return;
     const show = g => homeCat === '전체' || g.cat === homeCat;
@@ -308,7 +310,7 @@
     grid.innerHTML = live.map(g => `
       <a class="card" data-cat="${g.cat}" href="#${g.id}">
         <div class="thumb-wrap">${THUMB_IMG[g.id] ? `<img class="thumb" src="${THUMB_IMG[g.id]}?v=${THUMB_V[g.id] || 157}" alt="" loading="lazy" draggable="false">` : `<canvas class="thumb" data-thumb="${g.id}" aria-hidden="true"></canvas>`}
-          <span class="cat">${g.cat}</span>${g.tag ? `<span class="tag ${g.tag === 'NEW' ? 'new' : g.tag === 'VS' ? 'vs' : g.tag === '베타테스트' ? 'beta' : ''}">${g.tag}</span>` : ''}</div>
+          <span class="cat">${g.cat}</span>${BEST_GAMES.includes(g.id) ? '<span class="best">★ 대표 게임</span>' : ''}${g.tag ? `<span class="tag ${g.tag === 'NEW' ? 'new' : g.tag === 'VS' ? 'vs' : g.tag === '베타테스트' ? 'beta' : ''}">${g.tag}</span>` : ''}</div>
         <div class="card-body">
           <h3>${g.name}</h3>
           <p>${g.blurb}</p>
@@ -411,10 +413,16 @@
   //   자리는 그림 크기에 대한 % (왼쪽, 위, 너비, 높이)
   // v152 메인 새 단장: 그림(글자 없음) + 글자는 HTML (선명 · 높이 고정). theme = 왼쪽 글자 밑 색
   // v158 선생님 11/17: 큰 배너 그림도 실제 게임 화면 (사신의 회합 · 6.25. 하늘 로봇 변신 중 · 신호등 구구단)
+  // v206 크리스마스 꾸미기 (선생님 11/24) — false 로 바꾸면 눈·전구·산타 모자·크리스마스 배경이 모두 원래대로
+  const XMAS = true;
+  if (XMAS) document.documentElement.classList.add('xmas');
   const HERO_SLIDES = [
     // v199 선생님 11/24: Skillcom Fight 정식 오픈 배너 (6.25. 하늘 배너는 내림)
     { id: 'scfight', href: '#scfight', art: 'img/hero/scfight.jpg', pos: '60% 50%', theme: ['#5A1A12', '#C8452A'],
       tag: 'NEW · Skillcom Fight 정식 오픈', title: 'RPG 캐릭터로<br>3D 마법 대결!', sub: 'skillcom RPG 에서 키운 <b>능력치·마법 8칸</b> 그대로! 1~4 · QWER 로 마법을 쏘고 컴퓨터·친구와 1:1 · 2:2, <b>RPG 에서 이긴 보스</b>와도 다시 겨뤄요.', cta: '대결하러 가기', v: 199 },
+    // v206 크리스마스 타자연습 배너 (12월 이벤트 예정)
+    { id: 'xmastyping', href: '#typing', art: 'img/hero/xmas_typing.jpg', pos: '70% 50%', theme: ['#123A2A', '#C8202A'],
+      tag: 'CHRISTMAS · 크리스마스 타자연습', title: '선물 상자를<br>타자로 열어라!', sub: '눈 내리는 크리스마스 마을에 <b>선물 상자 낱말</b>이 떨어져요 · 눈밭에 닿기 전에 빨리 쳐서 열어 주세요. <b>12월 이벤트</b>로 열릴 예정이에요!', cta: '타자연습 하러 가기', v: 206 },
     // v182 선생님 11/23: 이순신 장군님 던전 배너 (11:33 던전 공개와 함께 모두에게) · adminOnly: true 를 넣으면 관리자에게만
     { id: 'ysdungeon', href: '#rpg', art: 'img/hero/ys.jpg', pos: '70% 50%', theme: ['#0E2A4A', '#1E6FB0'],
       tag: 'NEW · skillcom RPG 숨은 던전', title: '이순신 장군님 던전 오픈!', sub: '통영 아래쪽 <b>남쪽 바닷길</b>로 누구나 들어갈 수 있어요 · 왜장 아홉을 이겨 도둑맞은 벽화를 되찾고 <b>와키자카</b>에게 도전하세요. 첫 공략자는 메인 화면에 이름이 올라가요!', cta: '바닷길로 출정' },

@@ -46,7 +46,7 @@
     };
   }
   window.GoEnglish = Q.make({
-    id: 'english', bg: 'games/study/english/img/bg.jpg', title: '영어 단어 퀴즈', watermark: 'ABC', colors: { top: '#173A5E', bottom: '#10213D' },
+    id: 'english', bg: 'games/study/english/img/bg.jpg', panel: 'chalk', title: '영어 단어 퀴즈', watermark: 'ABC', colors: { top: '#173A5E', bottom: '#10213D' },
     sub: s => `${s}초 · 4지선다 · 중학/고등 단계`,
     goal: s => `${s}초 동안 영어 단어 ↔ 뜻을 맞혀요.<br>아래에서 단계를 고르고 시작!`,
     modes: [{ id: 'mid', label: '중학', desc: '405단어 · 100점' }, { id: 'high', label: '고등', desc: '502단어 · 150점' }, { id: 'mix', label: '섞어서', desc: '907단어' }],

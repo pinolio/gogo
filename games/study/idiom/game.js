@@ -43,6 +43,7 @@
       page.under.innerHTML = '<div class="idm-choices" id="idmCh"></div>';
       const box = page.under.querySelector('#idmCh');
       const ctx = window.GoPixel.setup(page.canvas, W, H), best = T.bestKeeper('idiom');
+      const fx = []; let shake = 0;   // v206 효과
       let st = { phase: 'ready' }, raf = 0, last = 0;
 
       function start() {
@@ -87,6 +88,7 @@
         if (ok) { st.right++; st.streak++; st.maxStreak = Math.max(st.maxStreak, st.streak); const g = CFG.scoreRight + Math.min(10, st.streak - 1) * CFG.streakBonus; st.score += g; st.gain = g; st.lock = 700; }
         else { st.wrong++; st.streak = 0; st.gain = 0; st.lock = 1500; }
         st.lastOk = ok; drawChoices();
+        if (ok) T.burst(fx, W / 2, 220, 30, ['#FFD23F', '#FF6B8B', '#B5361F', '#7DFFC4', '#FFFFFF']); else shake = 0.45;   // v206
       }
       function over() {
         st.phase = 'over'; st.q = null; drawChoices();
@@ -110,7 +112,9 @@
       function draw() {
         const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#2A1E4F'); bg.addColorStop(1, '#16193A');
         ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-        if (T.scene(ctx, 'games/study/idiom/img/bg.jpg', W, H, 0.12)) T.glass(ctx, 22, 74, W - 44, H - 92, st.phase === 'play' ? 0.74 : 0.35);   // v39 선비 서재 배경
+        T.scene(ctx, 'games/study/idiom/img/bg.jpg', W, H, 0);   // v206 밝은 서당 + 한지 족자
+        let INK = { ink: '#FFFFFF', sub: '#BDE8FF' };
+        if (st.phase === 'play' && st.q) INK = T.panel(ctx, 'hanji', 80, 132, W - 160, 200, shake > 0 ? Math.sin(shake * 60) * 6 : 0);
         ctx.fillStyle = 'rgba(15,20,48,.92)'; ctx.fillRect(0, 0, W, 56);
         const sc = st.score || 0;
         T.text(ctx, '점수', 16, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, A.fmt(sc), 16, 38, 22, '#FFD23F', 'left');
@@ -119,30 +123,30 @@
         const sec = Math.max(0, Math.ceil((st.left == null ? LIMIT : st.left) / 1000));
         T.text(ctx, '남은 시간', 560, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, sec + '초', 560, 38, 22, sec <= 10 && st.phase === 'play' ? '#FF5A5F' : '#9AE6FF', 'left');
         ctx.fillStyle = '#0B0F28'; ctx.fillRect(0, 56, W, 6); ctx.fillStyle = '#FFD23F'; ctx.fillRect(0, 56, W * Math.max(0, (st.left == null ? LIMIT : st.left) / LIMIT), 6);
-        const q = st.q, D = DATA(); if (!q || st.phase !== 'play') { T.text(ctx, '四字成語', W / 2, 300, 72, 'rgba(255,255,255,.4)', 'center'); return; }
+        const q = st.q, D = DATA(); if (!q || st.phase !== 'play') return;
         const a = D[q.ans];
         const BADGE = { meaning: ['이 뜻의 사자성어는?', '#3B5BDB'], idiom: ['이 사자성어의 뜻은?', '#9C36B5'], hanja: ['이 한자 성어를 한글로 읽으면?', '#C2255C'], blank: ['빈칸에 들어갈 글자는?', '#2B8A3E'] }[q.type];
         T.round(ctx, W / 2 - 170, 84, 340, 34, 17, BADGE[1]);
         T.text(ctx, BADGE[0], W / 2, 102, 17, '#FFFFFF', 'center');
         if (q.type === 'hanja') {
-          T.text(ctx, a[1], W / 2, 220, 84, '#FFFFFF', 'center');
-          if (q.picked >= 0) T.text(ctx, a[0], W / 2, 300, 34, '#FFD23F', 'center', 400);
+          T.text(ctx, a[1], W / 2, 225, 84, INK.ink, 'center');
+          if (q.picked >= 0) T.text(ctx, a[0], W / 2, 295, 34, INK.accent, 'center', 400);
         } else if (q.type === 'blank') {
           const shown = a[0].split('').map((c, i) => (i === q.pos && q.picked < 0 ? '□' : c)).join(' ');
-          T.text(ctx, shown, W / 2, 200, 76, '#FFFFFF', 'center');
-          const ml = wrap(ctx, '뜻: ' + a[2], W - 140, 22).slice(0, 2);
-          if (q.picked < 0) ml.forEach((l, i) => T.text(ctx, l, W / 2, 280 + i * 30, 22, '#BDE8FF', 'center', 400));
+          T.text(ctx, shown, W / 2, 200, 76, INK.ink, 'center');
+          const ml = wrap(ctx, '뜻: ' + a[2], W - 200, 22).slice(0, 2);
+          if (q.picked < 0) ml.forEach((l, i) => T.text(ctx, l, W / 2, 280 + i * 30, 22, INK.sub, 'center', 400));
         } else if (q.type === 'meaning') {
-          const lines = wrap(ctx, a[2], W - 120, 30);
-          lines.forEach((l, i) => T.text(ctx, l, W / 2, 240 - (lines.length - 1) * 22 + i * 44, 30, '#FFFFFF', 'center'));
+          const lines = wrap(ctx, a[2], W - 200, 30);
+          lines.forEach((l, i) => T.text(ctx, l, W / 2, 240 - (lines.length - 1) * 22 + i * 44, 30, INK.ink, 'center'));
         } else {
-          T.text(ctx, a[0], W / 2, 220, 84, '#FFFFFF', 'center');
-          if (q.picked >= 0) T.text(ctx, a[1], W / 2, 300, 34, '#FFD23F', 'center', 400);
+          T.text(ctx, a[0], W / 2, 225, 84, INK.ink, 'center');
+          if (q.picked >= 0) T.text(ctx, a[1], W / 2, 295, 34, INK.accent, 'center', 400);
         }
         // 고른 뒤: 맞음/틀림 + 정답 풀이
         if (q.picked >= 0) {
           const ok = st.lastOk;
-          T.round(ctx, 40, 360, W - 80, 140, 16, ok ? 'rgba(61,220,132,.16)' : 'rgba(255,90,95,.16)', ok ? '#3DDC84' : '#FF5A5F', 3);
+          T.round(ctx, 40, 360, W - 80, 140, 16, 'rgba(18,24,58,.92)', ok ? '#3DDC84' : '#FF5A5F', 4);
           T.text(ctx, ok ? '정답! +' + st.gain : '아쉬워요! 정답은', W / 2, 390, 24, ok ? '#7DFFC4' : '#FF8A8A', 'center');
           T.text(ctx, a[0] + ' (' + a[1] + ')', W / 2, 428, 26, '#FFD23F', 'center');
           const ml = wrap(ctx, a[2], W - 140, 17).slice(0, 2);
@@ -157,7 +161,7 @@
           if (st.lock > 0) { st.lock -= dt; if (st.lock <= 0 && st.left > 0) next(); }
           if (st.left <= 0) { st.left = 0; over(); }
         }
-        draw();
+        draw(); if (fx.length) T.fxDraw(ctx, fx, dt / 1000); if (shake > 0) shake = Math.max(0, shake - dt / 1000);
       }
       const onKey = e => {
         const tag = (e.target.tagName || '').toLowerCase(); if (tag === 'input' || tag === 'textarea') return;

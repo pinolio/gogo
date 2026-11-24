@@ -314,9 +314,14 @@
   }
   const ANIM_MS = 300;   // v32: 말이 움직이는 시간(밀리초). 0 이면 예전처럼 바로 옮김
   function drawBoard(ctx, st, ui) {
+    // v206 그래픽: 반들반들한 크림·호두나무 칸 (나뭇결 위에 색을 입힘) + 금테
     window.GoBoard.wood(ctx, 0, 0, BW, H);
-    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) { ctx.fillStyle = 'rgba(92,46,12,.45)'; ctx.fillRect(x * S, y * S, S, S); }
-    ctx.fillStyle = 'rgba(255,240,200,.18)'; for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (!((x + y) % 2)) ctx.fillRect(x * S, y * S, S, 2);
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      const dk = (x + y) % 2; ctx.fillStyle = dk ? 'rgba(110,56,18,.62)' : 'rgba(255,244,214,.55)'; ctx.fillRect(x * S, y * S, S, S);
+      ctx.fillStyle = dk ? 'rgba(255,200,140,.14)' : 'rgba(255,255,255,.35)'; ctx.fillRect(x * S, y * S, S, 3); ctx.fillRect(x * S, y * S, 3, S);
+      ctx.fillStyle = 'rgba(60,30,8,.16)'; ctx.fillRect(x * S, y * S + S - 2, S, 2);
+    }
+    ctx.strokeStyle = '#E2B648'; ctx.lineWidth = 3; ctx.strokeRect(1.5, 1.5, BW - 3, H - 3); ctx.strokeStyle = 'rgba(90,50,10,.8)'; ctx.lineWidth = 1; ctx.strokeRect(4.5, 4.5, BW - 9, H - 9);
     if (ui.last) { ctx.fillStyle = 'rgba(255,210,63,.5)'; [ui.last.from, ui.last.to].forEach(i => ctx.fillRect(X(i) * S, Y(i) * S, S, S)); ctx.strokeStyle = '#FF9A1F'; ctx.lineWidth = 4; ctx.strokeRect(X(ui.last.to) * S + 2, Y(ui.last.to) * S + 2, S - 4, S - 4); }   // v32: 방금 움직인 칸은 주황 테두리
     if (ui.check >= 0) { ctx.fillStyle = 'rgba(255,90,95,.6)'; ctx.fillRect(X(ui.check) * S, Y(ui.check) * S, S, S); }
     if (ui.sel >= 0) { ctx.fillStyle = 'rgba(76,125,255,.45)'; ctx.fillRect(X(ui.sel) * S, Y(ui.sel) * S, S, S); }
@@ -363,7 +368,7 @@
       const cellXY = i => [SIDE + X(i) * S + S / 2, Y(i) * S + S / 2];
       const draw = () => {
         ui.check = inCheck(st, st.turn) ? kingSq(st.b, st.turn) : -1;
-        B.table(ctx, W, H);
+        B.table(ctx, W, H, 'chess', SIDE, BW);
         B.tag(ctx, '백', homes.w[0], homes.w[1] - mv.size.h * 0.58 - 22, 14); if (names.w) B.tag(ctx, names.w, homes.w[0], homes.w[1] - mv.size.h * 0.58 - 6, 11);
         B.tag(ctx, '흑', homes.b[0], 22, 14); if (names.b) B.tag(ctx, names.b, homes.b[0], homes.b[1] + mv.size.h * 0.42 + 16, 11);
         ctx.save(); ctx.translate(SIDE, 0); drawBoard(ctx, st, ui); ctx.restore();

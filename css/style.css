@@ -1836,3 +1836,78 @@ a.card .card-foot .r-king2 b { color: #B4560B; }
 .cabinet.cab-island .screen { border: 5px solid #8A5A2A; border-radius: 12px; box-shadow: 0 0 0 3px #D9B878, 0 6px 0 rgba(90,60,20,.45); }
 .cabinet[data-g="dodge"] { background: url(../img/game/space.jpg?v=205) center / cover no-repeat, #120E3A; border-color: #0A0E24; box-shadow: 0 0 0 2px #A66BFF, 0 0 18px rgba(166,107,255,.5), var(--lift); }
 .cabinet[data-g="dodge"] .screen { border-color: #0A0E24; box-shadow: 0 0 12px rgba(143,227,255,.45); }
+/* v206 그래픽 — 보드 게임 장소 배경 (Gemini) · 공부 게임 · 크리스마스 타자 */
+.cabinet[data-g="omok"], .cabinet[data-g="janggi"], .cabinet[data-g="chess"], .cabinet[data-g="alkkagi"] { padding: 24px; }
+.cabinet[data-g="omok"] { background: url(../img/game/bd_omok.jpg?v=206) center / cover no-repeat, #C58A3F; border-color: #4A2A10; }
+.cabinet[data-g="janggi"] { background: url(../img/game/bd_janggi.jpg?v=206) center / cover no-repeat, #B5361F; border-color: #4A1A10; }
+.cabinet[data-g="chess"] { background: url(../img/game/bd_chess.jpg?v=206) center / cover no-repeat, #6E4421; border-color: #2A1A0A; }
+.cabinet[data-g="alkkagi"] { background: url(../img/game/bd_alkkagi.jpg?v=206) center / cover no-repeat, #E6B565; border-color: #4A2A10; }
+.cabinet[data-g="omok"] .screen, .cabinet[data-g="janggi"] .screen, .cabinet[data-g="chess"] .screen, .cabinet[data-g="alkkagi"] .screen { border: 5px solid #5A3418; border-radius: 10px; box-shadow: 0 0 0 3px #E2B648, 0 8px 0 rgba(40,20,6,.45); }
+.cabinet.cab-xmas { background: repeating-linear-gradient(135deg, #E8333A 0 18px, #FFFFFF 18px 36px); border-color: #7A1018; padding: 22px; }
+.cabinet.cab-xmas .screen { border: 5px solid #1F7A43; border-radius: 12px; box-shadow: 0 0 0 3px #FFD23F, 0 6px 0 rgba(60,10,14,.45); }
+/* v206 크리스마스 (html.xmas · app.js XMAS) — 배경 · 전구 줄 · 산타 모자 · 눈 */
+html.xmas body::after { background-image: url(../img/bg_xmas.jpg?v=206); background-position: center bottom; }
+@media (max-width: 760px) { html.xmas body::after { background-image: url(../img/bg_xmas_s.jpg?v=206); } }
+html.xmas .top::after {   /* 무지개 띠 → 반짝이는 크리스마스 전구 줄 */
+  bottom: -14px; height: 16px; animation: xBulbs 1.4s steps(2) infinite;
+  background:
+    linear-gradient(180deg, transparent 0 3px, #1F5A32 3px 5px, transparent 5px),
+    radial-gradient(circle at 12px 10px, #FF4B55 0 4px, transparent 4.6px),
+    radial-gradient(circle at 36px 10px, #FFD23F 0 4px, transparent 4.6px),
+    radial-gradient(circle at 60px 10px, #3DDC84 0 4px, transparent 4.6px),
+    radial-gradient(circle at 84px 10px, #4CA8FF 0 4px, transparent 4.6px);
+  background-size: 100% 16px, 96px 16px, 96px 16px, 96px 16px, 96px 16px;
+}
+@keyframes xBulbs { 50% { filter: brightness(1.55) saturate(1.3); } }
+html.xmas .top .logo .g1 { position: relative; }
+html.xmas .top .logo .g1::before {   /* 산타 모자 */
+  content: ''; position: absolute; left: -9px; top: -13px; width: 26px; height: 18px; transform: rotate(-22deg); pointer-events: none;
+  background: linear-gradient(180deg, transparent 0 12px, #FFFFFF 12px 18px), conic-gradient(from 160deg at 70% 0%, #E8333A 0 40deg, transparent 40deg);
+  clip-path: polygon(0 100%, 100% 100%, 100% 70%, 78% 0, 0 70%); border-radius: 2px;
+}
+html.xmas .top .logo .g1::after { content: ''; position: absolute; left: 13px; top: -16px; width: 7px; height: 7px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 0 0 1px #0B0F26; pointer-events: none; }
+.xsnow { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.xsnow i { position: absolute; inset: 0; background-repeat: repeat; animation: xSnow1 9s linear infinite; opacity: .9; }
+.xsnow i:first-child { background-image: radial-gradient(circle at 20px 30px, #FFFFFF 0 2px, transparent 2.6px), radial-gradient(circle at 130px 90px, #FFFFFF 0 1.5px, transparent 2px), radial-gradient(circle at 210px 160px, #FFFFFF 0 2.5px, transparent 3px); background-size: 260px 220px; }
+.xsnow i:last-child { background-image: radial-gradient(circle at 60px 50px, #FFFFFF 0 3px, transparent 3.6px), radial-gradient(circle at 300px 200px, #FFFFFF 0 2px, transparent 2.6px); background-size: 380px 300px; animation-name: xSnow2; animation-duration: 14s; opacity: .75; }
+@keyframes xSnow1 { to { background-position: 40px 220px, 40px 220px, 40px 220px; } }
+@keyframes xSnow2 { to { background-position: -60px 300px, -60px 300px; } }
+.home > :not(.xsnow):not(.x-garland) { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .xsnow i, html.xmas .top::after { animation: none; } }
+/* v206 크리스마스 꾸미기 2 — Gemini 일러스트: 장식 줄 · 리스 · 트리 칸 · 산타 썰매 · 눈 쌓인 지붕 (img/xmas/) */
+html.xmas .home { position: relative; }
+.x-garland {   /* 메뉴 아래 전나무 갈랜드 + 매달린 장식 방울 (화면을 내리면 함께 올라감) */
+  position: absolute; top: -48px; left: calc(50% - 50vw); width: 100vw; height: 92px; pointer-events: none; z-index: 7;
+  background: url(../img/xmas/garland.webp?v=206) 0 0 / 310px 92px repeat-x; animation: xSway 3.2s ease-in-out infinite alternate; transform-origin: top center;
+  filter: drop-shadow(0 4px 4px rgba(20,20,60,.25));
+}
+@keyframes xSway { from { transform: rotate(-.35deg); } to { transform: rotate(.35deg); } }
+html.xmas .top::after { display: none; }
+.home-main { position: relative; }
+.xdeco { position: absolute; inset: 0 0 auto 0; height: 0; pointer-events: none; z-index: 6; }
+.xdeco .x-cap { position: absolute; left: 0; right: 0; top: -14px; height: 34px; background: url(../img/xmas/snowcap.webp?v=206) 0 0 / 208px 34px repeat-x; }
+.xdeco .x-wreath { position: absolute; right: -22px; top: -30px; width: 118px; height: 130px; background: url(../img/xmas/wreath.webp?v=206) center / contain no-repeat; filter: drop-shadow(0 6px 6px rgba(20,20,60,.35)); animation: xWreath 4s ease-in-out infinite alternate; transform-origin: 50% 0; }
+@keyframes xWreath { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+.xdeco .x-holly { display: none; }
+.xtree-box { position: relative; aspect-ratio: 3 / 4; border: 3px solid #1D2340; border-radius: 16px; overflow: hidden; box-shadow: 0 5px 0 #1D2340; background: #10183F url(../img/xmas/tree_card.jpg?v=206) center / cover no-repeat; }
+.xtree-box .xt-sign { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); white-space: nowrap; font: 800 17px/1 Pretendard, 'Noto Sans KR', sans-serif; color: #1D2340; background: linear-gradient(180deg, #FFE680, #FFC93F); border: 3px solid #1D2340; border-radius: 999px; padding: 8px 16px; box-shadow: 0 3px 0 #1D2340, 0 0 18px rgba(255,214,90,.7); z-index: 2; }
+.xtree-box .xt-glow { position: absolute; left: 50%; top: 30%; width: 70px; height: 70px; margin-left: -35px; border-radius: 50%; background: radial-gradient(circle, rgba(255,236,150,.9), rgba(255,200,60,0) 70%); animation: xGlow 1.8s ease-in-out infinite alternate; mix-blend-mode: screen; }
+.xtree-box .xt-glow.g2 { top: 62%; left: 30%; width: 120px; height: 120px; margin-left: -60px; animation-delay: .9s; opacity: .7; }
+@keyframes xGlow { from { transform: scale(.7); opacity: .35; } to { transform: scale(1.15); opacity: .95; } }
+.xsnow .x-sleigh { position: absolute; top: 130px; left: -340px; width: 320px; height: 64px; background: url(../img/xmas/sleigh.webp?v=206) center / contain no-repeat; animation: xFly 26s linear 2s infinite; filter: drop-shadow(0 0 10px rgba(255,230,150,.6)); }
+@keyframes xFly { 0% { transform: translate(0, 30px); } 32% { transform: translate(calc(100vw + 360px), -50px); } 100% { transform: translate(calc(100vw + 360px), -50px); } }
+html.xmas .home a.card::before { display: block; content: ''; position: absolute; left: 0; right: 0; top: 0; height: 30px;  width: auto; z-index: 4; pointer-events: none; border: 0; border-radius: 0; box-shadow: none;
+  background: url(../img/xmas/snowcap.webp?v=206) 0 0 / 184px 30px repeat-x; transform: none; }
+html.xmas .home .event-box, html.xmas .home .side > .panel { position: relative; }
+html.xmas .home .event-box::before, html.xmas .home .side > .panel::before { content: ''; position: absolute; left: 0; right: 0; top: -14px; height: 34px; z-index: 4; pointer-events: none;
+  background: url(../img/xmas/snowcap.webp?v=206) 0 0 / 208px 34px repeat-x; }
+@media (max-width: 760px) { .x-garland { top: -32px; height: 64px; background-size: 216px 64px; } .xdeco .x-wreath { width: 80px; height: 88px; right: -8px; top: -20px; } .xsnow .x-sleigh { width: 200px; height: 40px; } }
+@media (prefers-reduced-motion: reduce) { .x-garland, .xdeco .x-wreath, .xtree-box .xt-glow, .xsnow .x-sleigh { animation: none; } }
+html.xmas .home { margin-top: 46px; }   /* 장식 방울이 배너 글자를 가리지 않게 */
+@media (max-width: 760px) { html.xmas .home { margin-top: 30px; } }
+/* v206 대표 게임 표시 (skillcom RPG · 블록 대전) */
+.card .thumb-wrap .best { position: absolute; left: 8px; bottom: 8px; z-index: 3; font: 800 12px/1 Pretendard, 'Noto Sans KR', sans-serif; color: #1D2340; background: #FFD23F; border: 2px solid #1D2340; border-radius: 999px; padding: 4px 9px; box-shadow: 0 2px 0 #1D2340; letter-spacing: -.2px; }
+html.xmas .home .thumb-wrap .cat, html.xmas .home .thumb-wrap .tag, html.xmas .home .thumb-wrap .best { z-index: 5; }
+/* v206 닷지 크리스마스 (12월 이벤트) — 오로라 밤하늘 + 지팡이 사탕 테두리 */
+.cabinet[data-g="dodge"] { background: url(../img/game/xmas_sky.jpg?v=206) center / cover no-repeat, #0E1640; border: 6px solid transparent; border-image: repeating-linear-gradient(135deg, #E8333A 0 14px, #FFFFFF 14px 28px) 8; box-shadow: 0 0 0 2px #1F7A43, 0 0 22px rgba(255,214,90,.45), var(--lift); }
+.cabinet[data-g="dodge"] .screen { border-color: #1F7A43; box-shadow: 0 0 0 3px #FFD23F, 0 0 14px rgba(255,230,150,.5); }

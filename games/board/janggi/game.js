@@ -324,7 +324,7 @@
       homes[CHO] = [SIDE / 2 - 4, H - 24 - mv.size.h * 0.42]; homes[HAN] = [W - SIDE / 2 + 4, mv.size.h * 0.58 + 34];
       const cellXY = (x, y) => [SIDE + px(x), py(y)];
       const draw = () => {
-        B.table(ctx, W, H);
+        B.table(ctx, W, H, 'janggi', SIDE, BW);
         B.tag(ctx, '초', homes[CHO][0], homes[CHO][1] - mv.size.h * 0.58 - 22, 14); if (names[CHO]) B.tag(ctx, names[CHO], homes[CHO][0], homes[CHO][1] - mv.size.h * 0.58 - 6, 11);
         B.tag(ctx, '한', homes[HAN][0], 22, 14); if (names[HAN]) B.tag(ctx, names[HAN], homes[HAN][0], homes[HAN][1] + mv.size.h * 0.42 + 16, 11);
         ctx.save(); ctx.translate(SIDE, 0); drawBoard(ctx, st, labels); ctx.restore();

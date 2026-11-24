@@ -33,7 +33,7 @@
     render(el, A) {
       BGM.load('typing');
       const page = T.soloPage(el, A, {
-        id: 'typing', title: '한글 타자연습', tag: '공부?', sub: '떨어지는 낱말을 입력해서 막기 · 분당 타수 측정', w: W, h: H, cab: 'cab-study',
+        id: 'typing', title: '한글 타자연습', tag: '공부?', sub: '떨어지는 낱말을 입력해서 막기 · 분당 타수 측정', w: W, h: H, cab: 'cab-study cab-xmas',
         rules: ['위에서 떨어지는 낱말을 아래 칸에 <b>똑같이</b> 치고 <b>Enter</b>.', '바닥에 닿으면 방어막이 하나 줄어요. 방어막 ' + CFG.lives + '개가 모두 없어지면 끝.', CFG.levelEvery + '개를 없앨 때마다 단계가 올라 더 빨라져요. ' + (CFG.fastWord ? CFG.fastWord.from + '단계부터 <b style="color:#FF5A5F">빨간 낱말</b>은 더 빨리 떨어지고, ' : '') + (CFG.proverbFrom || 6) + '단계부터는 속담도 나와요.', '점수 = 글자 수 × 10 × 단계 + 연속 보너스. 끝나면 분당 타수와 정확도를 알려 줘요.', '포인트는 없고, 가장 높은 점수가 랭킹에 올라가요. (로그인 필요)']
       });
       page.under.innerHTML = '<form class="ty-form" autocomplete="off"><input type="text" maxlength="30" placeholder="떨어지는 낱말을 입력하고 Enter" aria-label="타자 입력" autocapitalize="off" spellcheck="false" enterkeyhint="send"><button class="btn btn-sun" type="submit">입력</button></form>';
@@ -81,6 +81,7 @@
         const gain = hit.w.replace(/\s/g, '').length * 10 * st.level + Math.min(10, st.combo - 1) * 5;
         st.score += gain;
         st.fx.push({ x: hit.x + hit.wpx / 2, y: hit.y, t: 0, txt: '+' + gain, col: hit.col });
+        T.burst(st.burst || (st.burst = []), hit.x + hit.wpx / 2, hit.y, 22, ['#FFFFFF', '#FFD23F', '#E8333A', '#2FB866', '#BFE3FF']);   // v206 선물이 터지며 눈꽃·별
         if (st.cleared % CFG.levelEvery === 0) { st.level++; st.fx.push({ x: W / 2, y: H / 2 - 40, t: 0, txt: st.level + '단계!', col: '#FFD23F', big: 1 }); }
       }
       function over() {
@@ -94,7 +95,7 @@
       function overlay() {
         const ov = page.ov; if (!ov.isConnected) return;
         ov.hidden = false;
-        if (st.phase === 'ready') ov.innerHTML = `<div class="ov-box"><span class="ov-best">공부?</span><div class="ov-title">한글 타자연습</div><p class="ov-goal">떨어지는 낱말을 바닥에 닿기 전에<br>아래 칸에 입력하고 <b>Enter</b>!</p><button class="btn btn-primary" type="button" data-go>시작 ▶</button><p class="ov-note">${Hub.user ? '최고 점수가 오른쪽 랭킹에 올라가요' : '손님 플레이 · 로그인하면 랭킹에 올라가요'}</p></div>`;
+        if (st.phase === 'ready') ov.innerHTML = `<div class="ov-box"><span class="ov-best">공부?</span><div class="ov-title">한글 타자연습</div><p class="ov-goal">떨어지는 <b>선물 상자</b>의 낱말을 눈밭에 닿기 전에<br>아래 칸에 입력하고 <b>Enter</b>!</p><button class="btn btn-primary" type="button" data-go>시작 ▶</button><p class="ov-note">${Hub.user ? '최고 점수가 오른쪽 랭킹에 올라가요' : '손님 플레이 · 로그인하면 랭킹에 올라가요'}</p></div>`;
         else ov.innerHTML = `<div class="ov-box result"><div class="ov-title">게임 끝!</div><div class="ult-score num">${A.fmt(st.score)}</div>
           <p class="ov-hint">${st.level}단계 · 낱말 ${st.cleared}개 · 분당 <b>${st.cpm}</b>타 · 정확도 ${st.acc}% · ${A.dur(st.sec)}</p>
           <p class="ov-note">${st.newBest ? '<b class="ult-nb">최고 점수 갱신!</b> ' : ''}내 최고 점수 <b class="num">${A.fmt(best.best)}</b></p>
@@ -112,33 +113,60 @@
         inp.value = ''; submit(v);
       });
 
+      // v206 크리스마스: 눈 내리기 · 선물 상자 · 장식 방울
+      const SNOW = Array.from({ length: 70 }, (_, i) => ({ x: (i * 137) % W, y: (i * 89) % H, r: 1 + (i % 3), v: 18 + (i % 5) * 9, ph: i }));
+      function snowFall(dt) {
+        const k = (dt || 16) / 1000; ctx.fillStyle = '#FFFFFF';
+        SNOW.forEach(f => { f.y += f.v * k; f.ph += k; if (f.y > GROUND) { f.y = 60; f.x = Math.random() * W; } const x = f.x + Math.sin(f.ph * 1.3) * 6; ctx.globalAlpha = 0.55 + f.r * 0.15; ctx.fillRect(x, f.y, f.r + 1, f.r + 1); });
+        ctx.globalAlpha = 1;
+      }
+      function ornament(x, y, c) {
+        ctx.fillStyle = '#C9A24A'; ctx.fillRect(x - 2, y - 11, 4, 4);
+        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(x - 4, y - 5, 3, 3);
+      }
+      const GIFT = { '#FFD23F': '#D9342B', '#7FE3FF': '#2E7DD8', '#7DFFC4': '#22A35A', '#FF9A3D': '#7E4DE0', '#C792FF': '#C2255C', '#FF7EB6': '#1F8C7A', '#FF5A5F': '#B81E2A' };
+      function gift(d) {
+        const x = d.x, y = d.y - 18, w = d.wpx, h = 36, box = GIFT[d.col] || '#D9342B', rib = d.fast ? '#FFFFFF' : d.col;
+        ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x + 3, y + 4, w, h);
+        T.round(ctx, x, y, w, h, 6, box, '#1D2340', 2);
+        ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(x + 3, y + 3, w - 6, 5);
+        ctx.fillStyle = rib; ctx.fillRect(x + w / 2 - 4, y, 8, h);   // 세로 리본
+        ctx.beginPath(); ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2 - 14, y - 10); ctx.lineTo(x + w / 2 - 12, y + 2); ctx.closePath(); ctx.fill();   // 나비 리본
+        ctx.beginPath(); ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2 + 14, y - 10); ctx.lineTo(x + w / 2 + 12, y + 2); ctx.closePath(); ctx.fill();
+        ctx.save(); ctx.lineWidth = 4; ctx.strokeStyle = '#1D2340'; ctx.font = '700 22px Galmuri11, Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        ctx.strokeText(d.w, x + w / 2, d.y + 1); ctx.fillStyle = '#FFFFFF'; ctx.fillText(d.w, x + w / 2, d.y + 1); ctx.restore();
+        if (d.fast) { ctx.fillStyle = '#FFD23F'; for (let k = 1; k <= 3; k++) { const sx = x + w / 2 + Math.sin(d.y * 0.1 + k) * 6; ctx.fillRect(sx - 1, y - 12 - k * 9, 3, 3); } }   // 빠른 선물 반짝 꼬리
+      }
       function draw(dt) {
         // 하늘 · 바닥
         const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#1B1F4A'); sky.addColorStop(1, '#2C2F6E');
         ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-        if (!T.scene(ctx, 'games/study/typing/img/bg.jpg', W, H, 0.25)) {   // v39 밤 도시 배경 (그림이 없으면 예전 그림)
+        if (!T.scene(ctx, 'games/study/typing/img/bg.jpg', W, H, 0.08)) {   // v206 크리스마스 눈 오는 마을 (그림이 없으면 예전 그림)
           ctx.fillStyle = 'rgba(255,255,255,.5)'; for (let i = 0; i < 40; i++) ctx.fillRect((i * 173) % W, 60 + (i * 97) % 380, 2, 2);
           ctx.fillStyle = '#18204A'; for (let i = 0; i < 12; i++) { const bw = 60, bh = 30 + (i * 37) % 60; ctx.fillRect(i * 62, GROUND - bh, bw, bh); }
         }
-        ctx.fillStyle = st.hurt > 0 ? '#FF5A5F' : '#3DDC84'; ctx.fillRect(0, GROUND, W, 6);
-        ctx.fillStyle = '#0F1430'; ctx.fillRect(0, GROUND + 6, W, H - GROUND - 6);
+        snowFall(dt);
+        // 눈 쌓인 바닥 (다치면 빨갛게)
+        ctx.fillStyle = st.hurt > 0 ? '#FF5A5F' : '#FFFFFF'; ctx.fillRect(0, GROUND, W, 6);
+        ctx.fillStyle = st.hurt > 0 ? '#FFB3B5' : '#DCEBFF'; ctx.fillRect(0, GROUND + 6, W, H - GROUND - 6);
+        ctx.fillStyle = st.hurt > 0 ? '#FF8A8D' : '#B9D2F5'; for (let x = 0; x < W; x += 36) ctx.fillRect(x + ((x / 36) % 2) * 12, GROUND + 18 + ((x / 36) % 3) * 8, 14, 3);
+        for (let x = 0; x < W; x += 24) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, GROUND - 3 - ((x / 24) % 3), 18, 4); }
         // 위쪽 정보
         ctx.fillStyle = 'rgba(15,20,48,.92)'; ctx.fillRect(0, 0, W, 56);
+        for (let x = 0; x < W; x += 16) { ctx.fillStyle = (x / 16) % 2 ? '#FFFFFF' : '#E8333A'; ctx.fillRect(x, 56, 16, 4); }   // v206 지팡이 사탕 줄
         const sc = st.score || 0, bb = Math.max(best.best, st.phase === 'play' ? sc : 0);
         T.text(ctx, '점수', 16, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, A.fmt(sc), 16, 38, 22, '#FFD23F', 'left');
         T.text(ctx, '최고', 150, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, A.fmt(bb), 150, 38, 18, sc > best.best && best.best > 0 && st.phase === 'play' ? '#FF3D8B' : '#7DFFC4', 'left');
         T.text(ctx, '단계', 280, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, st.level || 1, 280, 38, 20, '#FFFFFF', 'left');
         T.text(ctx, '방어막', 360, 16, 12, '#8A93C0', 'left', 400);
-        for (let i = 0; i < CFG.lives; i++) { ctx.fillStyle = i < (st.lives == null ? CFG.lives : st.lives) ? '#3DDC84' : '#2A3160'; ctx.fillRect(360 + i * 22, 30, 16, 16); }
+        for (let i = 0; i < CFG.lives; i++) ornament(368 + i * 22, 38, i < (st.lives == null ? CFG.lives : st.lives) ? ['#E8333A', '#2FB866', '#FFD23F', '#3B8BFF', '#C792FF'][i % 5] : '#2A3160');   // v206 트리 장식 방울
         const mins = st.phase === 'play' ? (performance.now() - st.t0) / 60000 : 0;
         T.text(ctx, '분당 타수', 600, 16, 12, '#8A93C0', 'left', 400); T.text(ctx, st.phase === 'play' && mins > 0.05 ? Math.round(st.keys / mins) : '-', 600, 38, 18, '#9AE6FF', 'left');
         if (st.phase !== 'play') return;
         // 떨어지는 낱말
-        st.drops.forEach(d => {
-          T.round(ctx, d.x, d.y - 18, d.wpx, 36, 10, d.fast ? 'rgba(90,10,20,.9)' : 'rgba(10,14,36,.85)', d.col, d.fast ? 3 : 2);
-          T.text(ctx, d.w, d.x + d.wpx / 2, d.y + 1, 22, d.fast ? '#FFD0D2' : '#FFFFFF', 'center');
-          if (d.fast) { ctx.fillStyle = '#FF5A5F'; for (let k = 1; k <= 3; k++) ctx.fillRect(d.x + d.wpx / 2 - 1, d.y - 18 - k * 9, 2, 5); }   // 빠른 낱말 꼬리
-        });
+        st.drops.forEach(d => gift(d));   // v206 선물 상자 낱말
+        if (st.burst && st.burst.length) T.fxDraw(ctx, st.burst, dt / 1000);
         st.fx.forEach(f => { ctx.globalAlpha = Math.max(0, 1 - f.t / 900); T.text(ctx, f.txt, f.x, f.y - f.t * 0.05, f.big ? 44 : 20, f.col, 'center'); ctx.globalAlpha = 1; });
         if (st.combo >= 3) T.text(ctx, st.combo + '연속!', W - 16, 80, 18, '#FF9A3D', 'right');
         if (st.wrong > 0) { ctx.fillStyle = `rgba(255,90,95,${st.wrong * 0.25})`; ctx.fillRect(0, GROUND - 8, W, 8); }

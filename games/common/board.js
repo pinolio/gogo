@@ -371,7 +371,14 @@
     };
   };
   // 판 옆 탁자 (오목·바둑·장기·체스 공통)
-  B.table = function (ctx, W, H) {
+  B.table = function (ctx, W, H, scene, bx, bw) {
+    // v206 그래픽: 게임마다 배경 그림 (Gemini · img/game/bd_<게임>.jpg) — 판 양옆에 장소가 보이고, 판 밑에 그림자
+    const P = window.GoPixel, im = scene && P && P.img ? P.img('bd_' + scene + '.jpg') : null;
+    if (im && P.ok(im)) {
+      ctx.save(); ctx.imageSmoothingEnabled = true; P.cover(ctx, im, 0, 0, W, H); ctx.fillStyle = 'rgba(20,12,4,.10)'; ctx.fillRect(0, 0, W, H);
+      if (bw) { ctx.fillStyle = 'rgba(30,16,4,.45)'; ctx.fillRect(bx + 8, 8, bw, H); ctx.fillStyle = 'rgba(30,16,4,.25)'; ctx.fillRect(bx - 4, 0, 4, H); ctx.fillRect(bx + bw, 0, 10, H); }
+      ctx.restore(); return;
+    }
     ctx.fillStyle = '#5A3A22'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(0,0,0,.18)'; for (let y = 6; y < H; y += 12) ctx.fillRect(0, y, W, 1);
   };
@@ -387,8 +394,10 @@
   };
   // 이름표 (통·자리 아래)
   B.tag = function (ctx, text, x, y, size, color) {
-    ctx.fillStyle = color || 'rgba(243,207,138,.92)'; ctx.font = '700 ' + (size || 12) + 'px "Noto Sans KR", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText(String(text || '').slice(0, 8), x, y);
+    const t = String(text || '').slice(0, 8), sz = size || 12;
+    ctx.font = '700 ' + sz + 'px "Noto Sans KR", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    const tw = ctx.measureText(t).width; ctx.fillStyle = 'rgba(22,14,40,.72)'; ctx.fillRect(Math.round(x - tw / 2 - 6), Math.round(y - sz - 1), Math.round(tw + 12), sz + 7);   // v206 밝은 배경 위에서도 잘 보이게
+    ctx.fillStyle = color || '#FFE6A8'; ctx.fillText(t, x, y);
   };
   // 게임 시작 때 아바타 정하기: 나 · 컴퓨터 · 온라인 상대
   B.players = function (mode, o, mySide, game, level) {

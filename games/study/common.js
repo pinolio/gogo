@@ -159,5 +159,52 @@
     return { has: id => set.has(id), add(id) { a = a.filter(x => x !== id); a.push(id); while (a.length > cap) a.shift(); set = new Set(a); try { localStorage.setItem(K, JSON.stringify(a)); } catch (e) { /* noop */ } } };
   }
   function recentPick(list, idOf, R, minFresh) { const fresh = list.filter(x => !R.has(idOf(x))); const from = fresh.length >= (minFresh || 8) ? fresh : list; return from[Math.floor(Math.random() * from.length)]; }
-  window.GoStudy = { isSyl, split, join, dueum, starts, dict, text, round, soloPage, bestKeeper, shuffle, fitView, pic, scene, glass, recent, recentPick };
+
+  // v206 그래픽: 문제판 (chalk 칠판 · scroll 두루마리 · hanji 한지 · board 나무판) — 글자 색을 돌려줌
+  const PANEL = {
+    chalk: { ink: '#FFFFFF', sub: '#D8F5DD', accent: '#FFE066' },
+    scroll: { ink: '#3A2410', sub: '#6A4A26', accent: '#B5361F' },
+    hanji: { ink: '#1E1A16', sub: '#5A4E40', accent: '#B5361F' },
+    board: { ink: '#3A2410', sub: '#6A4A26', accent: '#1E6FD9' },
+    snow: { ink: '#FFFFFF', sub: '#DDEBFF', accent: '#FFD23F' }
+  };
+  function panel(ctx, kind, x, y, w, h, shake) {
+    const P = PANEL[kind] || PANEL.chalk; if (shake) x += shake;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(x + 6, y + 8, w, h);   // 그림자
+    if (kind === 'chalk') {
+      ctx.fillStyle = '#8A5A2A'; ctx.fillRect(x - 10, y - 10, w + 20, h + 20); ctx.fillStyle = '#B37A3C'; ctx.fillRect(x - 10, y - 10, w + 20, 4); ctx.fillRect(x - 10, y - 10, 4, h + 20);
+      const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#2F6B43'); g.addColorStop(1, '#245636'); ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = 'rgba(255,255,255,.05)'; for (let i = 0; i < 9; i++) ctx.fillRect(x + 20 + i * w / 9, y + 12 + (i % 3) * 30, 60, 3);   // 지운 자국
+      ctx.fillStyle = '#F4F1E6'; ctx.fillRect(x + w - 70, y + h - 8, 26, 6); ctx.fillStyle = '#FFB3C7'; ctx.fillRect(x + w - 40, y + h - 8, 18, 6);   // 분필
+    } else if (kind === 'scroll' || kind === 'hanji') {
+      const paper = kind === 'scroll' ? ['#F6E7C1', '#EBD39E'] : ['#FFFDF6', '#F1EADB'];
+      const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, paper[1]); g.addColorStop(0.08, paper[0]); g.addColorStop(0.92, paper[0]); g.addColorStop(1, paper[1]);
+      ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = 'rgba(120,80,30,.08)'; for (let i = 0; i < 40; i++) ctx.fillRect(x + ((i * 97) % w), y + ((i * 53) % h), 3, 3);
+      ctx.fillStyle = '#6B3E1A'; ctx.fillRect(x - 14, y - 12, w + 28, 12); ctx.fillRect(x - 14, y + h, w + 28, 12);   // 위아래 나무 축
+      ctx.fillStyle = '#9A6332'; ctx.fillRect(x - 14, y - 12, w + 28, 3); ctx.fillRect(x - 14, y + h, w + 28, 3);
+      ctx.fillStyle = '#C9A24A'; [x - 20, x + w + 8].forEach(cx => { ctx.fillRect(cx, y - 14, 12, 16); ctx.fillRect(cx, y + h - 2, 12, 16); });
+      if (kind === 'hanji') { ctx.strokeStyle = 'rgba(181,54,31,.55)'; ctx.lineWidth = 2; ctx.strokeRect(x + 12, y + 10, w - 24, h - 20); }
+    } else if (kind === 'snow') {
+      ctx.fillStyle = 'rgba(16,24,70,.72)'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
+    } else {
+      ctx.fillStyle = '#7A4A22'; ctx.fillRect(x - 8, y - 8, w + 16, h + 16); ctx.fillStyle = '#FFF8E6'; ctx.fillRect(x, y, w, h);
+    }
+    ctx.restore(); return P;
+  }
+  // v206 반짝 효과 (맞히면 별·꽃가루)
+  function burst(list, x, y, n, cols) {
+    for (let i = 0; i < (n || 26); i++) { const a = Math.random() * Math.PI * 2, v = 120 + Math.random() * 260; list.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 120, t: 0, life: 0.7 + Math.random() * 0.6, c: (cols || ['#FFD23F', '#FF6B8B', '#7DFFC4', '#8FD3FF', '#FFFFFF'])[i % 5], s: 3 + (i % 3) * 2, star: i % 4 === 0 }); }
+  }
+  function fxDraw(ctx, list, dt) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const p = list[i]; p.t += dt; if (p.t >= p.life) { list.splice(i, 1); continue; }
+      p.vy += 520 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.985;
+      ctx.globalAlpha = Math.max(0, 1 - p.t / p.life); ctx.fillStyle = p.c;
+      if (p.star) { const s = p.s + 2; ctx.fillRect(p.x - s, p.y - 1, s * 2, 3); ctx.fillRect(p.x - 1, p.y - s, 3, s * 2); } else ctx.fillRect(p.x, p.y, p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
+  }
+  window.GoStudy = { panel, burst, fxDraw, isSyl, split, join, dueum, starts, dict, text, round, soloPage, bestKeeper, shuffle, fitView, pic, scene, glass, recent, recentPick };
 })();

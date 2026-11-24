@@ -233,7 +233,7 @@
   const px = i => M + i * C;
   // 판 옆 탁자 · 돌 통 · 이름
   function drawTable(ctx, names) {
-    B.table(ctx, W, H);
+    B.table(ctx, W, H, 'omok', SIDE, BW);
     [1, 2].forEach(c => {
       const [x, y] = POT[c];
       B.tag(ctx, c === 1 ? '흑' : '백', x, y - 26, 13);
