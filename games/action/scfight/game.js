@@ -75,7 +75,7 @@
       const o = fc.slots[i]; if (!o || typeof o !== 'object') return null;
       const els = (Array.isArray(o.els) ? o.els : [o.el]).filter(e => RMAP[e]).slice(0, 2); if (!els.length) return null;
       const q = { id: String(o.id || '').slice(0, 40), name: String(o.name || '마법').slice(0, 14), el: els[0], els, lv: Math.round(num(o.lv, 1, 100, 1)), kind: KINDN[o.kind] ? o.kind : 'bolt', pow: num(o.pow, 0, 20, 1), mp: Math.round(num(o.mp, 0, 200, 5)), cd: num(o.cd, 0.3, 60, 1) };
-      ['count', 'radius', 'len', 'w', 'dur', 'speed'].forEach(k => { if (o[k] != null) q[k] = num(o[k], 0, 2000, 0); }); if (o.pierce) q.pierce = true;
+      const LIM = { count: 12, radius: 300, len: 600, w: 120, dur: 12, speed: 3 }; ['count', 'radius', 'len', 'w', 'dur', 'speed'].forEach(k => { if (o[k] != null) q[k] = num(o[k], 0, LIM[k], 0); });   // v199 저장이 망가져도 마당 전체를 덮는 마법이 없게 (RPG 가장 큰 값: 둘레 260 · 길이 400 · 너비 80 · 10초 · 9번 · 속도 1.6) if (o.pierce) q.pierce = true;
       return q;
     });
     if (!slots.some(Boolean)) slots[0] = Object.assign({}, ARROW);
@@ -1066,11 +1066,14 @@
           units.forEach(U => { U.vx = (U.x - U.px) / Math.max(dt, 0.001); U.vz = (U.z - U.pz) / Math.max(dt, 0.001); });
           // 탄: 다른 편 몸에만 맞음 (같은 편은 지나감) · 꿰뚫는 탄은 맞혀도 계속 날아감
           B.shots = B.shots.filter(s0 => {
-            s0.m.position.addScaledVector(s0.v, dt); s0.life -= dt;
-            const p = s0.m.position;
-            if (!B.over) {
+            s0.life -= dt;
+            const p = s0.m.position, nStep = Math.max(1, Math.ceil(s0.v.length() * dt / 0.35));   // v199 화면이 느려도(한 장면에 많이 날아가도) 몸을 뚫고 지나가지 않게 잘게 나눠 검사
+            for (let st = 0; st < nStep; st++) {
+              p.addScaledVector(s0.v, dt / nStep);
+              if (B.over) continue;
               const T = foesOf(s0.C).find(u => !s0.hitSet.has(u.id) && Math.hypot(p.x - u.x, p.z - u.z) < (u.rad || 0.45) + s0.r && Math.abs(p.y - (u.y + (u.hh || 0.9))) < (u.hh || 0.9) + 0.1 + s0.r);
               if (T) { s0.hitSet.add(T.id); if (T.own) hitU(T, s0.C, 1); else if (s0.C.U.me) floatText(T, '명중!', '#FFD23F'); burst(p, s0.C.els[0], s0.C.sp.fused ? 22 : 12); if (!s0.pierce) { kill(s0); return false; } }
+              if (blocked(p.x, p.z)) break;
             }
             const sp3 = s0.m.children[1]; if (sp3 && sp3.userData.spin) sp3.rotation.z += dt * sp3.userData.spin;
             if (s0.life <= 0 || p.y < 0 || Math.hypot(p.x, p.z) > ARENA + 6 || blocked(p.x, p.z)) { burst(p, s0.C.els[0], 6); kill(s0); return false; }
