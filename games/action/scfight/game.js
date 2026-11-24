@@ -97,6 +97,32 @@
     light: { id: 'lightspear', name: '빛의 창', els: ['light'], kind: 'beam', pow: 3.0, mp: 18, cd: 3.5, len: 320, w: 26 },
     dark: { id: 'darkorb', name: '어둠 구슬', els: ['dark'], kind: 'bolt', pow: 1.6, mp: 8, cd: 1.2 }
   };
+  // v192 5단계: 컴퓨터도 레벨에 맞는 RPG 마법 (rpg/data.js SK 표와 같음: [id, 이름, 원소, 배우는 레벨, 모양, 위력, 마나, 재사용, 추가])
+  const RPG_SK = [
+    ['magicarrow', '마법 화살', 'light', 1, 'bolt', 1.25, 3, 0.8, {}], ['fireball', '파이어볼', 'fire', 3, 'bolt', 1.6, 6, 1.2, {}], ['watershot', '물방울 탄', 'water', 6, 'bolt', 1.3, 6, 1.0, { count: 2 }],
+    ['heal1', '회복의 물', 'water', 10, 'heal', 0.25, 14, 8, {}], ['darkorb', '어둠 구슬', 'dark', 12, 'bolt', 1.6, 8, 1.2, {}], ['stonewall', '돌 방패', 'earth', 14, 'shield', 0.35, 12, 14, { dur: 6 }],
+    ['windblade', '바람 칼날', 'wind', 18, 'bolt', 1.8, 9, 1.5, { pierce: true }], ['firering', '불꽃 고리', 'fire', 22, 'nova', 2.2, 14, 4, { radius: 110 }], ['thunderarrow', '번개 화살', 'thunder', 26, 'bolt', 2.4, 12, 1.4, { speed: 1.6 }],
+    ['earthsplit', '대지 가르기', 'earth', 30, 'beam', 2.8, 16, 4, { len: 260, w: 40 }], ['tornado', '회오리', 'wind', 34, 'nova', 2.4, 16, 5, { radius: 130 }], ['lightspear', '빛의 창', 'light', 38, 'beam', 3.0, 18, 3.5, { len: 320, w: 26 }],
+    ['cursefog', '저주의 안개', 'dark', 42, 'nova', 2.3, 18, 5, { radius: 120 }], ['firerain', '화염 비', 'fire', 44, 'rain', 2.6, 24, 6, { count: 6, radius: 60 }], ['tidal', '해일', 'water', 48, 'beam', 3.2, 22, 5, { len: 300, w: 70 }],
+    ['chainbolt', '연쇄 번개', 'thunder', 52, 'bolt', 2.6, 20, 2.5, { count: 3, pierce: true }], ['gale', '질풍 돌진', 'wind', 56, 'dash', 3.0, 18, 5, { len: 220 }], ['holylight', '성스러운 빛', 'light', 60, 'heal', 0.5, 30, 14, {}],
+    ['thunderfall', '낙뢰', 'thunder', 64, 'rain', 3.2, 30, 6, { count: 5, radius: 70 }], ['quake', '지진', 'earth', 68, 'nova', 3.6, 30, 7, { radius: 170 }], ['shadowspear', '그림자 창', 'dark', 70, 'beam', 3.4, 28, 4.5, { len: 330, w: 34 }],
+    ['stormblade', '폭풍 칼날', 'wind', 72, 'bolt', 2.4, 26, 2.5, { count: 5, pierce: true }], ['barrier', '빛의 결계', 'light', 76, 'shield', 0.55, 30, 20, { dur: 8 }], ['waterfall', '대폭포', 'water', 80, 'rain', 3.4, 34, 7, { count: 7, radius: 70 }],
+    ['sunburst', '태양 폭발', 'fire', 84, 'nova', 4.4, 40, 8, { radius: 200 }], ['thorspear', '천둥의 창', 'thunder', 88, 'beam', 4.8, 40, 6, { len: 400, w: 50 }], ['abyss', '심연의 비', 'dark', 90, 'rain', 4.4, 46, 8, { count: 8, radius: 80 }],
+    ['earthrage', '대지의 분노', 'earth', 92, 'rain', 4.2, 44, 8, { count: 9, radius: 80 }], ['judgement', '심판의 빛', 'light', 96, 'rain', 4.8, 50, 9, { count: 8, radius: 90 }], ['elemental', '원소 해방', 'light', 100, 'nova', 6.0, 70, 15, { radius: 260 }]
+  ].map(([id, name, el, lv, kind, pow, mp, cd, ex]) => Object.assign({ id, name, el, els: [el], lv, kind, pow, mp, cd }, ex));
+  const RPG_SKID = {}; RPG_SK.forEach(q => { RPG_SKID[q.id] = q; });
+  const HERO_EL = { Haesu: 'water', Beopsan: 'light', Seonbi: 'wind', Taegang: 'earth', Kan: 'fire', Cute: 'dark', Seacher: 'thunder' };   // 장수마다 주 원소
+  // 컴퓨터 마법 꾸러미: 배운 레벨 이하 · 주 원소 가장 센 공격 1개 + 다른 원소 공격 3개(모양이 겹치지 않게) + 회복·방패(배웠으면)
+  function cpuKit(hero, lv) {
+    const have = RPG_SK.filter(q => q.lv <= lv), atk = have.filter(q => q.kind !== 'heal' && q.kind !== 'shield').sort((a, b) => b.lv - a.lv), kit = [], els = new Set(), kinds = {};
+    const add = q => { kit.push(q.id); els.add(q.el); kinds[q.kind] = (kinds[q.kind] || 0) + 1; };
+    const main = atk.find(q => q.el === HERO_EL[hero]); if (main) add(main);
+    atk.forEach(q => { if (kit.length < 4 && !kit.includes(q.id) && !els.has(q.el) && (kinds[q.kind] || 0) < 2) add(q); });
+    atk.forEach(q => { if (kit.length < 4 && !kit.includes(q.id)) add(q); });
+    ['heal', 'shield'].forEach(k => { const q = have.filter(x => x.kind === k).sort((a, b) => b.lv - a.lv)[0]; if (q) kit.push(q.id); });
+    return kit;
+  }
+
   // RPG 마법 그림 (rpg/img/ic_skill.png 34px × 30칸 · ic_fusion.png 48px × 21칸 · 물약 ic_pot.png 80px × 19칸)
   const RPG_IMG = 'games/action/rpg/img/';
   const SK_ORDER = ['magicarrow', 'fireball', 'watershot', 'heal1', 'darkorb', 'stonewall', 'windblade', 'firering', 'thunderarrow', 'earthsplit', 'tornado', 'lightspear', 'cursefog', 'firerain', 'tidal', 'chainbolt', 'gale', 'holylight', 'thunderfall', 'quake', 'shadowspear', 'stormblade', 'barrier', 'waterfall', 'sunburst', 'thorspear', 'abyss', 'earthrage', 'judgement', 'elemental'];
@@ -381,7 +407,7 @@
       function cpuEntry(i, team, lv, diff, tail, ally, used) {
         const left = HERO_IDS.filter(h => !(used || []).includes(h)), QA = window.__forceHeroes, hero = QA && QA.length ? QA.shift() : pick(left.length ? left : HERO_IDS);   // __forceHeroes = 점검용 if (used) used.push(hero);
         const D = DIFFS[diff] || DIFFS.normal;
-        return { id: 'cpu' + i, cpu: true, team, hero, nick: HEROES[hero] + (tail ? ' ' + tail : ''), lv, av: makeEnemyAvatar(ally ? 'ally' : i), st: scaleSt(CARD.st, ally ? 0.95 : D.k), els: pickN(Object.keys(CPU_SK), 4), diff };
+        return { id: 'cpu' + i, cpu: true, team, hero, nick: HEROES[hero] + (tail ? ' ' + tail : ''), lv, av: makeEnemyAvatar(ally ? 'ally' : i), st: scaleSt(CARD.st, ally ? 0.95 : D.k), kit: cpuKit(hero, lv), diff };
       }
       function startCpu(diff) {
         const D = DIFFS[diff] || DIFFS.normal, lv = clamp(LV + D.lv, 1, 100), four = S.mode === 4, used = [];
@@ -573,7 +599,7 @@
         const teamIdx = {}, units = ros.map(r => {
           const isMe = r === myR, F = cardF(isMe ? CARD.st : normSt(r.st)),   /* v192 능력치 = RPG 대결 카드 (컴퓨터 = 내 카드 × 난이도) */ k = teamIdx[r.team] = (teamIdx[r.team] || 0) + 1, inTeam = ros.filter(q => q.team === r.team).length;
           const x = inTeam > 1 ? (k === 1 ? -3 : 3) * (r.team ? -1 : 1) : 0, z = r.team ? -8 : 8;
-          const U = { id: r.id, uid: r.uid || null, me: isMe, cpu: !!r.cpu, owner: r.owner || '', team: r.team, nick: isMe ? nick() : String(r.nick || ''), lv: isMe ? LV : clamp(+r.lv || 1, 1, 100), sps: r.cpu ? (r.els || ['fire', 'water', 'wind', 'thunder']).filter(e => CPU_SK[e]).map(e => slotSpell(Object.assign({ count: 0 }, CPU_SK[e]))) : [],
+          const U = { id: r.id, uid: r.uid || null, me: isMe, cpu: !!r.cpu, owner: r.owner || '', team: r.team, nick: isMe ? nick() : String(r.nick || ''), lv: isMe ? LV : clamp(+r.lv || 1, 1, 100), sps: r.cpu ? (Array.isArray(r.kit) ? r.kit : cpuKit(r.hero, r.lv || 1)).filter(id => RPG_SKID[id]).map(id => slotSpell(RPG_SKID[id])) : [],
             x, z, y: 0, vy: 0, tx: x, tz: z, px: x, pz: z, vx: 0, vz: 0, yaw: r.team ? Math.PI : 0, pitch: 0, hp: F.hp, mp: F.mp, F, cds: {}, slow: 0, burn: 0, dead: false,
             own: isMe || (!!r.cpu && (opt.cpu || opt.host)), ai: r.cpu ? { t: 1.5, move: 0, strafe: 1, D: DIFFS[r.diff] || DIFFS.normal } : null };
           U.mesh = (r.cpu && heroBody(U, r.hero)) || voxel(isMe ? av : r.av, r.cpu && r.team !== myTeam ? '#3A2050' : null); scene.add(U.mesh);
@@ -865,12 +891,20 @@
           ai.cast = (ai.cast || rand(1, 2)) - dt;
           if (ai.cast <= 0) {
             ai.cast = rand(1.1, 2.4) * (LV < 10 ? 1.3 : 1) * D.cast;
-            // 쓸 수 있는 마법 (재사용·마나·거리) 중 하나 — 광선은 닿는 거리 안에서만
-            const ok = U.sps.map((q, i) => [q, i]).filter(([q, i]) => (U.cds['c' + i] || 0) <= 0 && U.mp >= q.mp && (q.kind !== 'beam' || d < (q.len || 300) * PX + 1));
-            if (ok.length) {
-              const [sp2, i] = pick(ok), t = d / (30 * (sp2.speed || 1)), lx = T.x + T.vx * t * D.lead, lz = T.z + T.vz * t * D.lead, ang = rand(-1, 1) * D.aim * 3;
+            // v192 5단계: 쓸 수 있는 마법(재사용·마나) 중 상황에 맞는 것 — 체력이 낮으면 회복·방패 · 모양마다 닿는 거리 안에서만 · 보통·어려움은 센 마법을 더 자주
+            const hpR = U.hp / U.F.hp, ready = U.sps.map((q, i) => [q, i]).filter(([q, i]) => (U.cds['c' + i] || 0) <= 0 && U.mp >= q.mp);
+            const reach = q => q.kind === 'nova' ? d < Math.max(2.5, (q.radius || 120) * PX) + 0.3 : q.kind === 'beam' ? d < Math.max(4, (q.len || 300) * PX) - 0.3 : q.kind === 'dash' ? d > 2.5 && d < Math.max(4, (q.len || 200) * PX) : q.kind === 'rain' || q.kind === 'pool' ? d < 17 : d < 30;
+            let ch = ready.find(([q]) => q.kind === 'heal' && hpR < 0.45) || ready.find(([q]) => q.kind === 'shield' && hpR < 0.7 && !(U.shieldT > 0));
+            if (!ch) {
+              const atk = ready.filter(([q]) => q.kind !== 'heal' && q.kind !== 'shield' && reach(q));
+              if (atk.length) ch = ai.D === DIFFS.easy ? pick(atk) : atk.map(x => [x, x[0].pow * rand(0.6, 1.4) * (x[0].kind === 'bolt' ? 0.9 : 1)]).sort((a, b) => b[1] - a[1])[0][0];
+            }
+            if (ch) {
+              const [sp2, i] = ch, t = d / (30 * (sp2.speed || 1)), lx = T.x + T.vx * t * D.lead, lz = T.z + T.vz * t * D.lead, ang = rand(-1, 1) * D.aim * 3;
               const vx = lx - U.x, vz = lz - U.z, pt = new THREE.Vector3(U.x + vx * Math.cos(ang) - vz * Math.sin(ang), 0, U.z + vx * Math.sin(ang) + vz * Math.cos(ang));
               cast(U, sp2, { pt, h: 1.0 + rand(-D.aim, D.aim) * 6 }, false, 'c' + i);
+            } else if (d < 25 && (U.cds.basic || 0) <= 0) {   // 쓸 마법이 없으면 기본 공격
+              cast(U, BASIC_SP, { pt: new THREE.Vector3(T.x, 0, T.z), h: 1.0 }, false, 'basic');
             }
           }
         }
