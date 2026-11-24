@@ -497,7 +497,14 @@
   .rg-tabs .rg-trash { margin-left: auto; background: #3A2A10; color: #FFD23F; border-color: #FFB020; }
   .rg-tabs .rg-trash.on { background: #FF5A5F; color: #FFFFFF; border-color: #0A0E24; }
   .rg-trashtip { margin: -4px 0 8px; padding: 5px 9px; background: #FFD23F; color: #1D2340; border-radius: 8px; font-size: 13px; font-weight: 700; }
-  .rg-grid.trashing .rg-cell:not(.empty) { cursor: crosshair; outline: 2px dashed #FF5A5F; outline-offset: -3px; }
+  .rg-grid.trashing .rg-cell:not(.empty) { cursor: pointer; outline: 2px dashed #FF5A5F; outline-offset: -3px; }
+  .rg-grid.trashing .rg-cell.tsel { outline: 3px solid #FF5A5F; outline-offset: 0; background: radial-gradient(circle at 35% 30%, #6A2A40, #3A1020 75%); }
+  .rg-cell .tck { position: absolute; left: 2px; top: 1px; font-size: 13px; color: #FFFFFF; background: #FF5A5F; border-radius: 4px; padding: 0 3px; line-height: 1.3; border: 1px solid #0A0E24; }
+  .rg-trashbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; } .rg-trashbar span { margin-right: auto; }
+  .rg-tslist { display: flex; flex-wrap: wrap; gap: 6px; max-height: 190px; overflow-y: auto; margin: 6px 0; justify-content: center; }
+  .rg-tslist .it { display: grid; justify-items: center; width: 74px; font-size: 11px; line-height: 1.2; text-align: center; } .rg-tslist .it em { font-style: normal; }
+  .rg-tslist .it.hi { outline: 2px solid #FFD23F; border-radius: 6px; background: rgba(255,210,63,.14); }
+  .rg-warn p.hi { color: #FFD23F; font-weight: 700; }
   .rg-warnbg { position: absolute; inset: 0; background: rgba(6, 8, 24, .72); display: grid; place-items: center; z-index: 5; padding: 12px; }
   .rg-warn { width: min(360px, 100%); background: linear-gradient(180deg, #3A1630, #1A1030); border: 3px solid #FF5A5F; border-radius: 12px; padding: 14px; text-align: center; box-shadow: 0 6px 0 rgba(0,0,0,.4); }
   .rg-warn .t { display: block; font-family: var(--f-display); font-size: 22px; color: #FFD23F; margin-bottom: 6px; }
@@ -3349,7 +3356,7 @@
       function openPanel(kind, arg) {
         if (G.duel && kind !== 'help') { say('결투 중에는 창을 열 수 없어요', 2); return; }   // v143
         pane = kind; paneArg = arg || null; G.keys = {}; G.btnDown = {}; G.joy = null;
-        tab.trash = false; tab.trashAsk = null; tab.sellAsk = null; tab.sellAll = false; tab.ysPz = null;   // v68 창을 새로 열면 버리기·팔기 확인은 꺼짐
+        tab.trash = false; tab.trashAsk = null; tab.trashSel = []; tab.sellAsk = null; tab.sellAll = false; tab.ysPz = null;   // v68 창을 새로 열면 버리기·팔기 확인은 꺼짐
         G.paused = !(net && net.joined && kind !== 'help');   // 온라인이면 창을 열어도 세상은 계속 (다른 사람이 계속 움직임)
         if (kind === 'chan') { chList = null; loadChans(); clearInterval(srvTimer); srvTimer = setInterval(() => { if (pane === 'chan') loadChans(); else clearInterval(srvTimer); }, 4000); }
         if (kind === 'servers') { srvList = null; loadServers(); clearInterval(srvTimer); srvTimer = setInterval(() => { if (pane === 'servers') loadServers(); else clearInterval(srvTimer); }, 5000); }
@@ -3491,10 +3498,10 @@
           h += `<div class="rg-statgrid">${[['공격', ST.atk, '#FF8A8E'], ['마력', ST.mag, '#C8A8FF'], ['방어', ST.def, '#9AE6FF'], ['체력', ST.hp, '#FF7A7E'], ['마나', ST.mp, '#7FA0FF'], ['속도', '+' + ST.spd + '%', '#9AF0B0'], ['물리 방어', ST.pdef + '%', '#7FE0F0'], ['속성 방어', edefTxt(), '#7FE0F0'], ['치명', ST.crit + '%', '#FFD23F']].map(([a2, v, c2]) => `<div><span style="color:${c2}">${a2}</span><b>${v}</b></div>`).join('')}</div>`;
           h += `<label class="rg-check"><input type="checkbox" data-hide ${S.hide ? 'checked' : ''}> 장비 안보이기 <small style="color:#AEB7E0">(그림만 숨김)</small></label></section>`;
           const list = S.inv.filter(x => f === 'all' || (f === 'gear' ? !!ITEMS[x.id].slot : !ITEMS[x.id].slot));
-          const cells = list.map(x => { const it = ITEMS[x.id], ok = !it.slot || S.lv >= it.req; return `<button type="button" class="rg-cell${sel === x.id ? ' sel' : ''}${it.rare ? ' rare' : ''}${ok ? '' : ' off'}" data-pick="${x.id}" style="${tierStyle(it)}" title="${it.name}"><img src="${P.itemImg(x.id)}" alt="${it.name}">${x.n > 1 ? `<span class="n">${x.n}</span>` : ''}${it.en ? `<span class="en">+${it.en}</span>` : ''}${it.grade ? `<span class="gd" style="--gd:${GRADE[it.grade].color}"></span>` : ''}${ok ? '' : `<span class="lk">Lv.${it.req}</span>`}</button>`; });
+          const cells = list.map(x => { const it = ITEMS[x.id], ok = !it.slot || S.lv >= it.req; const tsel = tab.trash && (tab.trashSel || []).includes(x.id); return `<button type="button" class="rg-cell${sel === x.id && !tab.trash ? ' sel' : ''}${tsel ? ' tsel' : ''}${it.rare ? ' rare' : ''}${ok ? '' : ' off'}" data-pick="${x.id}" style="${tierStyle(it)}" title="${it.name}"><img src="${P.itemImg(x.id)}" alt="${it.name}">${x.n > 1 ? `<span class="n">${x.n}</span>` : ''}${it.en ? `<span class="en">+${it.en}</span>` : ''}${it.grade ? `<span class="gd" style="--gd:${GRADE[it.grade].color}"></span>` : ''}${ok ? '' : `<span class="lk">Lv.${it.req}</span>`}${tsel ? '<span class="tck">✔</span>' : ''}</button>`; });
           const pad = f === 'all' ? bagMax() - list.length : (8 - list.length % 8) % 8 + (list.length ? 0 : 8);
           for (let i = 0; i < pad; i++) cells.push('<span class="rg-cell empty"></span>');
-          h += `<section class="rg-bag"><div class="rg-tabs">${[['all', '전체'], ['gear', '장비'], ['use', '물약·물건']].map(([k2, n]) => `<button type="button" data-filt="${k2}" aria-pressed="${f === k2}">${n}</button>`).join('')}<button type="button" class="rg-trash${tab.trash ? ' on' : ''}" data-trash aria-pressed="${!!tab.trash}" title="쓰레기통: 누른 뒤 버릴 물건을 누르세요">🗑 ${tab.trash ? '버리기 켜짐 (끄기)' : '쓰레기통'}</button></div>${tab.trash ? '<p class="rg-trashtip">버릴 물건을 누르세요. 입고 있는 장비는 버릴 수 없어요.</p>' : ''}<div class="rg-grid${tab.trash ? ' trashing' : ''}">${cells.join('')}</div>`;
+          h += `<section class="rg-bag"><div class="rg-tabs">${[['all', '전체'], ['gear', '장비'], ['use', '물약·물건']].map(([k2, n]) => `<button type="button" data-filt="${k2}" aria-pressed="${f === k2}">${n}</button>`).join('')}<button type="button" class="rg-trash${tab.trash ? ' on' : ''}" data-trash aria-pressed="${!!tab.trash}" title="쓰레기통: 누른 뒤 버릴 물건을 누르세요">🗑 ${tab.trash ? '버리기 켜짐 (끄기)' : '쓰레기통'}</button></div>${tab.trash ? (() => { const ts = (tab.trashSel || []).filter(q => count(q)); return `<div class="rg-trashtip">버릴 물건을 <b>여러 개</b> 눌러 고르세요 (다시 누르면 빼기 · 묶음은 통째로). 입고 있는 장비는 버릴 수 없어요.<div class="rg-trashbar"><span>고른 것 <b>${ts.length}</b>칸</span><button type="button" class="rg-mini" data-tsall>보이는 것 모두 고르기</button><button type="button" class="rg-mini ghost" data-tsnone ${ts.length ? '' : 'disabled'}>모두 빼기</button><button type="button" class="rg-mini warn" data-tsgo ${ts.length ? '' : 'disabled'}>🗑 고른 ${ts.length}칸 버리기</button></div></div>`; })() : ''}<div class="rg-grid${tab.trash ? ' trashing' : ''}">${cells.join('')}</div>`;
           // 고른 물건 자세히
           let it = null, id = null, worn = false;
           if (sel && sel.startsWith('eq:')) { id = S.eq[sel.slice(3)]; worn = true; } else if (sel && count(sel)) id = sel;
@@ -3506,6 +3513,9 @@
             h += `<div class="rg-detail">${itemIcon(id)}<div class="grow"><b class="nm${it.rare ? ' rare' : ''}"${it.grade != null ? ` style="color:${GRADE[it.grade].color}"` : ''}>${it.name}${it.grade != null ? `<span class="rg-grade">${GRADE[it.grade].name}</span>` : ''}${worn ? ' <small>입는 중</small>' : ''}</b><span class="ds">${it.slot ? `${D.SLOT_NAME[it.slot]} · ${it.rare && !it.legend ? '정예 · ' : ''}Lv.${it.req} 이상 · 강화 +${it.en || 0}/${ENH.max}${cur ? ' · 지금: ' + cur.name : ''}${it.noTrade ? ' · 거래 안 됨' : ''}` : it.desc + ' · 가진 수 ' + count(id)}</span>${it.slot ? `<span class="rg-itdesc">${itemBlurb(it)}</span>` : ''}${cmp ? `<div class="cmp">${cmp}</div>` : ''}${optList(it)}</div>${btn}</div>`;
           } else h += `<div class="rg-detail hint">칸을 누르면 자세히 보여요. 필요 없는 물건은 <b>🗑 쓰레기통</b>을 누른 뒤 고르면 버릴 수 있어요. 장비는 <b>입기</b>, 물약은 <b>쓰기</b>. 사냥터 몬스터가 장비를 떨어뜨려요 (보스는 꼭!)</div>`;
           h += '</section></div>';
+          const tsq = tab.trashMulti ? (tab.trashSel || []).filter(q => count(q)) : null;   // v204 여러 개 버리기 경고
+          if (tsq && tsq.length) { const tot = tsq.reduce((a, q) => a + (ITEMS[q].slot ? sellPrice(q) * count(q) : 0), 0), hi = tsq.filter(q => ITEMS[q].legend || ITEMS[q].rare || (ITEMS[q].grade || 0) >= 2 || (ITEMS[q].en || 0) >= 5);
+            h += `<div class="rg-warnbg"><div class="rg-warn" role="alertdialog" aria-label="여러 아이템 버리기 경고"><b class="t">⚠ ${tsq.length}칸을 정말 버릴까요?</b><div class="rg-tslist">${tsq.map(q => { const it = ITEMS[q], gd = it.slot && it.grade != null ? GRADE[it.grade] : null; return `<span class="it${hi.includes(q) ? ' hi' : ''}">${itemIcon(q)}<em${gd ? ` style="color:${gd.color}"` : ''}>${it.name}${count(q) > 1 ? ' ×' + count(q) : ''}${it.en ? ' +' + it.en : ''}</em></span>`; }).join('')}</div>${hi.length ? `<p class="hi">⚠ 귀한 물건(정예·전설·높은 등급·+5 이상)이 <b>${hi.length}개</b> 들어 있어요!</p>` : ''}<p>버린 물건은 <b>사라지고 되돌릴 수 없어요.</b>${tot ? ` 약방에 팔면 모두 <b class="rg-price">${fmtN(tot)} G</b> 를 받을 수 있어요.` : ''}</p><div class="btns"><button type="button" class="rg-mini warn" data-tsdo>${tsq.length}칸 모두 버리기</button><button type="button" class="rg-mini" data-tsno>취소</button></div></div></div>`; }
           const tq = tab.trashAsk && count(tab.trashAsk) ? tab.trashAsk : null;   // v68 버리기 경고
           if (tq) { const it = ITEMS[tq], n = count(tq), gd = it.slot && it.grade != null ? GRADE[it.grade] : null;
             h += `<div class="rg-warnbg"><div class="rg-warn" role="alertdialog" aria-label="아이템 버리기 경고"><b class="t">⚠ 정말 버릴까요?</b>${itemIcon(tq)}<p class="nm"${gd ? ` style="color:${gd.color}"` : ''}>${it.name}${n > 1 ? ' ×' + n : ''}${gd ? `<span class="rg-grade">${gd.name}</span>` : ''}</p><p>버린 물건은 <b>사라지고 되돌릴 수 없어요.</b>${it.slot ? ` 약방에 팔면 <b class="rg-price">${fmtN(sellPrice(tq))} G</b> 를 받을 수 있어요.` : ''}</p><div class="btns"><button type="button" class="rg-mini warn" data-trashdo="${tq}:1">${n > 1 ? '1개 버리기' : '버리기'}</button>${n > 1 ? `<button type="button" class="rg-mini warn" data-trashdo="${tq}:${n}">${n}개 모두 버리기</button>` : ''}<button type="button" class="rg-mini" data-trashno>취소</button></div></div></div>`; }
@@ -3818,7 +3828,17 @@
         if ('petok' in d) { tab.petEnhRes = null; renderPanel(); return; }
         if (d.xdir) { const inp = panel.querySelector('#rg-xn-' + d.xdir); xchgDo(d.xdir, inp ? inp.value : 0); return; }   // v145 골드 ↔ 포인트 (왼쪽 g2p · 오른쪽 p2g)
         if (d.xset) { const [xd2, q] = d.xset.split(':'), inp = panel.querySelector('#rg-xn-' + xd2); if (inp) { inp.value = q; xchgCalc(xd2); } return; }
-        if ('trash' in d) { tab.trash = !tab.trash; tab.trashAsk = null; renderPanel(); return; }
+        if ('trash' in d) { tab.trash = !tab.trash; tab.trashAsk = null; tab.trashSel = []; tab.trashMulti = false; renderPanel(); return; }
+        // v204 선생님 11/24: 여러 개 골라 한 번에 버리기
+        if ('tsall' in d) { const f = tab.invF || 'all'; tab.trashSel = S.inv.filter(x => f === 'all' || (f === 'gear' ? !!ITEMS[x.id].slot : !ITEMS[x.id].slot)).map(x => x.id); renderPanel(); return; }
+        if ('tsnone' in d) { tab.trashSel = []; renderPanel(); return; }
+        if ('tsgo' in d) { if ((tab.trashSel || []).some(q => count(q))) tab.trashMulti = true; renderPanel(); return; }
+        if ('tsno' in d) { tab.trashMulti = false; renderPanel(); return; }
+        if ('tsdo' in d) {
+          if (G.trade) say('거래 중에는 버릴 수 없어요', 2);
+          else { let k2 = 0; (tab.trashSel || []).forEach(q => { const n = count(q); if (n && takeItem(q, n)) k2++; if (!count(q) && tab.invSel === q) tab.invSel = null; }); if (k2) { markDirty(true); say(`${k2}칸을 버렸어요`, 2); } }
+          tab.trashSel = []; tab.trashMulti = false; tab.trash = false; renderPanel(); return;
+        }
         if ('trashno' in d) { tab.trashAsk = null; tab.trash = false; renderPanel(); return; }
         if (d.trashdo) {   // v68 쓰레기통: 경고에서 '버리기'를 눌렀을 때만 지움
           const cut = d.trashdo.lastIndexOf(':'), id = d.trashdo.slice(0, cut), n = +d.trashdo.slice(cut + 1);
@@ -3827,7 +3847,7 @@
           tab.trashAsk = null; tab.trash = false; renderPanel(); return;
         }
         if (d.pick && tab.trash && pane === 'inv') {
-          if (d.pick.startsWith('eq:')) say('입고 있는 장비는 벗은 뒤에 버릴 수 있어요', 2.2); else if (count(d.pick)) tab.trashAsk = d.pick;
+          if (d.pick.startsWith('eq:')) say('입고 있는 장비는 벗은 뒤에 버릴 수 있어요', 2.2); else if (count(d.pick)) { const ts = tab.trashSel || (tab.trashSel = []), i = ts.indexOf(d.pick); if (i >= 0) ts.splice(i, 1); else ts.push(d.pick); }   // v204 누르면 고르기/빼기
           renderPanel(); return;
         }
         if (d.pick) { tab.invSel = tab.invSel === d.pick && !d.pick.startsWith('eq:') && !ITEMS[d.pick].stack && S.lv >= ITEMS[d.pick].req ? (equipNow(d.pick), 'eq:' + ITEMS[d.pick].slot) : d.pick; renderPanel(); return; }   // 같은 장비를 한 번 더 누르면 입기
