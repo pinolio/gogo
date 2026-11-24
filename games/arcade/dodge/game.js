@@ -154,7 +154,10 @@
       }
       const hitR = () => (C().hitR || 5) + (C().bulletR || 3);
       // v64 맞은 총알을 돌려줌 (없으면 null) — 빨강(k=1)이면 그 사람은 '기록 없음'
-      const hitBy = p => B.find(b => (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < hitR() ** 2) || null;
+      // v207 선생님 11/24 충돌 점검: 총알이 한 번에 움직인 길(전 자리 → 지금 자리)과 몸 사이의 가장 가까운 거리로 판정
+      //  (예전엔 지금 자리만 봐서, 1초에 20장 이하로 그려지는 느린 컴퓨터에서 빠른 총알이 몸을 건너뛰어 안 맞을 때가 있었음)
+      const segD2 = (b, p) => { const ox = b.ox == null ? b.x : b.ox, oy = b.oy == null ? b.y : b.oy, vx = b.x - ox, vy = b.y - oy, L2 = vx * vx + vy * vy; let t = L2 ? ((p.x - ox) * vx + (p.y - oy) * vy) / L2 : 1; t = t < 0 ? 0 : t > 1 ? 1 : t; const dx = ox + vx * t - p.x, dy = oy + vy * t - p.y; return dx * dx + dy * dy; };
+      const hitBy = p => B.find(b => segD2(b, p) < hitR() ** 2) || null;
       const hitMark = (p, b) => { p.red = !!(b && b.k); };
 
       /* ---------- 총알 (방장 · 혼자 · 한 기기가 계산) ---------- */
@@ -170,7 +173,7 @@
       }
       const wantBullets = () => Math.min(C().bulletMax || 150, Math.floor((C().bulletStart || 12) + t * (C().bulletPerSec == null ? 1 : C().bulletPerSec)));
       function stepBullets(dt) {
-        B.forEach(b => { b.x += b.vx * dt; b.y += b.vy * dt; });
+        B.forEach(b => { b.ox = b.x; b.oy = b.y; b.x += b.vx * dt; b.y += b.vy * dt; });   // v207 지나온 길도 판정 (느린 컴퓨터에서 총알이 몸을 건너뛰지 않게)
         B = B.filter(b => b.x > -20 && b.x < W + 20 && b.y > -20 && b.y < H + 20);
         let n = 0; while (B.length < wantBullets() && n < 4) { spawn(); n++; }   // 한 번에 조금씩 (한꺼번에 몰려오지 않게)
       }
@@ -253,7 +256,7 @@
           if (performance.now() - net.lastPos > POS_MS) { net.lastPos = performance.now(); send({ k: 'pos', x: Math.round(me.x), y: Math.round(me.y) }); }
         }
         P.forEach(p => { if (!p.mine && p.tx != null) { const k = Math.min(1, dt * 12); p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; p.moving = 0.1; p.walk += dt; } });
-        B.forEach(b => { b.x += b.vx * dt; b.y += b.vy * dt; });
+        B.forEach(b => { b.ox = b.x; b.oy = b.y; b.x += b.vx * dt; b.y += b.vy * dt; });   // v207 지나온 길도 판정 (느린 컴퓨터에서 총알이 몸을 건너뛰지 않게)
         stepFx(dt);
       }
 

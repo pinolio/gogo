@@ -166,6 +166,16 @@
   // v114 피부 18가지 × 남/여 × 앞·옆·뒤 그림 (avatar/body/<피부>_<m|f>_<f|s|b>.png)
   const BODY_SKINS = ['s1', 's2', 's3', 's4', 's_pale', 's_alien', 's_robot', 's_gold', 's_dark', 's_blush', 's_copper', 's_elf', 's_purple', 's_ghost', 's_ochre', 's_tan', 's_night', 's_angel'];
   const bodySrc = (g, view, skin) => 'avatar/body/' + (BODY_SKINS.includes(skin) ? skin : 's1') + '_' + (g === 'f' ? 'f' : 'm') + '_' + (view === 'b' || view === 's' ? view : 'f') + '.png?v=' + BODY_V;
+  /* v206 아바타 그림을 받다가 한 번 실패하면(인터넷이 잠깐 끊김 · 새 버전으로 바뀌는 중) 그 화면에서 캐릭터가 계속 투명하던 것
+   *  → 0.7·1.4·2.1·2.8초 뒤 다시 받아 봄 (4번). 그래도 안 되면 그때 실패로 둠 */
+  function imgRetry(im, src, onFail) {
+    let n = 0;
+    im.onerror = () => {
+      if (n >= 4) { if (onFail) onFail(); return; }
+      n++; setTimeout(() => { im.src = src + (src.indexOf('?') >= 0 ? '&' : '?') + 'r' + n + '=' + Date.now() % 100000; }, 700 * n);
+    };
+    im.src = src;
+  }
   function bodyImg(g, view, cb, skin) {
     if (typeof cb === 'string') { skin = cb; cb = null; }
     const k = bodySrc(g, view, skin);
@@ -173,7 +183,7 @@
     if (!e) {
       const im = new Image(); e = bodyImgs[k] = { im, ok: false, cbs: [] };
       im.onload = () => { e.ok = true; e.cbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } }); };
-      im.src = (window.GOGO_BASE || '') + k;
+      imgRetry(im, (window.GOGO_BASE || '') + k);
     }
     if (e.ok) return e.im;
     if (cb) e.cbs.push(cb);
@@ -201,8 +211,7 @@
       clothLoading = true;
       const im = new Image();
       im.onload = () => { try { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d'); x.drawImage(im, 0, 0); clothAt = x.getImageData(0, 0, c.width, c.height); } catch (e) { clothAt = { bad: true }; } clothCbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } }); };
-      im.onerror = () => { clothAt = { bad: true }; clothCbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } }); };
-      im.src = (window.GOGO_BASE || '') + 'avatar/body/cloth.png?v=120';
+      imgRetry(im, (window.GOGO_BASE || '') + 'avatar/body/cloth.png?v=120', () => { clothAt = { bad: true }; clothCbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } }); });
     }
     return null;
   }
@@ -228,8 +237,7 @@
       shoeLoading = true;
       const im = new Image(), done = () => shoeCbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } });
       im.onload = () => { try { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d'); x.drawImage(im, 0, 0); shoeAt = x.getImageData(0, 0, c.width, c.height); } catch (e) { shoeAt = { bad: true }; } done(); };
-      im.onerror = () => { shoeAt = { bad: true }; done(); };
-      im.src = (window.GOGO_BASE || '') + 'avatar/body/shoes.png?v=137';
+      imgRetry(im, (window.GOGO_BASE || '') + 'avatar/body/shoes.png?v=137', () => { shoeAt = { bad: true }; done(); });
     }
     return null;
   }
@@ -803,8 +811,7 @@
     if (!e) {
       const im = new Image(); e = imgs[src] = { im, ok: false, bad: false, cbs: [] };
       im.onload = () => { e.ok = true; e.cbs.splice(0).forEach(f => { try { f(); } catch (er) { /* noop */ } }); };
-      im.onerror = () => { e.bad = true; e.cbs.length = 0; };
-      im.src = (window.GOGO_BASE || '') + src;
+      imgRetry(im, (window.GOGO_BASE || '') + src, () => { e.bad = true; e.cbs.length = 0; });
     }
     if (e.ok) return e.im;
     if (cb && !e.bad && !e.cbs.includes(cb)) e.cbs.push(cb);

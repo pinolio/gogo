@@ -1424,7 +1424,7 @@
         const kept = cur.filter(f => {
           f.t += dt; const r2 = bfxTick2(f, dt); if (r2 !== undefined) return r2;
           const m = f.m, alive = m && !m.dead;
-          if (f.k === 'pull') { const k = Math.min(1, f.t / f.dur); G.px = f.x0 + (f.tx - f.x0) * k; G.py = f.y0 + (f.ty - f.y0) * k; return f.t < f.dur; }
+          if (f.k === 'pull') { const k = Math.min(1, f.t / f.dur), tx = f.x0 + (f.tx - f.x0) * k, ty = f.y0 + (f.ty - f.y0) * k; if (!movePlayer(tx - G.px, ty - G.py)) return false; return f.t < f.dur; }   // v207 끌려갈 때 벽·나무에 걸리면 거기서 멈춤 (예전엔 벽을 지나 끌려감)
           if (!alive && f.k !== 'mine') return false;
           if (f.k === 'whirl') {
             if (f.t > f.warn && !G.dead) { const dx = f.x - G.px, dy = f.y - G.py, d = Math.hypot(dx, dy); if (d < f.r && d > 4) { const sp = 120 * dt, nx = G.px + dx / d * sp, ny = G.py + dy / d * sp; if (walkable(nx, ny)) { G.px = nx; G.py = ny; } }
@@ -1435,7 +1435,7 @@
           if (f.k === 'bomb') { if (f.t < f.follow) { f.x = G.px; f.y = G.py; } if (f.t >= f.dur) { Fx.nova(f.x, f.y - 20, f.r, [m.el || 'fire', 'fire']); if (Math.hypot(G.px - f.x, G.py - f.y) < f.r) hitPlayer(m.atk * 1.8, m.lvl, m.el, m); G.shake = Math.max(G.shake, 9); return false; } return true; }
           if (f.k === 'barrage') { if (f.t >= f.dur) { hitPlayer(m.atk * 0.9, m.lvl, m.el, m); G.flash = 0.35; G.shake = 12; for (let i = 0; i < 10; i++) Fx.nova(G.px + rand(-W / 2, W / 2), G.py + rand(-H / 2, H / 2), 60, [m.el || 'fire', 'fire']); return false; } return true; }
           if (f.k === 'wall') { G.shots.forEach(s => { if (s.mine && s.life > 0 && segDist(s.x, s.y, f.x - Math.cos(f.a) * f.L / 2, f.y - Math.sin(f.a) * f.L / 2, f.a, f.L) < 16) { s.life = 0; Fx.nova(s.x, s.y, 20, ['wind', 'wind']); } }); return f.t < f.dur; }
-          if (f.k === 'realm') { const dx = G.px - f.x, dy = G.py - f.y, d = Math.hypot(dx, dy); if (d > f.r - 16) { G.px = f.x + dx / d * (f.r - 16); G.py = f.y + dy / d * (f.r - 16); } m.skCd = Math.min(m.skCd, 1.2); return f.t < f.dur; }
+          if (f.k === 'realm') { const dx = G.px - f.x, dy = G.py - f.y, d = Math.hypot(dx, dy); if (d > f.r - 16) { const nx = f.x + dx / d * (f.r - 16), ny = f.y + dy / d * (f.r - 16); if (canStand(G.map, nx, ny)) { G.px = nx; G.py = ny; } else movePlayer(nx - G.px, ny - G.py); /* v207 벽 속으로 밀어 넣지 않음 */ } m.skCd = Math.min(m.skCd, 1.2); return f.t < f.dur; }
           return false;
         });
         G.bfx = kept.concat(G.bfx);
@@ -1568,7 +1568,11 @@
       function bfxTick2(f, dt) {   // true/false = 남김/지움 · undefined = 내 것이 아님
         const m = f.m;
         if (f.k === 'later') { if (f.t >= f.at) { if (!m || !m.dead) f.fn(); return false; } return true; }
-        if (f.k === 'push') { const step = Math.min(f.left, 900 * dt), nx = G.px + Math.cos(f.a) * step, ny = G.py + Math.sin(f.a) * step; if (!canStand(G.map, nx, ny)) { if (f.wallStun) { G.pst = G.pst || {}; G.pst.ccImm = 0; pCC('stun', f.wallStun); G.shake = 10; float(G.px, G.py - 100, '벽에 쾅!', '#FFD23F'); } return false; } G.px = nx; G.py = ny; f.left -= step; return f.left > 0; }
+        if (f.k === 'push') {   // v207 밀려날 때도 6점씩 나눠 벽 확인 (벽 너머로 날아가지 않게)
+          const step = Math.min(f.left, 900 * dt), n = Math.max(1, Math.ceil(step / 6)), ss = step / n;
+          for (let i = 0; i < n; i++) { const nx = G.px + Math.cos(f.a) * ss, ny = G.py + Math.sin(f.a) * ss; if (!canStand(G.map, nx, ny)) { if (f.wallStun) { G.pst = G.pst || {}; G.pst.ccImm = 0; pCC('stun', f.wallStun); G.shake = 10; float(G.px, G.py - 100, '벽에 쾅!', '#FFD23F'); } return false; } G.px = nx; G.py = ny; f.left -= ss; }
+          return f.left > 0;
+        }
         if (m && m.dead) return false;
         if (f.k === 'zone') {
           if (f.t >= f.warn && !f.done) { f.done = true; const hit = inZone(f, G.px, G.py);
@@ -1583,7 +1587,7 @@
         if (f.k === 'cage') { if (f.t > f.warn) { const d = Math.hypot(G.px - f.x, G.py - f.y); if (Math.abs(d - f.r) < 14 && !f.hit) { f.hit = true; pCC('stun', 1.5, m); hitPlayer(m.atk * 0.8, m.lvl, m.el, m); } } return f.t < f.warn + f.dur; }
         if (f.k === 'field') { const inside = Math.hypot(G.px - f.x, (G.py - f.y) / 0.62) < f.r;
           if (inside && (f.tick -= dt) <= 0) { f.tick = 0.5; if (f.sub === 'poison') hitPlayer(m.atk * 0.35, m.lvl, m.el, m); if (f.sub === 'swamp') pCC('slow', 1.0, m); }
-          if (f.sub === 'ice') { if (inside) { if (G.moving) G.slideV = { x: (G.px - (G.lastPx == null ? G.px : G.lastPx)) / Math.max(dt, 0.001), y: (G.py - (G.lastPy == null ? G.py : G.lastPy)) / Math.max(dt, 0.001) }; else if (G.slideV) { const nx = G.px + G.slideV.x * dt, ny = G.py + G.slideV.y * dt; if (canStand(G.map, nx, ny)) { G.px = nx; G.py = ny; } G.slideV.x *= Math.pow(0.35, dt); G.slideV.y *= Math.pow(0.35, dt); } } else G.slideV = null; G.lastPx = G.px; G.lastPy = G.py; }
+          if (f.sub === 'ice') { if (inside) { if (G.moving) G.slideV = { x: (G.px - (G.lastPx == null ? G.px : G.lastPx)) / Math.max(dt, 0.001), y: (G.py - (G.lastPy == null ? G.py : G.lastPy)) / Math.max(dt, 0.001) }; else if (G.slideV) { movePlayer(G.slideV.x * dt, G.slideV.y * dt); G.slideV.x *= Math.pow(0.35, dt); G.slideV.y *= Math.pow(0.35, dt); } } else G.slideV = null; G.lastPx = G.px; G.lastPy = G.py; }
           return f.t < f.dur; }
         if (f.k === 'spin') { if ((f.tick -= dt) <= 0) { f.tick = 0.4; if (Math.hypot(G.px - m.x, (G.py - m.y) / 0.62) < f.r) hitPlayer(m.atk * 0.5, m.lvl, m.el, m); } return f.t < f.dur; }
         if (f.k === 'phalanx') { const sp = 170, adv = f.t * sp, ox = f.x + Math.cos(f.a) * adv, oy = f.y + Math.sin(f.a) * adv, px = -Math.sin(f.a), py = Math.cos(f.a); f.ox = ox; f.oy = oy;
@@ -2268,17 +2272,27 @@
 
       /* ---------- 움직임 ---------- */
       function canStand(map, x, y) { return !solidAt(map, x - 9, y - 4) && !solidAt(map, x + 9, y - 4) && !solidAt(map, x - 9, y) && !solidAt(map, x + 9, y); }
+      // v207 선생님 11/24 '장애물을 넘어가거나 통과하는 경우': 한 번에 많이 움직이면(돌진·밀려남·컴퓨터가 느릴 때) 6점씩 나눠 움직이며 벽을 확인
+      //  (예전엔 도착할 자리만 봐서, 1초에 15장 이하로 그려지는 느린 컴퓨터에서 돌진하면 나무·벽 너머로 넘어감)
       function movePlayer(dx, dy) {
-        const map = G.map;
-        if (dx && canStand(map, G.px + dx, G.py)) G.px += dx;
-        if (dy && canStand(map, G.px, G.py + dy)) G.py += dy;
+        const map = G.map, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 6)), sx = dx / n, sy = dy / n;
+        let bx = !sx, by = !sy;
+        for (let i = 0; i < n && !(bx && by); i++) {
+          if (!bx) { if (canStand(map, G.px + sx, G.py)) G.px += sx; else bx = true; }
+          if (!by) { if (canStand(map, G.px, G.py + sy)) G.py += sy; else by = true; }
+        }
         G.px = clamp(G.px, 4, map.w * TS - 4); G.py = clamp(G.py, 8, map.h * TS - 2);
+        return !((sx && bx) || (sy && by));   // 끝까지 막힘 없이 갔는지
       }
       function moveMon(m, dx, dy) {
         const map = G.map, ok = (x, y) => !solidAt(map, x - 8, y - 2) && !solidAt(map, x + 8, y - 2) && !solidAt(map, x, y), x0 = m.x, y0 = m.y;
         if (m.ghost > 0) { m.x = clamp(m.x + dx, TS + 8, map.w * TS - TS - 8); m.y = clamp(m.y + dy, TS + 8, map.h * TS - TS - 2); return true; }   // v202 끼인 보스: 잠깐 나무·바위를 지나감
-        if (ok(m.x + dx, m.y)) m.x += dx; else m.wt = 0;
-        if (ok(m.x, m.y + dy)) m.y += dy; else m.wt = 0;
+        const n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 6)), sx = dx / n, sy = dy / n;   // v207 6점씩 나눠 벽 확인 (돌진이 벽을 뚫지 않게)
+        let bx = !sx, by = !sy;
+        for (let i = 0; i < n && !(bx && by); i++) {
+          if (!bx) { if (ok(m.x + sx, m.y)) m.x += sx; else { bx = true; m.wt = 0; } }
+          if (!by) { if (ok(m.x, m.y + sy)) m.y += sy; else { by = true; m.wt = 0; } }
+        }
         return m.x !== x0 || m.y !== y0;
       }
       // v202 선생님 11/24 '보스가 나무·바위에 걸려 못 움직인다': 쫓아갈 때 막히면 옆으로 돌아가고(모든 몬스터), 보스는 1.2초 넘게 막히면 잠깐 통과

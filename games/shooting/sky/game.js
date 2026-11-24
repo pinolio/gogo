@@ -726,15 +726,17 @@
         E.forEach(e => stepEnemy(e, dt));
         E = E.filter(e => !e.dead && !gone(e));
         // 적 총알
-        B.forEach(b => { b.x += b.vx * dt; b.y += b.vy * dt; });
+        B.forEach(b => { b.ox = b.x; b.oy = b.y; b.x += b.vx * dt; b.y += b.vy * dt; });   // v207 지나온 길도 판정
         B = B.filter(b => b.x > -20 && b.x < W + 20 && b.y > -30 && b.y < H + 20);
         // 내 총알
-        SHOT.forEach(s => { if (s.m) steer(s, dt); s.x += s.vx * dt; s.y += s.vy * dt; });
+        SHOT.forEach(s => { if (s.m) steer(s, dt); s.ox = s.x; s.oy = s.y; s.x += s.vx * dt; s.y += s.vy * dt; });
         const def = boss ? stageOf(stage).boss : null;
         SHOT = SHOT.filter(s => {
           if (s.y < -20 || s.x < -20 || s.x > W + 20) return false;
-          for (const e of E) { if (!e.dead && Math.abs(s.x - e.x) < e.r + 3 && Math.abs(s.y - e.y) < e.r + 8) { hurtEnemy(e, s.d || 1, s.o); spark(s.x, s.y); return false; } }
-          if (boss && boss.hp > 0 && Math.abs(s.x - boss.x) < def.hw * 0.9 && Math.abs(s.y - boss.y) < def.hh * 0.8) { if (boss.t >= 2.6) { hurtBoss(s.d || 1, s.o); spark(s.x, s.y); } return false; }
+          // v207 선생님 11/24 충돌 점검: 한 번에 움직인 길(전 자리~지금 자리) 전체로 판정 → 느린 컴퓨터에서 총알이 작은 적을 건너뛰지 않게
+          const sy0 = Math.min(s.y, s.oy == null ? s.y : s.oy), sy1 = Math.max(s.y, s.oy == null ? s.y : s.oy), near = (cx, cy, hw, hh) => Math.abs(s.x - cx) < hw && sy1 > cy - hh && sy0 < cy + hh;
+          for (const e of E) { if (!e.dead && near(e.x, e.y, e.r + 3, e.r + 8)) { hurtEnemy(e, s.d || 1, s.o); spark(s.x, s.y); return false; } }
+          if (boss && boss.hp > 0 && near(boss.x, boss.y, def.hw * 0.9, def.hh * 0.8)) { if (boss.t >= 2.6) { hurtBoss(s.d || 1, s.o); spark(s.x, s.y); } return false; }
           return true;
         });
         // 비행기가 맞았는지 (온라인 손님 비행기는 손님 기기가 판단)
@@ -758,8 +760,9 @@
         else p.score += 500;
         FX.push({ txt: it.k === 'star' || (it.k === 'P' && it.full) ? '+500' : it.k === 'P' ? 'POWER UP' : 'BOMB +1', x: it.x, y: it.y, vx: 0, vy: -30, life: 0.8, max: 0.8 });
       }
+      const segD2 = (b, p) => { const ox = b.ox == null ? b.x : b.ox, oy = b.oy == null ? b.y : b.oy, vx = b.x - ox, vy = b.y - oy, L2 = vx * vx + vy * vy; let t = L2 ? ((p.x - ox) * vx + (p.y - oy) * vy) / L2 : 1; t = t < 0 ? 0 : t > 1 ? 1 : t; const dx = ox + vx * t - p.x, dy = oy + vy * t - p.y; return dx * dx + dy * dy; };
       function hitCheck(p) {
-        for (const b of B) { const rr = BUL_R[b.k] * 0.8 + 3; if ((b.x - p.x) ** 2 + (b.y - p.y) ** 2 < rr * rr) { b.hit = true; return true; } }
+        for (const b of B) { const rr = BUL_R[b.k] * 0.8 + 3; if (segD2(b, p) < rr * rr) { b.hit = true; return true; } }   // v207 지나온 길로 판정
         for (const e of E) { if (!e.dead && e.type !== 'ground' && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < (e.r * 0.7 + 5) ** 2) return true; }
         if (boss && boss.t >= 2.6 && boss.hp > 0) { const def = stageOf(stage).boss; if (def.type !== 'ship' && def.type !== 'tank' && Math.abs(p.x - boss.x) < def.hw * 0.6 && Math.abs(p.y - boss.y) < def.hh * 0.5) return true; }
         return false;
@@ -889,7 +892,7 @@
         IT.forEach(it => { it.y += 30 * dt; });
         // 보이기만 하는 총알 (실제 맞히기는 방장이 계산)
         if (phase === 'play' || phase === 'warning' || phase === 'boss') P.forEach(p => fire(p, dt, SHOT, false));
-        SHOT.forEach(s => { if (s.m) steer(s, dt); s.x += s.vx * dt; s.y += s.vy * dt; });
+        SHOT.forEach(s => { if (s.m) steer(s, dt); s.ox = s.x; s.oy = s.y; s.x += s.vx * dt; s.y += s.vy * dt; });
         const def = boss ? stageOf(stage).boss : null;
         SHOT = SHOT.filter(s => {
           if (s.y < -20) return false;

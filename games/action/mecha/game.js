@@ -89,6 +89,12 @@
   const HP_MUL = 1.8;   // 체력 배율: 표의 hp × 1.8 이 실제 체력 (한 판이 너무 빨리 끝나지 않게, 평균 약 35초)
   const ROOT_IMM = 48;  // v32: 거미줄(묶기)이 풀린 뒤 다시 묶이지 않는 시간(프레임, 60 = 1초). 학생 의견 "스파이더 무한 속박" 반영
   const ROCKS = [[375, 188, 38], [825, 488, 38], [600, 338, 30], [238, 512, 26], [962, 162, 26]];   // 경기장 바위 (x, y, 반지름)
+  // v207 선생님 11/24 '장애물 통과': 돌진·끌어당기기가 한 번에 순간이동해서 바위를 뚫고 지나가던 것 → 6점씩 가 보며 바위 앞에서 멈춤
+  const inRock = (x, y, r) => ROCKS.some(([rx, ry, rr]) => Math.hypot(x - rx, y - ry) < rr + r);
+  function sweepTo(f, tx, ty) {
+    const sx = f.x, sy = f.y, L = Math.hypot(tx - sx, ty - sy), n = Math.max(1, Math.ceil(L / 6));
+    for (let i = 1; i <= n; i++) { const x = sx + (tx - sx) * i / n, y = sy + (ty - sy) * i / n; if (inRock(x, y, f.rb.r) && !inRock(f.x, f.y, f.rb.r)) break; f.x = x; f.y = y; }
+  }
   const LV = { easy: { think: 22, err: 0.35, dodge: 0.08, charge: 0.1, aggro: 0.55 }, normal: { think: 12, err: 0.14, dodge: 0.35, charge: 0.35, aggro: 0.8 }, hard: { think: 6, err: 0.04, dodge: 0.7, charge: 0.6, aggro: 1 } };
   const cfg = () => window.GoSettings.get('mecha') || {};
   const img = name => S.image(DIR + 'img/' + name);
@@ -353,14 +359,14 @@
           MINES.push({ x: f.x - Math.cos(a) * (f.rb.r + 10), y: f.y - Math.sin(a) * (f.rb.r + 10), team: f.team, from: f.i, dmg: w.dmg * mul, blast: w.blast * (1 + 0.2 * lv), arm: 30, life: 60 * 12 });
         } else if (w.kind === 'dash') {
           const len = w.dist + 60 * lv, sx = f.x, sy = f.y;
-          f.x = clamp(f.x + Math.cos(a) * len, M + f.rb.r, AW - M - f.rb.r); f.y = clamp(f.y + Math.sin(a) * len, M + f.rb.r, AH - M - f.rb.r);
+          sweepTo(f, clamp(f.x + Math.cos(a) * len, M + f.rb.r, AW - M - f.rb.r), clamp(f.y + Math.sin(a) * len, M + f.rb.r, AH - M - f.rb.r));   // v207 바위에 막히면 그 앞에서 멈춤
           addFx({ kind: 'line', x: sx, y: sy, x2: f.x, y2: f.y, color: w.col, life: 14 });
           enemiesOf(f).forEach(t => { if (segDist(sx, sy, f.x, f.y, t.x, t.y) < t.rb.r + f.rb.r) hurt(t, w.dmg * mul, f, { knock: 6, poison: 60 }); });
         } else if (w.kind === 'pull') {
           if (tg && !tg.leap && dist(f, tg) <= w.range * (1 + 0.2 * lv)) {
             const ang = Math.atan2(f.y - tg.y, f.x - tg.x), d = dist(f, tg) - f.rb.r - tg.rb.r - 20;
             addFx({ kind: 'line', x: f.x, y: f.y, x2: tg.x, y2: tg.y, color: w.col, life: 18 });
-            tg.x += Math.cos(ang) * d * 0.8; tg.y += Math.sin(ang) * d * 0.8; tg.vx = tg.vy = 0;
+            sweepTo(tg, tg.x + Math.cos(ang) * d * 0.8, tg.y + Math.sin(ang) * d * 0.8); tg.vx = tg.vy = 0;   // v207 바위 너머로 끌려오지 않게
             hurt(tg, w.dmg * mul, f, { stun: w.stun + 10 * lv });
           } else addFx({ kind: 'txt', x: f.x, y: f.y - f.rb.r * HEAD - 26, text: '너무 멀어요', color: '#BFC7E0', life: 30 });
         } else if (w.kind === 'shield') {
