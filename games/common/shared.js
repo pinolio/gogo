@@ -25,7 +25,7 @@
     img(name) {
       const cache = P._imgs || (P._imgs = {});
       if (cache[name]) return cache[name];
-      const im = new Image(); im.decoding = 'async'; im.src = 'img/game/' + name + '.png'; cache[name] = im;
+      const im = new Image(); im.decoding = 'async'; im.src = 'img/game/' + name + (name.includes('.') ? '' : '.png'); cache[name] = im;   // v202 이름에 확장자가 있으면 그대로 (aurora.jpg)
       im.onload = () => { try { window.dispatchEvent(new Event('gogo:img')); } catch (e) { /* noop */ } };
       return im;
     },
@@ -36,27 +36,36 @@
       ctx.drawImage(im, (im.naturalWidth - sw) / 2, (im.naturalHeight - sh) / 2, sw, sh, x, y, w, h);
     },
     // 블록 판 바탕: 밤하늘 그림 + 살짝 어둡게
-    boardBg(ctx, x, y, w, h) {
-      const im = P.img('sky');
+    boardBg(ctx, x, y, w, h) {   // v202 오로라 우주 도시 (Gemini) · 없으면 예전 밤하늘
+      let im = P.img('aurora.jpg'); if (!P.ok(im)) im = P.img('sky');
       if (!P.ok(im)) { ctx.fillStyle = P.BOARD; ctx.fillRect(x, y, w, h); return; }
-      ctx.save(); ctx.imageSmoothingEnabled = false; P.cover(ctx, im, x, y, w, h);
-      ctx.fillStyle = 'rgba(16,20,48,.45)'; ctx.fillRect(x, y, w, h); ctx.restore();
+      ctx.save(); ctx.imageSmoothingEnabled = true; P.cover(ctx, im, x, y, w, h);
+      ctx.fillStyle = 'rgba(10,12,40,.32)'; ctx.fillRect(x, y, w, h); ctx.restore();
     },
     // 보석 블록: 회색 보석 그림에 색을 입혀 저장해 두고 씀
     _gem: {},
-    gem(color) {
+    gem(color) {   // v202 깎은 보석 블록 (코드로 그림 · 48px 한 번 그려 두고 줄여 씀): 윗면 밝게 · 옆면 · 가운데 판 · 반짝임
       if (P._gem[color]) return P._gem[color];
-      const base = P.img('gem'); if (!P.ok(base)) return null;
-      const c = document.createElement('canvas'); c.width = c.height = 32;
-      const g = c.getContext('2d');
-      g.fillStyle = color; g.fillRect(0, 0, 32, 32);
-      g.globalCompositeOperation = 'hard-light'; g.drawImage(base, 0, 0, 32, 32);
-      g.globalCompositeOperation = 'destination-in'; g.drawImage(base, 0, 0, 32, 32);
+      const S = 48, c = document.createElement('canvas'); c.width = c.height = S;
+      const g = c.getContext('2d'), n = parseInt(color.slice(1), 16), R0 = n >> 16, G0 = n >> 8 & 255, B0 = n & 255;
+      const sh = k => 'rgb(' + [R0, G0, B0].map(v => Math.max(0, Math.min(255, Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k)))).join(',') + ')';
+      const poly = (pts, col) => { g.fillStyle = col; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fill(); };
+      const o = 2, b = 10, e = S - 2;
+      g.fillStyle = sh(-0.65); g.fillRect(0, 0, S, S);   // 테두리
+      poly([[o, o], [e, o], [e - b, o + b], [o + b, o + b]], sh(0.55));   // 위 (가장 밝게)
+      poly([[o, o], [o + b, o + b], [o + b, e - b], [o, e]], sh(0.25));   // 왼쪽
+      poly([[e, o], [e, e], [e - b, e - b], [e - b, o + b]], sh(-0.25));   // 오른쪽
+      poly([[o, e], [o + b, e - b], [e - b, e - b], [e, e]], sh(-0.45));   // 아래 (가장 어둡게)
+      const gr = g.createLinearGradient(0, o + b, 0, e - b); gr.addColorStop(0, sh(0.2)); gr.addColorStop(1, sh(-0.1));
+      g.fillStyle = gr; g.fillRect(o + b, o + b, e - o - 2 * b, e - o - 2 * b);   // 가운데 판
+      g.fillStyle = 'rgba(255,255,255,.55)'; poly([[o + b, o + b], [o + b + 14, o + b], [o + b, o + b + 14]], 'rgba(255,255,255,.35)');
+      g.fillStyle = '#FFFFFF'; g.fillRect(6, 5, 7, 3); g.fillRect(5, 6, 3, 6);   // 반짝임
+      g.fillRect(34, 32, 3, 3);
       return (P._gem[color] = c);
     },
     block(ctx, x, y, s, color) {
       const gm = s >= 8 ? P.gem(color) : null;
-      if (gm) { const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false; ctx.drawImage(gm, x, y, s, s); ctx.imageSmoothingEnabled = sm; return; }
+      if (gm) { const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true; ctx.drawImage(gm, x, y, s, s); ctx.imageSmoothingEnabled = sm; return; }
       P.flat(ctx, x, y, s, color);
     },
     // 도트 느낌의 입체 블록 (밝은 위·왼쪽, 어두운 아래·오른쪽)
@@ -101,7 +110,7 @@
   };
   window.GoPixel = P;
   // 게임 그림 미리 불러오기 (첫 화면을 방해하지 않게 조금 늦게)
-  P.img('gem'); P.img('sky');
+  P.img('aurora.jpg'); P.img('sky');
   setTimeout(() => ['wood', 'grass', 'apple', 'tray', 'table'].concat(['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'].flatMap(k => ['w_' + k, 'b_' + k])).forEach(n => P.img(n)), 1200);
 })();
 

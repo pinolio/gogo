@@ -1822,3 +1822,9 @@ a.card .card-foot .r-king2 b { color: #B4560B; }
 .home a.card .card-body p { -webkit-line-clamp: 4; box-sizing: content-box; font-size: 13px; line-height: 1.5; height: 6em; min-height: 0; max-height: none; padding: 0 3px; border: 6px solid transparent; border-radius: 10px; background: color-mix(in srgb, var(--cart) 7%, #FFFFFF) border-box; outline: 1px dashed color-mix(in srgb, var(--cart) 40%, #FFFFFF); outline-offset: -1px;   /* 여백은 투명 테두리로(넘친 5번째 줄이 여백에 비치지 않게) */ color: #3A4366; }
 .home a.card .card-foot { border-top: 2px dotted color-mix(in srgb, var(--cart) 35%, #FFFFFF); }
 @media (max-width: 560px) { .home a.card .card-body p { -webkit-line-clamp: 4; font-size: 12px; height: 6em; min-height: 0; padding: 0 2px; border-width: 4px; } .home a.card .card-body::after { display: none; } }
+
+/* v202 그래픽 업그레이드 (선생님 11/24): 퍼즐512 = 구름 위 디저트 왕국 · 블록 대전 = 네온 오로라 */
+.cabinet.cab-candy { background: url(../img/game/candy.jpg?v=202) center / cover no-repeat, linear-gradient(180deg, #FFB8DA, #B8A8FF); border-color: #7A3E12; padding: 26px; }
+.cabinet.cab-candy .screen { border: 4px solid #7A3E12; border-radius: 14px; box-shadow: 0 6px 0 rgba(122,62,18,.45), 0 0 0 3px #FFE2EC; }
+.cabinet.cab-neon { background: radial-gradient(120% 80% at 50% 0%, #3A2A8A 0%, #120E3A 70%); border-color: #0A0E24; box-shadow: 0 0 0 2px #3BC8F5, 0 0 18px rgba(166,107,255,.6), var(--lift); }
+.cabinet.cab-neon .screen { border-color: #0A0E24; box-shadow: 0 0 12px rgba(59,200,245,.55); }

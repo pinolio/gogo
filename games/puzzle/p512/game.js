@@ -34,9 +34,10 @@
   const PLAYN = k => (PLAY[k] || PLAY_OLD[k]).name;
   const fakeCh = { send() {}, track() {}, untrack() {}, leave() {} };
   const TILE = {
-    2: ['#EEF1FF', '#1D2340'], 4: ['#CFEFFF', '#1D2340'], 8: ['#3BC8F5', '#0F1430'], 16: ['#4C7DFF', '#FFFFFF'],
-    32: ['#A66BFF', '#FFFFFF'], 64: ['#FF5A5F', '#FFFFFF'], 128: ['#FF9A3D', '#0F1430'], 256: ['#FFD23F', '#0F1430'],
-    512: ['#3DDC84', '#0F1430'], 1024: ['#FF3D8B', '#FFFFFF'], 2048: ['#21B866', '#FFFFFF']
+    // v202 그래픽: 사탕·젤리 색 (2 민트 → 512 황금 왕관)
+    2: ['#7FE8C4', '#123A3A'], 4: ['#FFE97A', '#4A3A00'], 8: ['#FFA94D', '#FFFFFF'], 16: ['#FF7A8C', '#FFFFFF'],
+    32: ['#FF4D6D', '#FFFFFF'], 64: ['#FF8AD8', '#FFFFFF'], 128: ['#B57BFF', '#FFFFFF'], 256: ['#5AA8FF', '#FFFFFF'],
+    512: ['#FFC83D', '#7A3E00'], 1024: ['#3DDC84', '#FFFFFF'], 2048: ['#FF3D8B', '#FFFFFF']
   };
   const tileColor = v => TILE[v] || ['#FFFFFF', '#FF3D8B'];
 
@@ -48,21 +49,21 @@
   }
   // 판 b(16칸)를 dir로 밀기 → { b, gained, moved }
   function slide(b, dir) {
-    const out = b.slice(); let gained = 0, moved = false;
+    const out = b.slice(), merged = []; let gained = 0, moved = false;
     LINES[dir].forEach(idx => {
       const vals = idx.map(i => b[i]).filter(Boolean), res = [];
       for (let k = 0; k < vals.length; k++) {
-        if (vals[k] === vals[k + 1]) { res.push(vals[k] * 2); gained += vals[k] * 2; k++; } else res.push(vals[k]);
+        if (vals[k] === vals[k + 1]) { res.push(vals[k] * 2); gained += vals[k] * 2; merged.push(idx[res.length - 1]); k++; } else res.push(vals[k]);
       }
       idx.forEach((i, k) => { const v = res[k] || 0; if (out[i] !== v) moved = true; out[i] = v; });
     });
-    return { b: out, gained, moved };
+    return { b: out, gained, moved, merged };
   }
   const canMove = b => b.some(v => !v) || DIRS.some(d => slide(b, d).moved);
 
   function Engine(opt) {
     opt = opt || {};
-    const e = { b: null, score: 0, top: 0, max: 2, best: 2, moves: 0, resets: 0, won: false, fresh: [] };   // score = 지금 판 점수, top = 이번 경기에서 가장 높았던 한 판 점수   // max = 지금 판 가장 큰 숫자, best = 이번 경기 최고 기록 (다시 시작해도 남음)
+    const e = { b: null, score: 0, top: 0, max: 2, best: 2, moves: 0, resets: 0, won: false, fresh: [], pops: [] };   // score = 지금 판 점수, top = 이번 경기에서 가장 높았던 한 판 점수   // max = 지금 판 가장 큰 숫자, best = 이번 경기 최고 기록 (다시 시작해도 남음)
     function spawn() {
       const empty = []; e.b.forEach((v, i) => { if (!v) empty.push(i); });
       if (!empty.length) return;
@@ -80,7 +81,7 @@
     e.move = function (dir) {
       if (e.won || e.stuck) return false;
       const r = slide(e.b, dir); if (!r.moved) return false;
-      e.b = r.b; e.score += r.gained; e.moves++;
+      e.b = r.b; e.score += r.gained; e.moves++; r.merged.forEach(i => e.pops.push({ i, t: 0, v: e.b[i] }));   // v202 합쳐진 칸 (뿅 효과)
       e.max = Math.max(...e.b); e.best = Math.max(e.best, e.max);
       spawn();
       if (e.max >= goal) { e.won = true; opt.onWin && opt.onWin(); }
@@ -143,26 +144,69 @@
   }
 
   /* ================= 그리기 ================= */
+  // v202 그래픽 업그레이드: 쿠키 틀 판 · 말랑한 젤리 타일 · 합쳐질 때 뿅 + 별가루
+  const rr = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
+  const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), f = c => Math.max(0, Math.min(255, Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k))); return 'rgb(' + f(n >> 16) + ',' + f(n >> 8 & 255) + ',' + f(n & 255) + ')'; };
   function tray(ctx, x, y, w) {
-    const im = P.img('tray');
-    if (P.ok(im)) { ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(im, x, y, w, w); ctx.restore(); }
-    else { ctx.fillStyle = P.BOARD; ctx.fillRect(x, y, w, w); }
+    ctx.save();
+    const g = ctx.createLinearGradient(x, y, x, y + w); g.addColorStop(0, '#E9A65A'); g.addColorStop(1, '#C97B34');
+    rr(ctx, x + 1, y + 1, w - 2, w - 2, 18); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#7A3E12'; ctx.stroke();
+    ctx.fillStyle = 'rgba(122,62,18,.55)';   // 쿠키 구멍 무늬
+    for (let k = 0; k < 28; k++) { const a = k / 28 * Math.PI * 2, px = x + w / 2 + Math.cos(a) * (w / 2 - 5) * 0.985, py = y + w / 2 + Math.sin(a) * (w / 2 - 5) * 0.985; if (Math.abs(px - x - w / 2) < w / 2 - 3 && Math.abs(py - y - w / 2) < w / 2 - 3) ctx.fillRect(Math.round(px) - 1, Math.round(py) - 1, 3, 3); }
+    const SPR = ['#FF5A8A', '#5AC8FF', '#FFE45C', '#7FE8C4', '#B57BFF'];   // 가장자리 스프링클
+    for (let k = 0; k < 22; k++) { const side = k % 4, q = ((k * 37) % 100) / 100, px = side < 2 ? x + 8 + q * (w - 16) : (side === 2 ? x + 4 : x + w - 8), py = side >= 2 ? y + 8 + q * (w - 16) : (side === 0 ? y + 3 : y + w - 7); ctx.fillStyle = SPR[k % 5]; ctx.fillRect(Math.round(px), Math.round(py), k % 2 ? 5 : 3, k % 2 ? 2 : 4); }
+    const gi = ctx.createLinearGradient(x, y, x, y + w); gi.addColorStop(0, '#FFF4E4'); gi.addColorStop(1, '#FFE2EC');
+    rr(ctx, x + 7, y + 7, w - 14, w - 14, 12); ctx.fillStyle = gi; ctx.fill();
+    ctx.restore();
   }
-  function drawTiles(ctx, b, x, y, w, fresh, small) {
+  const tileC = {};
+  function tileSprite(v, s) {   // 같은 숫자·크기는 한 번만 그려서 씀
+    const key = v + ':' + Math.round(s); if (tileC[key]) return tileC[key];
+    const c = document.createElement('canvas'), d = Math.ceil(s) + 4; c.width = c.height = d * 2; const g = c.getContext('2d'); g.scale(2, 2);
+    const [bg] = tileColor(v), r = s * 0.24;
+    rr(g, 2, 4, s, s - 2, r); g.fillStyle = shade(bg, -0.35); g.fill();   // 아래 두께
+    rr(g, 2, 2, s, s - 3, r); const gr = g.createLinearGradient(0, 2, 0, s); gr.addColorStop(0, shade(bg, 0.35)); gr.addColorStop(0.55, bg); gr.addColorStop(1, shade(bg, -0.12)); g.fillStyle = gr; g.fill();
+    g.lineWidth = Math.max(1.5, s / 34); g.strokeStyle = shade(bg, -0.5); g.stroke();
+    g.save(); rr(g, 2, 2, s, s - 3, r); g.clip(); g.fillStyle = 'rgba(255,255,255,.45)'; g.beginPath(); g.ellipse(2 + s * 0.42, 2 + s * 0.16, s * 0.36, s * 0.13, 0, 0, Math.PI * 2); g.fill(); g.restore();   // 젤리 광택
+    g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(2 + s * 0.14, 2 + s * 0.13, s * 0.07, s * 0.07); g.fillRect(2 + s * 0.8, 2 + s * 0.74, s * 0.05, s * 0.05);
+    if (v >= 512) {   // 황금 왕관
+      const cx = 2 + s / 2, cy = 2 + s * 0.2, cw = s * 0.42, ch = s * 0.17;
+      g.fillStyle = '#FFF2A8'; g.strokeStyle = '#9A5A00'; g.lineWidth = Math.max(1, s / 50);
+      g.beginPath(); g.moveTo(cx - cw / 2, cy + ch / 2); g.lineTo(cx - cw / 2, cy - ch / 2); g.lineTo(cx - cw / 4, cy); g.lineTo(cx, cy - ch * 0.8); g.lineTo(cx + cw / 4, cy); g.lineTo(cx + cw / 2, cy - ch / 2); g.lineTo(cx + cw / 2, cy + ch / 2); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#FF3D8B'; g.fillRect(cx - s * 0.025, cy + ch * 0.05, s * 0.05, s * 0.05);
+    }
+    return (tileC[key] = c);
+  }
+  const sparks = [];   // 별가루 (판마다 따로 그림)
+  const fxTick = (ctx, e, dt) => { e.fresh = e.fresh.filter(f => (f.t += dt) < 160); e.pops = (e.pops || []).filter(p => (p.t += dt) < 220); sparks.forEach(p => { if (p.ctx === ctx) p.t += dt; }); };
+  const topBg = ctx => { const gp = ctx.createLinearGradient(0, 0, W, TOP); gp.addColorStop(0, '#5A2A7A'); gp.addColorStop(1, '#2A2F7A'); ctx.fillStyle = gp; ctx.fillRect(0, 0, W, TOP); };
+  function rainbow(ctx, frac) { ctx.fillStyle = '#1A1240'; rr(ctx, 13, 47, W - 26, 10, 5); ctx.fill(); const pw = (W - 28) * Math.max(0, Math.min(1, frac)); if (pw > 1) { const rb = ctx.createLinearGradient(14, 0, W - 14, 0); ['#FF5A5F', '#FF9A3D', '#FFE45C', '#3DDC84', '#3BC8F5', '#A66BFF'].forEach((c, k) => rb.addColorStop(k / 5, c)); ctx.fillStyle = rb; rr(ctx, 14, 48, pw, 8, 4); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(16, 49, Math.max(0, pw - 4), 2); } }
+  function drawTiles(ctx, b, x, y, w, fresh, small, pops) {
     const g = G * w / W, t = T * w / W;
     tray(ctx, x, y, w);
     for (let i = 0; i < 16; i++) {
       const tx = x + g + (i % 4) * (t + g), ty = y + g + (i / 4 | 0) * (t + g);
-      ctx.fillStyle = '#1C2452'; ctx.fillRect(tx, ty, t, t);
+      rr(ctx, tx + 1, ty + 1, t - 2, t - 2, t * 0.22); ctx.fillStyle = 'rgba(214,150,170,.35)'; ctx.fill();   // 빈 칸 = 옅은 분홍 홈
       const v = b && b[i]; if (!v) continue;
-      const f = fresh && fresh.find(a => a.i === i), sc = f ? Math.min(1, 0.4 + f.t / 120) : 1, s = t * sc, o = (t - s) / 2;
-      const [bg, fg] = tileColor(v);
-      P.block(ctx, tx + o, ty + o, s, bg);
-      if (small && t < 22) continue;
-      const str = String(v), size = Math.round(t * (str.length <= 2 ? 0.3 : str.length === 3 ? 0.25 : 0.2));
-      ctx.font = size + 'px "Press Start 2P", "Courier New", monospace';
-      ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(str, tx + t / 2 + 1, ty + t / 2 + 2);
+      const f = fresh && fresh.find(a => a.i === i), pp = pops && pops.find(a => a.i === i);
+      let sc = f ? Math.min(1, 0.4 + f.t / 120) : 1;
+      if (pp) sc *= 1 + 0.2 * Math.sin(Math.min(1, pp.t / 180) * Math.PI);   // 뿅
+      const s = t * sc, o = (t - s) / 2;
+      if (small && t < 22) { const [bg] = tileColor(v); rr(ctx, tx, ty, t, t, t * 0.2); ctx.fillStyle = bg; ctx.fill(); continue; }
+      ctx.drawImage(tileSprite(v, t), 0, 0, (Math.ceil(t) + 4) * 2, (Math.ceil(t) + 4) * 2, tx + o - 2 * sc, ty + o - 2 * sc, (Math.ceil(t) + 4) * sc, (Math.ceil(t) + 4) * sc);
+      const [, fg] = tileColor(v), str = String(v), size = Math.round(s * (str.length <= 2 ? 0.34 : str.length === 3 ? 0.27 : 0.21));
+      ctx.font = size + 'px "Press Start 2P", "Courier New", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const ny = ty + t / 2 + (v >= 512 ? t * 0.1 : 2);
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillText(str, tx + t / 2 + 2, ny + 2);
+      ctx.fillStyle = fg; ctx.fillText(str, tx + t / 2 + 1, ny);
+      if (pp && pp.t < 20 && !pp.sp) { pp.sp = 1; for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; sparks.push({ ctx, x: tx + t / 2, y: ty + t / 2, vx: Math.cos(a) * (0.09 + Math.random() * 0.06), vy: Math.sin(a) * (0.09 + Math.random() * 0.06), t: 0, c: ['#FFFFFF', '#FFE45C', tileColor(v)[0]][k % 3], ring: k === 0 ? t * 0.55 : 0 }); } }
+    }
+    for (let k = sparks.length - 1; k >= 0; k--) {   // 별가루 · 반짝이 고리
+      const p = sparks[k]; if (p.ctx !== ctx) continue; if (p.t > 480) { sparks.splice(k, 1); continue; }
+      const q = p.t / 480; ctx.globalAlpha = 1 - q;
+      if (p.ring) { ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3 * (1 - q) + 1; ctx.beginPath(); ctx.arc(p.x, p.y, p.ring * (0.6 + q), 0, Math.PI * 2); ctx.stroke(); }
+      const px = p.x + p.vx * p.t, py = p.y + p.vy * p.t, z = 3 + (1 - q) * 3; ctx.fillStyle = p.c; ctx.fillRect(px - z / 2, py - 0.5, z, 1.6); ctx.fillRect(px - 0.8, py - z / 2, 1.6, z);
+      ctx.globalAlpha = 1;
     }
   }
   // 목표 숫자까지 얼마나 왔나
@@ -460,7 +504,7 @@
           <div class="minis side-l">${sides[0].map(miniHTML).join('')}</div>
           <div class="stage-col">
             <div class="mains">
-              ${mains.map((id, i) => `<div class="main-col">${mains.length > 1 ? `<div class="main-tag">${i ? '2P · 방향키 · 오른쪽 Shift' : '1P · WASD · 왼쪽 Shift'} <b>${esc(nick(id))}</b></div>` : ''}<div class="cabinet" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas data-main="${esc(id)}" aria-label="${i ? '2P' : '내'} 게임 화면"></canvas></div></div></div>`).join('')}
+              ${mains.map((id, i) => `<div class="main-col">${mains.length > 1 ? `<div class="main-tag">${i ? '2P · 방향키 · 오른쪽 Shift' : '1P · WASD · 왼쪽 Shift'} <b>${esc(nick(id))}</b></div>` : ''}<div class="cabinet cab-candy" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas data-main="${esc(id)}" aria-label="${i ? '2P' : '내'} 게임 화면"></canvas></div></div></div>`).join('')}
               <div class="overlay" id="pzOv"></div>
             </div>
             <div class="pad cross" id="pad"><span class="sp"></span><button type="button" data-act="up" aria-label="위">▲</button><button type="button" data-act="reset" aria-label="다시 시작" style="font-size:11px">다시</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="down" aria-label="아래">▼</button><button type="button" data-act="right" aria-label="오른쪽">▶</button></div>
@@ -507,7 +551,7 @@
   function drawMain(id, dt) {
     const ctx = match.ctxs[id], L = match.local[id]; if (!ctx || !L) return;
     const e = L.eng;
-    ctx.fillStyle = P.PANEL; ctx.fillRect(0, 0, W, TOP);
+    topBg(ctx);   // v202 사탕 왕국 위 띠
     P.text(ctx, 'MAX', 14, 10, 9, P.DIM); P.text(ctx, e.best, 14, 26, 15, tileColor(e.best)[0]);   // 다시 시작해도 이번 경기 최고 기록 유지
     if (e.resets && e.max < e.best) P.text(ctx, '지금 ' + e.max, 62, 26, 9, P.DIM);
     P.text(ctx, 'SCORE', 120, 10, 9, P.DIM); P.text(ctx, e.score, 120, 26, 13, P.INK); if (e.top > e.score) P.text(ctx, '최고 ' + e.top, 120, 40, 7, P.DIM);
@@ -517,10 +561,9 @@
       P.text(ctx, 'TIME', 300, 10, 9, P.DIM); P.text(ctx, Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'), 300, 24, 17, low ? '#FF5A5F' : '#FFD23F');
     } else { P.text(ctx, 'GOAL', 300, 10, 9, P.DIM); P.text(ctx, GOAL, 300, 26, 13, '#FF3D8B'); }
     // 목표까지 진행 막대
-    ctx.fillStyle = '#0B0F28'; ctx.fillRect(14, 48, W - 28, 8);
-    ctx.fillStyle = '#FF3D8B'; ctx.fillRect(14, 48, (W - 28) * progress(e.max), 8);
-    e.fresh = e.fresh.filter(f => (f.t += dt) < 160);
-    drawTiles(ctx, e.b, 0, TOP, W, e.fresh);
+    rainbow(ctx, progress(e.max));   // v202 무지개 막대
+    fxTick(ctx, e, dt);
+    drawTiles(ctx, e.b, 0, TOP, W, e.fresh, false, e.pops);
     if (match.ended && match.places[id]) {
       ctx.fillStyle = 'rgba(10,14,36,.6)'; ctx.fillRect(0, TOP, W, W);
       P.text(ctx, match.places[id] === 1 ? 'WIN!' : match.places[id] + '위', W / 2, TOP + W / 2 - 12, 24, match.places[id] === 1 ? P.PIECE.O : P.INK, 'center');
@@ -597,7 +640,7 @@
       return function cleanup() { if (ultStop) { ultStop(); ultStop = null; } document.removeEventListener('keydown', onKey); leaveRoom(true); closeLobby(); root = null; BGM.stop(); };
     },
     _debug: () => ({ room, match, slide, bestMove, Engine }),
-    kit: { Engine, drawTiles, tileColor, slide, canMove, W, TOP, H }   // 다른 화면(Ultimate mode)에서 같은 규칙·그림을 쓰려고 내보냄
+    kit: { Engine, drawTiles, tileColor, slide, canMove, W, TOP, H, fxTick, topBg, rainbow }   // 다른 화면(Ultimate mode)에서 같은 규칙·그림을 쓰려고 내보냄
   };
 
   // 게임 카드 썸네일

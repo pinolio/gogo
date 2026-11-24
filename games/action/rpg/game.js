@@ -2258,9 +2258,24 @@
         G.px = clamp(G.px, 4, map.w * TS - 4); G.py = clamp(G.py, 8, map.h * TS - 2);
       }
       function moveMon(m, dx, dy) {
-        const map = G.map, ok = (x, y) => !solidAt(map, x - 8, y - 2) && !solidAt(map, x + 8, y - 2) && !solidAt(map, x, y);
+        const map = G.map, ok = (x, y) => !solidAt(map, x - 8, y - 2) && !solidAt(map, x + 8, y - 2) && !solidAt(map, x, y), x0 = m.x, y0 = m.y;
+        if (m.ghost > 0) { m.x = clamp(m.x + dx, TS + 8, map.w * TS - TS - 8); m.y = clamp(m.y + dy, TS + 8, map.h * TS - TS - 2); return true; }   // v202 끼인 보스: 잠깐 나무·바위를 지나감
         if (ok(m.x + dx, m.y)) m.x += dx; else m.wt = 0;
         if (ok(m.x, m.y + dy)) m.y += dy; else m.wt = 0;
+        return m.x !== x0 || m.y !== y0;
+      }
+      // v202 선생님 11/24 '보스가 나무·바위에 걸려 못 움직인다': 쫓아갈 때 막히면 옆으로 돌아가고(모든 몬스터), 보스는 1.2초 넘게 막히면 잠깐 통과
+      function chaseMon(m, ux, uy, sp, dt) {
+        const x0 = m.x, y0 = m.y;
+        if (m.detour > 0) { m.detour -= dt; if (!moveMon(m, m.dvx * sp, m.dvy * sp)) m.detour = 0; moveMon(m, ux * sp * 0.35, uy * sp * 0.35); }
+        else moveMon(m, ux * sp, uy * sp);
+        const got = (m.x - x0) * ux + (m.y - y0) * uy;   // 플레이어 쪽으로 실제로 간 만큼
+        if (got < sp * 0.3) {
+          m.stuckT = (m.stuckT || 0) + dt;
+          if (!(m.detour > 0)) { const s0 = m.dside || (Math.random() < 0.5 ? 1 : -1);
+            for (const side of [s0, -s0]) { const px = -uy * side, py = ux * side, sx = m.x, sy = m.y; if (moveMon(m, px * sp, py * sp)) { m.detour = 0.5; m.dvx = px; m.dvy = py; m.dside = side; break; } m.x = sx; m.y = sy; } }
+          if (m.boss && m.stuckT > 1.2) { m.ghost = 1.0; m.stuckT = 0; m.detour = 0; }
+        } else { m.stuckT = Math.max(0, (m.stuckT || 0) - dt * 2); if (got > sp * 0.8) m.dside = 0; }
       }
 
       /* ---------- 사람(NPC) ---------- */
@@ -2404,6 +2419,7 @@
           m.flash -= dt; m.cd -= dt * (m.def.aspd || 1); if (m.lunge > 0) m.lunge -= dt; if (m.knock) m.knock *= Math.pow(0.001, dt);
           if (m.burn) { m.burn.t -= dt; m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 0.5; let bd = Math.max(1, Math.round(m.burn.dps * 0.5)); if (m.inv2 > 0 || m.hidden) bd = 0; else if (m.shieldHp > 0) { const k = Math.min(m.shieldHp, bd); m.shieldHp -= k; bd -= k; } if (bd > 0) { m.hp -= bd; float(m.x, m.y - m.spr.h, bd, '#FF9A3D'); if (m.hp <= 0) { killMon(m); return; } } } if (m.burn.t <= 0) m.burn = null; }   // v187 고침: 화상이 '죽지 않는 분노'·땅속·보호막을 뚫고 피해를 주던 것
           if (m.curse > 0) m.curse -= dt;
+          if (m.ghost > 0) { m.ghost -= dt; if (m.ghost <= 0 && (solidAt(G.map, m.x, m.y) || solidAt(G.map, m.x - 8, m.y - 2) || solidAt(G.map, m.x + 8, m.y - 2))) m.ghost = 0.15; }   // v202 통과가 끝날 때 나무·바위 속이면 빠져나올 때까지 조금 더
           if (m.def.noCC) { m.stun = 0; m.slow = 0; m.burn = null; m.curse = 0; }   // v177 와키자카: 어디서 걸려도 바로 풀림
           if (m.stun > 0) { m.stun -= dt; return; }
           if (monTick2(m, dt) && !(m.hidden && m.cast)) return;   // v173 알·땅굴·투명·포탑·정령·2단계
@@ -2418,7 +2434,7 @@
               const want = 170; if (d > want + 30) moveMon(m, dx / d * sp, dy / d * sp); else if (d < want - 40) moveMon(m, -dx / d * sp, -dy / d * sp);
               if (m.cd <= 0 && d < 300) { m.cd = 2.2; const a = Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x); const rel = m.el || D.RG_EL[m.def.ri != null ? m.def.ri : G.map.M.region]; G.shots.push({ x: m.x, y: m.y - m.spr.h / 2, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230, life: 1.6, dmg: m.atk * 0.8, lvl: m.lvl, r: 6, color: ELEM[rel].color, color2: ELEM[rel].light, mine: false, monEl: 'dark', el: rel }); m.lunge = 0.2; }
             } else {
-              if (d > m.r + 12 && !m.cast) moveMon(m, dx / d * sp, dy / d * sp);
+              if (d > m.r + 12 && !m.cast) chaseMon(m, dx / d, dy / d, sp, dt);
               if (d < m.r + 22 && m.cd <= 0) { m.cd = m.def.hard ? 0.8 : m.boss ? 1.4 : 1.2; m.lunge = 0.25; const md = hitPlayer(m.atk, m.lvl); if (md && m.el && Math.random() < 0.25) pStatus(m.el, md, m); }   // v87 몸통 박치기 = 물리 피해 + 25% 확률로 속성 효과
               if (m.boss) {
                 if (m.def.skills || m.skl) bossSkill(m, dt, d);   // v69 저승 보스 기술

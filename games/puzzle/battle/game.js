@@ -787,7 +787,7 @@
           <div class="minis side-l" style="--n:${sides[0].length}">${sides[0].map(miniHTML).join('')}</div>
           <div class="stage-col">
             <div class="mains">
-              ${mains.map((id, i) => `<div class="main-col">${mains.length > 1 ? `<div class="main-tag">${i ? '2P · 방향키' : '1P · WASD'} <b>${esc(nameOfMain(id))}</b></div>` : ''}${itemMode && !i ? `<div class="main-tag"><b class="slot-no">${slotOf(id)}</b> 내 번호 · 숫자 키 1~${match.n}로 그 사람에게 맨 앞 아이템 사용</div>` : ''}<div class="cabinet ${team ? 'cab-' + match.teamOf[id] : ''}" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas data-main="${esc(id)}" aria-label="${i ? '2P' : '내'} 게임 화면"></canvas></div></div>${itemMode && !i ? '<div class="item-bar" id="itemBar" aria-label="내 아이템 (왼쪽부터 순서대로 사용)"></div>' : ''}</div>`).join('')}
+              ${mains.map((id, i) => `<div class="main-col">${mains.length > 1 ? `<div class="main-tag">${i ? '2P · 방향키' : '1P · WASD'} <b>${esc(nameOfMain(id))}</b></div>` : ''}${itemMode && !i ? `<div class="main-tag"><b class="slot-no">${slotOf(id)}</b> 내 번호 · 숫자 키 1~${match.n}로 그 사람에게 맨 앞 아이템 사용</div>` : ''}<div class="cabinet ${team ? 'cab-' + match.teamOf[id] : 'cab-neon'}" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas data-main="${esc(id)}" aria-label="${i ? '2P' : '내'} 게임 화면"></canvas></div></div>${itemMode && !i ? '<div class="item-bar" id="itemBar" aria-label="내 아이템 (왼쪽부터 순서대로 사용)"></div>' : ''}</div>`).join('')}
               <div class="overlay" id="btOv"></div>
             </div>
             <div class="pad pad6" id="pad"><button type="button" data-act="hold" aria-label="블록 저장">HOLD</button><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="rotate" aria-label="회전">${rotPref === 'cw' ? '⟳' : '⟲'}</button><button type="button" data-act="right" aria-label="오른쪽">▶</button><button type="button" data-act="down" aria-label="천천히 내리기">▼</button><button type="button" class="pad-a" data-act="drop" aria-label="한 번에 내리기">⤓</button>${itemMode ? '<button type="button" class="pad-it" data-act="itemself" aria-label="맨 앞 아이템을 나에게">나에게</button>' : ''}</div>
@@ -914,10 +914,12 @@
     if (pend) { P.text(ctx, 'INCOMING', cx, 430, 9, '#FF5A5F'); P.text(ctx, pend, cx, 444, 13, '#FF5A5F'); }
     // 줄 지우기 알림
     const pops = (match.popups[id] || []).filter(p => (p.t += dt) < 1100); match.popups[id] = pops;
-    pops.forEach(p => {
-      ctx.globalAlpha = 1 - p.t / 1100;
-      P.text(ctx, p.text, BX + B.COLS * C / 2, 200 - p.t / 30, p.hot ? 13 : 11, p.hot ? P.PIECE.O : P.INK, 'center');
-      ctx.globalAlpha = 1;
+    pops.forEach(p => {   // v202 줄 지우기 글자: 통통 튀며 커지고 테두리 · 3줄 이상은 노랑→분홍 빛
+      const q = p.t / 1100, pop = p.t < 160 ? 0.6 + 0.6 * (p.t / 160) : p.t < 260 ? 1.2 - 0.2 * ((p.t - 160) / 100) : 1, size = Math.round((p.hot ? 14 : 11) * pop), x = BX + B.COLS * C / 2, y = 200 - p.t / 30;
+      ctx.save(); ctx.globalAlpha = Math.min(1, 1.6 * (1 - q)); ctx.font = size + 'px "Press Start 2P", "Courier New", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.lineWidth = 4; ctx.strokeStyle = '#1D2340'; ctx.lineJoin = 'round'; ctx.strokeText(p.text, x, y);
+      if (p.hot) { const gg = ctx.createLinearGradient(x - 60, y, x + 60, y + size); gg.addColorStop(0, '#FFE45C'); gg.addColorStop(1, '#FF8AD8'); ctx.fillStyle = gg; ctx.shadowColor = '#FFD23F'; ctx.shadowBlur = 10; } else ctx.fillStyle = P.INK;
+      ctx.fillText(p.text, x, y); ctx.restore();
     });
     if (eng.over && !match.ended) {
       ctx.fillStyle = 'rgba(10,14,36,.7)'; ctx.fillRect(BX, 0, B.COLS * C, H);

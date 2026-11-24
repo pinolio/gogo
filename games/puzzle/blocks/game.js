@@ -141,6 +141,7 @@
       const full = [];
       e.grid.forEach((row, i) => { if (row.every(Boolean)) full.push(i); });
       if (full.length) {
+        e.clearFx = { rows: full.slice(), t: performance.now(), keys: full.map(i => e.grid[i].slice()) };   // v202 줄 지우기 빛 효과
         const items = full.reduce((a, i) => a + e.grid[i].filter(k => k === ITEM_CELL).length, 0);   // v96 아이템 칸이 든 줄을 지우면 아이템
         full.forEach(i => { e.grid.splice(i, 1); e.grid.unshift(Array(COLS).fill(null)); });
         if (items && opt.onItems) opt.onItems(items);
@@ -214,6 +215,17 @@
       ctx.globalAlpha = 1;
       e.cur.m.forEach((row, r) => row.forEach((v, c) => { if (v && e.cur.y + r >= 0) P.block(ctx, ox + (e.cur.x + c) * C, oy + (e.cur.y + r) * C, C, colorOf(e.cur.k)); }));
     }
+    // v202 줄 지우기: 빛 줄기 + 별 조각 (0.5초)
+    if (e.clearFx) { const q = (performance.now() - e.clearFx.t) / 500; if (q >= 1) e.clearFx = null; else {
+      ctx.save(); e.clearFx.rows.forEach((r, j) => { const yy = oy + r * C;
+        const gr = ctx.createLinearGradient(ox, 0, ox + COLS * C, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,' + (0.95 * (1 - q)) + ')'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+        const hh = C * (1 + q * 1.4); ctx.fillStyle = gr; ctx.fillRect(ox - q * 20, yy + C / 2 - hh / 2, COLS * C + q * 40, hh);
+        for (let k = 0; k < 10; k++) { const sx = ox + ((k * 53 + r * 17) % 100) / 100 * COLS * C, dy = (k % 2 ? -1 : 1) * q * C * (1.5 + (k % 3)), z = 2 + (1 - q) * 4; ctx.fillStyle = ['#FFFFFF', '#FFE45C', '#8FE3FF', '#FF8AD8'][k % 4]; ctx.globalAlpha = 1 - q; ctx.fillRect(sx - z / 2, yy + C / 2 + dy - 1, z, 2); ctx.fillRect(sx - 1, yy + C / 2 + dy - z / 2, 2, z); }
+        ctx.globalAlpha = 1; });
+      ctx.restore(); } }
+    // v202 네온 테두리
+    if (opts.frame !== false) { ctx.save(); const t2 = performance.now() / 900, ng = ctx.createLinearGradient(ox, oy, ox + COLS * C, oy + ROWS * C); ng.addColorStop(0, '#3BC8F5'); ng.addColorStop(0.5 + 0.3 * Math.sin(t2), '#A66BFF'); ng.addColorStop(1, '#FF3D8B');
+      ctx.strokeStyle = ng; ctx.lineWidth = 2; ctx.shadowColor = '#8FE3FF'; ctx.shadowBlur = 8; ctx.strokeRect(ox + 1, oy + 1, COLS * C - 2, ROWS * C - 2); ctx.restore(); }
     if (!e.over && e.hidePieces > 0 && opts.live !== false) { ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(ox, oy, COLS * C, ROWS * C); P.text(ctx, '??? ' + e.hidePieces, ox + COLS * C / 2, oy + 24, 12, '#B9C2FF', 'center'); }
   }
   // 상대 화면(작은 판): 문자열 20줄을 그대로 그림

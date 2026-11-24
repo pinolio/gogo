@@ -34,7 +34,7 @@
         <div class="play-head">${EMB ? '<a class="back" href="#p512" data-ult-back>← 퍼즐512 처음으로</a><span class="cat ult-tag">랭킹 대전</span><h1>퍼즐512 랭킹 대전</h1>' : '<a class="back" href="#home">← 게임 목록</a><span class="cat ult-tag">랭킹 대전</span><h1>퍼즐512 랭킹 대전</h1>'}<span class="small" style="margin:0">퍼즐512 · ${LIMIT / 60000}분 · 판 위 숫자 합 = 점수</span></div>
         <div class="ult-grid">
           <div class="ult-stage">
-            <div class="cabinet cab-ult" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas id="ultCanvas" aria-label="퍼즐512 랭킹 대전 게임 화면"></canvas><div class="overlay" id="ultOv"></div></div></div>
+            <div class="cabinet cab-ult cab-candy" style="--cw:${W}px;--ar:${W / H}"><div class="screen"><canvas id="ultCanvas" aria-label="퍼즐512 랭킹 대전 게임 화면"></canvas><div class="overlay" id="ultOv"></div></div></div>
             <div class="pad cross" id="pad"><span class="sp"></span><button type="button" data-act="up" aria-label="위">▲</button><span class="sp"></span><button type="button" data-act="left" aria-label="왼쪽">◀</button><button type="button" data-act="down" aria-label="아래">▼</button><button type="button" data-act="right" aria-label="오른쪽">▶</button></div>
           </div>
           <aside class="ult-side">
@@ -145,7 +145,7 @@
   }
   function draw(dt) {
     const { ctx, W, K } = st, e = st.eng, TOP = K.TOP;
-    ctx.fillStyle = P.PANEL; ctx.fillRect(0, 0, W, TOP);
+    if (K.topBg) K.topBg(ctx); else { ctx.fillStyle = P.PANEL; ctx.fillRect(0, 0, W, TOP); }   // v202 사탕 왕국 위 띠
     const total = sum(e.b);
     const best = Math.max(st.best, st.phase === 'play' ? total : 0), beat = st.phase === 'play' && total > st.best && st.best > 0;
     P.text(ctx, 'SCORE', 14, 10, 9, P.DIM); P.text(ctx, total, 14, 26, 17, '#FFD23F');
@@ -155,10 +155,9 @@
     const sec = Math.max(0, Math.ceil(st.left / 1000)), low = sec <= 15 && st.phase === 'play' && Math.floor(performance.now() / 300) % 2;
     P.text(ctx, 'TIME', 316, 10, 9, P.DIM); P.text(ctx, Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'), 316, 24, 17, low ? '#FF5A5F' : '#7FE3FF');
     // 남은 시간 막대
-    ctx.fillStyle = '#0B0F28'; ctx.fillRect(14, 48, W - 28, 8);
-    ctx.fillStyle = '#FFD23F'; ctx.fillRect(14, 48, (W - 28) * Math.max(0, st.left / LIMIT), 8);
-    e.fresh = e.fresh.filter(f => (f.t += dt) < 160);
-    K.drawTiles(ctx, e.b, 0, TOP, W, e.fresh);
+    K.rainbow(ctx, st.left / LIMIT);   // v202 무지개 시간 막대
+    K.fxTick(ctx, e, dt);
+    K.drawTiles(ctx, e.b, 0, TOP, W, e.fresh, false, e.pops);
   }
   async function loadRank() {
     const el = root && $('#ultRank', root), mine = root && $('#ultMine', root); if (!el) return;
