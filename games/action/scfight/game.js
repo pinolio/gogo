@@ -123,6 +123,46 @@
     return kit;
   }
 
+  /* v192 6단계: RPG 보스 도전 — RPG 에서 이긴 보스만 (rpg 저장 bossWon[이름] = 이긴 레벨 · 그 전 기록은 hell·sasin·kingAt·ysp·ysAt 로 채움) */
+  const BOSS_TIER = { field: { n: '사냥터 보스', k: 1.0 }, hellMid: { n: '저승 옥졸·판관', k: 1.1 }, hell: { n: '저승 시왕', k: 1.25 }, sasin: { n: '사방신', k: 1.35 }, king: { n: '광개토대왕', k: 1.5 }, ys: { n: '이순신 던전 장수', k: 1.4 }, ysBoss: { n: '이순신 던전 대장', k: 1.6 } };
+  let BOSSDEF = null;
+  function bossDefs() {   // RPG 자료(GoRPGData)에서 보스 정의를 이름으로 찾음
+    if (BOSSDEF) return BOSSDEF; BOSSDEF = {}; const D = window.GoRPGData; if (!D) return BOSSDEF;
+    const put = (def, tier) => { if (def && def.name && !BOSSDEF[def.name]) BOSSDEF[def.name] = { def, tier }; };
+    (D.HELL && D.HELL.gates || []).forEach(g => { put(g.boss, 'hell'); put(g.guard, 'hellMid'); put(g.judge, 'hellMid'); });
+    if (D.SASIN && D.SASIN.boss) Object.keys(D.SASIN.boss).forEach(k => put(D.SASIN.boss[k], k === 'king' ? 'king' : 'sasin'));
+    if (D.YS) { (D.YS.gens || []).forEach(g => put(g, 'ys')); put(D.YS.boss, 'ysBoss'); }
+    (D.MAPS || []).forEach(m => { if (m.boss && m.mon) put(m.mon, 'field'); if (m.bossMon) put(m.bossMon, 'field'); });
+    return BOSSDEF;
+  }
+  function bossList(rpg) {
+    const D = window.GoRPGData, defs = bossDefs(), won = Object.assign({}, rpg && rpg.bossWon || {}), add = (n, lv) => { if (n && !won[n]) won[n] = lv || 1; };
+    if (rpg && D) {
+      const h = +rpg.hell || 0; (D.HELL && D.HELL.gates || []).forEach((g, i) => { const b = i * 5; if (h >= b + 3 && g.guard) add(g.guard.name); if (h >= b + 4 && g.judge) add(g.judge.name); if (h >= b + 5 && g.boss) add(g.boss.name); });
+      if (rpg.sasin && D.SASIN && D.SASIN.boss) Object.keys(rpg.sasin).forEach(k => { if (rpg.sasin[k] && D.SASIN.boss[k]) add(D.SASIN.boss[k].name); });
+      if (rpg.kingAt && D.SASIN && D.SASIN.boss && D.SASIN.boss.king) add(D.SASIN.boss.king.name);
+      if (Array.isArray(rpg.ysp) && D.YS) rpg.ysp.forEach((v, i) => { if (v && D.YS.gens && D.YS.gens[i]) add(D.YS.gens[i].name); });
+      if (rpg.ysAt && D.YS && D.YS.boss) add(D.YS.boss.name);
+    }
+    const order = Object.keys(BOSS_TIER);
+    return Object.keys(won).filter(n => defs[n]).map(n => ({ name: n, lv: Math.round(+won[n] || 1), tier: defs[n].tier, def: defs[n].def })).sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier) || a.lv - b.lv);
+  }
+  function bossKit(def, lv) {   // 보스 원소의 가장 센 공격 + 다른 원소 공격 + 방패 (회복은 안 씀)
+    const el = def.el || 'dark', have = RPG_SK.filter(q => q.lv <= lv), atk = have.filter(q => q.kind !== 'heal' && q.kind !== 'shield').sort((a, b) => b.lv - a.lv), kit = [], els = new Set();
+    atk.filter(q => q.el === el).slice(0, 2).forEach((q, i, a) => { if (i && q.lv < a[0].lv / 2) return; kit.push(q.id); els.add(q.el); });   // 둘째 것이 너무 약하면 뺌
+    atk.forEach(q => { if (kit.length < 5 && !els.has(q.el)) { kit.push(q.id); els.add(q.el); } });
+    const sh = have.filter(q => q.kind === 'shield').sort((a, b) => b.lv - a.lv)[0]; if (sh) kit.push(sh.id);
+    return kit;
+  }
+  // 보스 그림: 자세 그림(frames)이 있으면 대기·공격·마법·맞음, 없으면 한 장 (지역 보스는 rb{번호}_idle·atk·cast·hit)
+  function bossFrames(def) {
+    if (def.frames) return { idle: def.frames.idle, atk: def.frames.melee || def.frames.atk2, cast: def.frames.cast2 || def.frames.cast, hit: def.frames.hit };
+    const one = def.img79 || def.img; if (one) return { idle: one };
+    if (def.ri != null && def.ri <= 8) return { idle: 'rb' + def.ri + '_idle', atk: 'rb' + def.ri + '_atk', cast: 'rb' + def.ri + '_cast', hit: 'rb' + def.ri + '_hit' };
+    if (def.ri != null) return { idle: 'boss_r' + def.ri };
+    return { idle: null };
+  }
+
   // RPG 마법 그림 (rpg/img/ic_skill.png 34px × 30칸 · ic_fusion.png 48px × 21칸 · 물약 ic_pot.png 80px × 19칸)
   const RPG_IMG = 'games/action/rpg/img/';
   const SK_ORDER = ['magicarrow', 'fireball', 'watershot', 'heal1', 'darkorb', 'stonewall', 'windblade', 'firering', 'thunderarrow', 'earthsplit', 'tornado', 'lightspear', 'cursefog', 'firerain', 'tidal', 'chainbolt', 'gale', 'holylight', 'thunderfall', 'quake', 'shadowspear', 'stormblade', 'barrier', 'waterfall', 'sunburst', 'thorspear', 'abyss', 'earthrage', 'judgement', 'elemental'];
@@ -307,6 +347,8 @@
   .sf-pots div { display: flex; align-items: center; gap: 8px; background: #141A3C; border: 2px solid #0A0E24; border-radius: 10px; padding: 6px 9px; font-size: 13px; }
   .sf-pots i { width: 22px; height: 28px; border-radius: 6px 6px 10px 10px; border: 2px solid #0A0E24; flex: none; } .sf-pots .hp i { background: #FF5A5F; } .sf-pots .mp i { background: #3C78F0; }
   .sf-keys { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 13px; color: #DDE3FF; } .sf-keys kbd { background: #FFD23F; color: #1D2340; border-radius: 5px; padding: 0 6px; font: 700 12px/1.6 inherit; font-family: inherit; text-align: center; white-space: nowrap; }
+  .sf-room.boss { background: linear-gradient(135deg, #3A1630, #1A2148); } .sf-bgrp { margin-top: 6px; } .sf-bgrp small { display: block; color: #FFD23F; font-size: 12px; margin-bottom: 3px; } .sf-bgrp div { display: flex; flex-wrap: wrap; gap: 4px; }
+  .sf-boss { border: 2px solid #0A0E24; border-radius: 9px; background: #5A2A5A; color: #FFFFFF; font: 600 13px/1 inherit; font-family: inherit; padding: 6px 9px; cursor: pointer; } .sf-boss:hover { background: #7A3A7A; } .sf-boss.won { background: #FFD23F; color: #1D2340; }
   .sf-chips { position: absolute; left: 27%; top: 14%; display: flex; gap: 4px; } .sf-chips b { color: #1D2340; border: 2px solid #0A0E24; border-radius: 8px; padding: 0 7px; font-size: 12px; line-height: 18px; }
   .sf-hudpot { position: absolute; left: 2%; bottom: 4%; display: flex; gap: 6px; pointer-events: auto; }
   .sf-hudpot button { position: relative; width: 52px; height: 52px; border-radius: 12px; border: 3px solid #0A0E24; color: #FFFFFF; font: 700 13px/1.1 inherit; font-family: inherit; box-shadow: 0 3px 0 rgba(0,0,0,.4); touch-action: manipulation; }
@@ -328,7 +370,7 @@
       if (!document.getElementById('sfCss')) { const st = document.createElement('style'); st.id = 'sfCss'; st.textContent = CSS; document.head.appendChild(st); }
       el.innerHTML = `<div class="sf-page"><div class="play-head"><a class="back" href="#home">← 게임 목록</a><span class="cat">3D 대결</span><h1>${CFG.name}</h1></div><div id="sfBody"><p class="small">캐릭터를 불러오는 중…</p></div></div>`;
       const body = el.querySelector('#sfBody');
-      let alive = true, S = null, LV = 1, CARD = BASIC_CARD(), av = null, lobbyCh = null, roomCh = null, rooms = new Map(), myRoom = null, battle = null;
+      let alive = true, S = null, LV = 1, CARD = BASIC_CARD(), BOSSES = [], av = null, lobbyCh = null, roomCh = null, rooms = new Map(), myRoom = null, battle = null;
       let isHost = false, roomSize = 2, roomPeers = [], roomHostId = '', seenHost = false, starting = false, joinAt = 0, myPick = null;
       const TEAM = ['청군', '홍군'];
       const nick = () => (Hub.user ? Hub.user.nickname : '손님');
@@ -357,6 +399,7 @@
               <div class="sf-room cpu"><div class="grow"><b>Skillcom 컴퓨터와 대결</b><small>혼자 연습 · ${cm === 4 ? '2:2 는 내 편 컴퓨터 1명 + 상대 컴퓨터 2명' : '1:1'} · 쉬움 Lv.${Math.max(1, LV - 3)} · 보통 Lv.${LV} · 어려움 Lv.${Math.min(100, LV + 3)}</small>
                 <div class="sf-diff" style="justify-content:flex-start;margin-top:6px"><button type="button" class="sf-btn${cm === 2 ? ' on' : ' ghost'}" data-cpumode="2">1:1</button><button type="button" class="sf-btn${cm === 4 ? ' on' : ' ghost'}" data-cpumode="4">2:2</button></div></div>
                 <div class="sf-diff">${[['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']].map(([k, n]) => `<button type="button" class="sf-btn${k === S.diff ? ' on' : ' ghost'}" data-diff="${k}" aria-pressed="${k === S.diff}">${n}</button>`).join('')}</div></div>
+              ${myRoom ? '' : bossHtml()}
               ${myRoomHtml}
               ${startBar(members)}
               ${roomList.length ? roomList.map(r => { const full = (r.n || 1) >= (r.size || 2); return `<div class="sf-room"><div class="grow"><b>${r.nick}의 방 · ${modeName(r.size || 2)}</b><small>Lv.${r.lv} · ${r.code} · ${r.n || 1}/${r.size || 2}명</small></div><button type="button" class="sf-btn" data-join="${r.code}" ${myRoom || full ? 'disabled' : ''}>${full ? '가득 참' : '들어가기'}</button></div>`; }).join('') : '<p class="sub" style="margin:4px 0 0">지금 열린 방이 없어요.</p>'}
@@ -376,6 +419,20 @@
         const cv = body.querySelector('#sfMe'); if (cv) { const x = cv.getContext('2d'); x.imageSmoothingEnabled = false; AV.draw(x, av, 0, 0, 3, { crop: 'bust' }); }
         loadRank();
       }
+      // v192 6단계: RPG 보스 도전 칸 — RPG 에서 이긴 보스만 · 누르면 바로 1:1
+      function bossHtml() {
+        const bw = S.bw || {};
+        if (!BOSSES.length) return `<div class="sf-room boss"><div class="grow"><b>⚔ RPG 보스 도전</b><small>skillcom RPG 에서 보스를 이기면 여기서 그 보스와 다시 싸울 수 있어요 (사냥터 보스 · 저승 · 사방신 · 광개토대왕 · 이순신 던전)</small></div></div>`;
+        const groups = {}; BOSSES.forEach((b, i) => { (groups[b.tier] = groups[b.tier] || []).push([b, i]); });
+        return `<div class="sf-room boss"><div class="grow"><b>⚔ RPG 보스 도전 <small style="display:inline">· 이긴 보스 ${BOSSES.length}명 · 누르면 1:1 시작</small></b>
+          ${Object.keys(groups).map(t => `<div class="sf-bgrp"><small>${BOSS_TIER[t].n}</small><div>${groups[t].map(([b, i]) => `<button type="button" class="sf-boss${bw[b.name] ? ' won' : ''}" data-boss="${i}" title="RPG 에서 Lv.${b.lv} 로 이김">${bw[b.name] ? '★ ' : ''}${A.esc(b.name)}</button>`).join('')}</div></div>`).join('')}</div></div>`;
+      }
+      function startBoss(i) {
+        const b = BOSSES[i]; if (!b) return; const T = BOSS_TIER[b.tier] || BOSS_TIER.field, st = scaleSt(CARD.st, T.k); st.hp = Math.round(st.hp * (CFG.bossHp || 2.5) * T.k);   // 보스 체력 = 내 체력 × 2.5(settings bossHp) × 등급
+        const ros = [{ id: Hub.clientId, team: 0 }, { id: 'boss', cpu: true, boss: b.name, tier: b.tier, team: 1, nick: b.name, lv: LV, st, kit: bossKit(b.def, b.tier === 'field' ? Math.min(100, Math.max(LV, b.lv)) : 100), diff: 'hard' }];
+        startBattle({ cpu: true, diff: 'hard', boss: i, size: 2, roster: ros, arena: (window.__GOGO_QA && window.__GOGO_QA.scfArena) || pick(ARENA_IDS) });
+      }
+
       // v55: 맨 아래 큰 [시작] 버튼 — 방이 없으면 컴퓨터와 대결, 방에 있으면 방장이 대결 시작
       function startBar(members) {
         const DN = { easy: '쉬움', normal: '보통', hard: '어려움' }, cm = S.mode === 4 ? '2:2' : '1:1';
@@ -391,7 +448,8 @@
       const need4 = () => true;   // v192 스킬 고르기 없앰 (RPG 마법 8칸 그대로)
       body.addEventListener('click', e => {
         const b = e.target.closest('button'); if (!b || b.disabled || battle) return; const d = b.dataset;
-        if (d.cpumode) { S.mode = +d.cpumode === 4 ? 4 : 2; saveRow(S); renderLobby(); }
+        if (d.boss != null && d.boss !== '') startBoss(+d.boss);
+        else if (d.cpumode) { S.mode = +d.cpumode === 4 ? 4 : 2; saveRow(S); renderLobby(); }
         else if (d.diff) { S.diff = d.diff; saveRow(S); renderLobby(); }
         else if ('go' in d) { if (need4()) startCpu(S.diff || 'normal'); }
         else if (d.make) makeRoom(+d.make === 4 ? 4 : 2);
@@ -573,6 +631,29 @@
           if (bx.isEmpty()) bx.setFromObject(root);
           return bx;
         }
+        /* --- v192 RPG 보스 몸: RPG 그림을 세운 판(늘 카메라를 봄) · 자세 그림이 있으면 공격·마법·맞음 때 바꿈 · 크기는 등급마다 --- */
+        function bossBody(U, name) {
+          const bd = bossDefs()[name]; if (!bd) return null;
+          const def = bd.def, fr = bossFrames(def), H = bd.tier === 'sasin' ? 4.6 : bd.tier === 'king' || bd.tier === 'hell' || bd.tier === 'ysBoss' ? 3.6 : 3.1;
+          const grp = new THREE.Group(), tex = {}, mat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.3, side: THREE.DoubleSide });
+          const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat); grp.add(plane); plane.visible = false;
+          const fit = t => { const im = t.image; if (!im || !im.width) return; const w = H * im.width / im.height; plane.scale.set(w, H, 1); plane.position.y = H / 2; };
+          const loader = new THREE.TextureLoader();
+          Object.keys(fr).forEach(k => { const n = fr[k]; if (!n) return; tex[k] = loader.load(RPG_IMG + 'v79/' + n + '.png?v=80', t => { if ('colorSpace' in t && THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; if (k === 'idle') { mat.map = t; mat.needsUpdate = true; fit(t); plane.visible = true; } }); });
+          let cur = 'idle', until = 0;
+          const show = k => { const t = tex[k] || tex.idle; if (!t || !t.image || !t.image.width || mat.map === t) return; mat.map = t; mat.needsUpdate = true; fit(t); };
+          U.act = n => { const k = n === 'hit' ? 'hit' : n === 'cast' || n === 'fuse' ? (tex.cast ? 'cast' : 'atk') : n === 'die' ? 'hit' : null; if (!k || !tex[k]) return; cur = k; until = B ? B.t + (n === 'hit' ? 0.25 : 0.45) : 0; show(k); };
+          const sh = new THREE.Mesh(new THREE.CircleGeometry(H * 0.28, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32 })); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.01; grp.add(sh);
+          grp.userData.bill = (yaw, cx, cz, dead) => {   // 카메라를 봄 · 보스가 보는 쪽(상대 쪽)에 맞춰 좌우 뒤집기 (RPG 그림은 오른쪽을 봄)
+            const dx = cx - grp.position.x, dz = cz - grp.position.z; grp.rotation.set(dead ? -Math.PI / 2 : 0, Math.atan2(dx, dz), 0, 'YXZ');
+            const fx = -Math.sin(yaw), fz = -Math.cos(yaw), L = Math.hypot(dx, dz) || 1, right = fx * (dz / L) - fz * (dx / L);
+            plane.scale.x = Math.abs(plane.scale.x) * (right > 0 ? -1 : 1);
+            if (cur !== 'idle' && B && B.t > until) { cur = 'idle'; show('idle'); }
+            if (U.hp < U.lastHp - 0.5 && !dead && cur === 'idle') U.act('hit');
+          };
+          U.rad = H * 0.22; U.hh = H * 0.45; U.big = true;
+          return grp;
+        }
         /* --- Skillcom 장수 3D 몸 (Meshy) + 움직임. U.act('cast') 처럼 한 번 하는 동작을 틀고, 끝나면 대기·걷기로 --- */
         function heroBody(U, hero) {
           const g = pre.gl['hero_' + hero]; if (!g || !THREE.cloneSkinned) return null;
@@ -599,10 +680,10 @@
         const teamIdx = {}, units = ros.map(r => {
           const isMe = r === myR, F = cardF(isMe ? CARD.st : normSt(r.st)),   /* v192 능력치 = RPG 대결 카드 (컴퓨터 = 내 카드 × 난이도) */ k = teamIdx[r.team] = (teamIdx[r.team] || 0) + 1, inTeam = ros.filter(q => q.team === r.team).length;
           const x = inTeam > 1 ? (k === 1 ? -3 : 3) * (r.team ? -1 : 1) : 0, z = r.team ? -8 : 8;
-          const U = { id: r.id, uid: r.uid || null, me: isMe, cpu: !!r.cpu, owner: r.owner || '', team: r.team, nick: isMe ? nick() : String(r.nick || ''), lv: isMe ? LV : clamp(+r.lv || 1, 1, 100), sps: r.cpu ? (Array.isArray(r.kit) ? r.kit : cpuKit(r.hero, r.lv || 1)).filter(id => RPG_SKID[id]).map(id => slotSpell(RPG_SKID[id])) : [],
+          const U = { id: r.id, uid: r.uid || null, me: isMe, cpu: !!r.cpu, owner: r.owner || '', team: r.team, nick: isMe ? nick() : String(r.nick || ''), lv: isMe ? LV : clamp(+r.lv || 1, 1, 100), sps: r.cpu ? (Array.isArray(r.kit) ? r.kit : cpuKit(r.hero, r.lv || 1)).filter(id => RPG_SKID[id]).map(id => slotSpell(RPG_SKID[id])) : [], bossName: r.boss ? String(r.boss) : null,
             x, z, y: 0, vy: 0, tx: x, tz: z, px: x, pz: z, vx: 0, vz: 0, yaw: r.team ? Math.PI : 0, pitch: 0, hp: F.hp, mp: F.mp, F, cds: {}, slow: 0, burn: 0, dead: false,
             own: isMe || (!!r.cpu && (opt.cpu || opt.host)), ai: r.cpu ? { t: 1.5, move: 0, strafe: 1, D: DIFFS[r.diff] || DIFFS.normal } : null };
-          U.mesh = (r.cpu && heroBody(U, r.hero)) || voxel(isMe ? av : r.av, r.cpu && r.team !== myTeam ? '#3A2050' : null); scene.add(U.mesh);
+          U.mesh = (r.boss && bossBody(U, r.boss)) || (r.cpu && heroBody(U, r.hero)) || voxel(isMe ? av : r.av, r.cpu && r.team !== myTeam ? '#3A2050' : null); scene.add(U.mesh);
           U.lastHp = U.hp;
           return U;
         });
@@ -746,8 +827,8 @@
           if (b & 1) burst(p, 'fire', 2); if (b & 2) burst(p, 'water', 1); if (b & 4) burst(new THREE.Vector3(U.x, U.y + 2.1, U.z), 'thunder', 2); if (b & 8) burst(p, 'dark', 1);
         }
         const foesOf = C => units.filter(u => u.team !== C.team && !u.dead);
-        function areaHit(C, x, z, R, k) { foesOf(C).forEach(u => { if (Math.hypot(u.x - x, u.z - z) < R + 0.45) hitU(u, C, k); }); }
-        function lineHit(C, s0, d, L, half, k) { foesOf(C).forEach(u => { const vx = u.x - s0.x, vz = u.z - s0.z, t = vx * d.x + vz * d.z; if (t < -0.5 || t > L + 0.5) return; if (Math.abs(vx * d.z - vz * d.x) < half + 0.45) hitU(u, C, k); }); }
+        function areaHit(C, x, z, R, k) { foesOf(C).forEach(u => { if (Math.hypot(u.x - x, u.z - z) < R + (u.rad || 0.45)) hitU(u, C, k); }); }
+        function lineHit(C, s0, d, L, half, k) { foesOf(C).forEach(u => { const vx = u.x - s0.x, vz = u.z - s0.z, t = vx * d.x + vz * d.z; if (t < -0.5 || t > L + 0.5) return; if (Math.abs(vx * d.z - vz * d.x) < half + (u.rad || 0.45)) hitU(u, C, k); }); }
         /* 효과 (B.fx: 시간이 지나면 사라짐) */
         function later(sec, f) { B.fx.push({ t: 0, upd(dt) { this.t += dt; if (this.t >= sec) { if (!B.over) f(); return false; } return true; } }); }
         const addM = (m, life, upd) => { scene.add(m); B.fx.push({ t: 0, upd(dt) { this.t += dt; const q = this.t / life; if (q >= 1) { scene.remove(m); m.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); }); return false; } upd(m, q, dt); return true; } }); };
@@ -979,7 +1060,7 @@
             s0.m.position.addScaledVector(s0.v, dt); s0.life -= dt;
             const p = s0.m.position;
             if (!B.over) {
-              const T = foesOf(s0.C).find(u => !s0.hitSet.has(u.id) && Math.hypot(p.x - u.x, p.z - u.z) < 0.45 + s0.r && Math.abs(p.y - (u.y + 0.9)) < 1 + s0.r);
+              const T = foesOf(s0.C).find(u => !s0.hitSet.has(u.id) && Math.hypot(p.x - u.x, p.z - u.z) < (u.rad || 0.45) + s0.r && Math.abs(p.y - (u.y + (u.hh || 0.9))) < (u.hh || 0.9) + 0.1 + s0.r);
               if (T) { s0.hitSet.add(T.id); if (T.own) hitU(T, s0.C, 1); else if (s0.C.U.me) floatText(T, '명중!', '#FFD23F'); burst(p, s0.C.els[0], s0.C.sp.fused ? 22 : 12); if (!s0.pierce) { kill(s0); return false; } }
             }
             const sp3 = s0.m.children[1]; if (sp3 && sp3.userData.spin) sp3.rotation.z += dt * sp3.userData.spin;
@@ -1051,13 +1132,13 @@
           units.forEach(u => { if (u.act && !u.dead && ally(u) === win) u.act('win'); });
           if (B.net) sendPos();
           const early = B.net && B.early;   // v68 무효 판: 승패·포인트·전적 없음
-          if (!early) { if (win) S.wins++; else S.losses++; saveRow(S); }
+          if (!early) { if (win) S.wins++; else S.losses++; if (win && opt.boss != null && BOSSES[opt.boss]) { S.bw = S.bw || {}; S.bw[BOSSES[opt.boss].name] = (S.bw[BOSSES[opt.boss].name] || 0) + 1; } saveRow(S); }   // v192 보스를 이기면 대기방에 ★
           const pts = win && !early ? ((CFG.points && CFG.points.win) || 0) : 0;
           if (Hub.user && !early) { try { await Hub.submitScore({ game_id: GAME, score: S.wins, duration_sec: Math.round(B.t), result: win ? 'win' : 'lose', points_delta: pts, extra: { lv: LV, vs: opt.cpu ? 'cpu' : 'player', mode: modeName(opt.size) } }); } catch (e) { /* noop */ } }
           const ov = document.createElement('div'); ov.className = 'sf-over';
           ov.innerHTML = early ? `<div class="sf-card"><h3 style="justify-content:center;font-size:34px">무효 판</h3><p class="sub">${A.esc(early.nick || '상대')} 님이 시작 ${Hub.QUIT_SEC || 5}초 안에 나가서 승패·포인트 없이 끝났어요. 전적에 남지 않아요. · ${S.wins}승 ${S.losses}패</p><button type="button" class="sf-btn" data-again>대기방으로</button> <button type="button" class="sf-btn ghost" data-lobby>대기방</button></div>` : `<div class="sf-card"><h3 style="justify-content:center;font-size:34px">${opt.size === 4 ? TEAM[win ? me.team : 1 - me.team] + ' 승리!' + (win ? '' : ' (우리 편 패배…)') : (win ? '승리!' : '패배…')}</h3><p class="sub">${modeName(opt.size)} 대결 · ${anyLeft.v ? '나간 사람은 쓰러진 것으로 쳤어요. ' : ''}${S.wins}승 ${S.losses}패${win && pts && Hub.user ? ` · +${pts}P` : ''}</p><button type="button" class="sf-btn" data-again>${opt.cpu ? '다시 대결' : '대기방으로'}</button> <button type="button" class="sf-btn ghost" data-lobby>대기방</button></div>`;
           stage.querySelector('.sf-hud').appendChild(ov);
-          ov.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const again = 'again' in b.dataset && opt.cpu; stop(); if (again) startCpu(opt.diff); });
+          ov.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const again = 'again' in b.dataset && opt.cpu; stop(); if (again) { if (opt.boss != null) startBoss(opt.boss); else startCpu(opt.diff); } });
         }
         function stop() {
           cancelAnimationFrame(raf); document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey); document.removeEventListener('mouseup', atkUp);
@@ -1077,6 +1158,7 @@
       (async () => {
         const rpg = await loadRow(CFG.levelFrom || 'rpg'); if (!alive) return;
         CARD = normCard(rpg && rpg.fc); if (window.__scfCard) CARD = normCard(window.__scfCard);   // __scfCard = 점검용
+        BOSSES = bossList(window.__scfRpg || rpg);   // __scfRpg = 점검용 (보스 기록)
         LV = CARD.lv;
         av = Hub.user ? Hub.user.avatar : AV.normalize({});
         S = fixSave(await loadRow(GAME), LV);
