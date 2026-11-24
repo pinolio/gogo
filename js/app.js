@@ -301,7 +301,7 @@
   // v157 카드 그림 = 실제 게임 화면 (img/thumbs/게임id.jpg · 640×400). 없으면 예전처럼 코드로 그린 그림
   const THUMB_IMG = {};
   ['rpg', 'scfight', 'battle', 'p512', 'mines', 'snake', 'dodge', 'omok', 'janggi', 'chess', 'alkkagi', 'volley', 'tennis', 'fight', 'mecha', 'sky', 'wordchain', 'typing', 'idiom', 'english', 'history', 'gugu'].forEach(id => { THUMB_IMG[id] = 'img/thumbs/' + id + '.jpg'; });
-  const THUMB_V = { battle: 205, p512: 205, mines: 205, snake: 205, dodge: 206, omok: 206, janggi: 206, chess: 206, alkkagi: 206, english: 206, history: 206, idiom: 206, wordchain: 206, typing: 206 };   // v205 그래픽 업그레이드한 게임은 새 카드 사진
+  const THUMB_V = { battle: 205, p512: 205, mines: 205, snake: 205, dodge: 206, omok: 206, janggi: 206, chess: 206, alkkagi: 206, english: 206, history: 206, idiom: 206, wordchain: 206, typing: 206, volley: 208, tennis: 208, fight: 208, mecha: 208 };   // v205 그래픽 업그레이드한 게임은 새 카드 사진
   const BEST_GAMES = ['rpg', 'battle'];   // v206 선생님 11/24: 메인 카드에 작게 '대표 게임'
   async function renderGrid() {
     const grid = $('#gameGrid'); if (!grid) return;

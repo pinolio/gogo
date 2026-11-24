@@ -26,7 +26,7 @@
   function settings() { return (window.GoSettings.get('volley') || {}); }
 
   function drawCourt(ctx, bg) {
-    if (S.ready(bg)) { ctx.imageSmoothingEnabled = false; ctx.drawImage(bg, 0, 0, W, H); }
+    if (S.ready(bg)) { ctx.imageSmoothingEnabled = true; ctx.drawImage(bg, 0, 0, W, H); ctx.imageSmoothingEnabled = false; }   // v207 화려한 배구 경기장 (Gemini)
     else { const gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#F4E3C3'); gr.addColorStop(0.7, '#E2B97A'); gr.addColorStop(1, '#C98F4A'); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H); }
     // 코트 바닥선
     ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillRect(0, GROUND, W, 3);
@@ -42,7 +42,7 @@
   window.GoGames.volley = {
     id: 'volley', size: [W, H], SKILLS,
     thumb(ctx, w, h) {
-      const bg = S.image(DIR + 'gym.jpg');
+      const bg = S.image(DIR + 'court.jpg');
       const paint = () => {
         ctx.save(); ctx.clearRect(0, 0, w, h); ctx.scale(w / W, h / H); drawCourt(ctx, bg); drawNet(ctx);
         S.drawFighter(ctx, S.myAvatar(), 'spike', 250, GROUND, 4, 1);
@@ -54,7 +54,7 @@
     },
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
-      const bg = S.image(DIR + 'gym.jpg'), ballImg = S.image(DIR + 'ball.png');
+      const bg = S.image(DIR + 'court.jpg'), ballImg = S.image(DIR + 'ball.png');
       let mode = 'ai', level = 'normal', phase = 'idle', raf = 0, last = 0, timer = 0, n = 2;
       let players = [], ball = null, score = [0, 0], serveSide = 0, count = 0, pick = 0, rallies = 0, flash = null, fx = [];
       // 온라인: host = 실제로 경기를 계산하는 기기(방장), mySlot = 내 자리
@@ -302,6 +302,10 @@
           if (t < p.reverseUntil) S.text(ctx, '혼란!', p.x, top - (t < p.snareUntil ? 48 : 30), 16, '#C9A6FF');
         });
         if (ball) {
+          // v207 공 꼬리 (빠를수록 길게 · 그림만)
+          const tr = ball.tr || (ball.tr = []); tr.push([ball.x, ball.y]); if (tr.length > 9) tr.shift();
+          tr.forEach(([tx, ty], i) => { const a = (i + 1) / tr.length; ctx.globalAlpha = a * 0.35; ctx.fillStyle = i % 2 ? '#FFD23F' : '#FF9A3D'; ctx.beginPath(); ctx.arc(tx, ty, BALL_R * (0.35 + 0.6 * a), 0, Math.PI * 2); ctx.fill(); });
+          ctx.globalAlpha = 1;
           ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(ball.rot);
           if (S.ready(ballImg)) ctx.drawImage(ballImg, -BALL_R - 2, -BALL_R - 2, BALL_R * 2 + 4, BALL_R * 2 + 4);
           else { ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.arc(0, 0, BALL_R, 0, Math.PI * 2); ctx.fill(); }

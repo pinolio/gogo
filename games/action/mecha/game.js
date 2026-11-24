@@ -103,7 +103,7 @@
   let preloaded = false;
   function preload() {
     if (preloaded) return; preloaded = true;
-    img('arena.jpg');
+    img('arena2.jpg');
     ROBOTS.forEach(rb => ['card', 's', 'fr', 'r', 'br', 'b'].forEach(v => img('m' + rb.id + '_' + v + '.png')));
   }
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -127,7 +127,7 @@
     return (spr[rb.id] = c);
   }
   function drawArena(ctx, bg) {
-    if (S.ready(bg)) { ctx.imageSmoothingEnabled = false; ctx.drawImage(bg, 0, 0, W, H); ctx.fillStyle = 'rgba(8,10,28,.35)'; ctx.fillRect(0, 0, W, H); }
+    if (S.ready(bg)) { ctx.imageSmoothingEnabled = true; ctx.drawImage(bg, 0, 0, W, H); ctx.imageSmoothingEnabled = false; ctx.fillStyle = 'rgba(8,10,28,.22)'; ctx.fillRect(0, 0, W, H); }   // v207 네온 우주 경기장 (Gemini)
     else {
       ctx.fillStyle = '#0B0E24'; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = 'rgba(91,140,255,.12)'; for (let x = 0; x < W; x += 48) ctx.fillRect(x, 0, 1, H); for (let y = 0; y < H; y += 48) ctx.fillRect(0, y, W, 1);
@@ -186,7 +186,7 @@
   window.GoGames.mecha = {
     id: 'mecha', size: [W, H], ROBOTS,
     thumb(ctx, w, h) {
-      const bg = img('arena.jpg');
+      const bg = img('arena2.jpg');
       const paint = () => {
         ctx.save(); ctx.clearRect(0, 0, w, h); ctx.scale(w / W, h / H); drawArena(ctx, bg);
         drawCard(ctx, ROBOTS[0], 150, 90, 300, 380); drawCard(ctx, ROBOTS[3], 510, 90, 300, 380);
@@ -198,7 +198,7 @@
     create(canvas, hooks) {
       preload();
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
-      const bg = img('arena.jpg');
+      const bg = img('arena2.jpg');
       let mode = 'ai', level = 'normal', phase = 'idle', raf = 0, last = 0, frames = 0, timeLeft = 120, n = 2;
       let P = [], B = [], MINES = [], ZONES = [], TUR = [], fx = [], pick = 0, cur = 0, lastTap = -1, banner = null, intro = 0, slow = 0, shake = 0, net = null;
       const online = () => mode === 'online';

@@ -1911,3 +1911,9 @@ html.xmas .home .thumb-wrap .cat, html.xmas .home .thumb-wrap .tag, html.xmas .h
 /* v206 닷지 크리스마스 (12월 이벤트) — 오로라 밤하늘 + 지팡이 사탕 테두리 */
 .cabinet[data-g="dodge"] { background: url(../img/game/xmas_sky.jpg?v=206) center / cover no-repeat, #0E1640; border: 6px solid transparent; border-image: repeating-linear-gradient(135deg, #E8333A 0 14px, #FFFFFF 14px 28px) 8; box-shadow: 0 0 0 2px #1F7A43, 0 0 22px rgba(255,214,90,.45), var(--lift); }
 .cabinet[data-g="dodge"] .screen { border-color: #1F7A43; box-shadow: 0 0 0 3px #FFD23F, 0 0 14px rgba(255,230,150,.5); }
+/* v207 스포츠·메카 그래픽 (Gemini) — 게임기 테두리도 경기장 느낌 */
+.cabinet[data-g="volley"] { background: url(../games/sports/volley/court.jpg?v=207) center / cover no-repeat, #6B3A1A; border-color: #3A1E0A; box-shadow: 0 0 0 2px #FFB347, 0 0 20px rgba(255,179,71,.45), var(--lift); }
+.cabinet[data-g="tennis"] { background: url(../games/sports/tennis/img/stand2.jpg?v=207) center / cover no-repeat, #1D3FA0; border-color: #0E1F55; box-shadow: 0 0 0 2px #7DFFC4, 0 0 20px rgba(125,255,196,.4), var(--lift); }
+.cabinet[data-g="fight"] { background: url(../games/sports/fight/stage.jpg?v=207) center / cover no-repeat, #3B2A5A; border-color: #1E1330; box-shadow: 0 0 0 2px #FF7EB6, 0 0 20px rgba(255,126,182,.45), var(--lift); }
+.cabinet[data-g="mecha"] { background: url(../games/action/mecha/img/arena2.jpg?v=207) center / cover no-repeat, #120E3A; border-color: #0A0E24; box-shadow: 0 0 0 2px #7FA2FF, 0 0 22px rgba(127,162,255,.55), var(--lift); }
+.cabinet[data-g="volley"] .screen, .cabinet[data-g="tennis"] .screen, .cabinet[data-g="fight"] .screen, .cabinet[data-g="mecha"] .screen { border-color: #0E1230; box-shadow: 0 0 0 3px #FFD23F, 0 6px 0 rgba(0,0,0,.35); }

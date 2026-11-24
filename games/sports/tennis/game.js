@@ -40,10 +40,10 @@
   function drawStadium(ctx) {
     // 위쪽 관중석 · 광고판
     const top = H0 + CAMH * F / (L + 6.5 + CAMD);   // 화면 위쪽 관중석 경계 (뒤집힌 화면에서도 같은 자리)
-    const stand = S.image(DIR + 'img/stand.jpg');
+    const stand = S.image(DIR + 'img/stand2.jpg');
     if (S.ready(stand)) {   // v39: Meshy 관중석 그림 (아래쪽이 광고판에 닿게)
       const k = W / stand.naturalWidth, h = stand.naturalHeight * k;
-      ctx.imageSmoothingEnabled = true; ctx.drawImage(stand, 0, top - h * 0.82, W, h); ctx.imageSmoothingEnabled = false;
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(stand, 0, top - h * 0.86, W, h); ctx.imageSmoothingEnabled = false;   // v207 화려한 관중석 (Gemini)
     } else {
       const sky = ctx.createLinearGradient(0, 0, 0, top); sky.addColorStop(0, '#141A44'); sky.addColorStop(1, '#2A3478');
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, top + 2);
@@ -53,13 +53,21 @@
     ctx.fillStyle = '#1D3FA0'; ctx.fillRect(0, top - 30, W, 30);
     ctx.font = '700 18px Galmuri11, Pretendard, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     for (let x = 60; x < W; x += 190) { ctx.fillStyle = (x / 190 | 0) % 2 ? '#FFD23F' : '#FFFFFF'; ctx.fillText((x / 190 | 0) % 2 ? 'gogo?gogo!' : 'GOGO TENNIS', x, top - 15); }
-    // 바닥 (코트 밖은 초록)
-    ctx.fillStyle = '#2E9E5B'; ctx.fillRect(0, top, W, H - top);
+    // 바닥 (코트 밖은 초록) — v207 잔디 깎은 줄무늬 + 아래로 갈수록 밝게
+    const gg = ctx.createLinearGradient(0, top, 0, H); gg.addColorStop(0, '#23844A'); gg.addColorStop(1, '#3FBF6E'); ctx.fillStyle = gg; ctx.fillRect(0, top, W, H - top);
+    ctx.fillStyle = 'rgba(255,255,255,.06)'; for (let y = top, i = 0; y < H; i++) { const hh = 10 + i * 3; if (i % 2) ctx.fillRect(0, y, W, hh); y += hh; }
+    // v207 조명탑 불빛 (양쪽 위에서 비추는 빛) + 가장자리 어둡게
+    [[0, top], [W, top]].forEach(([lx, ly]) => { const rg = ctx.createRadialGradient(lx, ly, 10, lx, ly, W * 0.55); rg.addColorStop(0, 'rgba(255,250,210,.34)'); rg.addColorStop(1, 'rgba(255,250,210,0)'); ctx.fillStyle = rg; ctx.fillRect(0, top, W, H - top); });
+    const vg = ctx.createRadialGradient(W / 2, H * 0.62, H * 0.35, W / 2, H * 0.62, W * 0.7); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,20,40,.35)'); ctx.fillStyle = vg; ctx.fillRect(0, top, W, H - top);
+    // 관중석 카메라 플래시 (반짝)
+    const tt = performance.now() / 1000; for (let i = 0; i < 7; i++) { const ph = (tt * 0.9 + i * 0.37) % 1; if (ph < 0.12) { const fx = (i * 173 + Math.floor(tt * 0.9 + i * 0.37) * 311) % W, fy = 8 + ((i * 47 + Math.floor(tt) * 13) % Math.max(10, top - 50)); ctx.fillStyle = 'rgba(255,255,255,' + (1 - ph / 0.12) + ')'; ctx.beginPath(); ctx.arc(fx, fy, 3 + (1 - ph / 0.12) * 4, 0, Math.PI * 2); ctx.fill(); } }
   }
   function drawCourt(ctx) {
     const c = (x, y) => proj(x, y, 0);
     poly(ctx, [c(-DX - 1.2, -3), c(DX + 1.2, -3), c(DX + 1.2, L + 3), c(-DX - 1.2, L + 3)], '#3FA866');
+    poly(ctx, [c(-DX - 1.2, -3.2), c(DX + 1.2, -3.2), c(DX + 1.4, L + 3.2), c(-DX - 1.4, L + 3.2)], 'rgba(0,0,0,.12)');
     poly(ctx, [c(-DX, 0), c(DX, 0), c(DX, L), c(-DX, L)], '#2F7FD0');
+    for (let i = 0; i < 8; i++) if (i % 2) poly(ctx, [c(-DX, L * i / 8), c(DX, L * i / 8), c(DX, L * (i + 1) / 8), c(-DX, L * (i + 1) / 8)], 'rgba(255,255,255,.05)');   // v207 코트 결
     ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineCap = 'butt';
     const lw = (y) => Math.max(1.5, 0.06 * F / (y + CAMD) * (FLIP ? 1 : 1));
     [[-DX, 0, -DX, L], [DX, 0, DX, L], [-SX, 0, -SX, L], [SX, 0, SX, L], [-DX, 0, DX, L * 0], [-DX, L, DX, L],

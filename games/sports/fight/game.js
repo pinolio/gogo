@@ -21,7 +21,7 @@
   const cfg = () => window.GoSettings.get('fight') || {};
 
   function drawStage(ctx, bg) {
-    if (S.ready(bg)) { ctx.imageSmoothingEnabled = false; ctx.drawImage(bg, 0, 0, W, H); }
+    if (S.ready(bg)) { ctx.imageSmoothingEnabled = true; ctx.drawImage(bg, 0, 0, W, H); ctx.imageSmoothingEnabled = false; }   // v207 노을 옥상 (Gemini)
     else { const gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#3B3570'); gr.addColorStop(0.55, '#E9875A'); gr.addColorStop(1, '#5A5A66'); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H); }
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(0, FLOOR, W, H - FLOOR);
     ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(0, FLOOR, W, 2);
@@ -30,7 +30,7 @@
   window.GoGames.fight = {
     id: 'fight', size: [W, H], SKILLS,
     thumb(ctx, w, h) {
-      const bg = S.image(DIR + 'arena.jpg');
+      const bg = S.image(DIR + 'stage.jpg');
       const paint = () => {
         ctx.save(); ctx.clearRect(0, 0, w, h); ctx.scale(w / W, h / H); drawStage(ctx, bg);
         S.drawFighter(ctx, S.myAvatar(), 'punch', 380, FLOOR, 6, 1);
@@ -41,7 +41,7 @@
     },
     create(canvas, hooks) {
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
-      const bg = S.image(DIR + 'arena.jpg');
+      const bg = S.image(DIR + 'stage.jpg');
       let mode = 'ai', level = 'normal', phase = 'idle', raf = 0, last = 0, frames = 0, timeLeft = 99, n = 2;
       let P = [], pick = 0, fx = [], shake = 0, banner = null, intro = 0, slow = 0, net = null;
       const online = () => mode === 'online';
