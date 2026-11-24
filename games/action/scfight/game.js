@@ -86,7 +86,7 @@
   function slotSpell(q) {
     return { name: q.name, id: q.id, els: q.els.slice(0, 2), kind: q.kind, pow: q.pow, mp: q.mp, cd: q.cd, count: q.count || 0, pierce: !!q.pierce, speed: q.speed || 1, radius: q.radius || 0, len: q.len || 0, w: q.w || 0, dur: q.dur || 0, fused: q.els.length > 1 };
   }
-  const BASIC_SP = { name: '기본 공격', id: 'basic', els: ['light'], kind: 'bolt', basic: true, pow: 1, mp: 0, cd: 0.45, count: 1, speed: 1.2, fused: false };   // RPG 지팡이 기본 공격 = 공격 0.6 + 마력 0.5
+  const BASIC_SP = { name: '기본 공격', id: 'basic', els: ['light'], kind: 'bolt', basic: true, pow: 1, mp: 0, cd: 0.675, count: 1, speed: 1.2, fused: false };   // v201 선생님 11/24: 기본 공격 빠르기 2/3 (0.45초 → 0.675초마다 한 발)   // RPG 지팡이 기본 공격 = 공격 0.6 + 마력 0.5
   // 컴퓨터 마법 (원소마다 RPG 마법 하나 · 5단계에서 레벨에 맞게 더 다양하게)
   const CPU_SK = {
     fire: { id: 'fireball', name: '파이어볼', els: ['fire'], kind: 'bolt', pow: 1.6, mp: 6, cd: 1.2 },
@@ -1094,7 +1094,7 @@
             if (U.anim) {   // 3D 장수: 쓰러짐 · 맞음도 움직임으로
               if (U.hp < U.lastHp - 0.5 && !U.dead) U.act('hit');
               U.anim(dt, Math.hypot(U.vx, U.vz) > 0.6);
-              U.mesh.position.set(U.x, U.y, U.z); U.mesh.rotation.set(0, U.yaw, 0);   // Meshy 몸은 처음부터 앞(-z)을 봄
+              U.mesh.position.set(U.x, U.y, U.z); U.mesh.rotation.set(0, U.yaw + Math.PI, 0);   // v201 고침(선생님 11/24 '상대가 뒤를 보고 있다'): Skillcom 장수 Meshy 몸은 앞이 +z 라서 반 바퀴 돌림 (7명 모두 확인)
             } else { if (U.mesh.userData.walk) U.mesh.userData.walk(!U.dead && Math.hypot(U.vx, U.vz) > 0.5 ? B.t * 9 : null);   // v120 새 몸 그림 걷기
               U.mesh.position.set(U.x, U.y + (U.dead ? 0.25 : 0), U.z);
               if (U.mesh.userData.bill) U.mesh.userData.bill(U.yaw, cam.position.x, cam.position.z, U.dead); else U.mesh.rotation.set(U.dead ? -Math.PI / 2 : 0, U.yaw + Math.PI, 0, 'YXZ'); }
