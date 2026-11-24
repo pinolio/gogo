@@ -428,7 +428,8 @@
           ${Object.keys(groups).map(t => `<div class="sf-bgrp"><small>${BOSS_TIER[t].n}</small><div>${groups[t].map(([b, i]) => `<button type="button" class="sf-boss${bw[b.name] ? ' won' : ''}" data-boss="${i}" title="RPG 에서 Lv.${b.lv} 로 이김">${bw[b.name] ? '★ ' : ''}${A.esc(b.name)}</button>`).join('')}</div></div>`).join('')}</div></div>`;
       }
       function startBoss(i) {
-        const b = BOSSES[i]; if (!b) return; const T = BOSS_TIER[b.tier] || BOSS_TIER.field, st = scaleSt(CARD.st, 0.8 * T.k);   // v197 보스 공격 = 내 카드 × 0.8 × 등급 st.hp = Math.round(st.hp * (CFG.bossHp || 2.5) * T.k);   // 보스 체력 = 내 체력 × 2.5(settings bossHp) × 등급
+        const b = BOSSES[i]; if (!b) return; const T = BOSS_TIER[b.tier] || BOSS_TIER.field, st = scaleSt(CARD.st, 0.8 * T.k);   // v197 보스 공격 = 내 카드 × 0.8 × 등급
+        st.hp = Math.round(CARD.st.hp * T.k * (CFG.bossHp || 2.5) * T.k);   // v198 고침: 이 줄이 위 주석 뒤에 붙어 보스 체력이 내 체력 정도였음 → 내 체력 × 등급 × 2.5 × 등급 (v196 과 같게)
         const ros = [{ id: Hub.clientId, team: 0 }, { id: 'boss', cpu: true, boss: b.name, tier: b.tier, team: 1, nick: b.name, lv: LV, st, kit: bossKit(b.def, b.tier === 'field' ? Math.min(100, Math.max(LV, b.lv)) : 100), diff: 'hard' }];
         startBattle({ cpu: true, diff: 'hard', boss: i, size: 2, roster: ros, arena: (window.__GOGO_QA && window.__GOGO_QA.scfArena) || pick(ARENA_IDS) });
       }
@@ -579,7 +580,13 @@
         const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
         renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.shadowMap.enabled = true;
         const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(70, 16 / 9, 0.05, 300);
-        const size = () => { const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix(); };
+        const size = () => { const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix(); fitNums(); };
+        function fitNums() {   // v198 마법 칸이 물약·대시 · 시점 버튼과 겹치지 않게 (화면이 좁으면 가운데 빈자리에 맞춰 줄임)
+          const nb = stage.querySelector('.sf-nums'), pb = stage.querySelector('.sf-hudpot'), vb = stage.querySelector('.sf-view'); if (!nb || !pb || !vb) return;
+          nb.style.left = ''; nb.style.transform = ''; if (matchMedia('(pointer: coarse)').matches) return;
+          const r = stage.getBoundingClientRect(), a = pb.getBoundingClientRect().right - r.left + 14, b = vb.getBoundingClientRect().left - r.left - 14, need = nb.scrollWidth + 12;
+          const k = Math.min(1, (b - a) / need); nb.style.left = ((a + b) / 2) + 'px'; nb.style.transformOrigin = '50% 100%'; nb.style.transform = `translateX(-50%) scale(${Math.max(0.6, k).toFixed(3)})`;
+        }
         size(); const onRs = () => size(); window.addEventListener('resize', onRs);
         if (matchMedia('(pointer: coarse)').matches) { try { stage.scrollIntoView({ block: 'center' }); } catch (e) { /* noop */ } }
         const pre = opt.pre || { gl: {} };
@@ -744,7 +751,7 @@
           const k = sp.kind, o = new THREE.Vector3(U.x, U.y + 1.3, U.z), fd = flatTo(U, aim.pt);
           if (k === 'heal' || k === 'shield') {   // 회복·방패 = RPG 의 절반 (선생님 결정)
             if (U.own) {
-              if (k === 'heal') { const h = Math.round(U.F.hp * clamp(sp.pow, 0, 1) * 0.5); U.hp = Math.min(U.F.hp, U.hp + h); floatText(U, '+' + h, '#9AF0B0'); }
+              if (k === 'heal') { const h = Math.min(U.F.hp - U.hp, Math.round(U.F.hp * clamp(sp.pow, 0, 1) * 0.5)); U.hp += h; floatText(U, '+' + Math.round(h), '#9AF0B0'); }   // v198 실제로 찬 만큼 표시
               else { U.shieldPow = clamp(sp.pow * 0.5, 0, 0.4); U.shieldT = sp.dur || 6; floatText(U, '방패 ' + Math.round(U.shieldPow * 100) + '%', '#9AE6FF'); }
             }
             ringFx(new THREE.Vector3(U.x, 0.05, U.z), 1.6, C.col, 0.5); burst(new THREE.Vector3(U.x, U.y + 1, U.z), sp.els[0], 16);
@@ -768,7 +775,7 @@
           } else if (k === 'rain') {
             const n = clamp(Math.round(sp.count || 6), 1, 12), ctr = clampPt(U, aim.pt, 18), spread = 2.6, dr = Math.max(1.3, (sp.radius || 70) * PX * 0.8);
             markFx(ctr, spread + dr * 0.5, C.col, 1.1);
-            for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * spread, p2 = new THREE.Vector3(ctr.x + Math.cos(a) * rr, 0, ctr.z + Math.sin(a) * rr); later(0.1 + i * (0.8 / n), () => dropFx(C, p2, dr, Math.min(0.45, 1.6 / n))); }   // v197 방울 몫: 다 맞아도 위력 × 1.6 정도
+            for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * spread, p2 = new THREE.Vector3(ctr.x + Math.cos(a) * rr, 0, ctr.z + Math.sin(a) * rr); const Ci = Object.assign({}, C, { cid: C.cid + '.' + i }); later(0.1 + i * (0.8 / n), () => dropFx(Ci, p2, dr, Math.min(0.45, 1.6 / n))); }   // v198 방울마다 따로 (같은 마법 0.12초 규칙에 막혀 방울이 많을수록 덜 맞던 것 고침)   // v197 방울 몫: 다 맞아도 위력 × 1.6 정도
           } else if (k === 'pool') {
             const ctr = clampPt(U, aim.pt, 16), R = Math.max(2, (sp.radius || 90) * PX), dur = sp.dur || 4;
             poolFx(C, ctr, R, dur);
@@ -786,15 +793,15 @@
         function hitU(T, C, k) {
           if (!T.own || T.dead || B.over) return;
           const now = B.t; T.hitCd = T.hitCd || {}; if (now - (T.hitCd[C.cid] || -9) < 0.12) return; T.hitCd[C.cid] = now;
-          const F = T.F, el = C.els[0];
-          let dmg = (C.raw * k - F.def * 0.5) * (1 - (F.edefs[el] || 0) / 100);
+          const F = T.F, basic = !!(C.sp && C.sp.basic), el = basic ? null : C.els[0];   // v198 기본 공격 = 원소 없음 (RPG 와 같게: 물리 방어 · 원소 효과 없음)
+          let dmg = (C.raw * k - F.def * 0.5) * (1 - (el ? (F.edefs[el] || 0) : clamp(F.pdef || 0, 0, 75)) / 100);
           if (T.shieldT > 0) dmg *= 1 - (T.shieldPow || 0);
           if (C.els.includes('earth')) dmg *= 1.15;   // 땅 = 큰 피해
           if (T.curse > 0) dmg *= 1.15;   // 저주 걸린 몸
           dmg = Math.max(1, Math.round(dmg));
           T.hp = Math.max(0, T.hp - dmg);
           floatText(T, (C.crit ? '치명! ' : '') + '-' + dmg, C.crit ? '#FFD23F' : '#FFFFFF');
-          C.els.forEach(e => status(T, e, dmg, C.U));
+          if (!basic) C.els.forEach(e => status(T, e, dmg, C.U));
         }
         /* v192 4단계 원소 효과 = RPG 에서 내가 받는 효과와 같음 (선생님 결정: 원소 효과만 · 기절 최대 0.8초 + 면역)
          *  불 화상(3초, 1초에 맞은 피해의 8%) · 물 느려짐(2초, 이동 −40%) · 바람 밀려남(약 2m) · 땅 큰 피해(+15%, 위에서)
@@ -880,9 +887,10 @@
         function usePot(k) {
           if (B.over || !B.started || me.dead) return;
           if (B.pot[k] <= 0) { flash('물약을 다 썼어요', 0.8); return; }
-          if (B.potCd > 0) return; B.potCd = 1;   // 두 번 눌러 둘 다 써 버리지 않게 1초 쉬기
-          if (k === 'hp') { if (me.hp >= me.F.hp) { flash('체력이 가득해요', 0.7); return; } const h = Math.round(me.F.hp * 0.4); me.hp = Math.min(me.F.hp, me.hp + h); floatText(me, '+' + h, '#9AF0B0'); }
-          else { if (me.mp >= me.F.mp) { flash('마나가 가득해요', 0.7); return; } me.mp = Math.min(me.F.mp, me.mp + me.F.mp * 0.5); }
+          if (B.potCd > 0) return;
+          if (k === 'hp') { if (me.hp >= me.F.hp) { flash('체력이 가득해요', 0.7); return; } const h = Math.min(me.F.hp - me.hp, Math.round(me.F.hp * 0.4)); me.hp += h; floatText(me, '+' + Math.round(h), '#9AF0B0'); }
+          else { if (me.mp >= me.F.mp) { flash('마나가 가득해요', 0.7); return; } const g = Math.min(me.F.mp - me.mp, me.F.mp * 0.5); me.mp += g; floatText(me, '마나 +' + Math.round(g), '#7FB8FF'); }   // v198 마나 물약도 숫자 보임
+          B.potCd = 1;   // 두 번 눌러 둘 다 써 버리지 않게 1초 쉬기 (v198 가득해서 못 쓴 때는 안 쉼)
           B.pot[k]--; const b = $h(k === 'hp' ? 'sfPotH' : 'sfPotM'); b.querySelector('.n').textContent = B.pot[k]; b.disabled = B.pot[k] <= 0;
           burst(new THREE.Vector3(me.x, me.y + 1, me.z), k === 'hp' ? 'fire' : 'water', 10);
         }
@@ -1050,6 +1058,7 @@
             units.forEach(U => {
               if (U.me || U.dead) return;
               if (U.own && U.ai) aiTick(U, dt);
+              if (U.own && U.dash) { moveBody(U, U.dash.vx * dt, U.dash.vz * dt); if ((U.dash.t -= dt) <= 0) U.dash = null; }   // v198 컴퓨터 돌진 마법도 몸이 움직이게
               else if (!U.own) { U.x += (U.tx - U.x) * Math.min(1, dt * 12); U.z += (U.tz - U.z) * Math.min(1, dt * 12); }
             });
             if (B.net && (B.sendT += dt) >= sendEvery) { B.sendT = 0; sendPos(); checkLeft(); }
@@ -1107,7 +1116,7 @@
           });
           { const db = $h('sfDash'); let o = db.querySelector('.cd'); if (me.dashCd > 0) { if (!o) { o = document.createElement('span'); o.className = 'cd'; db.appendChild(o); } o.textContent = me.dashCd.toFixed(1); } else if (o) o.remove(); }
           body.querySelectorAll('.sf-num').forEach(b => { const cd = me.cds[b.dataset.basic ? 'basic' : 's' + b.dataset.slot] || 0; let o = b.querySelector('.cd'); if (cd > 0) { if (!o) { o = document.createElement('span'); o.className = 'cd'; b.appendChild(o); } o.textContent = cd.toFixed(1); } else if (o) o.remove(); });
-          updFloats();
+          updFloats(dt);
         }
         raf = requestAnimationFrame(tick);
 
@@ -1116,11 +1125,13 @@
         function burst(p, el, n) { for (let i = 0; i < n; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: Math.random() < 0.5 ? EL[el].c : EL[el].c2, transparent: true })); m.position.copy(p); scene.add(m); const life = rand(0.3, 0.7); B.parts.push({ m, v: new THREE.Vector3(rand(-3, 3), rand(0, 4), rand(-3, 3)), life, max: life }); } }
         const floats = [];
         function floatText(U, t, col, up) {
-          if (U === me && B.view === 1) { const hu = $h('sfHurt'); if (hu && t[0] === '-') { hu.style.opacity = '1'; clearTimeout(B.hurtT); B.hurtT = setTimeout(() => { hu.style.opacity = '0'; }, 180); } return; }   /* 1인칭: 내 몸 위 숫자 대신 붉은 테두리 */
-          const d = document.createElement('div'); d.className = 'sf-name'; d.textContent = t; d.style.color = col; d.style.fontSize = '22px'; stage.querySelector('.sf-hud').appendChild(d); floats.push({ d, U, t: 0, y: 2.1 + (up || 0) }); }
-        function updFloats() {
+          if (U === me && B.view === 1) { const hu = $h('sfHurt'); if (t[0] === '-') { if (hu) { hu.style.opacity = '1'; clearTimeout(B.hurtT); B.hurtT = setTimeout(() => { hu.style.opacity = '0'; }, 180); } return; } }   /* 1인칭: 내 몸 위 피해 숫자 대신 붉은 테두리 · v198 회복·물약·방패·상태 글자는 화면 가운데 아래에 보임 */
+          const d = document.createElement('div'); d.className = 'sf-name'; d.textContent = t; d.style.color = col; d.style.fontSize = '22px'; stage.querySelector('.sf-hud').appendChild(d); floats.push({ d, U, t: 0, y: 2.1 + (up || 0), fixed: U === me && B.view === 1, k: (B.fixN = ((B.fixN || 0) + 1) % 3) }); }
+        function updFloats(dt) {
           for (let i = floats.length - 1; i >= 0; i--) {
-            const f = floats[i]; f.t += 1 / 60; const v = new THREE.Vector3(f.U.x, f.U.y + f.y + f.t, f.U.z).project(cam);
+            const f = floats[i]; f.t += dt || 1 / 60;   // v198 화면이 느려도 글자가 같은 시간(0.9초)만 보이게
+            if (f.fixed) { if (f.t > 0.9) { f.d.remove(); floats.splice(i, 1); continue; } f.d.style.left = (50 + (f.k - 1) * 9) + '%'; f.d.style.top = (64 - f.t * 10) + '%'; f.d.style.opacity = String(1 - f.t); continue; }
+            const v = new THREE.Vector3(f.U.x, f.U.y + f.y + f.t, f.U.z).project(cam);
             if (f.t > 0.9 || v.z > 1) { f.d.remove(); floats.splice(i, 1); continue; }
             f.d.style.left = ((v.x + 1) / 2 * 100) + '%'; f.d.style.top = ((1 - v.y) / 2 * 100) + '%'; f.d.style.opacity = String(1 - f.t);
           }
