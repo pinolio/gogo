@@ -1769,7 +1769,7 @@
       function spawnYs(M) {
         const k = M.ys, cx = G.map.w * TS / 2, cy = (G.map.h >> 1) * TS, mk = (def, lv, dx, dy) => { const m = makeMon(def, lv, true); m.noRespawn = true; m.x = m.hx = cx + dx; m.y = m.hy = cy + dy; return m; };
         if (k === 'gen') { const i = M.yi, g = YS.gens[i]; if (!S.ysp[i]) { G.mons.push(mk(Object.assign({ ysGen: i }, g), M.rec, 0, 120)); G.title = { t: 0, text: `${g.name} (Lv.${M.rec})`, sub: g.say }; G.shake = 6; } else say(`${g.name}의 벽화 조각은 이미 되찾았어요`, 3); return; }
-        if (k === 'all' && S.ysMural && !S.ysAll) { YS.gens.forEach((g, i) => { const dx = ((i % 3) - 1) * 300, dy = (Math.floor(i / 3) - 1) * 170 + 60; G.mons.push(mk(Object.assign({ ysGen: i, allRoom: true }, g, { bh: 210 }), YS.lv.all, dx, dy)); }); G.title = { t: 0, text: '왜장 아홉이 한꺼번에 나타났다!', sub: '저마다 통하지 않는 원소가 둘씩 있다 (융합 마법도)' }; G.shake = 10; return; }
+        if (k === 'all' && S.ysMural && !S.ysAll) { const pick4 = YS.gens.map((g, i) => i).sort(() => Math.random() - 0.5).slice(0, YS.allN || 4).sort((a, b) => a - b);   /* v199 선생님 11/24: 회합이 어렵다는 말 → 아홉 중 무작위 넷만 (들어올 때마다 새로 뽑음) */ pick4.forEach((i, j) => { const g = YS.gens[i], [dx, dy] = [[-300, 20], [300, 20], [-300, 230], [300, 230]][j];   /* 사방신 회합과 같은 자리 */ G.mons.push(mk(Object.assign({ ysGen: i, allRoom: true }, g, { bh: 210 }), YS.lv.all, dx, dy)); }); G.title = { t: 0, text: '왜장 넷이 나타났다!', sub: `아홉 중 무작위 넷: ${pick4.map(i => YS.gens[i].name).join(' · ')} · 저마다 통하지 않는 원소가 둘씩 있다` }; G.shake = 10; return; }
         if (k === 'boss' && (!S.ysMural || S.ysAll)) { const E7 = Object.keys(ELEM).slice(), imm4 = []; while (imm4.length < 4) imm4.push(E7.splice(Math.floor(Math.random() * E7.length), 1)[0]);   /* v178 선생님 11/23: 도전할 때마다 4가지 원소를 무작위로 무시 */ G.mons.push(mk(Object.assign({}, YS.boss, { immune: imm4 }), YS.lv.boss, 0, 140)); G.ysNav = null; G.title = { t: 0, text: `${YS.boss.name} (Lv.${YS.lv.boss})`, sub: `이번 도전: ${imm4.map(e => ELEM[e].name).join('·')} 공격이 통하지 않는다!` }; G.shake = 12; G.flash = 0.4; return; }
         if (k === 'npc') G.npcs = [{ key: 'ysnpc', def: YS.npc, x: (G.map.w >> 1) * TS + 70, y: ((G.map.h >> 1) + 0.6) * TS, face: -1, ph: 1, smith: true }];
       }
@@ -1777,7 +1777,7 @@
       function ysBlock(to) {
         const T = MAPBY[to]; if (!T || !T.ys) return '';
         // v182 선생님 11/23: 광개토대왕을 못 이긴 사람도 누구나 들어갈 수 있음 (예전: 광개토대왕을 이긴 사람만)
-        if (T.ys === 'boss' && S.ysMural && !S.ysAll) return '이순신 장군님 벽화가 완성되어 왜장 아홉이 깨어났다! 회합에서 아홉을 모두 이겨야 본진이 열린다';   // v173 선생님 11/20: 벽화가 없으면 회합은 빈 방 · 본진은 그냥 열림
+        if (T.ys === 'boss' && S.ysMural && !S.ysAll) return '이순신 장군님 벽화가 완성되어 왜장들이 깨어났다! 회합에서 나타난 왜장 넷을 모두 이겨야 본진이 열린다';   // v173 선생님 11/20: 벽화가 없으면 회합은 빈 방 · 본진은 그냥 열림
         return '';
       }
       function ysKill(m) {
@@ -1794,7 +1794,7 @@
           return;
         }
         if (d.ysGen == null) return;
-        if (d.allRoom) { if (G.mons.every(x => x.dead || !x.def.allRoom)) { S.ysAll = 1; G.title = { t: 0, text: '왜장 아홉을 모두 이겼다!', sub: '아래쪽 와키자카 야스하루의 본진이 열렸어요' }; G.flash = 0.5; save(true); bagWarn(); } return; }
+        if (d.allRoom) { if (G.mons.every(x => x.dead || !x.def.allRoom)) { S.ysAll = 1; G.title = { t: 0, text: '회합의 왜장 넷을 모두 이겼다!', sub: '아래쪽 와키자카 야스하루의 본진이 열렸어요' }; G.flash = 0.5; save(true); bagWarn(); } return; }
         if (!S.ysp[d.ysGen]) { S.ysp[d.ysGen] = 1; const n = ysHave(); G.title = { t: 0, text: `${d.name}을(를) 이겼다!`, sub: `벽화 조각을 되찾았다 (${n}/9)` + (n === 9 ? ' · 왜장의 길목의 빈 벽화 틀로 가서 맞춰 보세요' : '') }; G.flash = 0.45; save(true); }
       }
       // 3×3 밀기 퍼즐: 0~8 = 조각 자리 (8 = 빈칸) · 열 때마다 무작위로 섞음 (빈칸을 300번 움직여서 늘 풀 수 있게)
