@@ -300,13 +300,14 @@
   // v157 카드 그림 = 실제 게임 화면 (img/thumbs/게임id.jpg · 640×400). 없으면 예전처럼 코드로 그린 그림
   const THUMB_IMG = {};
   ['rpg', 'scfight', 'battle', 'p512', 'mines', 'snake', 'dodge', 'omok', 'janggi', 'chess', 'alkkagi', 'volley', 'tennis', 'fight', 'mecha', 'sky', 'wordchain', 'typing', 'idiom', 'english', 'history', 'gugu'].forEach(id => { THUMB_IMG[id] = 'img/thumbs/' + id + '.jpg'; });
+  const THUMB_V = { battle: 205, p512: 205, mines: 205, snake: 205, dodge: 205 };   // v205 그래픽 업그레이드한 게임은 새 카드 사진
   async function renderGrid() {
     const grid = $('#gameGrid'); if (!grid) return;
     const show = g => homeCat === '전체' || g.cat === homeCat;
     const live = GAMES.filter(show), soon = [];   // v152 'COMING SOON' 빈 카드는 메인에서 뺌
     grid.innerHTML = live.map(g => `
       <a class="card" data-cat="${g.cat}" href="#${g.id}">
-        <div class="thumb-wrap">${THUMB_IMG[g.id] ? `<img class="thumb" src="${THUMB_IMG[g.id]}?v=157" alt="" loading="lazy" draggable="false">` : `<canvas class="thumb" data-thumb="${g.id}" aria-hidden="true"></canvas>`}
+        <div class="thumb-wrap">${THUMB_IMG[g.id] ? `<img class="thumb" src="${THUMB_IMG[g.id]}?v=${THUMB_V[g.id] || 157}" alt="" loading="lazy" draggable="false">` : `<canvas class="thumb" data-thumb="${g.id}" aria-hidden="true"></canvas>`}
           <span class="cat">${g.cat}</span>${g.tag ? `<span class="tag ${g.tag === 'NEW' ? 'new' : g.tag === 'VS' ? 'vs' : g.tag === '베타테스트' ? 'beta' : ''}">${g.tag}</span>` : ''}</div>
         <div class="card-body">
           <h3>${g.name}</h3>
@@ -494,7 +495,7 @@
         <div class="play-head"><a class="back" href="#home">← 게임 목록</a><h1>${g.name}</h1><span class="cat">${g.cat}</span></div>
         <div class="play-grid">
           <div class="stage-col">
-            <div class="cabinet" style="--cw:${g.w}px;--ar:${g.id === 'blocks' ? 0.75 : 1}"><div class="screen"><canvas id="gameCanvas" aria-label="${g.name} 게임 화면"></canvas><div class="overlay" id="ov"></div></div></div>
+            <div class="cabinet" data-g="${g.id}" style="--cw:${g.w}px;--ar:${g.id === 'blocks' ? 0.75 : 1}"><div class="screen"><canvas id="gameCanvas" aria-label="${g.name} 게임 화면"></canvas><div class="overlay" id="ov"></div></div></div>
             ${pad}
           </div>
           <aside class="side">

@@ -20,11 +20,23 @@
   const STARS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 97.13) % W, y: (i * 53.71) % H, s: (i % 3) + 1, v: 6 + (i % 5) * 4 }));
   function drawBg(ctx, t) {
     ctx.fillStyle = '#05070F'; ctx.fillRect(0, 0, W, H);
+    const sp = PX.img('space.jpg'); if (PX.ok(sp)) { ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(sp, 0, 0, W, H); ctx.fillStyle = 'rgba(5,7,15,.25)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }   // v205 성운·행성 (Gemini)
     STARS.forEach(st => { const y = (st.y + t * st.v) % H; ctx.fillStyle = st.s === 3 ? '#C8D0FF' : st.s === 2 ? '#7880B8' : '#3E4470'; ctx.fillRect(st.x | 0, y | 0, st.s === 3 ? 2 : 1, st.s === 3 ? 2 : 1); });
   }
   // 총알: v64 노랑(k=0) · 빨강(k=1) 두 가지 (빠르기·크기는 같음)
   //  노랑에 맞으면 버틴 시간이 기록됨 · 빨강에 맞으면 그 판은 기록·포인트 없음
   const BUL = {};
+  // v205 총알 = 노랑 별똥별(기록) · 빨강 불 운석(기록 없음) — 꼬리는 날아가는 반대쪽 · 크기(맞는 범위)는 그대로
+  function bulletDraw(ctx, b) {
+    const v = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / v, uy = b.vy / v, L = Math.min(22, 8 + v * 0.06);
+    const tg = ctx.createLinearGradient(b.x, b.y, b.x - ux * L, b.y - uy * L);
+    if (b.k) { tg.addColorStop(0, 'rgba(255,120,60,.85)'); tg.addColorStop(0.5, 'rgba(255,64,72,.4)'); tg.addColorStop(1, 'rgba(255,64,72,0)'); }
+    else { tg.addColorStop(0, 'rgba(255,244,176,.9)'); tg.addColorStop(0.5, 'rgba(255,210,63,.35)'); tg.addColorStop(1, 'rgba(255,210,63,0)'); }
+    ctx.strokeStyle = tg; ctx.lineCap = 'round'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - ux * L, b.y - uy * L); ctx.stroke();
+    ctx.drawImage(bulletImg(b.k), Math.round(b.x - 6), Math.round(b.y - 6));
+    if (!b.k) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(Math.round(b.x) - 4, Math.round(b.y), 8, 1); ctx.fillRect(Math.round(b.x), Math.round(b.y) - 4, 1, 8); }   // 별 반짝
+    else { ctx.fillStyle = '#7A2A1A'; ctx.fillRect(Math.round(b.x) - 1, Math.round(b.y) - 1, 2, 2); }   // 운석 무늬
+  }
   function bulletImg(k) {
     k = k ? 1 : 0; if (BUL[k]) return BUL[k];
     const c = document.createElement('canvas'); c.width = c.height = 12; const g = c.getContext('2d');
@@ -230,9 +242,11 @@
       }
       function render() {
         drawBg(ctx, bgT);
-        B.forEach(b => { const im = bulletImg(b.k); ctx.drawImage(im, Math.round(b.x - 6), Math.round(b.y - 6)); });
+        B.forEach(b => bulletDraw(ctx, b));
         P.forEach(p => {
           if (!p.alive) return;
+          { const pul = 0.55 + 0.25 * Math.sin(bgT * 5), gr = ctx.createRadialGradient(p.x, p.y, 6, p.x, p.y, 20); gr.addColorStop(0, 'rgba(143,227,255,0)'); gr.addColorStop(0.75, `rgba(143,227,255,${0.12 * pul})`); gr.addColorStop(1, `rgba(143,227,255,${0.35 * pul})`); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, 20, 0, Math.PI * 2); ctx.fill(); }   // v205 얇은 보호막 빛 (맞는 범위와는 상관없음)
+          if (phase === 'play') B.forEach(b => { if (b.nm) return; const d2 = (b.x - p.x) ** 2 + (b.y - p.y) ** 2; if (d2 < 22 * 22 && d2 > hitR() ** 2) { b.nm = 1; for (let k = 0; k < 6; k++) { const a = Math.random() * 6.28, s2 = 30 + Math.random() * 50; FX.push({ x: b.x, y: b.y, vx: Math.cos(a) * s2, vy: Math.sin(a) * s2, life: 0.35, c: k % 2 ? '#FFFFFF' : '#8FE3FF' }); } } });   // v205 아슬아슬 피하면 반짝
           const fr = p.moving > 0 ? { walk: p.walk * Math.PI * 4 } : 0;   // v105 부드러운 걷기
           drawAvatar(ctx, p.av, p.x, p.y, two() ? p.slot : 0, fr, phase === 'ready' && Math.floor(bgT * 6) % 2 === 1, two() ? p.name : '');
         });

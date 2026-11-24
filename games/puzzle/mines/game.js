@@ -33,11 +33,62 @@
     ctx.fillStyle = '#FF3D4A'; ctx.beginPath(); ctx.moveTo(cx + 1 * u, cy - 8 * u); ctx.lineTo(cx - 8 * u, cy - 4 * u); ctx.lineTo(cx + 1 * u, cy); ctx.closePath(); ctx.fill();
   }
 
+  // v205 그래픽 업그레이드 (선생님 11/24): 보물섬 — 덤불 칸 · 모래 칸 + 조약돌 숫자 · 해적 깃발 · 폭탄 게 · 나무 상자 틀 · 넓게 열 때 모래 물결
+  const SPR = {};
+  function bush(s, v) {   // 닫힌 칸 = 볼록한 잔디 덤불 (크기·모양별 캐시)
+    const key = s + ':' + v; if (SPR[key]) return SPR[key];
+    const c = document.createElement('canvas'); c.width = c.height = s; const g = c.getContext('2d');
+    g.fillStyle = v === 2 ? '#7FD86A' : '#4DAA3C'; g.fillRect(0, 0, s, s);
+    const blob = (x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+    const base = v === 2 ? ['#6FCB5A', '#8FE37A', '#B8F59E'] : v ? ['#3E9A33', '#5DBB4C', '#8BDD72'] : ['#43A236', '#62C251', '#93E27A'];
+    blob(s * 0.3, s * 0.62, s * 0.3, base[0]); blob(s * 0.7, s * 0.62, s * 0.3, base[0]); blob(s * 0.5, s * 0.42, s * 0.34, base[1]);
+    blob(s * 0.3, s * 0.5, s * 0.22, base[1]); blob(s * 0.7, s * 0.5, s * 0.22, base[1]);
+    g.fillStyle = base[2]; [[0.42, 0.26], [0.56, 0.3], [0.28, 0.42], [0.72, 0.4], [0.48, 0.44]].forEach(([a, b]) => g.fillRect(s * a, s * b, Math.max(2, s / 14), Math.max(2, s / 14)));
+    g.fillStyle = 'rgba(20,60,10,.35)'; g.fillRect(0, s - 3, s, 3); g.fillRect(s - 3, 0, 3, s);
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, 0, s, 2); g.fillRect(0, 0, 2, s);
+    if (v === 1) { g.fillStyle = '#FF8AD8'; g.fillRect(s * 0.66, s * 0.3, 3, 3); g.fillStyle = '#FFE45C'; g.fillRect(s * 0.67, s * 0.31, 1, 1); }   // 작은 꽃
+    return (SPR[key] = c);
+  }
+  function sand(ctx, x, y, s, r, c) {
+    ctx.fillStyle = (r + c) % 2 ? '#F6E6BC' : '#EFDCA8'; ctx.fillRect(x, y, s, s);
+    ctx.fillStyle = 'rgba(160,120,60,.22)'; ctx.fillRect(x, y, s, 1); ctx.fillRect(x, y, 1, s);
+    const h = (r * 31 + c * 17) % 7; if (h === 0) { ctx.fillStyle = '#FFB8C8'; ctx.fillRect(x + s * 0.2, y + s * 0.75, 4, 3); } else if (h === 3) { ctx.fillStyle = '#D9C08A'; ctx.fillRect(x + s * 0.78, y + s * 0.2, 3, 2); }
+  }
+  function pebble(ctx, cx, cy, s, n) {   // 숫자 = 색 조약돌
+    const col = NUMC[n] || '#333333';
+    ctx.fillStyle = 'rgba(90,60,20,.25)'; ctx.beginPath(); ctx.ellipse(cx + 1, cy + s * 0.08 + 2, s * 0.36, s * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.05, s * 0.36, s * 0.31, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(cx - s * 0.12, cy - s * 0.08, s * 0.12, s * 0.07, 0, 0, Math.PI * 2); ctx.fill();
+    T.text(ctx, String(n), cx, cy + s * 0.07, Math.round(s * 0.42), '#FFFFFF', 'center');
+  }
+  function crab(ctx, cx, cy, s, t) {   // 지뢰 = 폭탄 든 게 (무섭지 않게)
+    const u = s / 16, w = Math.sin((t || 0) / 160) * u * 0.6;
+    ctx.fillStyle = '#1A1F3D'; ctx.beginPath(); ctx.arc(cx, cy - 3 * u, 4.2 * u, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(cx - 2 * u, cy - 5 * u, 1.5 * u, 1.5 * u);   // 폭탄
+    ctx.strokeStyle = '#8A5A2A'; ctx.lineWidth = Math.max(1, u); ctx.beginPath(); ctx.moveTo(cx + 2 * u, cy - 6.5 * u); ctx.quadraticCurveTo(cx + 4 * u, cy - 9 * u, cx + 5 * u, cy - 8 * u); ctx.stroke(); ctx.fillStyle = Math.floor((t || 0) / 120) % 2 ? '#FFE45C' : '#FF9A3D'; ctx.fillRect(cx + 4.4 * u, cy - 9 * u, 1.6 * u, 1.6 * u);
+    ctx.fillStyle = '#FF5A4A'; ctx.beginPath(); ctx.ellipse(cx, cy + 3 * u, 6.5 * u, 4 * u, 0, 0, Math.PI * 2); ctx.fill();   // 몸
+    ctx.fillRect(cx - 9 * u, cy + 0 * u + w, 3 * u, 2.5 * u); ctx.fillRect(cx + 6 * u, cy + 0 * u - w, 3 * u, 2.5 * u);   // 집게
+    ctx.fillStyle = '#C8362A'; [-5, -3, 3, 5].forEach(k => ctx.fillRect(cx + k * u - 0.5 * u, cy + 6 * u, u, 2 * u));
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(cx - 3 * u, cy - 0.5 * u, 2 * u, 2 * u); ctx.fillRect(cx + 1 * u, cy - 0.5 * u, 2 * u, 2 * u); ctx.fillStyle = '#1A1F3D'; ctx.fillRect(cx - 2.4 * u, cy + 0.1 * u, u, u); ctx.fillRect(cx + 1.6 * u, cy + 0.1 * u, u, u);
+    ctx.fillStyle = '#FF9AA8'; ctx.fillRect(cx - 4.5 * u, cy + 3 * u, 1.5 * u, u); ctx.fillRect(cx + 3 * u, cy + 3 * u, 1.5 * u, u);
+  }
+  function pirateFlag(ctx, cx, cy, s) {
+    const u = s / 16;
+    ctx.fillStyle = '#6B4A2A'; ctx.fillRect(cx - 1 * u, cy - 8 * u, 2 * u, 15 * u); ctx.fillStyle = '#E9D7A8'; ctx.fillRect(cx - 4 * u, cy + 6 * u, 8 * u, 2 * u);
+    ctx.fillStyle = '#E8383E'; ctx.beginPath(); ctx.moveTo(cx + 1 * u, cy - 8 * u); ctx.lineTo(cx + 9 * u, cy - 6 * u); ctx.lineTo(cx + 7 * u, cy - 3.5 * u); ctx.lineTo(cx + 9 * u, cy - 1 * u); ctx.lineTo(cx + 1 * u, cy - 1 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(cx + 3.5 * u, cy - 6.5 * u, 3 * u, 2.2 * u); ctx.fillRect(cx + 4 * u, cy - 4.3 * u, 2 * u, u); ctx.fillStyle = '#E8383E'; ctx.fillRect(cx + 4 * u, cy - 5.8 * u, 0.8 * u, 0.8 * u); ctx.fillRect(cx + 5.3 * u, cy - 5.8 * u, 0.8 * u, 0.8 * u);
+  }
+  function crate(ctx, x, y, w, h) {   // 판 둘레 나무 상자 틀 + 밧줄 모서리
+    const b = 12; ctx.fillStyle = '#8A5A2A'; ctx.fillRect(x - b, y - b, w + b * 2, b); ctx.fillRect(x - b, y + h, w + b * 2, b); ctx.fillRect(x - b, y, b, h); ctx.fillRect(x + w, y, b, h);
+    ctx.fillStyle = '#A8743A'; ctx.fillRect(x - b, y - b, w + b * 2, 3); ctx.fillRect(x - b, y + h, w + b * 2, 3); ctx.fillRect(x - b, y - b, 3, h + b * 2); ctx.fillRect(x + w, y - b, 3, h + b * 2);
+    ctx.fillStyle = '#5A3A18'; for (let k = 0; k < w; k += 46) { ctx.fillRect(x + k, y - b, 2, b); ctx.fillRect(x + k, y + h, 2, b); } for (let k = 0; k < h; k += 46) { ctx.fillRect(x - b, y + k, b, 2); ctx.fillRect(x + w, y + k, b, 2); }
+    ctx.fillStyle = '#C8C8D0'; [[x - b / 2, y - b / 2], [x + w + b / 2, y - b / 2], [x - b / 2, y + h + b / 2], [x + w + b / 2, y + h + b / 2]].forEach(([a, c]) => { ctx.fillStyle = '#D9B878'; ctx.beginPath(); ctx.arc(a, c, 9, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#8A6A3A'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(a, c, 6, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(a - 7, c - 3); ctx.lineTo(a + 7, c + 3); ctx.stroke(); });
+  }
+
   window.GoMines = {
     render(el, A) {
       BGM.load('mines');
       const page = T.soloPage(el, A, {
-        id: 'mines', title: '지뢰찾기', tag: '퍼즐', sub: `가로 ${COLS} × 세로 ${ROWS} · 지뢰 ${MINES}개 · 걸린 시간 기록`, w: W, h: H, cab: 'cab-blue',
+        id: 'mines', title: '지뢰찾기', tag: '퍼즐', sub: `가로 ${COLS} × 세로 ${ROWS} · 지뢰 ${MINES}개 · 걸린 시간 기록`, w: W, h: H, cab: 'cab-island',
         rankLabel: '가장 빠른 시간', fmt: v => CFG.scoreText(v),
         rules: [
           `가로 ${COLS} × 세로 ${ROWS} = <b>${COLS * ROWS}칸</b> 속에 <b>지뢰 ${MINES}개</b>. 지뢰가 아닌 칸을 모두 열면 성공!`,
@@ -82,10 +133,10 @@
         if (c.open) return chord(i);
         if (c.mine) return lose(i);
         // 0 이면 이어서 넓게 열기
-        const q = [i];
+        const q = [i], now0 = performance.now(), c0 = i % COLS, r0 = Math.floor(i / COLS);
         while (q.length) {
           const k = q.pop(), cc = st.cells[k]; if (cc.open || cc.flag) continue;
-          cc.open = true; st.opened++;
+          cc.open = true; st.opened++; cc.openAt = now0 + Math.max(Math.abs(k % COLS - c0), Math.abs(Math.floor(k / COLS) - r0)) * 45;   // v205 모래 물결 (가까운 칸부터)
           if (cc.n === 0) around(k).forEach(j => { if (!st.cells[j].open && !st.cells[j].mine) q.push(j); });
         }
         if (st.opened >= COLS * ROWS - MINES) win();
@@ -208,9 +259,9 @@
       function draw() {
         const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#1C2457'); bg.addColorStop(1, '#10143A');
         ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-        T.scene(ctx, 'games/puzzle/mines/img/bg.jpg', W, H, 0.1);   // v39 풀밭 배경
-        // 위쪽 상태 줄
-        ctx.fillStyle = 'rgba(8,12,36,.9)'; ctx.fillRect(0, 0, W, 66);
+        T.scene(ctx, 'games/puzzle/mines/img/island.jpg', W, H, 1);   // v205 보물섬 배경 (Gemini)
+        // 위쪽 상태 줄 = 나무 간판
+        { const wg = ctx.createLinearGradient(0, 0, 0, 66); wg.addColorStop(0, 'rgba(70,40,18,.95)'); wg.addColorStop(1, 'rgba(40,22,10,.95)'); ctx.fillStyle = wg; ctx.fillRect(0, 0, W, 66); ctx.fillStyle = 'rgba(255,220,160,.12)'; for (let k = 14; k < 66; k += 18) ctx.fillRect(0, k, W, 2); ctx.fillStyle = '#C8922E'; ctx.fillRect(0, 64, W, 3); }
         const left = MINES - st.flags, sec = elapsed();
         T.text(ctx, '남은 지뢰', 20, 18, 12, '#8A93C0', 'left', 400); T.text(ctx, String(left), 20, 44, 26, left < 0 ? '#FF5A5F' : '#FF8A8A', 'left');
         T.text(ctx, '시간', 170, 18, 12, '#8A93C0', 'left', 400); T.text(ctx, fmtT(sec) + '초', 170, 44, 26, st.phase === 'won' ? '#7DFFC4' : '#9AE6FF', 'left');
@@ -220,21 +271,21 @@
         for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
           const i = idx(c, r), cell = st.cells[i], x = GX + c * CELL, y = GY + r * CELL, s = CELL;
           const pr = press && press.i === i && !press.done && !cell.open;
-          if (cell.open) {
-            ctx.fillStyle = i === st.boom ? '#FF5A5F' : (r + c) % 2 ? '#EBDDB5' : '#E3D3A6'; ctx.fillRect(x, y, s, s);   // v39 연 칸 = 흙
-            ctx.fillStyle = 'rgba(90,60,20,.18)'; ctx.fillRect(x, y, s, 1); ctx.fillRect(x, y, 1, s);
-            if (cell.mine) drawMine(ctx, x + s / 2, y + s / 2, s * 0.62);
-            else if (cell.n) T.text(ctx, String(cell.n), x + s / 2, y + s / 2 + 2, Math.round(s * 0.56), NUMC[cell.n], 'center');
+          const wave = cell.open && cell.openAt ? (t - cell.openAt) / 260 : 9;
+          if (cell.open && wave >= 0) {
+            if (i === st.boom) { ctx.fillStyle = '#FF8A7A'; ctx.fillRect(x, y, s, s); } else sand(ctx, x, y, s, r, c);   // v205 연 칸 = 모래
+            if (cell.mine) crab(ctx, x + s / 2, y + s / 2, s * 0.72, t);
+            else if (cell.n) pebble(ctx, x + s / 2, y + s / 2, s, cell.n);
+            if (wave < 1) { ctx.globalAlpha = 1 - wave; ctx.drawImage(bush(s, (r * 7 + c) % 5 === 0 ? 1 : 0), x + s * wave / 2, y + s * wave / 2, s * (1 - wave), s * (1 - wave)); ctx.fillStyle = '#FFF4B0'; ctx.fillRect(x + s / 2 - 1, y + 3 + wave * 6, 2, 6); ctx.fillRect(x + s / 2 - 4, y + 5 + wave * 6, 8, 2); ctx.globalAlpha = 1; }   // 덤불이 쏙 사라지며 반짝
           } else {
-            ctx.fillStyle = pr ? '#86D873' : (r + c) % 2 ? '#5DBB4C' : '#56B246'; ctx.fillRect(x, y, s, s);   // v39 닫힌 칸 = 잔디
-            if (!pr) { ctx.fillStyle = '#9BE686'; ctx.fillRect(x, y, s, 4); ctx.fillRect(x, y, 4, s); ctx.fillStyle = '#2F7A2A'; ctx.fillRect(x, y + s - 4, s, 4); ctx.fillRect(x + s - 4, y, 4, s); }
+            ctx.drawImage(bush(s, pr ? 2 : (r * 7 + c) % 5 === 0 ? 1 : 0), x, y);   // v205 닫힌 칸 = 덤불
             if (cell.flag) {
-              drawFlag(ctx, x + s / 2, y + s / 2, s * 0.62);
+              pirateFlag(ctx, x + s / 2, y + s / 2, s * 0.68);
               if (st.phase === 'lost' && !cell.mine) { ctx.strokeStyle = '#E8383E'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x + 8, y + 8); ctx.lineTo(x + s - 8, y + s - 8); ctx.moveTo(x + s - 8, y + 8); ctx.lineTo(x + 8, y + s - 8); ctx.stroke(); }   // 틀린 깃발
             }
           }
         }
-        ctx.strokeStyle = '#4A2E14'; ctx.lineWidth = 6; ctx.strokeRect(GX - 3, GY - 3, CELL * COLS + 6, CELL * ROWS + 6);   // v39 나무 울타리 테두리
+        crate(ctx, GX, GY, CELL * COLS, CELL * ROWS);   // v205 나무 상자 틀
         if (cur && canPlay()) { ctx.strokeStyle = '#FFD23F'; ctx.lineWidth = 4; ctx.strokeRect(GX + cur.c * CELL + 2, GY + cur.r * CELL + 2, CELL - 4, CELL - 4); }
         // 아래 안내
         const by = GY + CELL * ROWS + 24;
@@ -242,6 +293,7 @@
         if (st.phase === 'won') hint = '성공! ' + fmtT(st.sec) + '초';
         else if (st.phase === 'lost') hint = '지뢰를 밟았어요 · R 또는 [새 판]';
         else if (st.phase === 'ready-go') hint = '아무 칸이나 눌러 시작! (첫 칸은 안전)';
+        { ctx.font = '400 16px sans-serif'; const tw = Math.min(W - 20, T.measure ? T.measure(ctx, hint, 16) : hint.length * 15 + 20); ctx.fillStyle = 'rgba(29,35,64,.82)'; const bx = W / 2 - tw / 2 - 12, bh = 30; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by - bh / 2, tw + 24, bh, 15) : ctx.rect(bx, by - bh / 2, tw + 24, bh); ctx.fill(); }   // v205 모래 위에서도 읽히게 남색 띠
         T.text(ctx, hint, W / 2, by, 16, st.phase === 'won' ? '#7DFFC4' : st.phase === 'lost' ? '#FF8A8A' : flagMode ? '#FF9AA2' : '#C9D2F5', 'center', 400);
         if (st.phase === 'won' && t - st.endAt < 900) { ctx.fillStyle = `rgba(125,255,196,${0.25 * (1 - (t - st.endAt) / 900)})`; ctx.fillRect(0, 0, W, H); }
       }

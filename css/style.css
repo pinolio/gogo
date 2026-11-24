@@ -1828,3 +1828,11 @@ a.card .card-foot .r-king2 b { color: #B4560B; }
 .cabinet.cab-candy .screen { border: 4px solid #7A3E12; border-radius: 14px; box-shadow: 0 6px 0 rgba(122,62,18,.45), 0 0 0 3px #FFE2EC; }
 .cabinet.cab-neon { background: radial-gradient(120% 80% at 50% 0%, #3A2A8A 0%, #120E3A 70%); border-color: #0A0E24; box-shadow: 0 0 0 2px #3BC8F5, 0 0 18px rgba(166,107,255,.6), var(--lift); }
 .cabinet.cab-neon .screen { border-color: #0A0E24; box-shadow: 0 0 12px rgba(59,200,245,.55); }
+/* v205 스네이크 = 꽃 정원 (돌담·덩굴) */
+.cabinet[data-g="snake"] { background: url(../img/game/garden.jpg?v=205) center / cover no-repeat, linear-gradient(180deg, #8ED35E, #3E8A2E); border-color: #2F5A1E; padding: 26px; }
+.cabinet[data-g="snake"] .screen { border: 5px solid #8A8A7A; border-radius: 12px; box-shadow: 0 0 0 3px #4A5A3A, 0 6px 0 rgba(30,50,20,.45); }
+/* v205 지뢰찾기 = 보물섬 · 닷지 = 성운 우주 */
+.cabinet.cab-island { background: url(../games/puzzle/mines/img/island.jpg?v=205) center / cover no-repeat, linear-gradient(180deg, #7FD3FF, #F6E6BC); border-color: #6B4A2A; padding: 24px; }
+.cabinet.cab-island .screen { border: 5px solid #8A5A2A; border-radius: 12px; box-shadow: 0 0 0 3px #D9B878, 0 6px 0 rgba(90,60,20,.45); }
+.cabinet[data-g="dodge"] { background: url(../img/game/space.jpg?v=205) center / cover no-repeat, #120E3A; border-color: #0A0E24; box-shadow: 0 0 0 2px #A66BFF, 0 0 18px rgba(166,107,255,.5), var(--lift); }
+.cabinet[data-g="dodge"] .screen { border-color: #0A0E24; box-shadow: 0 0 12px rgba(143,227,255,.45); }
