@@ -428,7 +428,7 @@
           ${Object.keys(groups).map(t => `<div class="sf-bgrp"><small>${BOSS_TIER[t].n}</small><div>${groups[t].map(([b, i]) => `<button type="button" class="sf-boss${bw[b.name] ? ' won' : ''}" data-boss="${i}" title="RPG 에서 Lv.${b.lv} 로 이김">${bw[b.name] ? '★ ' : ''}${A.esc(b.name)}</button>`).join('')}</div></div>`).join('')}</div></div>`;
       }
       function startBoss(i) {
-        const b = BOSSES[i]; if (!b) return; const T = BOSS_TIER[b.tier] || BOSS_TIER.field, st = scaleSt(CARD.st, T.k); st.hp = Math.round(st.hp * (CFG.bossHp || 2.5) * T.k);   // 보스 체력 = 내 체력 × 2.5(settings bossHp) × 등급
+        const b = BOSSES[i]; if (!b) return; const T = BOSS_TIER[b.tier] || BOSS_TIER.field, st = scaleSt(CARD.st, 0.8 * T.k);   // v197 보스 공격 = 내 카드 × 0.8 × 등급 st.hp = Math.round(st.hp * (CFG.bossHp || 2.5) * T.k);   // 보스 체력 = 내 체력 × 2.5(settings bossHp) × 등급
         const ros = [{ id: Hub.clientId, team: 0 }, { id: 'boss', cpu: true, boss: b.name, tier: b.tier, team: 1, nick: b.name, lv: LV, st, kit: bossKit(b.def, b.tier === 'field' ? Math.min(100, Math.max(LV, b.lv)) : 100), diff: 'hard' }];
         startBattle({ cpu: true, diff: 'hard', boss: i, size: 2, roster: ros, arena: (window.__GOGO_QA && window.__GOGO_QA.scfArena) || pick(ARENA_IDS) });
       }
@@ -460,7 +460,7 @@
       });
 
       /* ---------- 컴퓨터와 대결 (1:1 · 2:2) ---------- */
-      const DIFFS = { easy: { lv: -3, cast: 1.5, lead: 0.2, aim: 0.09, k: 0.75, n: '쉬움' }, normal: { lv: 0, cast: 1, lead: 0.6, aim: 0.03, k: 0.95, n: '보통' }, hard: { lv: 3, cast: 0.72, lead: 0.95, aim: 0.012, k: 1.15, n: '어려움' } };   // v192 k = 컴퓨터 능력치 = 내 카드 × k
+      const DIFFS = { easy: { lv: -3, cast: 1.6, lead: 0.2, aim: 0.09, k: 0.6, n: '쉬움' }, normal: { lv: 0, cast: 1.15, lead: 0.6, aim: 0.03, k: 0.8, n: '보통' }, hard: { lv: 3, cast: 0.85, lead: 0.95, aim: 0.012, k: 1.0, n: '어려움' } };   // v192 k = 컴퓨터 능력치 = 내 카드 × k
       // 컴퓨터 = Skillcom 장수 7명 중 한 명 (한 판에 겹치지 않게). 이름 뒤에 난이도
       function cpuEntry(i, team, lv, diff, tail, ally, used) {
         const left = HERO_IDS.filter(h => !(used || []).includes(h)), QA = window.__forceHeroes, hero = QA && QA.length ? QA.shift() : pick(left.length ? left : HERO_IDS);   // __forceHeroes = 점검용 if (used) used.push(hero);
@@ -768,7 +768,7 @@
           } else if (k === 'rain') {
             const n = clamp(Math.round(sp.count || 6), 1, 12), ctr = clampPt(U, aim.pt, 18), spread = 2.6, dr = Math.max(1.3, (sp.radius || 70) * PX * 0.8);
             markFx(ctr, spread + dr * 0.5, C.col, 1.1);
-            for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * spread, p2 = new THREE.Vector3(ctr.x + Math.cos(a) * rr, 0, ctr.z + Math.sin(a) * rr); later(0.1 + i * (0.8 / n), () => dropFx(C, p2, dr)); }
+            for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * spread, p2 = new THREE.Vector3(ctr.x + Math.cos(a) * rr, 0, ctr.z + Math.sin(a) * rr); later(0.1 + i * (0.8 / n), () => dropFx(C, p2, dr, Math.min(0.45, 1.6 / n))); }   // v197 방울 몫: 다 맞아도 위력 × 1.6 정도
           } else if (k === 'pool') {
             const ctr = clampPt(U, aim.pt, 16), R = Math.max(2, (sp.radius || 90) * PX), dur = sp.dur || 4;
             poolFx(C, ctr, R, dur);
@@ -842,13 +842,13 @@
           [core, outer].forEach((m, i) => { m.position.set(s0.x + d.x * L / 2, 1.0, s0.z + d.z * L / 2); m.rotation.y = yaw; addM(m, life, (mm, q) => { const w0 = q < 0.25 ? 0.15 + q * 3.4 : 1; mm.scale.set(w0, w0, 1); mm.material.opacity = (i ? 0.5 : 0.95) * (q < 0.35 ? 1 : 1 - (q - 0.35) / 0.65); }); });
           burst(new THREE.Vector3(s0.x + d.x * L, 1, s0.z + d.z * L), 'light', 6);
         }
-        function dropFx(C, p, dr) {
+        function dropFx(C, p, dr, kk) {
           const m = orb(C.els[Math.floor(Math.random() * C.els.length)], 0.42); m.position.set(p.x, 10, p.z); scene.add(m);
-          B.fx.push({ t: 0, upd(dt) { this.t += dt; m.position.y = 10 - 10 * Math.min(1, this.t / 0.42); if (this.t >= 0.42) { scene.remove(m); ringFx(new THREE.Vector3(p.x, 0, p.z), dr, C.col, 0.35); burst(new THREE.Vector3(p.x, 0.3, p.z), C.els[0], 8); areaHit(C, p.x, p.z, dr, 0.45); return false; } return true; } });
+          B.fx.push({ t: 0, upd(dt) { this.t += dt; m.position.y = 10 - 10 * Math.min(1, this.t / 0.42); if (this.t >= 0.42) { scene.remove(m); ringFx(new THREE.Vector3(p.x, 0, p.z), dr, C.col, 0.35); burst(new THREE.Vector3(p.x, 0.3, p.z), C.els[0], 8); areaHit(C, p.x, p.z, dr, kk || 0.45); return false; } return true; } });
         }
         function poolFx(C, p, R, dur) {
           const m = new THREE.Mesh(new THREE.CircleGeometry(R, 40), glowMat(C.col, 0.5)); m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.05, p.z);
-          let tick = 0; addM(m, dur, (mm, q, dt) => { mm.material.opacity = (0.35 + 0.15 * Math.sin(q * dur * 8)) * (q > 0.85 ? (1 - q) / 0.15 : 1); if ((tick -= dt) <= 0) { tick = 0.5; areaHit(C, p.x, p.z, R, 0.25); if (Math.random() < 0.8) burst(new THREE.Vector3(p.x + rand(-R, R) * 0.6, 0.2, p.z + rand(-R, R) * 0.6), C.els[0], 3); } });
+          let tick = 0; addM(m, dur, (mm, q, dt) => { mm.material.opacity = (0.35 + 0.15 * Math.sin(q * dur * 8)) * (q > 0.85 ? (1 - q) / 0.15 : 1); if ((tick -= dt) <= 0) { tick = 0.5; areaHit(C, p.x, p.z, R, 1.2 / Math.max(2, dur * 2)); if (Math.random() < 0.8) burst(new THREE.Vector3(p.x + rand(-R, R) * 0.6, 0.2, p.z + rand(-R, R) * 0.6), C.els[0], 3); } });
         }
         function orb(el, r) {   // 날아가는 구슬 (얼음·땅·어둠은 Skillcom 원본 Meshy 모양)
           const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), new THREE.MeshBasicMaterial({ color: EL[el].c }));

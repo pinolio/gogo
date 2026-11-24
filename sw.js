@@ -2,7 +2,7 @@
  * gogo?gogo! 서비스 워커 — 앱 설치와 오프라인 플레이를 담당합니다.
  * 파일을 고친 뒤 배포할 때는 VERSION 숫자를 올려 주세요. (설치된 앱이 새 버전을 받습니다)
  */
-const VERSION = 'gogogogo-v196';
+const VERSION = 'gogogogo-v197';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css',
@@ -113,7 +113,7 @@ self.addEventListener('fetch', e => {
   // 우리 사이트 파일: 인터넷 우선(항상 최신) → 끊기면 저장본
   if (url.origin === self.location.origin) {
     e.respondWith(
-      fetch(req).then(res => {
+      (req.mode === 'navigate' ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req)).then(res => {   // v197 첫 화면(html)은 늘 서버에 새 것인지 물어봄 (예전엔 브라우저가 10분 동안 옛 화면을 줄 수 있었음)
         // 배경음악처럼 나눠 받는 파일(206)은 저장하지 않음
         if (res.ok && res.status !== 206 && !req.headers.has('range')) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)).catch(() => {}); }
         return res;
