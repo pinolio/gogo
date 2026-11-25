@@ -385,16 +385,16 @@
         const tcount = t => members.filter(p => p.team === t).length;
         const myRoomHtml = myRoom ? (roomSize === 4
           ? `<div class="sf-room sf-teamroom"><div class="grow"><b>${isHost ? '내 방' : '들어간 방'} ${myRoom} · 2:2 (${members.length}/4)</b><small>${isHost ? '편을 고른 뒤 아래 [대결 시작]을 누르세요. 빈자리는 컴퓨터가 채워요' : '편을 고르고 기다려 주세요. 방장이 [대결 시작]을 누르면 시작해요'}</small>
-              <div class="sf-teams">${[0, 1].map(t => `<div class="sf-tcol t${t}"><b>${TEAM[t]} (${tcount(t)}/2)</b>${members.filter(p => p.team === t).map(p => `<span class="${p.id === Hub.clientId ? 'mine' : ''}">${p.nick}${p.id === roomHostId ? ' (방장)' : ''}${p.id === Hub.clientId ? ' · 나' : ''}</span>`).join('')}${Array.from({ length: Math.max(0, 2 - tcount(t)) }, () => '<span class="empty">빈자리 (컴퓨터)</span>').join('')}${myPick !== t ? `<button type="button" class="sf-btn ghost" data-team="${t}" ${tcount(t) >= 2 ? 'disabled' : ''}>${TEAM[t]}으로 옮기기</button>` : ''}</div>`).join('')}</div></div>
+              <div class="sf-teams">${[0, 1].map(t => `<div class="sf-tcol t${t}"><b>${TEAM[t]} (${tcount(t)}/2)</b>${members.filter(p => p.team === t).map(p => `<span class="${p.id === Hub.clientId ? 'mine' : ''}">${A.esc(p.nick)}${p.id === roomHostId ? ' (방장)' : ''}${p.id === Hub.clientId ? ' · 나' : ''}</span>`).join('')}${Array.from({ length: Math.max(0, 2 - tcount(t)) }, () => '<span class="empty">빈자리 (컴퓨터)</span>').join('')}${myPick !== t ? `<button type="button" class="sf-btn ghost" data-team="${t}" ${tcount(t) >= 2 ? 'disabled' : ''}>${TEAM[t]}으로 옮기기</button>` : ''}</div>`).join('')}</div></div>
               <div class="sf-diff" style="flex-direction:column;align-items:stretch"><button type="button" class="sf-btn ghost" data-close>${isHost ? '방 닫기' : '나가기'}</button></div></div>`
           : `<div class="sf-room"><div class="grow"><b>${isHost ? '내 방' : '들어간 방'} ${myRoom} · 1:1 (${members.length}/2)</b>
-            <small>${members.map(p => p.nick + (p.id === roomHostId ? ' (방장)' : '')).join(', ') || '연결 중…'}</small>
+            <small>${members.map(p => A.esc(p.nick) + (p.id === roomHostId ? ' (방장)' : '')).join(', ') || '연결 중…'}</small>
             <small>${isHost ? (members.length >= 2 ? '상대가 들어왔어요! 아래 [대결 시작]을 누르세요' : '상대가 들어오기를 기다리는 중…') : '방장이 [대결 시작]을 누르면 시작해요'}</small></div>
             <div class="sf-diff"><button type="button" class="sf-btn ghost" data-close>${isHost ? '방 닫기' : '나가기'}</button></div></div>`)
           : `<div class="sf-room"><div class="grow"><b>온라인 방 만들기</b><small>${Hub.mode === 'online' ? '친구가 아래 방 목록에서 들어와요 · 2:2 는 같은 편끼리 서로 안 맞아요' : '체험 모드: 같은 브라우저의 다른 탭끼리'}</small></div><div class="sf-diff"><button type="button" class="sf-btn" data-make="2">1:1 방</button><button type="button" class="sf-btn" data-make="4">2:2 방</button></div></div>`;
         body.innerHTML = `<div class="sf-lobby">
           <section class="sf-card"><h3>대기방</h3>
-            <div class="sf-me"><canvas width="54" height="54" id="sfMe"></canvas><div><b>${nick()}</b><small>skillcom RPG Lv.${LV}${CARD.reb ? ' · 환생 ' + CARD.reb + '회' : ''} · ${S.wins}승 ${S.losses}패</small><small>${CARD.basic ? 'RPG 기록이 없어 Lv.1 기본 카드로 싸워요' : 'RPG 능력치·마법을 그대로 가져와요' + (CARD.at ? ' (' + new Date(CARD.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' 저장)' : '')}</small></div></div>
+            <div class="sf-me"><canvas width="54" height="54" id="sfMe"></canvas><div><b>${A.esc(nick())}</b><small>skillcom RPG Lv.${LV}${CARD.reb ? ' · 환생 ' + CARD.reb + '회' : ''} · ${S.wins}승 ${S.losses}패</small><small>${CARD.basic ? 'RPG 기록이 없어 Lv.1 기본 카드로 싸워요' : 'RPG 능력치·마법을 그대로 가져와요' + (CARD.at ? ' (' + new Date(CARD.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' 저장)' : '')}</small></div></div>
             <div class="sf-rooms">
               <div class="sf-room cpu"><div class="grow"><b>Skillcom 컴퓨터와 대결</b><small>혼자 연습 · ${cm === 4 ? '2:2 는 내 편 컴퓨터 1명 + 상대 컴퓨터 2명' : '1:1'} · 쉬움 Lv.${Math.max(1, LV - 3)} · 보통 Lv.${LV} · 어려움 Lv.${Math.min(100, LV + 3)}</small>
                 <div class="sf-diff" style="justify-content:flex-start;margin-top:6px"><button type="button" class="sf-btn${cm === 2 ? ' on' : ' ghost'}" data-cpumode="2">1:1</button><button type="button" class="sf-btn${cm === 4 ? ' on' : ' ghost'}" data-cpumode="4">2:2</button></div></div>
@@ -402,7 +402,7 @@
               ${myRoom ? '' : bossHtml()}
               ${myRoomHtml}
               ${startBar(members)}
-              ${roomList.length ? roomList.map(r => { const full = (r.n || 1) >= (r.size || 2); return `<div class="sf-room"><div class="grow"><b>${r.nick}의 방 · ${modeName(r.size || 2)}</b><small>Lv.${r.lv} · ${r.code} · ${r.n || 1}/${r.size || 2}명</small></div><button type="button" class="sf-btn" data-join="${r.code}" ${myRoom || full ? 'disabled' : ''}>${full ? '가득 참' : '들어가기'}</button></div>`; }).join('') : '<p class="sub" style="margin:4px 0 0">지금 열린 방이 없어요.</p>'}
+              ${roomList.length ? roomList.map(r => { const full = (r.n || 1) >= (r.size || 2); return `<div class="sf-room"><div class="grow"><b>${A.esc(r.nick)}의 방 · ${modeName(r.size || 2)}</b><small>Lv.${r.lv} · ${A.esc(r.code)} · ${r.n || 1}/${r.size || 2}명</small></div><button type="button" class="sf-btn" data-join="${A.esc(r.code)}" ${myRoom || full ? 'disabled' : ''}>${full ? '가득 참' : '들어가기'}</button></div>`; }).join('') : '<p class="sub" style="margin:4px 0 0">지금 열린 방이 없어요.</p>'}
             </div>
           </section>
           <section class="sf-card"><h3>내 대결 카드</h3>
@@ -428,6 +428,7 @@
           ${Object.keys(groups).map(t => `<div class="sf-bgrp"><small>${BOSS_TIER[t].n}</small><div>${groups[t].map(([b, i]) => `<button type="button" class="sf-boss${bw[b.name] ? ' won' : ''}" data-boss="${i}" title="RPG 에서 Lv.${b.lv} 로 이김">${bw[b.name] ? '★ ' : ''}${A.esc(b.name)}</button>`).join('')}</div></div>`).join('')}</div></div>`;
       }
       function startBoss(i) {
+        if (starting || battle) return;   // v210: 더블클릭하면 대결이 두 개 만들어지던 것 막기
         const b = BOSSES[i]; if (!b) return; const T = BOSS_TIER[b.tier] || BOSS_TIER.field, st = scaleSt(CARD.st, 0.8 * T.k);   // v197 보스 공격 = 내 카드 × 0.8 × 등급
         st.hp = Math.round(CARD.st.hp * T.k * (CFG.bossHp || 2.5) * T.k);   // v198 고침: 이 줄이 위 주석 뒤에 붙어 보스 체력이 내 체력 정도였음 → 내 체력 × 등급 × 2.5 × 등급 (v196 과 같게)
         const ros = [{ id: Hub.clientId, team: 0 }, { id: 'boss', cpu: true, boss: b.name, tier: b.tier, team: 1, nick: b.name, lv: LV, st, kit: bossKit(b.def, b.tier === 'field' ? Math.min(100, Math.max(LV, b.lv)) : 100), diff: 'hard' }];
@@ -469,6 +470,7 @@
         return { id: 'cpu' + i, cpu: true, team, hero, nick: HEROES[hero] + (tail ? ' ' + tail : ''), lv, av: makeEnemyAvatar(ally ? 'ally' : i), st: scaleSt(CARD.st, ally ? 0.95 : D.k), kit: cpuKit(hero, lv), diff };
       }
       function startCpu(diff) {
+        if (starting || battle) return;   // v210: 더블클릭하면 대결이 두 개 만들어지던 것 막기
         const D = DIFFS[diff] || DIFFS.normal, lv = clamp(LV + D.lv, 1, 100), four = S.mode === 4, used = [];
         const ros = [{ id: Hub.clientId, team: 0 }];
         if (four) ros.push(cpuEntry(0, 0, LV, 'normal', '', true, used));
@@ -480,7 +482,7 @@
       /* ---------- 온라인 방 (1:1 = 2명 · 2:2 = 4명, 모자라면 방장이 컴퓨터로 채움) ---------- */
       function lobby() {
         if (lobbyCh) return;
-        lobbyCh = Hub.channel('scf-lobby', { onPeers: list => { rooms = new Map(); (list || []).forEach(s => { if (s && s.code) rooms.set(s.code, s); }); if (!battle && !starting) renderLobby(); }, onMsg() {} });
+        lobbyCh = Hub.channel('scf-lobby', { onPeers: list => { rooms = new Map(); (list || []).forEach(s => { const code = s && String(s.code || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 8); if (code) rooms.set(code, { id: s.id, code, host: String(s.host || ''), nick: String(s.nick || '').slice(0, 12), lv: clamp(Math.floor(+s.lv) || 1, 1, 999), open: !!s.open, size: s.size === 4 ? 4 : 2, n: clamp(Math.floor(+s.n) || 1, 1, 4) }); }); if (!battle && !starting) renderLobby(); }, onMsg() {} });
         lobbyCh.track({ id: Hub.clientId });
       }
       const myInfo = () => ({ id: Hub.clientId, nick: nick(), lv: LV, av, st: CARD.st, at: joinAt, team: myPick });
@@ -544,6 +546,7 @@
 
       /* ================= 3D 대결 ================= */
       async function startBattle(opt) {
+        if (battle) return;
         starting = true; let THREE;
         try { THREE = await loadThree(); } catch (e) { starting = false; A.toast('3D 엔진을 불러오지 못했어요. 새로고침해 주세요'); return; }
         if (!alive) return;
@@ -566,7 +569,7 @@
 
       function makeBattle(THREE, opt) {
         body.innerHTML = `<div class="sf-stage" id="sfStage" tabindex="0"><canvas id="sfCv"></canvas><div class="sf-hud">
-          <div class="sf-name" style="left:2%;top:3%">${nick()} <small>Lv.${LV}</small></div><div class="sf-bar" style="left:2%;top:9%;width:30%"><i id="sfHp" style="background:linear-gradient(#FF7A7E,#D2343A);width:100%"></i><span id="sfHpT"></span></div>
+          <div class="sf-name" style="left:2%;top:3%">${A.esc(nick())} <small>Lv.${LV}</small></div><div class="sf-bar" style="left:2%;top:9%;width:30%"><i id="sfHp" style="background:linear-gradient(#FF7A7E,#D2343A);width:100%"></i><span id="sfHpT"></span></div>
           <div class="sf-bar" style="left:2%;top:14.5%;width:24%;height:15px"><i id="sfMp" style="background:linear-gradient(#7FA0FF,#2F55D9);width:100%"></i><span id="sfMpT"></span></div>
           <div class="sf-chips" id="sfChips"></div><div class="sf-ulist" id="sfAllies" style="left:2%;top:19%"></div><div class="sf-ulist foe" id="sfFoes" style="right:2%;top:3%"></div><div id="sfTags"></div>
           <div class="sf-hurt" id="sfHurt"></div><div class="sf-cross" id="sfCross"></div><div class="sf-combo" id="sfCombo"></div><div class="sf-msg" id="sfMsg"></div>
@@ -687,7 +690,7 @@
         const teamIdx = {}, units = ros.map(r => {
           const isMe = r === myR, F = cardF(isMe ? CARD.st : normSt(r.st)),   /* v192 능력치 = RPG 대결 카드 (컴퓨터 = 내 카드 × 난이도) */ k = teamIdx[r.team] = (teamIdx[r.team] || 0) + 1, inTeam = ros.filter(q => q.team === r.team).length;
           const x = inTeam > 1 ? (k === 1 ? -3 : 3) * (r.team ? -1 : 1) : 0, z = r.team ? -8 : 8;
-          const U = { id: r.id, uid: r.uid || null, me: isMe, cpu: !!r.cpu, owner: r.owner || '', team: r.team, nick: isMe ? nick() : String(r.nick || ''), lv: isMe ? LV : clamp(+r.lv || 1, 1, 100), sps: r.cpu ? (Array.isArray(r.kit) ? r.kit : cpuKit(r.hero, r.lv || 1)).filter(id => RPG_SKID[id]).map(id => slotSpell(RPG_SKID[id])) : [], bossName: r.boss ? String(r.boss) : null,
+          const U = { id: r.id, uid: r.uid || null, me: isMe, cpu: !!r.cpu, owner: r.owner || '', team: r.team, nick: isMe ? nick() : String(r.nick || '').slice(0, r.cpu ? 40 : 12), lv: isMe ? LV : clamp(+r.lv || 1, 1, 100), sps: r.cpu ? (Array.isArray(r.kit) ? r.kit : cpuKit(r.hero, r.lv || 1)).filter(id => RPG_SKID[id]).map(id => slotSpell(RPG_SKID[id])) : [], bossName: r.boss ? String(r.boss) : null,
             x, z, y: 0, vy: 0, tx: x, tz: z, px: x, pz: z, vx: 0, vz: 0, yaw: r.team ? Math.PI : 0, pitch: 0, hp: F.hp, mp: F.mp, F, cds: {}, slow: 0, burn: 0, dead: false,
             own: isMe || (!!r.cpu && (opt.cpu || opt.host)), ai: r.cpu ? { t: 1.5, move: 0, strafe: 1, D: DIFFS[r.diff] || DIFFS.normal } : null };
           U.mesh = (r.boss && bossBody(U, r.boss)) || (r.cpu && heroBody(U, r.hero)) || voxel(isMe ? av : r.av, r.cpu && r.team !== myTeam ? '#3A2050' : null); scene.add(U.mesh);
@@ -702,7 +705,7 @@
         units.forEach(u => {
           if (u.me) return;
           const row = document.createElement('div'); row.className = 'sf-urow ' + (ally(u) ? 'ally' : 'foe');
-          row.innerHTML = `<div class="nm">${u.nick} <small>Lv.${u.lv}</small></div><div class="sf-bar"><i></i><span></span></div>`;
+          row.innerHTML = `<div class="nm">${A.esc(u.nick)} <small>Lv.${u.lv}</small></div><div class="sf-bar"><i></i><span></span></div>`;
           $h(ally(u) ? 'sfAllies' : 'sfFoes').appendChild(row); u.bar = row.querySelector('i'); u.barT = row.querySelector('span'); u.row = row;
           const tag = document.createElement('div'); tag.className = 'sf-tag ' + (ally(u) ? 'ally' : 'foe'); tag.textContent = (ally(u) ? '내 편 ' : '') + u.nick; $h('sfTags').appendChild(tag); u.tag = tag;
         });
@@ -961,7 +964,9 @@
         });
         const up = e => { const k = pts[e.pointerId]; if (k === 'joy') { B.joy = null; $h('sfJoy').firstChild.style.transform = ''; } if (k === 'look') B.look = null; delete pts[e.pointerId]; };
         stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
-        const atkUp = e => { if (e.button === 0) B.holdAtk = false; }; document.addEventListener('mouseup', atkUp); document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) B.holdAtk = false; });
+        const atkUp = e => { if (e.button === 0) B.holdAtk = false; }; document.addEventListener('mouseup', atkUp);
+        const atkLock = () => { if (!document.pointerLockElement) B.holdAtk = false; }; document.addEventListener('pointerlockchange', atkLock);   // v210: 이름을 붙여 stop() 에서 지움 (예전엔 판마다 남아 대결 화면을 붙잡음)
+        const onBlur = () => { B.keys = {}; B.holdAtk = false; }; window.addEventListener('blur', onBlur);   // v210: 키를 누른 채 다른 창으로 가면 계속 걷던 것
         // 휴대폰 기본 공격 버튼도 누르고 있으면 계속
         { const bb = body.querySelector('[data-basic]'); if (bb) { bb.addEventListener('pointerdown', () => { B.holdAtk = true; }); ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => bb.addEventListener(ev, () => { B.holdAtk = false; })); } }
 
@@ -1156,9 +1161,16 @@
         }
         function stop() {
           cancelAnimationFrame(raf); document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey); document.removeEventListener('mouseup', atkUp);
-          document.removeEventListener('mousemove', onMove); document.removeEventListener('pointerlockchange', onLockCh); window.removeEventListener('resize', onRs); document.removeEventListener('fullscreenchange', onFs);
+          document.removeEventListener('mousemove', onMove); document.removeEventListener('pointerlockchange', onLockCh); document.removeEventListener('pointerlockchange', atkLock); window.removeEventListener('blur', onBlur); window.removeEventListener('resize', onRs); document.removeEventListener('fullscreenchange', onFs);
           if (fsNow()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (er) { /* noop */ } }
           if (document.pointerLockElement) document.exitPointerLock();
+          // v210: 장면의 모양·재질·그림을 정리해 옛 엔진의 연결을 끊음 (다음 판에 다시 쓰는 보관 그림이 옛 대결 장면 전체를 붙잡아 판마다 메모리가 쌓였음)
+          try {
+            const tex = new Set(); const addT = v => { if (v && v.isTexture) tex.add(v); };
+            addT(scene.background); addT(scene.environment);
+            scene.traverse(o => { if (o.geometry && o.geometry.dispose) o.geometry.dispose(); (Array.isArray(o.material) ? o.material : o.material ? [o.material] : []).forEach(m => { Object.keys(m).forEach(k => addT(m[k])); if (m.uniforms) Object.values(m.uniforms).forEach(u => addT(u && u.value)); m.dispose(); }); });
+            tex.forEach(t => t.dispose());
+          } catch (er) { /* noop */ }
           renderer.dispose(); battle = null;
           if (B.net) { send({ t: 'bye' }); if (roomCh) { roomCh.leave(); roomCh = null; } myRoom = null; isHost = false; roomPeers = []; seenHost = false; starting = false; lobbyCh && lobbyCh.track({ id: Hub.clientId }); }
           if (alive) renderLobby();

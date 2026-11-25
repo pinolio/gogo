@@ -135,14 +135,16 @@
     const seenG = {}; s.inv = s.inv.filter(x => !String(x.id).startsWith('g:') || (!seenG[x.id] && (seenG[x.id] = 1)));
     Object.keys(s.eq).forEach(k => { if (!ITEMS[s.eq[k]].base) s.eq[k] = inst(s.eq[k]); else if (seenG[s.eq[k]]) delete s.eq[k]; });
     pruneGear(s);
-    s.skills = (s.skills || []).filter(id => skill(id));
+    const arr = v => (Array.isArray(v) ? v : []);   // v210: 망가진 저장(숫자·글자)이면 RPG 가 안 열리던 것
+    if (!Array.isArray(s.slots)) s.slots = []; if (!Array.isArray(s.fslots)) s.fslots = [];
+    s.skills = arr(s.skills).filter(id => skill(id));
     if (!s.skills.includes('magicarrow')) { s.skills.unshift('magicarrow'); if (Array.isArray(s.slots) && !s.slots.includes('magicarrow')) { const i = s.slots.indexOf(null); if (i >= 0) s.slots[i] = 'magicarrow'; } }   // v41 기본 마법
     // v53: 1~4 = 기본 마법 칸, Q W E R = 융합 마법 칸. 예전 저장의 1~4 칸에 있던 융합 마법은 융합 칸으로 옮김
-    const oldF = (s.slots || []).filter(id => id && String(id).startsWith('fu:'));
+    const oldF = s.slots.filter(id => id && String(id).startsWith('fu:'));
     s.slots = [0, 1, 2, 3].map(i => (s.slots && s.skills.includes(s.slots[i]) && !String(s.slots[i]).startsWith('fu:') ? s.slots[i] : null));
     s.fslots = [0, 1, 2, 3].map(i => (s.fslots && s.skills.includes(s.fslots[i]) && String(s.fslots[i]).startsWith('fu:') ? s.fslots[i] : null));
     oldF.forEach(id => { if (s.skills.includes(id) && !s.fslots.includes(id)) { const j = s.fslots.indexOf(null); if (j >= 0) s.fslots[j] = id; } });
-    s.visited = (s.visited || []).filter(id => MAPBY[id]); if (!s.visited.includes('v1')) s.visited.unshift('v1');
+    s.visited = arr(s.visited).filter(id => MAPBY[id]); if (!s.visited.includes('v1')) s.visited.unshift('v1');
     // v44 스탯 4가지(v60 저항 더해 5가지) · 레벨당 2포인트 · 스탯마다 최대 50. v43(힘·민첩·지혜, 레벨당 3) 저장은 한 번 모두 돌려받아 다시 나눔
     const st = s.stat && typeof s.stat === 'object' && oldStatV === 2 ? s.stat : {}; if (oldStatV !== 2) { s.statV = 2; if (s.lv > 1) s.statReset = true; }
     s.reb = clamp(Math.floor(+s.reb || 0), 0, D.REBIRTH.max);

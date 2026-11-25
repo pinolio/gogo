@@ -199,7 +199,7 @@
       preload();
       const ctx = window.GoPixel.setup(canvas, W, H), clock = window.GoPixel.clock();
       const bg = img('arena2.jpg');
-      let mode = 'ai', level = 'normal', phase = 'idle', raf = 0, last = 0, frames = 0, timeLeft = 120, n = 2;
+      let mode = 'ai', level = 'normal', phase = 'idle', raf = 0, last = 0, tickAcc = 0, frames = 0, timeLeft = 120, n = 2;
       let P = [], B = [], MINES = [], ZONES = [], TUR = [], fx = [], pick = 0, cur = 0, lastTap = -1, banner = null, intro = 0, slow = 0, shake = 0, net = null;
       const online = () => mode === 'online';
       const isHost = () => !online() || (net && net.host);
@@ -825,15 +825,18 @@
       function loop(ts) {
         raf = requestAnimationFrame(loop);
         const dt = Math.min(0.05, (ts - (last || ts)) / 1000); last = ts;
-        let k = Math.round(dt * 60) || 1;
+        // v210: 화면 빠르기(60·120·144Hz)와 상관없이 1초 = 60틱 (예전엔 한 화면마다 최소 1틱이라 120Hz 에서 2배 빨랐음)
+        tickAcc = Math.min(3.25, tickAcc + dt * 60); let k = Math.floor(tickAcc + 0.25); tickAcc -= k;
         if (!isHost()) { if (phase !== 'over') { clientPose(); clientInput(); } }
         else if (phase === 'intro') { intro -= k; if (intro <= 0) { phase = 'fight'; banner = null; } }
         else if (phase === 'fight') { while (k-- > 0 && phase === 'fight') step(); }
-        else if (phase === 'ko') { if (--slow <= 0) finish(); }
+        else if (phase === 'ko') { for (let i = 0; i < k && phase === 'ko'; i++) if (--slow <= 0) finish(); }
         if (net && net.host && phase !== 'over' && phase !== 'pick' && phase !== 'waitpick' && ts - net.lastSnap >= SNAP_MS) { net.lastSnap = ts; hostSnap(); }
-        if (shake > 0) shake -= 1;
-        if (banner && banner.t < 999) banner.t--;
-        fx.forEach(p => { if (p.kind === 'dot') { p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; } else if (p.kind === 'txt') p.y -= 0.7; p.life--; });
+        for (let i = 0; i < k; i++) {
+          if (shake > 0) shake -= 1;
+          if (banner && banner.t < 999) banner.t--;
+          fx.forEach(p => { if (p.kind === 'dot') { p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; } else if (p.kind === 'txt') p.y -= 0.7; p.life--; });
+        }
         fx = fx.filter(p => p.life > 0);
         render();
       }
