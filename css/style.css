@@ -1963,3 +1963,26 @@ html.xmas .home .thumb-wrap .cat, html.xmas .home .thumb-wrap .tag, html.xmas .h
 .event-box.has-art .event-copy p { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
 .event-box.has-art .event-rank { background: rgba(255, 255, 255, .94); }
 
+/* v213 RPG 도움말 '🧭 어디로 갈까?' 초보 길잡이 */
+.rg-helptabs { margin: 2px 0 10px; }
+.rg-guide { display: grid; gap: 10px; }
+.rg-guide .gd-lead { margin: 0; text-align: center; font-size: 14px; color: #FFE27A; }
+.rg-guide .gd-step { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-radius: 12px; border: 2px solid #3A4590; background: linear-gradient(180deg, #1E2A6B, #151C4A); }
+.rg-guide .gd-step.now { border-color: #FFD23F; box-shadow: 0 0 0 3px rgba(255, 210, 63, .25), 0 0 18px rgba(255, 210, 63, .35); }
+.rg-guide .gd-step.done { border-color: #2FA86A; background: linear-gradient(180deg, #17432F, #102E22); }
+.rg-guide .gd-no { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 18px; background: #FFD23F; color: #1D2340; border: 2px solid #0A0E24; }
+.rg-guide .gd-step.done .gd-no { background: #5FE3A1; }
+.rg-guide h4 { margin: 2px 0 0; font-size: 17px; color: #FFFFFF; }
+.rg-guide h4 em { font-style: normal; font-size: 12px; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: #FFD23F; color: #1D2340; vertical-align: 2px; animation: blink 1.2s steps(2) infinite; }
+.rg-guide small { color: #9AE6FF; font-size: 12px; }
+.rg-guide p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.6; color: #EEF1FF; }
+.rg-guide p b { color: #FFE27A; }
+.rg-guide .gd-tip { color: #CFE8FF; font-size: 12.5px; }
+.rg-guide .gd-hint { font-size: 15px; padding: 8px 12px; border-radius: 10px; background: rgba(255, 210, 63, .12); border: 2px dashed #FFD23F; }
+.rg-guide .gd-vils { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
+.rg-guide .gd-vils span { display: grid; text-align: center; padding: 4px 8px; border-radius: 8px; background: #FFFFFF; color: #1D2340; border: 2px solid #0A0E24; line-height: 1.2; }
+.rg-guide .gd-vils span b { color: #1D2340; font-size: 13px; }
+.rg-guide .gd-vils span small { color: #3E5BD8; font-size: 10.5px; }
+.rg-guide .gd-vils span.here { background: #FFD23F; }
+.rg-guide .gd-vils i { font-style: normal; color: #FFD23F; font-size: 12px; }
+
