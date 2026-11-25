@@ -14,7 +14,8 @@ GoSettings.register({
   tag: 'NEW',
   board: true,                         // 대결 화면 사용 (혼자 / 한 기기 둘이서 / 온라인)
   // v211 12월 이벤트: 12월 1일 0시(한국 시간)부터 홈 이벤트 칸 왼쪽 (오른쪽 = 타자연습)
-  event: true, eventFrom: '2026-12-01', eventUntil: '2027-01-01', eventRankFrom: true, eventOrder: 1,
+  event: true, eventFrom: '2026-12-01',   // v212: 끝내는 날은 선생님이 알려 주실 때 (eventUntil 또는 event: false)
+  eventRankFrom: true, eventOrder: 1,
   eventTitle: '크리스마스 닷지', eventArt: 'img/xmas/ev_dodge.jpg',   // v211 Gemini
   eventDesc: '눈 내리는 밤하늘에서 쏟아지는 <b>크리스마스 장식 총알</b>을 피해 오래 버티기! <b>12월 시즌 1위</b>에게 보상 포인트를 드려요.',
   online: true, netRoom: true,         // 온라인: 다른 기기 친구와 둘이서 (방장 기기가 총알을 계산)

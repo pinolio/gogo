@@ -425,13 +425,14 @@
   if (XMAS) document.documentElement.classList.add('xmas');
   const HERO_SLIDES = [
     // v211 선생님 11/25: 12월 1일 0시부터 맨 앞 — 11월 신호등 구구단 이벤트 1·2·3등 (서버 gugu_event_top) + 정보교육부 상품 안내
-    { id: 'guguwin', from: '2026-12-01', until: '2027-01-01', podium: true, href: '#gugu', art: 'img/hero/guguwin.jpg', pos: '50% 50%', theme: ['#3A0E14', '#C8452A'], v: 211,
+    { id: 'guguwin', from: '2026-12-01',   // v212: 내리는 날은 선생님이 알려 주실 때 (until: 'YYYY-MM-DD' 추가)
+      podium: true, href: '#gugu', art: 'img/hero/guguwin.jpg', pos: '50% 50%', theme: ['#3A0E14', '#C8452A'], v: 211,
       tag: '🏆 EVENT 결과 · 신호등 구구단', title: '11월 구구단 이벤트<br>명예의 전당', sub: '1·2·3등을 축하해요! 1등 <b>+200P</b> · 2등 <b>+150P</b> · 3등 <b>+100P</b>', ribbon: '🎁 정보교육부로 와서 상품 타 가세요!', cta: '구구단 하러 가기' },
     // v199 선생님 11/24: Skillcom Fight 정식 오픈 배너 (6.25. 하늘 배너는 내림)
     { id: 'scfight', href: '#scfight', art: 'img/hero/scfight.jpg', pos: '60% 50%', theme: ['#5A1A12', '#C8452A'],
       tag: 'NEW · Skillcom Fight 정식 오픈', title: 'RPG 캐릭터로<br>3D 마법 대결!', sub: 'skillcom RPG 에서 키운 <b>능력치·마법 8칸</b> 그대로! 1~4 · QWER 로 마법을 쏘고 컴퓨터·친구와 1:1 · 2:2, <b>RPG 에서 이긴 보스</b>와도 다시 겨뤄요.', cta: '대결하러 가기', v: 199 },
     // v206 크리스마스 타자연습 배너 (12월 이벤트 예정)
-    { id: 'xmastyping', until: '2027-01-01', href: '#typing', art: 'img/hero/xmas_typing.jpg', pos: '70% 50%', theme: ['#123A2A', '#C8202A'],
+    { id: 'xmastyping', href: '#typing', art: 'img/hero/xmas_typing.jpg', pos: '70% 50%', theme: ['#123A2A', '#C8202A'],
       tag: 'CHRISTMAS · 12월 이벤트', title: '선물 상자를<br>타자로 열어라!', sub: (Date.now() >= Date.parse('2026-12-01T00:00:00+09:00') ? '눈 내리는 크리스마스 마을에 <b>선물 상자 낱말</b>이 떨어져요 · 눈밭에 닿기 전에 빨리 쳐서 열어 주세요. <b>12월 이벤트 진행 중!</b>' : '눈 내리는 크리스마스 마을에 <b>선물 상자 낱말</b>이 떨어져요 · 눈밭에 닿기 전에 빨리 쳐서 열어 주세요. <b>12월 이벤트</b>로 열릴 예정이에요!'), cta: '타자연습 하러 가기', v: 206 },
     // v182 선생님 11/23: 이순신 장군님 던전 배너 (11:33 던전 공개와 함께 모두에게) · adminOnly: true 를 넣으면 관리자에게만
     { id: 'ysdungeon', href: '#rpg', art: 'img/hero/ys.jpg', pos: '70% 50%', theme: ['#0E2A4A', '#1E6FB0'],

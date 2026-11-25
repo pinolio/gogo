@@ -14,7 +14,8 @@ GoSettings.register({
   w: 720, ar: 720 / 540,
   blurb: '떨어지는 낱말을 바닥에 닿기 전에 입력! 갈수록 빨라져요. 타수·정확도도 재요.',
   // v211 12월 이벤트: 12월 1일 0시(한국 시간)부터 홈 이벤트 칸 오른쪽 (왼쪽 = 닷지)
-  event: true, eventFrom: '2026-12-01', eventUntil: '2027-01-01', eventRankFrom: true, eventOrder: 2,
+  event: true, eventFrom: '2026-12-01',   // v212: 끝내는 날은 선생님이 알려 주실 때 (eventUntil 또는 event: false)
+  eventRankFrom: true, eventOrder: 2,
   eventTitle: '크리스마스 타자연습', eventArt: 'img/xmas/ev_typing.jpg',   // v211 Gemini
   eventDesc: '눈 내리는 마을에 떨어지는 <b>선물 상자 낱말</b>을 바닥에 닿기 전에 쳐서 열어 주세요! <b>12월 시즌 1위</b>에게 보상 포인트를 드려요.',
   hero: { eyebrow: 'NEW · 공부?', title: '떨어지는 낱말을', em: '타자로 막아라!', desc: '낱말이 바닥에 닿기 전에 입력하고 Enter! 단계가 오를수록 빨라져요. 내 분당 타수도 알려 줘요.', cta: '타자연습 하러 가기' },
