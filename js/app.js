@@ -271,10 +271,14 @@
 
   /* ---------- 홈 이벤트 칸 (맨 위 소개와 게임 목록 사이) ----------
    * settings.js 에 event: true 인 게임 (지금은 Ultimate mode). 왼쪽 소개·도전 버튼, 오른쪽 바로 랭킹 TOP 5 */
-  const eventGames = () => SET.listAll().filter(s => s.event);
+  // v211: eventFrom ~ eventUntil (한국 시간 그날 0시 기준) 안에서만 보임 → 12월 1일 0시에 저절로 바뀜. eventOrder 순서(왼쪽부터)
+  const kstDay = d => Date.parse(d + 'T00:00:00+09:00');
+  const evOn = s => s.event && !s.hidden && (!s.eventFrom || Date.now() >= kstDay(s.eventFrom)) && (!s.eventUntil || Date.now() < kstDay(s.eventUntil));
+  const eventGames = () => SET.listAll().filter(evOn).sort((a, b) => (a.eventOrder || 9) - (b.eventOrder || 9));
   function eventHTML() {
-    return eventGames().map(s => `
-      <section class="event-box" aria-label="이벤트 ${esc(s.name)}">
+    const evs = eventGames(), duo = evs.length > 1;
+    const html = evs.map(s => `
+      <section class="event-box${duo ? ' event-half' : ''}${s.eventArt ? ' has-art' : ''}"${s.eventArt ? ` style="--ev-art:url('${new URL(s.eventArt + '?v=211', location.href).href}')"` : ''} aria-label="이벤트 ${esc(s.name)}">
         <div class="event-copy">
           <span class="event-tag">EVENT</span>
           <h2>${esc(s.eventTitle || s.name)}</h2>
@@ -282,18 +286,21 @@
           <div class="event-btns"><a class="btn btn-sun" href="#${s.id}">도전하기 ▶</a><span class="event-mine" data-event-mine="${s.id}"></span></div>
         </div>
         <div class="event-rank">
-          <h3>랭킹 TOP 5</h3>
+          <h3>${s.eventRankFrom && s.eventFrom ? (+s.eventFrom.slice(5, 7)) + '월 ' : ''}랭킹 TOP 5</h3>
           <ol class="rank" data-event-rank="${s.id}"><li class="empty">불러오는 중…</li></ol>
         </div>
       </section>`).join('');
+    return duo ? `<div class="event-duo">${html}</div>` : html;
   }
   async function loadEventRank() {
     for (const s of eventGames()) {
       const el = $(`[data-event-rank="${s.id}"]`), mine = $(`[data-event-mine="${s.id}"]`);
       try {
-        fillRank(el, await Hub.leaderboard(s.id, 5), 'best_score', s.id);
-        const best = Hub.user ? await Hub.myBest(s.id) : null;
-        if (mine && mine.isConnected) mine.innerHTML = Hub.user ? (best ? `내 최고 <b class="num">${sfmt(s.id, best)}</b>` : '아직 도전 기록이 없어요') : '로그인하면 랭킹에 올라가요';
+        // v211: eventRankFrom 이면 이벤트 시작(eventFrom 0시) 뒤 기록으로만 순위 · 내 최고도 그 기간
+        const since = s.eventRankFrom && s.eventFrom ? new Date(kstDay(s.eventFrom)).toISOString() : null;
+        fillRank(el, since ? await Hub.topSince(s.id, since, 5) : await Hub.leaderboard(s.id, 5), 'best_score', s.id);
+        const best = Hub.user ? (since ? await Hub.myBestSince(s.id, since) : await Hub.myBest(s.id)) : null;
+        if (mine && mine.isConnected) mine.innerHTML = Hub.user ? (best ? `${since ? (+s.eventFrom.slice(5, 7)) + '월 ' : ''}내 최고 <b class="num">${sfmt(s.id, best)}</b>` : (since ? '이번 이벤트 기록이 아직 없어요' : '아직 도전 기록이 없어요')) : '로그인하면 랭킹에 올라가요';
       } catch (e) { if (el && el.isConnected) el.innerHTML = '<li class="empty">랭킹을 불러오지 못했어요.</li>'; }
     }
   }
@@ -417,12 +424,15 @@
   const XMAS = true;
   if (XMAS) document.documentElement.classList.add('xmas');
   const HERO_SLIDES = [
+    // v211 선생님 11/25: 12월 1일 0시부터 맨 앞 — 11월 신호등 구구단 이벤트 1·2·3등 (서버 gugu_event_top) + 정보교육부 상품 안내
+    { id: 'guguwin', from: '2026-12-01', until: '2027-01-01', podium: true, href: '#gugu', art: 'img/hero/guguwin.jpg', pos: '50% 50%', theme: ['#3A0E14', '#C8452A'], v: 211,
+      tag: '🏆 EVENT 결과 · 신호등 구구단', title: '11월 구구단 이벤트<br>명예의 전당', sub: '1·2·3등을 축하해요! 1등 <b>+200P</b> · 2등 <b>+150P</b> · 3등 <b>+100P</b>', ribbon: '🎁 정보교육부로 와서 상품 타 가세요!', cta: '구구단 하러 가기' },
     // v199 선생님 11/24: Skillcom Fight 정식 오픈 배너 (6.25. 하늘 배너는 내림)
     { id: 'scfight', href: '#scfight', art: 'img/hero/scfight.jpg', pos: '60% 50%', theme: ['#5A1A12', '#C8452A'],
       tag: 'NEW · Skillcom Fight 정식 오픈', title: 'RPG 캐릭터로<br>3D 마법 대결!', sub: 'skillcom RPG 에서 키운 <b>능력치·마법 8칸</b> 그대로! 1~4 · QWER 로 마법을 쏘고 컴퓨터·친구와 1:1 · 2:2, <b>RPG 에서 이긴 보스</b>와도 다시 겨뤄요.', cta: '대결하러 가기', v: 199 },
     // v206 크리스마스 타자연습 배너 (12월 이벤트 예정)
-    { id: 'xmastyping', href: '#typing', art: 'img/hero/xmas_typing.jpg', pos: '70% 50%', theme: ['#123A2A', '#C8202A'],
-      tag: 'CHRISTMAS · 크리스마스 타자연습', title: '선물 상자를<br>타자로 열어라!', sub: '눈 내리는 크리스마스 마을에 <b>선물 상자 낱말</b>이 떨어져요 · 눈밭에 닿기 전에 빨리 쳐서 열어 주세요. <b>12월 이벤트</b>로 열릴 예정이에요!', cta: '타자연습 하러 가기', v: 206 },
+    { id: 'xmastyping', until: '2027-01-01', href: '#typing', art: 'img/hero/xmas_typing.jpg', pos: '70% 50%', theme: ['#123A2A', '#C8202A'],
+      tag: 'CHRISTMAS · 12월 이벤트', title: '선물 상자를<br>타자로 열어라!', sub: (Date.now() >= Date.parse('2026-12-01T00:00:00+09:00') ? '눈 내리는 크리스마스 마을에 <b>선물 상자 낱말</b>이 떨어져요 · 눈밭에 닿기 전에 빨리 쳐서 열어 주세요. <b>12월 이벤트 진행 중!</b>' : '눈 내리는 크리스마스 마을에 <b>선물 상자 낱말</b>이 떨어져요 · 눈밭에 닿기 전에 빨리 쳐서 열어 주세요. <b>12월 이벤트</b>로 열릴 예정이에요!'), cta: '타자연습 하러 가기', v: 206 },
     // v182 선생님 11/23: 이순신 장군님 던전 배너 (11:33 던전 공개와 함께 모두에게) · adminOnly: true 를 넣으면 관리자에게만
     { id: 'ysdungeon', href: '#rpg', art: 'img/hero/ys.jpg', pos: '70% 50%', theme: ['#0E2A4A', '#1E6FB0'],
       tag: 'NEW · skillcom RPG 숨은 던전', title: '이순신 장군님 던전 오픈!', sub: '통영 아래쪽 <b>남쪽 바닷길</b>로 누구나 들어갈 수 있어요 · 왜장 아홉을 이겨 도둑맞은 벽화를 되찾고 <b>와키자카</b>에게 도전하세요. 첫 공략자는 메인 화면에 이름이 올라가요!', cta: '바닷길로 출정' },
@@ -433,23 +443,28 @@
   ];
   function startHeroRain() {
     const box = $('#heroSlides'); if (!box) return;
-    const evg = SET.listAll().find(g => g.event && !g.hidden);
-    const slides = HERO_SLIDES.filter(s => !s.adminOnly || (Hub.isAdmin && Hub.isAdmin())).filter(s => s.id !== 'event' || evg).map(s => Object.assign({}, s, { href: s.href || '#' + evg.id }));
+    const evg = SET.listAll().find(g => g.id === 'gugu' && evOn(g));   // v211: 구구단 배너는 이벤트 기간(11월)에만
+    const slides = HERO_SLIDES.filter(s => (!s.from || Date.now() >= kstDay(s.from)) && (!s.until || Date.now() < kstDay(s.until))).filter(s => !s.adminOnly || (Hub.isAdmin && Hub.isAdmin()))   // v211: until 날짜(한국 0시)부터 내림
+     .filter(s => s.id !== 'event' || evg).map(s => Object.assign({}, s, { href: s.href || '#' + evg.id }));
     if (!slides.length) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     box.innerHTML = slides.map((g, i) => `
-      <div class="hero-slide hs2" data-i="${i}" ${i ? 'hidden' : ''} style="--h1:${g.theme[0]};--h2:${g.theme[1]}">
+      <div class="hero-slide hs2${g.podium ? ' hs2-pod' : ''}" data-i="${i}" ${i ? 'hidden' : ''} style="--h1:${g.theme[0]};--h2:${g.theme[1]}">
         <a class="hs2-art" href="${g.href}" tabindex="-1" aria-hidden="true" style="background-image:url('${g.art}?v=${g.v || 158}');background-position:${g.pos}"></a>
         <div class="hs2-copy">
           <span class="hs2-tag">${g.tag}</span>
           <h2 class="hs2-title">${g.title}</h2>
-          <p class="hs2-sub">${g.sub}</p>
+          <p class="hs2-sub">${g.sub}</p>${g.ribbon ? `<p class="hs2-ribbon">${g.ribbon}</p>` : ''}
           <a class="btn btn-sun hs2-go" href="${g.href}">${g.cta} ▶</a>
-        </div>
+        </div>${g.podium ? `<div class="hs2-podium" data-podium aria-label="구구단 이벤트 1·2·3등">${[2, 1, 3].map(r => `<div class="pd pd${r}" data-rank="${r}"><span class="pd-medal">${['', '🥇', '🥈', '🥉'][r]}</span><b class="pd-nick">…</b><small class="pd-sc"></small><div class="pd-step"><i>${r}</i><em>+${[0, 200, 150, 100][r]}P</em></div></div>`).join('')}<span class="pd-conf" aria-hidden="true">${Array.from({ length: 18 }, (_, i) => `<i style="--x:${(i * 53) % 100}%;--d:${(i % 6) * 0.45}s;--c:${['#FFD23F', '#FF6B9D', '#5FE3A1', '#5EB8FF', '#FFFFFF'][i % 5]}"></i>`).join('')}</span></div>` : ''}
       </div>`).join('') + `
       <div class="hs2-nav"><button type="button" class="hs2-arrow" data-step="-1" aria-label="이전 소개">◀</button>
         <div class="hs2-dots">${slides.map((g, i) => `<button type="button" data-go="${i}" aria-label="${i + 1}번째 소개"></button>`).join('')}</div>
         <button type="button" class="hs2-arrow" data-step="1" aria-label="다음 소개">▶</button></div>`;
+    if (slides.some(g => g.podium) && Hub.guguTop) Hub.guguTop().then(top => {   // v211 구구단 이벤트 1·2·3등 닉네임
+      $$('[data-podium] .pd', box).forEach(el => { const r = +el.dataset.rank, x = top.find(t => t.rank === r);
+        el.querySelector('.pd-nick').textContent = x ? x.nickname : '—'; el.querySelector('.pd-sc').textContent = x ? x.score + '점' : ''; el.classList.toggle('empty', !x); });
+    }).catch(() => {});
     const els = $$('.hero-slide', box);
     let elapsed = 0, paused = false, raf = 0, last = 0;
     function go(i) {

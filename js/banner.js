@@ -61,12 +61,15 @@
   /* ---- v75 시즌 1위 쪽지 ----
    *  로그인하면 지난 시즌을 정산(Hub.seasonSettle — 서버가 1위 계산·+50P, 두 번 주지 않음)하고
    *  아직 안 읽은 상이 있으면 쪽지 창: '11월 시즌 스네이크 1등! +50P'. [확인] → 읽음(다시 안 뜸) */
+  const rankOf = id => (String(id).includes('#') ? +String(id).split('#')[1] || 1 : 1);   // v211 'gugu#2' = 구구단 이벤트 2등
   const gameName = id => {
+    id = String(id).split('#')[0];
     const S = window.GoSettings; if (!S) return id;
     const g = S.get(id) || S.listAll().find(x => x.rankId === id);
     return g ? g.name : id;
   };
   const scoreText = (id, v) => {
+    id = String(id).split('#')[0];
     const S = window.GoSettings, g = S && (S.get(id) || S.listAll().find(x => x.rankId === id));
     if (g && g.seasonWins) return v + '승';
     return g && g.scoreText ? g.scoreText(v) : Number(v || 0).toLocaleString('ko-KR');
@@ -82,8 +85,8 @@
       <div class="sn-card">
         <div class="sn-head">📮 쪽지 도착!</div>
         <div class="sn-body">
-          <p class="sn-big">🏆 시즌 1등 축하해요!</p>
-          <ul class="sn-list">${list.map(x => `<li><b>${esc(+x.season.slice(5) + '월 시즌')}</b> · <b>${esc(gameName(x.game_id))}</b> 1등 <span class="sn-rec">(기록 ${esc(scoreText(x.game_id, x.score))})</span> <span class="sn-pt">+${x.points}P</span></li>`).join('')}</ul>
+          <p class="sn-big">🏆 ${list.every(x => rankOf(x.game_id) === 1) ? '시즌 1등' : '시즌 순위 상'} 축하해요!</p>
+          <ul class="sn-list">${list.map(x => `<li><b>${esc(+x.season.slice(5) + '월 시즌')}</b> · <b>${esc(gameName(x.game_id))}${x.season === '2026-11' && String(x.game_id).split('#')[0] === 'gugu' ? ' 이벤트' : ''}</b> ${rankOf(x.game_id)}등 <span class="sn-rec">(기록 ${esc(scoreText(x.game_id, x.score))})</span> <span class="sn-pt">+${x.points}P</span></li>`).join('')}</ul>
           <p class="sn-sum">포인트 <b>+${sum}P</b> 를 받았어요. 상점에서 써 보세요!</p>
         </div>
         <div class="sn-foot"><button type="button" class="btn btn-sun sn-ok">확인</button></div>

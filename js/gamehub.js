@@ -534,10 +534,30 @@
             d.awards.push({ id: Date.now() + Math.random(), season: s.key, game_id: g, user_id: w.user_id, score: w.score, points: Hub.SEASON_POINTS, notified: false, created_at: new Date().toISOString() });
             u.points += Hub.SEASON_POINTS; u.earned = (u.earned || 0) + Hub.SEASON_POINTS; n++;
           });
+          if (s.key === '2026-11') Hub._guguTopOf(recs).filter(x => x.rank > 1).forEach(x => {   // v211 구구단 이벤트 2등 150P · 3등 100P
+            const pts = x.rank === 2 ? 150 : 100, u = d.users[x.user_id];
+            d.awards.push({ id: Date.now() + Math.random(), season: s.key, game_id: 'gugu#' + x.rank, user_id: x.user_id, score: x.score, points: pts, notified: false, created_at: new Date().toISOString() });
+            u.points += pts; u.earned = (u.earned || 0) + pts; n++;
+          });
           d.settled[s.key] = new Date().toISOString();
         }
         persist(); if (n) setUser(pub(d.users[Hub.user.id]));
         return n;
+      },
+      async topSince(game, since, n) {   // v211 12월 이벤트 랭킹: since 이후 기록만, 사람마다 최고 n명
+        const d = db(), t = Date.parse(since);
+        const rows = Hub._topPer(d.records.filter(r => r.game_id === game && r.score > 0 && Date.parse(r.played_at) >= t && d.users[r.user_id] && !d.users[r.user_id].banned), n || 5);
+        return rows.map(x => { const u = d.users[x.user_id] || {}; return Object.assign(x, { nickname: u.nickname || '?', avatar: u.avatar }); });
+      },
+      async myBestSince(game, since) {
+        if (!Hub.user) return null; const t = Date.parse(since);
+        const s = db().records.filter(r => r.game_id === game && r.user_id === Hub.user.id && Date.parse(r.played_at) >= t).map(r => r.score);
+        return s.length ? Math.max(...s) : null;
+      },
+      async guguTop() {   // v211: 11월 신호등 구구단 이벤트 1~3등 [{rank, nickname, score}]
+        const d = db(), t0 = Date.parse('2026-11-01T00:00:00+09:00'), t1 = Date.parse('2026-12-01T00:00:00+09:00');
+        const recs = d.records.filter(r => { const t = Date.parse(r.played_at), u = d.users[r.user_id]; return t >= t0 && t < t1 && u && !u.banned && u.username !== DEMO_ADMIN && u.role !== 'admin'; });
+        return Hub._guguTopOf(recs).map(x => ({ rank: x.rank, nickname: (d.users[x.user_id] || {}).nickname || '?', score: x.score }));
       },
       async seasonInbox() { if (!Hub.user) return []; return (db().awards || []).filter(a => a.user_id === Hub.user.id && !a.notified); },
       async noteInbox() { return []; },   // v119 쪽지 (체험 모드엔 없음)
@@ -1028,6 +1048,27 @@
         if (data > 0 && Hub.user) await loadProfile(Hub.user.id);   // 포인트가 바뀌었을 수 있음
         return data || 0;
       },
+      async topSince(game, since, n) {   // v211 12월 이벤트 랭킹: since 이후 기록 (점수 높은 순 1000줄) → 사람마다 최고 n명
+        const { data, error } = await sb.from('play_records').select('user_id,score,played_at').eq('game_id', game).gte('played_at', since).gt('score', 0)
+          .order('score', { ascending: false }).order('played_at', { ascending: true }).limit(1000);
+        if (error) throw error;
+        let rows = Hub._topPer(data || [], 40);
+        if (!rows.length) return [];
+        const { data: ps } = await sb.from('profiles').select('id,nickname,avatar').in('id', rows.map(r => r.user_id));
+        const P = {}; (ps || []).forEach(p => { P[p.id] = p; });
+        rows = rows.filter(r => P[r.user_id]).slice(0, n || 5);   // 정지·탈퇴 등으로 프로필이 안 보이면 뺌
+        return rows.map(r => Object.assign(r, { nickname: P[r.user_id].nickname || '?', avatar: P[r.user_id].avatar }));
+      },
+      async myBestSince(game, since) {
+        if (!Hub.user) return null;
+        const { data } = await sb.from('play_records').select('score').eq('game_id', game).eq('user_id', Hub.user.id).gte('played_at', since).order('score', { ascending: false }).limit(1);
+        return data && data[0] ? data[0].score : null;
+      },
+      async guguTop() {   // v211: supabase/season_v211.sql 의 gugu_event_top() — 로그인 안 해도 됨
+        const { data, error } = await sb.rpc('gugu_event_top');
+        if (error) { console.warn('[gogo] 구구단 이벤트 순위 못 읽음', error.message); return []; }
+        return (data || []).map(r => ({ rank: +r.rank, nickname: r.nickname || '?', score: +r.score || 0 }));
+      },
       async seasonInbox() {
         if (!Hub.user || seasonOff) return [];
         const { data, error } = await sb.from('season_awards').select('id,season,game_id,score,points').eq('user_id', Hub.user.id).eq('notified', false).order('id');
@@ -1153,9 +1194,21 @@
     return { key: y + '-' + String(m + 1).padStart(2, '0'), start: new Date(Date.UTC(y, m, 1) - 9 * 36e5).toISOString(), end: new Date(Date.UTC(y, m + 1, 1) - 9 * 36e5).toISOString(), month: m + 1, year: y, label: (m + 1) + '월 시즌' };
   };
   // v75 시즌 보상: 첫 시즌 2026-11 · 1위 +50P · 빼는 게임(RPG·Ultimate 는 선생님이 따로, 나머지는 랭킹에 안 쓰는 옛 기록) — supabase/season_v75.sql 과 같게
-  Hub.SEASON_FIRST = '2026-11'; Hub.SEASON_POINTS = 50;
+  Hub.SEASON_FIRST = '2026-11'; Hub.SEASON_POINTS = 200;   // v211 선생님 11/25: 1위 50P → 200P (supabase/season_v211.sql 과 같게)
   // v79: 퍼즐512 시즌 = 랭킹 대전 기록('ultimate') → 'ultimate' 는 포함, 옛 퍼즐512 대결 기록('p512')은 뺌. 신호등 구구단('gugu') 포함
   Hub.SEASON_SKIP = ['rpg', 'p512', 'battle', 'blocks', '2048', 'p1024'];
+  // v211: 기록 목록 → 사람마다 최고 점수(같으면 먼저 낸 것) 위에서 n명
+  Hub._topPer = function (recs, n) {
+    const best = {};
+    recs.forEach(r => { const b = best[r.user_id]; if (!b || r.score > b.best_score || (r.score === b.best_score && r.played_at < b.best_at)) best[r.user_id] = { user_id: r.user_id, best_score: r.score, best_at: r.played_at }; });
+    return Object.values(best).sort((a, b) => b.best_score - a.best_score || (a.best_at < b.best_at ? -1 : 1)).slice(0, n);
+  };
+  // v211: 구구단 이벤트 1~3등 (사람마다 최고 점수, 같으면 먼저 낸 사람) — season_v211.sql 과 같은 규칙
+  Hub._guguTopOf = function (recs) {
+    const best = {};
+    recs.filter(r => r.game_id === 'gugu' && r.score > 0).forEach(r => { const b = best[r.user_id]; if (!b || r.score > b.score || (r.score === b.score && r.played_at < b.at)) best[r.user_id] = { user_id: r.user_id, score: r.score, at: r.played_at }; });
+    return Object.values(best).sort((a, b) => b.score - a.score || (a.at < b.at ? -1 : 1)).slice(0, 3).map((x, i) => Object.assign(x, { rank: i + 1 }));
+  };
   Hub.seasonList = function (now) {   // 첫 시즌 ~ 지금 시즌 (지금 것이 맨 뒤, current: true)
     const cur = Hub.season(now), out = [];
     let [y, m] = Hub.SEASON_FIRST.split('-').map(Number);

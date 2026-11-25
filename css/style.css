@@ -1006,6 +1006,12 @@ mark.bad-word { background: #FFE1E2; color: #B3261E; text-decoration: underline 
 .event-rank h3 { margin: 0 0 6px; font-size: 15px; }
 .event-rank .rank li { padding: 4px 6px; font-size: 13px; }
 @media (max-width: 720px) { .event-box { grid-template-columns: 1fr; padding: 14px; } }
+/* v211 이벤트 칸 가로 반반 (12월: 왼쪽 닷지 · 오른쪽 타자연습) — 반쪽 안에서는 소개 위 · 랭킹 아래 */
+.event-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 18px 0 26px; }
+.home .event-duo { margin: 0; }
+.event-box.event-half { grid-template-columns: minmax(0, 1fr); gap: 12px; margin: 0; }
+.event-box.event-half .event-copy h2 { font-size: clamp(22px, 3vw, 28px); }
+@media (max-width: 720px) { .event-duo { grid-template-columns: minmax(0, 1fr); } }
 
 .ult .play-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
 .ult-tag { background: #FF3D8B; color: #fff; padding: 2px 8px; border-radius: 4px; }
@@ -1917,3 +1923,43 @@ html.xmas .home .thumb-wrap .cat, html.xmas .home .thumb-wrap .tag, html.xmas .h
 .cabinet[data-g="fight"] { background: url(../games/sports/fight/stage.jpg?v=207) center / cover no-repeat, #3B2A5A; border-color: #1E1330; box-shadow: 0 0 0 2px #FF7EB6, 0 0 20px rgba(255,126,182,.45), var(--lift); }
 .cabinet[data-g="mecha"] { background: url(../games/action/mecha/img/arena2.jpg?v=207) center / cover no-repeat, #120E3A; border-color: #0A0E24; box-shadow: 0 0 0 2px #7FA2FF, 0 0 22px rgba(127,162,255,.55), var(--lift); }
 .cabinet[data-g="volley"] .screen, .cabinet[data-g="tennis"] .screen, .cabinet[data-g="fight"] .screen, .cabinet[data-g="mecha"] .screen { border-color: #0E1230; box-shadow: 0 0 0 3px #FFD23F, 0 6px 0 rgba(0,0,0,.35); }
+
+/* v211 12월 배너: 11월 신호등 구구단 이벤트 명예의 전당 (시상대 · 꽃가루 · 상품 리본) */
+.hero .hs2-ribbon { align-self: flex-start; margin: 2px 0 0; padding: 8px 16px 8px 14px; font-size: 16px; font-weight: 800; color: #1D2340; background: linear-gradient(90deg, #FFE27A, #FFC93C); border: 2px solid #1D2340; border-radius: 10px; box-shadow: 0 4px 0 #1D2340; animation: pdRib 1.6s ease-in-out infinite; }
+@keyframes pdRib { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg) scale(1.03); } }
+.hs2-podium { position: absolute; z-index: 2; right: 3%; bottom: 0; width: min(46%, 460px); height: 88%; display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 8px; padding: 0 12px; box-sizing: border-box; pointer-events: none;
+  background: radial-gradient(60% 50% at 50% 100%, rgba(255, 210, 63, .45), transparent 70%); }
+.hs2-podium .pd { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; text-align: center; }
+.pd-medal { font-size: 34px; line-height: 1; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, .35)); animation: pdBob 2s ease-in-out infinite; }
+.pd1 .pd-medal { font-size: 46px; animation-delay: .3s; } .pd1 .pd-medal::before { content: '👑'; display: block; font-size: 26px; margin-bottom: -6px; }
+.pd-nick { max-width: 100%; padding: 4px 10px; border-radius: 999px; background: #FFFFFF; color: #1D2340; font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 2px solid #1D2340; }
+.pd1 .pd-nick { font-size: 17px; background: #FFF4C2; }
+.pd-sc { font-size: 12px; font-weight: 700; color: #FFE27A; text-shadow: 0 2px 0 rgba(0, 0, 0, .5); min-height: 14px; }
+.pd-step { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; padding-top: 8px; border: 3px solid #1D2340; border-bottom: 0; border-radius: 10px 10px 0 0; box-shadow: inset 0 6px 0 rgba(255, 255, 255, .35); }
+.pd-step i { font-style: normal; font-family: var(--f-display); font-size: 30px; color: #1D2340; text-shadow: 0 2px 0 rgba(255, 255, 255, .6); line-height: 1; }
+.pd-step em { font-style: normal; font-size: 13px; font-weight: 800; color: #1D2340; background: rgba(255, 255, 255, .75); padding: 1px 8px; border-radius: 999px; }
+.pd1 .pd-step { height: 128px; background: linear-gradient(180deg, #FFE27A, #F2A900); }
+.pd2 .pd-step { height: 92px; background: linear-gradient(180deg, #EEF3FF, #A9B7D6); }
+.pd3 .pd-step { height: 70px; background: linear-gradient(180deg, #FFC7A0, #C97B45); }
+.hs2-podium .pd.empty .pd-nick { background: #E3E8FA; }
+@keyframes pdBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.pd-conf { position: absolute; inset: -12% 0 30% 0; overflow: hidden; pointer-events: none; }
+.pd-conf i { position: absolute; top: -10px; left: var(--x); width: 7px; height: 11px; background: var(--c); border-radius: 2px; animation: pdFall 3.2s linear var(--d) infinite; opacity: .9; }
+@keyframes pdFall { 0% { transform: translateY(0) rotate(0); } 100% { transform: translateY(260px) rotate(540deg); opacity: 0; } }
+@media (max-width: 720px) {
+  .hs2-podium { right: 0; left: 0; margin: 0 auto; top: 6px; bottom: auto; width: 100%; height: 56%; padding: 0 16px; }
+  .pd-medal { font-size: 24px; } .pd1 .pd-medal { font-size: 32px; } .pd1 .pd-medal::before { font-size: 18px; }
+  .pd-nick { font-size: 12px; padding: 2px 7px; } .pd1 .pd-nick { font-size: 13px; }
+  .pd1 .pd-step { height: 70px; } .pd2 .pd-step { height: 50px; } .pd3 .pd-step { height: 38px; }
+  .pd-step i { font-size: 20px; } .pd-step em { font-size: 11px; }
+  .hero .hs2-ribbon { font-size: 14px; padding: 7px 12px; }
+  .hs2-pod .hs2-title, .hs2-pod .hs2-sub, .hs2-pod .hs2-tag { display: none; }   /* 휴대폰: 시상대가 제목 자리를 씀 → 리본·버튼만 */
+  .hs2-pod .hs2-podium { height: 58%; }
+}
+@media (prefers-reduced-motion: reduce) { .pd-conf, .pd-medal, .hs2-ribbon { animation: none !important; } .pd-conf { display: none; } }
+/* v211 12월 이벤트 칸 Gemini 배경 (왼쪽·위를 어둡게 덮어 글씨가 잘 보이게) */
+.event-box.has-art { background: linear-gradient(100deg, rgba(10, 14, 42, .88) 0%, rgba(10, 14, 42, .62) 45%, rgba(10, 14, 42, .12) 100%), var(--ev-art) center / cover no-repeat, #1A1F4D; }
+.event-box.has-art .event-copy h2 { text-shadow: 3px 3px 0 #0A0E24; }
+.event-box.has-art .event-copy p { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+.event-box.has-art .event-rank { background: rgba(255, 255, 255, .94); }
+
