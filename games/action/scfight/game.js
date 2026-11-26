@@ -71,15 +71,17 @@
     const st = {}; ['atk', 'mag', 'def', 'hp', 'mp'].forEach(k => { st[k] = Math.round(num(fc.st[k], 1, 1e7, 1)); });
     ['spd', 'dmg', 'pdef'].forEach(k => { st[k] = num(fc.st[k], -100, 1000, 0); }); st.mpRegen = num(fc.st.mpRegen, 0, 2000, 100); st.crit = num(fc.st.crit, 0, 100, 8); st.critD = num(fc.st.critD, 1, 10, 1.6);
     st.edefs = {}; Object.keys(RMAP).forEach(e => { st.edefs[e] = num(fc.st.edefs && fc.st.edefs[e], -100, 100, 0); });
-    const slots = Array.from({ length: 8 }, (_, i) => {
-      const o = fc.slots[i]; if (!o || typeof o !== 'object') return null;
+    const mapSlots = arr => Array.from({ length: 8 }, (_, i) => {
+      const o = arr[i]; if (!o || typeof o !== 'object') return null;
       const els = (Array.isArray(o.els) ? o.els : [o.el]).filter(e => RMAP[e]).slice(0, 2); if (!els.length) return null;
       const q = { id: String(o.id || '').slice(0, 40), name: String(o.name || '마법').slice(0, 14), el: els[0], els, lv: Math.round(num(o.lv, 1, 100, 1)), kind: KINDN[o.kind] ? o.kind : 'bolt', pow: num(o.pow, 0, 20, 1), mp: Math.round(num(o.mp, 0, 200, 5)), cd: num(o.cd, 0.3, 60, 1) };
       const LIM = { count: 12, radius: 300, len: 600, w: 120, dur: 12, speed: 3 }; ['count', 'radius', 'len', 'w', 'dur', 'speed'].forEach(k => { if (o[k] != null) q[k] = num(o[k], 0, LIM[k], 0); });   // v199 저장이 망가져도 마당 전체를 덮는 마법이 없게 (RPG 가장 큰 값: 둘레 260 · 길이 400 · 너비 80 · 10초 · 9번 · 속도 1.6) if (o.pierce) q.pierce = true;
       return q;
     });
+    const slots = mapSlots(fc.slots);
     if (!slots.some(Boolean)) slots[0] = Object.assign({}, ARROW);
-    return { v: 1, lv: Math.round(num(fc.lv, 1, 100, 1)), reb: Math.round(num(fc.reb, 0, 99, 0)), st, slots, at: +fc.at || 0, basic: false };
+    const s2 = Array.isArray(fc.slots2) ? mapSlots(fc.slots2) : null, slots2 = s2 && s2.some(Boolean) ? s2 : null;   // v215 RPG 마법 세팅 2번 (Y 로 바꿈)
+    return { v: 1, lv: Math.round(num(fc.lv, 1, 100, 1)), reb: Math.round(num(fc.reb, 0, 99, 0)), st, slots, slots2, setNo: fc.setNo === 2 ? 2 : 1, at: +fc.at || 0, basic: false };
   }
   // 마법 칸 하나 → 대결 마법 (3단계: RPG 모양 그대로 · 거리는 RPG 22px = 1m)
   const PX = 1 / 22;
@@ -165,6 +167,17 @@
 
   // RPG 마법 그림 (rpg/img/ic_skill.png 34px × 30칸 · ic_fusion.png 48px × 21칸 · 물약 ic_pot.png 80px × 19칸)
   const RPG_IMG = 'games/action/rpg/img/';
+  // v214 선생님 11/26: RPG 에서 데리고 다니는 영웅·전설 펫의 특수 능력을 Fight 에서도 (T · 휴대폰 펫 버튼) — 쿨타임은 RPG 와 같고 판마다 새로
+  const PET_SP = {
+    l1: { name: '사방신의 수호', cd: 180, dur: 5, els: ['fire', 'water', 'earth', 'thunder'], icon: 'sx_king_idle', color: '#FFD23F', desc: '5초 동안 불·물·땅·번개 피해 무시' },
+    l2: { name: '필사즉생', cd: 300, dur: 2, inv: true, icon: 'ys_yi', color: '#FFE27A', desc: '2초 동안 무적' },
+    h1: { name: '청룡의 비늘', cd: 180, dur: 3, els: ['thunder'], icon: 'sx_cr', color: '#FFE45C', desc: '3초 동안 번개 피해 무시' },
+    h2: { name: '주작의 깃', cd: 180, dur: 3, els: ['fire'], icon: 'sx_jj', color: '#FF8A4C', desc: '3초 동안 불 피해 무시' },
+    h3: { name: '백호의 발톱', cd: 180, dur: 3, els: ['earth'], icon: 'sx_bh', color: '#E0B070', desc: '3초 동안 땅 피해 무시' },
+    h4: { name: '현무의 등껍질', cd: 180, dur: 3, els: ['water'], icon: 'sx_hm', color: '#7FC8FF', desc: '3초 동안 물 피해 무시' },
+    h5: { name: '거북선 철갑', cd: 300, dur: 0.5, inv: true, icon: 'ys_turtle', color: '#7FE0FF', desc: '0.5초 동안 무적' }
+  };
+  const petSpOf = rpg => { const p = rpg && Array.isArray(rpg.pets) && rpg.pets.find(q => q && q.u === rpg.petOn); return p && PET_SP[p.id] ? Object.assign({ id: p.id }, PET_SP[p.id]) : null; };
   const SK_ORDER = ['magicarrow', 'fireball', 'watershot', 'heal1', 'darkorb', 'stonewall', 'windblade', 'firering', 'thunderarrow', 'earthsplit', 'tornado', 'lightspear', 'cursefog', 'firerain', 'tidal', 'chainbolt', 'gale', 'holylight', 'thunderfall', 'quake', 'shadowspear', 'stormblade', 'barrier', 'waterfall', 'sunburst', 'thorspear', 'abyss', 'earthrage', 'judgement', 'elemental'];
   const FU_ORDER = ['fire+water', 'fire+wind', 'earth+fire', 'fire+thunder', 'fire+light', 'water+wind', 'earth+water', 'thunder+water', 'light+water', 'earth+wind', 'thunder+wind', 'light+wind', 'earth+thunder', 'earth+light', 'light+thunder', 'dark+fire', 'dark+water', 'dark+wind', 'dark+earth', 'dark+thunder', 'dark+light'];
   const sheetBg = (file, i, n) => `url(${RPG_IMG}${file}?v=101) ${n > 1 ? (i / (n - 1) * 100).toFixed(3) : 0}% 0 / ${n * 100}% 100% no-repeat`;
@@ -353,6 +366,9 @@
   .sf-hudpot { position: absolute; left: 2%; bottom: 4%; display: flex; gap: 6px; pointer-events: auto; }
   .sf-hudpot button { position: relative; width: 52px; height: 52px; border-radius: 12px; border: 3px solid #0A0E24; color: #FFFFFF; font: 700 13px/1.1 inherit; font-family: inherit; box-shadow: 0 3px 0 rgba(0,0,0,.4); touch-action: manipulation; }
   .sf-hudpot .hp { background: #D2343A; } .sf-hudpot .mp { background: #2F55D9; } .sf-hudpot .dash { background: #3DDC84; color: #0A0E24; }
+  .sf-set { position: relative; width: 46px; height: 52px; align-self: flex-end; border-radius: 10px; border: 3px solid #0A0E24; background: linear-gradient(180deg, #6B4AE0, #3A2590); color: #FFF; font-family: inherit; display: grid; place-items: center; padding: 0; pointer-events: auto; touch-action: manipulation; } .sf-set span { font-size: 20px; line-height: 1; } .sf-set em { font-style: normal; font-size: 10px; color: #FFE27A; } .sf-set .kk { position: absolute; left: 3px; top: 1px; font-size: 11px; }   /* v215 */
+  .sf-hudpot .pet { background: #5A3A0E center 20% / 120% auto no-repeat; border-color: #FFD23F; } .sf-hudpot .pet.act { border-color: #5FE3A1; box-shadow: 0 0 14px #5FE3A1; }   /* v214 */
+  .sf-petsp { display: flex; align-items: center; gap: 10px; margin: -4px 0 10px; padding: 6px 10px; border-radius: 10px; background: #2A1E0A; border: 2px solid #FFD23F; font-size: 13px; } .sf-petsp img { width: 34px; height: 40px; object-fit: contain; } .sf-petsp small { color: #FFE9A8; }
   .sf-hudpot button[disabled] { opacity: .45; } .sf-hudpot .cd { position: absolute; inset: 0; border-radius: 9px; background: rgba(10,14,36,.65); display: grid; place-items: center; font-size: 15px; color: #fff; }
   @media (pointer: coarse) { .sf-hudpot { left: 3%; bottom: calc(6% + 130px); } }
   .sf-nums .sf-num.sm { width: 54px; height: 54px; font-size: 22px; }
@@ -370,7 +386,7 @@
       if (!document.getElementById('sfCss')) { const st = document.createElement('style'); st.id = 'sfCss'; st.textContent = CSS; document.head.appendChild(st); }
       el.innerHTML = `<div class="sf-page"><div class="play-head"><a class="back" href="#home">← 게임 목록</a><span class="cat">3D 대결</span><h1>${CFG.name}</h1></div><div id="sfBody"><p class="small">캐릭터를 불러오는 중…</p></div></div>`;
       const body = el.querySelector('#sfBody');
-      let alive = true, S = null, LV = 1, CARD = BASIC_CARD(), BOSSES = [], av = null, lobbyCh = null, roomCh = null, rooms = new Map(), myRoom = null, battle = null;
+      let alive = true, S = null, LV = 1, PSP = null, CARD = BASIC_CARD(), BOSSES = [], av = null, lobbyCh = null, roomCh = null, rooms = new Map(), myRoom = null, battle = null;
       let isHost = false, roomSize = 2, roomPeers = [], roomHostId = '', seenHost = false, starting = false, joinAt = 0, myPick = null;
       const TEAM = ['청군', '홍군'];
       const nick = () => (Hub.user ? Hub.user.nickname : '손님');
@@ -410,7 +426,7 @@
             <div class="sf-stgrid">${[['공격', ST.atk], ['마력', ST.mag], ['방어', ST.def], ['체력', ST.hp], ['마나', ST.mp], ['이동', '+' + Math.round(ST.spd) + '%'], ['치명타', Math.round(ST.crit) + '%'], ['물리 방어', Math.round(ST.pdef) + '%']].map(([n, v]) => `<div><small>${n}</small><b>${v}</b></div>`).join('')}</div>
             <h3>마법 8칸 <small style="font-size:12px;color:#AEB7E0;font-family:inherit">RPG 마법 창 그대로</small></h3>
             <div class="sf-slots">${CARD.slots.map((q, i) => q ? `<div class="sf-slot" style="--c:${EL[RMAP[q.els[0]]].c}"><span class="k">${SLOTK[i]}</span><i class="ic" style="background:${skIconBg(q)}"></i><b>${A.esc(q.name)}</b><small>${q.els.map(e => RNAME[e]).join('+')} · ${KINDN[q.kind]}</small><small>마나 ${q.mp} · ${q.cd}초</small></div>` : `<div class="sf-slot empty"><span class="k">${SLOTK[i]}</span><b>빈칸</b><small>${i < 4 ? '기본 마법' : '융합 마법'}</small></div>`).join('')}</div>
-            <div class="sf-pots"><div class="hp"><i class="ic" style="background:${potBg('hp')}"></i><span><b>F</b> 체력 물약 × 3<br><small style="color:#AEB7E0">판마다 3개 · 가방은 안 줄어요</small></span></div><div class="mp"><i class="ic" style="background:${potBg('mp')}"></i><span><b>G</b> 마나 물약 × 3<br><small style="color:#AEB7E0">판마다 3개 · 가방은 안 줄어요</small></span></div></div>
+            <div class="sf-pots"><div class="hp"><i class="ic" style="background:${potBg('hp')}"></i><span><b>F</b> 체력 물약 × 3<br><small style="color:#AEB7E0">판마다 3개 · 가방은 안 줄어요</small></span></div><div class="mp"><i class="ic" style="background:${potBg('mp')}"></i><span><b>G</b> 마나 물약 × 3<br><small style="color:#AEB7E0">판마다 3개 · 가방은 안 줄어요</small></span></div></div>${PSP ? `<div class="sf-petsp"><img src="${RPG_IMG}v79/${PSP.icon}.png" alt=""><span><b>T</b> 펫 특수 능력 · <b style="color:${PSP.color}">${PSP.name}</b><br><small>${PSP.desc} · 판마다 쿨타임 ${PSP.cd / 60}분</small></span></div>` : ''}
             <h3>조작</h3>
             <div class="sf-keys"><kbd>S Z X C</kbd><span>앞 · 왼쪽 · 뒤 · 오른쪽 (방향키도 돼요)</span><kbd>1 2 3 4</kbd><span>기본 마법</span><kbd>Q W E R</kbd><span>융합 마법</span><kbd>마우스 왼쪽</kbd><span>기본 공격 (마법 화살)</span><kbd>마우스</kbd><span>둘러보기 (처음 누르면 고정 · Esc 풀기)</span><kbd>F · G</kbd><span>체력 · 마나 물약</span><kbd>Space</kbd><span>대시 (3초마다)</span><kbd>B</kbd><span>1인칭 ↔ 3인칭</span></div>
             <p class="sub" style="margin:10px 0 0">피해는 RPG 결투와 같은 계산(마력 × 위력 − 상대 방어 · 속성 방어 · 치명타)이에요. 레벨이 상대보다 높으면 1당 피해·체력 −1% (최대 −50%) · 회복·방패 마법은 RPG 의 절반</p>
@@ -576,9 +592,9 @@
           <button type="button" class="sf-btn ghost sf-view" id="sfView">시점: ${(S.view || 1)}인칭 (B)</button>
           <button type="button" class="sf-btn ghost sf-full" id="sfFull" aria-label="화면 크게 보기"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
           <div class="sf-joy" id="sfJoy"><i></i></div>
-          <div class="sf-hudpot"><button type="button" class="hp ico" id="sfPotH" style="background:${potBg('hp')}"><b class="kk">F</b><span class="n">3</span></button><button type="button" class="mp ico" id="sfPotM" style="background:${potBg('mp')}"><b class="kk">G</b><span class="n">3</span></button><button type="button" class="dash" id="sfDash">대시</button></div>
-          <div class="sf-nums">${CARD.slots.map((q, i) => q ? `<button type="button" class="sf-num sm ico" data-slot="${i}" style="background:${skIconBg(q)}"><b class="kk">${SLOTK[i]}</b><small>${A.esc(q.name)}</small></button>` : '').join('')}<button type="button" class="sf-num sm ico basic" data-basic="1" style="background:${skIconBg(ARROW)}"><b class="kk">🖱</b><small>기본 공격</small></button></div>
-        </div></div><p class="small" style="text-align:center;margin-top:8px">${modeName(opt.size)} 대결 · 화면을 한 번 누르면 마우스로 둘러봐요 (Esc 로 풀기) · S Z X C 이동 · 1~4 QWER 마법 · 마우스 왼쪽 기본 공격 · F G 물약 · Space 대시 · B 시점${opt.size === 4 ? ' · 같은 편(파란 이름)은 안 맞아요' : ''}</p>`;
+          <div class="sf-hudpot"><button type="button" class="hp ico" id="sfPotH" style="background:${potBg('hp')}"><b class="kk">F</b><span class="n">3</span></button><button type="button" class="mp ico" id="sfPotM" style="background:${potBg('mp')}"><b class="kk">G</b><span class="n">3</span></button><button type="button" class="dash" id="sfDash">대시</button>${PSP ? `<button type="button" class="pet ico" id="sfPet" title="${PSP.name} (T)" style="background-image:url('${RPG_IMG}v79/${PSP.icon}.png')"><b class="kk">T</b></button>` : ''}</div>
+          <div class="sf-nums">${CARD.slots2 ? `<button type="button" class="sf-set" id="sfSet" title="마법 세팅 바꾸기 (Y)"><b class="kk">Y</b><span>⇄</span><em>세팅 ${CARD.setNo}</em></button>` : ''}${CARD.slots.map((q, i) => `<button type="button" class="sf-num sm ico" data-slot="${i}"${q ? ` style="background:${skIconBg(q)}"` : ' style="display:none"'}><b class="kk">${SLOTK[i]}</b><small>${q ? A.esc(q.name) : ''}</small></button>`).join('')}<button type="button" class="sf-num sm ico basic" data-basic="1" style="background:${skIconBg(ARROW)}"><b class="kk">🖱</b><small>기본 공격</small></button></div>
+        </div></div><p class="small" style="text-align:center;margin-top:8px">${modeName(opt.size)} 대결 · 화면을 한 번 누르면 마우스로 둘러봐요 (Esc 로 풀기) · S Z X C 이동 · 1~4 QWER 마법 · 마우스 왼쪽 기본 공격 · F G 물약 · Space 대시 · B 시점${PSP ? ' · T 펫 특수 능력' : ''}${CARD.slots2 ? ' · Y 마법 세팅 바꾸기' : ''}${opt.size === 4 ? ' · 같은 편(파란 이름)은 안 맞아요' : ''}</p>`;
         const stage = body.querySelector('#sfStage'), cv = body.querySelector('#sfCv'), $h = id => body.querySelector('#' + id);
         const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
         renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.shadowMap.enabled = true;
@@ -709,7 +725,7 @@
           $h(ally(u) ? 'sfAllies' : 'sfFoes').appendChild(row); u.bar = row.querySelector('i'); u.barT = row.querySelector('span'); u.row = row;
           const tag = document.createElement('div'); tag.className = 'sf-tag ' + (ally(u) ? 'ally' : 'foe'); tag.textContent = (ally(u) ? '내 편 ' : '') + u.nick; $h('sfTags').appendChild(tag); u.tag = tag;
         });
-        const B = { net: !!opt.net, over: false, shots: [], parts: [], fx: [], seq: 0, view: S.view || 1, keys: {}, ch: null, t: 0, sendT: 0, joy: null, look: null, lock: false };
+        const B = { petCd: 0, pg: null, net: !!opt.net, over: false, shots: [], parts: [], fx: [], seq: 0, view: S.view || 1, keys: {}, ch: null, t: 0, sendT: 0, joy: null, look: null, lock: false };
 
         /* --- 마법 쓰기 --- */
         function fwd(yaw, pitch) { return new THREE.Vector3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)); }
@@ -796,7 +812,8 @@
         function hitU(T, C, k) {
           if (!T.own || T.dead || B.over) return;
           const now = B.t; T.hitCd = T.hitCd || {}; if (now - (T.hitCd[C.cid] || -9) < 0.12) return; T.hitCd[C.cid] = now;
-          const F = T.F, basic = !!(C.sp && C.sp.basic), el = basic ? null : C.els[0];   // v198 기본 공격 = 원소 없음 (RPG 와 같게: 물리 방어 · 원소 효과 없음)
+          const F = T.F, basic = !!(C.sp && C.sp.basic), el = basic ? null : C.els[0];
+          if (T === me && B.pg && B.pg.t > 0 && (B.pg.inv || (el && B.pg.els && B.pg.els.includes(el)))) { if (!(B.pgTxt > B.t)) { B.pgTxt = B.t + 0.4; floatText(T, B.pg.inv ? '무적' : (EL[el] ? EL[el].n || '' : '') + ' 무시!', PSP ? PSP.color : '#FFE27A'); } return; }   // v214 펫 특수 능력   // v198 기본 공격 = 원소 없음 (RPG 와 같게: 물리 방어 · 원소 효과 없음)
           let dmg = (C.raw * k - F.def * 0.5) * (1 - (el ? (F.edefs[el] || 0) : clamp(F.pdef || 0, 0, 75)) / 100);
           if (T.shieldT > 0) dmg *= 1 - (T.shieldPow || 0);
           if (C.els.includes('earth')) dmg *= 1.15;   // 땅 = 큰 피해
@@ -826,7 +843,7 @@
         // 효과 시간 줄이기 · 화상 피해 · 밀려남 (이 기기가 맡은 몸만 · 다른 기기에는 상태 표시만 보냄)
         function statusTick(U, dt) {
           ['slow', 'stun', 'stunImm', 'curse'].forEach(k2 => { if (U[k2] > 0) U[k2] -= dt; });
-          if (U.burn) { U.burn.t -= dt; U.burn.tick -= dt; if (U.burn.tick <= 0 && !U.dead && !B.over) { U.burn.tick = 0.5; const bd = Math.max(1, Math.round(U.burn.dps * 0.5)); U.hp = Math.max(0, U.hp - bd); floatText(U, '-' + bd, '#FF9A3D'); } if (U.burn.t <= 0) U.burn = null; }
+          if (U.burn) { U.burn.t -= dt; U.burn.tick -= dt; if (U.burn.tick <= 0 && !U.dead && !B.over && !(U === me && B.pg && (B.pg.inv || (B.pg.els && B.pg.els.includes('fire'))))) { U.burn.tick = 0.5; const bd = Math.max(1, Math.round(U.burn.dps * 0.5)); U.hp = Math.max(0, U.hp - bd); floatText(U, '-' + bd, '#FF9A3D'); } if (U.burn.t <= 0) U.burn = null; }
           if (U.push) { moveBody(U, U.push.vx * dt, U.push.vz * dt); if ((U.push.t -= dt) <= 0) U.push = null; }
         }
         const stBits = U => (U.burn ? 1 : 0) | (U.slow > 0 ? 2 : 0) | (U.stun > 0 ? 4 : 0) | (U.curse > 0 ? 8 : 0);
@@ -878,12 +895,26 @@
           w.userData.spin = el === 'dark' ? 6 : 0; return w;
         }
         /* --- v192 마법 8칸 바로 쓰기 · 기본 공격 · 물약 · 대시 --- */
-        const SLOTSP = CARD.slots.map(q => q && slotSpell(q)), BASICSP = BASIC_SP;
+        let SLOTSP = CARD.slots.map(q => q && slotSpell(q)); const BASICSP = BASIC_SP;
+        // v215 마법 세팅 1↔2 (Y · 3초마다) — 쿨타임은 칸이 아니라 마법마다 (바꿔도 쿨타임 그대로)
+        const SETS = CARD.slots2 ? [CARD.slots, CARD.slots2] : [CARD.slots]; B.setI = CARD.slots2 && CARD.setNo === 2 ? 1 : 0; B.setCd = 0;
+        if (B.setI) SLOTSP = SETS[1].map(q => q && slotSpell(q));
+        const spKey = (sp, i) => 'sp:' + ((sp && sp.id) || i);
+        function paintNums() {
+          const cur = SETS[B.setI];
+          body.querySelectorAll('.sf-num[data-slot]').forEach(b => { const q = cur[+b.dataset.slot]; b.style.display = q ? '' : 'none'; if (q) b.style.background = skIconBg(q); b.querySelector('small').textContent = q ? q.name : ''; });
+          const sb = $h('sfSet'); if (sb) sb.querySelector('em').textContent = '세팅 ' + (B.setI + 1);
+        }
+        function swapSet() {
+          if (SETS.length < 2) { flash('RPG 스킬 창에서 세팅 2번을 만들면 Y 로 바꿀 수 있어요', 1.6); return; }
+          if (B.setCd > 0) { flash('세팅 바꾸기 ' + Math.ceil(B.setCd) + '초 뒤에', 0.7); return; }
+          B.setI = 1 - B.setI; B.setCd = 3; SLOTSP = SETS[B.setI].map(q => q && slotSpell(q)); paintNums(); flash('마법 세팅 ' + (B.setI + 1), 0.8);
+        }
         function castSlot(i) {
           if (B.over || !B.started || me.dead) return false; const sp = SLOTSP[i]; if (!sp) return false;
           if (me.stun > 0) { flash('기절해서 마법을 못 써요', 0.5); return false; }
-          const cd = me.cds['s' + i] || 0; if (cd > 0) { flash(sp.name + ' ' + cd.toFixed(1) + '초 뒤에', 0.7); return false; }
-          return cast(me, sp, null, false, 's' + i);   // 조준 = myAim()
+          const cd = me.cds[spKey(sp, i)] || 0; if (cd > 0) { flash(sp.name + ' ' + cd.toFixed(1) + '초 뒤에', 0.7); return false; }
+          return cast(me, sp, null, false, spKey(sp, i));   // 조준 = myAim()
         }
         function basicAttack() { if (B.over || !B.started || me.dead || me.stun > 0) return false; return cast(me, BASICSP, null, false, 'basic'); }
         B.pot = { hp: 3, mp: 3 }; me.dashCd = 0;
@@ -907,6 +938,14 @@
           me.dash = { t: 0.18, vx: (mx * c2 + mz * s2) / l * 26, vz: (-mx * s2 + mz * c2) / l * 26 }; me.dashCd = 3;
           burst(new THREE.Vector3(me.x, me.y + 0.4, me.z), 'wind', 8);
         }
+        function usePetF() {   // v214 펫 특수 능력
+          if (B.over || !me || me.dead) return;
+          if (!PSP) { flash('영웅·전설 펫을 RPG 에서 데리고 다니면 T 로 특수 능력', 1.6); return; }
+          if (B.petCd > 0) { flash(`${PSP.name} · ${Math.ceil(B.petCd)}초 뒤`, 1.2); return; }
+          B.petCd = PSP.cd; B.pg = { t: PSP.dur, els: PSP.els || null, inv: !!PSP.inv };
+          floatText(me, PSP.name + '!', PSP.color); flash(PSP.name + '!', 1);
+          (PSP.els || ['light']).forEach(el => burst(new THREE.Vector3(me.x, me.y + 0.6, me.z), el, 10));
+        }
         function markCharge() { /* v192 차지 없앰 */ }
         function showCombo(sp) { const c = $h('sfCombo'); c.textContent = sp.name + (sp.fused ? ' !' : ''); c.style.color = EL[sp.els[0]].c; clearTimeout(B.comboT); B.comboT = setTimeout(() => { if (c.isConnected && !B.ch) c.textContent = ''; }, 900); }
         function flash(t, sec) { const m = $h('sfMsg'); m.textContent = t; m.style.fontSize = t.length > 10 ? '24px' : '40px'; clearTimeout(B.msgT); B.msgT = setTimeout(() => { if (m.isConnected) m.textContent = ''; }, (sec || 1.2) * 1000); }
@@ -923,6 +962,8 @@
           else if (c === 'KeyF') { e.preventDefault(); usePot('hp'); }
           else if (c === 'KeyG') { e.preventDefault(); usePot('mp'); }
           else if (c === 'KeyB') { e.preventDefault(); toggleView(); }
+          else if (c === 'KeyT') { e.preventDefault(); usePetF(); }   // v214
+          else if (c === 'KeyY') { e.preventDefault(); swapSet(); }   // v215
         };
         document.addEventListener('keydown', onKey); document.addEventListener('keyup', onKey);
         function toggleView() { B.view = B.view === 1 ? 3 : 1; S.view = B.view; $h('sfView').textContent = `시점: ${B.view}인칭 (B)`; saveRow(S); }
@@ -938,7 +979,7 @@
         });
         const onFs = () => setTimeout(size, 150); document.addEventListener('fullscreenchange', onFs);
         body.querySelectorAll('.sf-num').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (b.dataset.basic) basicAttack(); else castSlot(+b.dataset.slot); }));
-        [['sfPotH', () => usePot('hp')], ['sfPotM', () => usePot('mp')], ['sfDash', dash]].forEach(([id, f]) => $h(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); f(); }));
+        [['sfPotH', () => usePot('hp')], ['sfPotM', () => usePot('mp')], ['sfDash', dash], ['sfPet', usePetF], ['sfSet', swapSet]].forEach(([id, f]) => $h(id) && $h(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); f(); }));
         // 마우스: 화면을 누르면 마우스 고정(포인터 잠금) → 움직이면 둘러보기 / 휴대폰: 왼쪽 끌기 = 이동, 오른쪽 끌기 = 둘러보기
         const onLockCh = () => { B.lock = document.pointerLockElement === stage; };
         document.addEventListener('pointerlockchange', onLockCh);
@@ -1045,6 +1086,7 @@
           const dt = Math.min(0.05, (now - last) / 1000); last = now; B.t += dt;
           if (!B.started) { const c0 = Math.ceil(countdown); countdown -= dt; const c1 = Math.ceil(countdown); if (c1 !== c0) flash(c1 > 0 ? String(c1) : '시작!'); if (countdown <= 0) { B.started = true; B.tStart = performance.now(); } }
           if (me.dashCd > 0) me.dashCd -= dt; if (B.potCd > 0) B.potCd -= dt;
+          if (B.setCd > 0) B.setCd -= dt; if (B.petCd > 0) B.petCd -= dt; if (B.pg && (B.pg.t -= dt) <= 0) B.pg = null;   // v214
           if (B.holdAtk && B.started && !B.over && (me.cds.basic || 0) <= 0) basicAttack();
           units.forEach(U => { U.px = U.x; U.pz = U.z; Object.keys(U.cds).forEach(k => { U.cds[k] -= dt; }); if (U.shieldT > 0) U.shieldT -= dt; if (U.own) statusTick(U, dt); statusLook(U, dt); });
           if (B.started && !B.over) {
@@ -1122,8 +1164,9 @@
             if (U.dead || v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) U.tag.style.display = 'none';
             else { U.tag.style.display = ''; U.tag.style.left = ((v.x + 1) / 2 * 100) + '%'; U.tag.style.top = ((1 - v.y) / 2 * 100) + '%'; }
           });
+          { const pb = $h('sfPet'); if (pb) { let o = pb.querySelector('.cd'); pb.classList.toggle('act', !!B.pg); if (B.petCd > 0) { if (!o) { o = document.createElement('span'); o.className = 'cd'; pb.appendChild(o); } o.textContent = B.petCd >= 60 ? Math.floor(B.petCd / 60) + ':' + String(Math.floor(B.petCd % 60)).padStart(2, '0') : Math.ceil(B.petCd); } else if (o) o.remove(); } }   // v214
           { const db = $h('sfDash'); let o = db.querySelector('.cd'); if (me.dashCd > 0) { if (!o) { o = document.createElement('span'); o.className = 'cd'; db.appendChild(o); } o.textContent = me.dashCd.toFixed(1); } else if (o) o.remove(); }
-          body.querySelectorAll('.sf-num').forEach(b => { const cd = me.cds[b.dataset.basic ? 'basic' : 's' + b.dataset.slot] || 0; let o = b.querySelector('.cd'); if (cd > 0) { if (!o) { o = document.createElement('span'); o.className = 'cd'; b.appendChild(o); } o.textContent = cd.toFixed(1); } else if (o) o.remove(); });
+          body.querySelectorAll('.sf-num').forEach(b => { const cd = me.cds[b.dataset.basic ? 'basic' : spKey(SLOTSP[+b.dataset.slot], +b.dataset.slot)] || 0; let o = b.querySelector('.cd'); if (cd > 0) { if (!o) { o = document.createElement('span'); o.className = 'cd'; b.appendChild(o); } o.textContent = cd.toFixed(1); } else if (o) o.remove(); });
           updFloats(dt);
         }
         raf = requestAnimationFrame(tick);
@@ -1183,7 +1226,8 @@
       /* ================= 시작 ================= */
       (async () => {
         const rpg = await loadRow(CFG.levelFrom || 'rpg'); if (!alive) return;
-        CARD = normCard(rpg && rpg.fc); if (window.__scfCard) CARD = normCard(window.__scfCard);   // __scfCard = 점검용
+        CARD = normCard(rpg && rpg.fc); if (window.__scfCard) CARD = normCard(window.__scfCard);
+        PSP = petSpOf(window.__scfRpg || rpg);   // v214 데리고 다니는 펫의 특수 능력   // __scfCard = 점검용
         BOSSES = bossList(window.__scfRpg || rpg);   // __scfRpg = 점검용 (보스 기록)
         LV = CARD.lv;
         av = Hub.user ? Hub.user.avatar : AV.normalize({});

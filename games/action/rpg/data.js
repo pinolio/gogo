@@ -568,7 +568,7 @@
    ['l1', 4, '광개토대왕', '왜성 수문장', 'pet_king', 'sx_king_idle']].forEach(([id, g, name, mon, img, art]) => PETS.push({ id, g, name, mon, img, art }));
   // v182 선생님 11/23: 이순신 장군님 던전 펫 — 등급 능력치는 광개토대왕 때와 같음(영웅 +20 · 전설 +40) · 펫마다 따로 잠김(plock)
   //  거북선(영웅) · 이순신(전설) 모두 = 던전을 처음 깨면(와키자카) — 선생님 11/23 11:31 → 그 뒤 이장 댁 뽑기에 나옴 (던전이 리셋돼도 계속 열림)
-  PETS.push({ id: 'h5', g: 3, name: '거북선', mon: '자수정 용', img: 'pet_turtle', art: 'ys_turtle', ph: 46, plock: 'ysY', lockTxt: '이순신 장군님 던전을 공략하면(와키자카를 이기면)' },   // v182 선생님 11/23: 두 펫 모두 던전을 깬 사람만
+  PETS.push({ id: 'h5', g: 3, name: '거북선', mon: '자수정 용', img: 'pet_turtle', art: 'ys_turtle', ph: 46, plock: 'ysT', lockTxt: '이순신 장군님 던전의 「왜장들의 회합」을 한 번이라도 이기면' },   // v214 선생님 11/26: 거북선은 회합만 깨도 · v182 선생님 11/23: 두 펫 모두 던전을 깬 사람만
     { id: 'l2', g: 4, name: '이순신', mon: '왜성 수문장', img: 'pet_yi', art: 'ys_yi', ph: 80, plock: 'ysY', lockTxt: '이순신 장군님 던전을 공략하면(와키자카를 이기면)' });   // art = 선생님 그림(있으면 몬스터 그림 대신)
   const PET = { price: 10000, max: 10, per: 0.1, keep: i => (i < 4 ? 1 : i < 7 ? 0.7 : 0.5), maxOwn: 300, scale: 0.46 };
 
