@@ -978,6 +978,7 @@
           try { const pr = req.call(stage, { navigationUI: 'hide' }); if (pr && pr.then) pr.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (er) { /* noop */ } setTimeout(size, 200); }, fb); } catch (er) { fb(); }
         });
         const onFs = () => setTimeout(size, 150); document.addEventListener('fullscreenchange', onFs);
+        if (B.setI) paintNums();   // v215 세팅 2번으로 시작하면 버튼 이름·그림도 2번으로
         body.querySelectorAll('.sf-num').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (b.dataset.basic) basicAttack(); else castSlot(+b.dataset.slot); }));
         [['sfPotH', () => usePot('hp')], ['sfPotM', () => usePot('mp')], ['sfDash', dash], ['sfPet', usePetF], ['sfSet', swapSet]].forEach(([id, f]) => $h(id) && $h(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); f(); }));
         // 마우스: 화면을 누르면 마우스 고정(포인터 잠금) → 움직이면 둘러보기 / 휴대폰: 왼쪽 끌기 = 이동, 오른쪽 끌기 = 둘러보기

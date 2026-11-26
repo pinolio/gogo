@@ -825,7 +825,7 @@
         const K = ['id', 'name', 'el', 'els', 'lv', 'kind', 'pow', 'mp', 'cd', 'count', 'radius', 'len', 'w', 'dur', 'pierce', 'speed'];
         const sl = S.slots.concat(S.fslots).map(id => { const sk = skill(id); if (!sk) return null; const o = {}; K.forEach(k => { if (sk[k] != null) o[k] = sk[k]; }); return o; });
         const st = {}; ['atk', 'mag', 'def', 'hp', 'mp', 'spd', 'dmg', 'mpRegen', 'crit', 'critD', 'pdef', 'edefs'].forEach(k => { st[k] = ST[k]; });
-        const sl2 = (S.alt ? S.alt.s.concat(S.alt.f) : []).map(id => { const sk = skill(id); if (!sk) return null; const o = {}; K.forEach(k => { if (sk[k] != null) o[k] = sk[k]; }); return o; });   // v215 세팅 2
+        const sl2 = (S.alt && Array.isArray(S.alt.s) && Array.isArray(S.alt.f) ? S.alt.s.concat(S.alt.f) : []).map(id => { const sk = skill(id); if (!sk) return null; const o = {}; K.forEach(k => { if (sk[k] != null) o[k] = sk[k]; }); return o; });   // v215 세팅 2
         const one = S.setNo === 2 ? sl2 : sl, two = S.setNo === 2 ? sl : sl2;   // Fight 에서도 번호가 RPG 와 같게 (slots = 1번 · slots2 = 2번 · setNo = 마지막에 쓴 세팅)
         return { v: 1, lv: S.lv, reb: S.reb || 0, st, slots: one, slots2: two.some(Boolean) ? two : null, setNo: S.setNo === 2 && two.some(Boolean) ? 2 : 1, at: Date.now() };
       }
@@ -4277,7 +4277,7 @@
         if (!G.touch) { screenEl.focus({ preventScroll: true }); return; }
         e.preventDefault(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
         const p = toC(e), b = btnAt(p);
-        if (b) { pts[e.pointerId] = { btn: b }; G.btnDown[b] = true; if (b[0] === 's') cast(+b[1]); else if (b[0] === 'f') cast(4 + +b[1]); else if (b === 'hp' || b === 'mp') usePotion(b); else if (b === 'rc') doRecall(); else if (b === 'sp') usePetSp(); else if (b === 'ss') swapSet(); return; }
+        if (b) { pts[e.pointerId] = { btn: b }; G.btnDown[b] = true; if (b === 'sp') usePetSp(); else if (b === 'ss') swapSet(); else if (b[0] === 's') cast(+b[1]); else if (b[0] === 'f') cast(4 + +b[1]); else if (b === 'hp' || b === 'mp') usePotion(b); else if (b === 'rc') doRecall(); return;   /* v215 sp·ss 를 먼저 (전에는 's' 로 시작해서 마법 칸으로 잘못 감) */ }
         if (p.x < W * 0.55) { pts[e.pointerId] = { joy: true }; G.joy = { on: true, cx: p.x, cy: p.y, vx: 0, vy: 0 }; }
       }, { passive: false });
       canvas.addEventListener('pointermove', e => {
