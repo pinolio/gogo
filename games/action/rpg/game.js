@@ -673,9 +673,13 @@
   .rg-deco .rg-bagup { border: 2px solid var(--gold2); border-radius: 6px; box-shadow: 0 0 0 2px #0A0E24, 0 0 12px rgba(243,210,122,.25); background: linear-gradient(90deg, #2A4A9A, #172A47); }
   .rg-deco .rg-fuse { border: 2px solid #B57BFF; border-radius: 6px; background: linear-gradient(180deg, #2A1F4E, #150F30); box-shadow: 0 0 0 2px #0A0E24; }
   /* 마법 창: 위 = 기본 1~4 · 융합 QWER 두 칸 판 */
-  .rg-setbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 8px; } .rg-setbar > span { font-weight: 700; color: #FFE27A; }   /* v215 마법 세팅 1·2 */
-  .rg-setbar button { font-family: inherit; font-size: 15px; padding: 6px 16px; border-radius: 999px; border: 2px solid #B79CFF; background: #241850; color: #FFFFFF; cursor: pointer; }
-  .rg-setbar button[aria-pressed="true"] { background: #FFE27A; border-color: #FFE27A; color: #1D2340; font-weight: 700; } .rg-setbar small { flex-basis: 100%; color: #CFE3FF; font-size: 12px; }
+  .rg-setbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 8px; } .rg-setbar > span { font-weight: 700; color: #FFE27A; font-size: 18px; margin-right: 4px; }   /* v215 마법 세팅 1·2 */
+  .rg-setbar button { font-family: inherit; font-size: 21px; font-weight: 700; padding: 10px 34px; min-width: 150px; border-radius: 999px; border: 2px solid #B79CFF; background: #241850; color: #FFFFFF; cursor: pointer; }
+  .rg-setbar button[aria-pressed="true"] { background: #FFE27A; border-color: #FFE27A; color: #1D2340; font-weight: 700; } .rg-setbar small { flex-basis: 100%; color: #CFE3FF; font-size: 13px; } .rg-setbar button:hover { border-color: #FFE27A; }
+  .rg-skset[data-skf] { cursor: pointer; transition: transform .1s, box-shadow .1s; } .rg-skset[data-skf]:hover { transform: translateY(-2px); }   /* v217 */
+  .rg-skset h4 em { float: right; font-style: normal; font-size: 12px; font-family: inherit; color: #CFE3FF; margin-top: 4px; }
+  .rg-skset.on { box-shadow: 0 0 0 2px #0A0E24, 0 0 0 5px #FFE27A, 0 0 16px #FFE27A; } .rg-skset.on h4 em { color: #FFE27A; font-weight: 700; }
+  .rg-skfnote { margin: 0 0 8px; padding: 6px 12px; border-radius: 8px; background: #FFE27A; color: #1D2340; font-weight: 700; font-size: 14px; }
   .rg-skbar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 12px; }
   .rg-skset { position: relative; border: 2px solid var(--gold); border-radius: 6px; padding: 10px 12px 12px; box-shadow: 0 0 0 2px #0A0E24, inset 0 0 0 2px #0A0E24;
     background: radial-gradient(circle at 7px 7px, var(--gold2) 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) 7px, var(--gold2) 2px, transparent 3px), radial-gradient(circle at 7px calc(100% - 7px), var(--gold2) 2px, transparent 3px), radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), var(--gold2) 2px, transparent 3px), linear-gradient(180deg, #172A47, #0E1A30); }
@@ -705,7 +709,8 @@
   /* 이장 댁 지역 묶음 */
   .rg-deco .rg-region { border: 2px solid var(--steel); border-radius: 6px; padding: 8px 10px 4px; margin-top: 10px; background: linear-gradient(180deg, #172A47, #0E1A30); box-shadow: 0 0 0 2px #0A0E24; }
   .rg-deco .rg-region > b { display: block; font: 16px var(--f-display); color: var(--gold2); margin-bottom: 4px; text-shadow: 0 2px 0 #0A0E24; }
-  @media (max-width: 760px) { .rg-skbar { grid-template-columns: 1fr; } .rg-deco .rg-slot { min-height: 80px; } }
+  @media (max-width: 760px) { .rg-setbar button { font-size: 17px; padding: 8px 18px; min-width: 0; flex: 1; } .rg-setbar > span { flex-basis: 100%; } .rg-skset h4 em { float: none; display: block; margin: 2px 0 0; }   /* v217 */
+    .rg-skbar { grid-template-columns: 1fr; } .rg-deco .rg-slot { min-height: 80px; } }
   @media (max-width: 640px) { .rg-forge { grid-template-columns: 1fr; } .rg-defgrid { grid-template-columns: repeat(3, 1fr); } }
   @media (max-height: 520px) {   /* 휴대폰 가로: 게임판을 화면 높이에 꽉 차게 */
     .rg-page .cabinet { max-width: min(100%, calc((100svh - 14px) * 1.7778 + 8px)); padding: 3px; border-radius: 8px; border-width: 2px; }
@@ -3728,10 +3733,12 @@
           h = head('마법', '기본 마법은 <b>1~4</b> 칸, 융합 마법은 <b>Q W E R</b> 칸에 넣어요. 같은 마법을 다른 칸에 넣으면 옮겨져요. 새 마법은 마을의 <b>도술 서원</b>에서 배워요.');
           const slotHtml = (id, key, empty) => { const sk = skill(id); return `<span class="rg-slot"><b>${key}</b>${sk ? `<img class="rg-sk" src="${Fx.iconURL(sk)}" alt="">${sk.name}` : `<i>${empty}</i>`}</span>`; };
           h += `<div class="rg-setbar"><span>마법 세팅</span>${[1, 2].map(n => `<button type="button" data-skset="${n}" aria-pressed="${(S.setNo || 1) === n}">${n}번 세팅</button>`).join('')}<small>지금 보는 세팅이 게임에 쓰여요 · 게임 중에는 <b>Y</b> 또는 아래 ⇄ 칸으로 바꿔요</small></div>`;   // v215
-          h += `<div class="rg-skbar"><section class="rg-skset"><h4>⚡ 기본 마법<small>숫자 1~4</small></h4><div class="rg-slots">${[0, 1, 2, 3].map(i => slotHtml(S.slots[i], i + 1, '비어 있음')).join('')}</div></section>`;
-          h += `<section class="rg-skset fu"><h4>✦ 융합 마법<small>Q W E R</small></h4><div class="rg-slots">${[0, 1, 2, 3].map(i => slotHtml(S.fslots[i], FKEY[i], '융합 마법')).join('')}</div></section></div>`;
+          h += `<div class="rg-skbar"><section class="rg-skset${tab.skf === 'b' ? ' on' : ''}" data-skf="b" role="button" tabindex="0" title="눌러서 기본 마법만 보기"><h4>⚡ 기본 마법<small>숫자 1~4</small><em>${tab.skf === 'b' ? '✔ 기본 마법만 보는 중' : '눌러서 기본 마법만 보기'}</em></h4><div class="rg-slots">${[0, 1, 2, 3].map(i => slotHtml(S.slots[i], i + 1, '비어 있음')).join('')}</div></section>`;
+          h += `<section class="rg-skset fu${tab.skf === 'f' ? ' on' : ''}" data-skf="f" role="button" tabindex="0" title="눌러서 융합 마법만 보기"><h4>✦ 융합 마법<small>Q W E R</small><em>${tab.skf === 'f' ? '✔ 융합 마법만 보는 중' : '눌러서 융합 마법만 보기'}</em></h4><div class="rg-slots">${[0, 1, 2, 3].map(i => slotHtml(S.fslots[i], FKEY[i], '융합 마법')).join('')}</div></section></div>`;
           const skCol = sk => (ELEM[(sk.els || [])[0]] || {}).color || '#C9A24A';
-          h += `<ul class="rg-list">${S.skills.length ? S.skills.map(id => { const sk = skill(id); return `<li class="rg-row" style="--c:${skCol(sk)}"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${sk.fusion ? '융합 · ' : ''}${sk.name} <small style="color:#C9D0F0">Lv.${sk.lv}</small></span><span class="ds">${describe(sk)}</span></span><span class="keys">${[0, 1, 2, 3].map(i => sk.fusion ? `<button type="button" class="rg-mini${S.fslots[i] === id ? ' on' : ' ghost'}" data-slot="f${i}|${id}">${FKEY[i]}</button>` : `<button type="button" class="rg-mini${S.slots[i] === id ? ' on' : ' ghost'}" data-slot="${i}|${id}">${i + 1}</button>`).join('')}</span></li>`; }).join('') : '<li class="rg-row">아직 배운 마법이 없어요. Lv.3이 되면 의주 도술 서원에서 파이어볼을 배울 수 있어요.</li>'}</ul>`;
+          const skShow = S.skills.filter(id => { const sk = skill(id); return sk && (tab.skf === 'b' ? !sk.fusion : tab.skf === 'f' ? !!sk.fusion : true); });   // v217
+          if (tab.skf) h += `<p class="rg-skfnote">${tab.skf === 'b' ? '⚡ 기본 마법' : '✦ 융합 마법'}만 보여요 (${skShow.length}개) · 위 판을 한 번 더 누르면 모두 보여요</p>`;
+          h += `<ul class="rg-list">${skShow.length ? skShow.map(id => { const sk = skill(id); return `<li class="rg-row" style="--c:${skCol(sk)}"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${sk.fusion ? '융합 · ' : ''}${sk.name} <small style="color:#C9D0F0">Lv.${sk.lv}</small></span><span class="ds">${describe(sk)}</span></span><span class="keys">${[0, 1, 2, 3].map(i => sk.fusion ? `<button type="button" class="rg-mini${S.fslots[i] === id ? ' on' : ' ghost'}" data-slot="f${i}|${id}">${FKEY[i]}</button>` : `<button type="button" class="rg-mini${S.slots[i] === id ? ' on' : ' ghost'}" data-slot="${i}|${id}">${i + 1}</button>`).join('')}</span></li>`; }).join('') : '<li class="rg-row">아직 배운 마법이 없어요. Lv.3이 되면 의주 도술 서원에서 파이어볼을 배울 수 있어요.</li>'}</ul>`;
         } else if (k === 'potion') {
           const ri = G.map.M.region, t = tab.potion || 'buy';
           h = head('약방', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 이 마을은 ${ri + 1}단계 포션까지 팔아요`) + npcBox() + tabs('potion', [['buy', '사기'], ['sell', '팔기'], ['xchg', '💱 포인트 교환']]);   // v145 골드 ↔ 사이트 포인트
@@ -4089,6 +4096,7 @@
         else if (t.matches('[data-fb]')) { tab.fb = t.value; renderPanel(); }
       });
       panel.addEventListener('click', e => {
+        { const f = e.target.closest('[data-skf]'); if (f && pane === 'skill') { tab.skf = tab.skf === f.dataset.skf ? '' : f.dataset.skf; renderPanel(); return; } }   // v217 기본/융합 판을 누르면 아래 목록 거르기 (다시 누르면 전체)
         const b = e.target.closest('button'); if (!b || b.disabled) return;
         const d = b.dataset;
         if ('x' in d) { closePanel(); return; }
