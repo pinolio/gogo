@@ -96,15 +96,16 @@
     const g = it.grade != null ? it.grade : gradeOf(it.base || it.id, it.op);
     return Math.round((SELL.base + (it.req || 1) * SELL.perLv) * (SELL.grade[g] || 1) + enhSpent(it.en) * SELL.enh);
   }
-  function pruneGear(s) {   // 가방·장비 칸에 없는 장비 정보는 지움
-    const used = {}; s.inv.forEach(x => { if (String(x.id).startsWith('g:')) used[x.id.slice(2)] = 1; }); Object.values(s.eq).forEach(id => { if (String(id).startsWith('g:')) used[id.slice(2)] = 1; });
+  const STORE_MAX = 100;   // v222 창고 칸 수 (선생님 11/27)
+  function pruneGear(s) {   // 가방·장비 칸·창고(v222)에 없는 장비 정보는 지움
+    const used = {}; (s.store || []).forEach(x => { if (String(x.id).startsWith('g:')) used[x.id.slice(2)] = 1; }); s.inv.forEach(x => { if (String(x.id).startsWith('g:')) used[x.id.slice(2)] = 1; }); Object.values(s.eq).forEach(id => { if (String(id).startsWith('g:')) used[id.slice(2)] = 1; });
     Object.keys(s.gear).forEach(u => { if (!used[u]) delete s.gear[u]; });
   }
 
   /* ================= 저장 ================= */
   function newSave() {
     const s = { v: SAVE_V, lv: 1, exp: 0, gold: 50, hp: 0, mp: 0, map: 'v1', x: null, y: null, home: 'v1',
-      inv: [{ id: 'hp1', n: 5 }, { id: 'mp1', n: 3 }, { id: 'scroll', n: 1 }], eq: {}, gear: {}, hide: false,
+      inv: [{ id: 'hp1', n: 5 }, { id: 'mp1', n: 3 }, { id: 'scroll', n: 1 }], store: [], eq: {}, gear: {}, hide: false,
       stat: { str: 0, dex: 0, int: 0, vit: 0, res: 0 }, statV: 2, sp: 0, skills: ['magicarrow'], slots: ['magicarrow', null, null, null], fslots: [null, null, null, null], alt: { s: [null, null, null, null], f: [null, null, null, null] }, setNo: 1, visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0, reb: 0, rebReady: false, toonSeen: [], dpsBest: 0 };
     s.pets = []; s.petOn = ''; s.petOpen = { hero: 0, legend: 0 }; s.petCd = {};   // v213 petCd = 전설 펫 특수 능력 다시 쓸 수 있는 때(ms)
     s.sasin = { cr: 0, jj: 0, bh: 0, hm: 0 }; s.sasinAll = 0; s.ysp = [0, 0, 0, 0, 0, 0, 0, 0, 0]; s.ysMural = 0; s.ysAll = 0;   // v172 이순신 장군님 던전: 벽화 조각 9 · 벽화 완성 · 왜장 회합을 깸
@@ -133,6 +134,9 @@
     const inst = b => { const u = newUid(); s.gear[u] = { b, en: 0, op: [] }; return regGear(u, s.gear[u]); };
     s.inv = s.inv.flatMap(x => { const it = ITEMS[x.id]; if (!it.slot) return [x]; if (it.base) return [{ id: x.id, n: 1 }]; return Array.from({ length: Math.min(40, Math.floor(x.n)) }, () => ({ id: inst(x.id), n: 1 })); }).slice(0, 60);
     const seenG = {}; s.inv = s.inv.filter(x => !String(x.id).startsWith('g:') || (!seenG[x.id] && (seenG[x.id] = 1)));
+    // v222 창고 (모든 마을 같은 창고 · 최대 STORE_MAX 칸) — 가방과 같은 모양 [{id, n}] · 같은 장비가 가방·창고 둘 다에 있으면 가방 쪽만
+    s.store = (Array.isArray(s.store) ? s.store : []).filter(x => x && ITEMS[x.id] && x.n > 0 && (!ITEMS[x.id].slot || ITEMS[x.id].base)).map(x => ({ id: x.id, n: ITEMS[x.id].slot ? 1 : Math.floor(x.n) }))
+      .filter(x => !String(x.id).startsWith('g:') || (!seenG[x.id] && (seenG[x.id] = 1))).slice(0, STORE_MAX);
     Object.keys(s.eq).forEach(k => { if (!ITEMS[s.eq[k]].base) s.eq[k] = inst(s.eq[k]); else if (seenG[s.eq[k]]) delete s.eq[k]; });
     pruneGear(s);
     const arr = v => (Array.isArray(v) ? v : []);   // v210: 망가진 저장(숫자·글자)이면 RPG 가 안 열리던 것
@@ -483,6 +487,7 @@
   .rg-statgrid b { color: #FFFFFF; font-family: var(--f-display); font-size: 14px; }
   .rg-bag { min-width: 0; } .rg-bag .rg-tabs { margin-top: 0; }
   .rg-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+  .rg-store { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(0,0,0,.14)); border: 2px solid #0A0E24; border-radius: 14px; padding: 10px; margin-top: 10px; } .rg-store h4 { margin: 0 0 8px; color: #FFD23F; font-size: 16px; } .rg-store h4 small { color: #9AE6FF; font-size: 13px; margin-left: 6px; }   /* v222 창고 */
   .rg-cell { position: relative; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #2A3266, #12183A 75%); border: 2px solid var(--c, #2A3260); border-radius: 8px; padding: 0; cursor: pointer; transition: transform .1s, filter .1s; min-width: 0; }
   .rg-cell.empty { background: rgba(10,14,36,.5); border: 2px solid #20264E; cursor: default; box-shadow: inset 0 2px 4px rgba(0,0,0,.4); }
   .rg-cell img { width: 78%; height: 78%; image-rendering: pixelated; }
@@ -896,6 +901,18 @@
       function petFollow(o, tx, ty, dt) { if (!o.pp) o.pp = { x: tx, y: ty }; const k = 1 - Math.exp(-dt * 5); o.pp.x += (tx - o.pp.x) * k; o.pp.y += (ty - o.pp.y) * k; if (Math.hypot(tx - o.pp.x, ty - o.pp.y) > 400) { o.pp.x = tx; o.pp.y = ty; } return o.pp; }
       const myPetId = () => { const p = S.pets.find(q => q.u === S.petOn); return p ? p.id : ''; };
 
+      // v222 창고 옮기기: put = 가방 → 창고 · get = 창고 → 가방 (장비는 1칸 = 1개 · 쌓이는 물건은 tab.stOne 이면 1개, 아니면 그 칸 전부)
+      function storeMove(dir, id) {
+        if (G.trade) { say('거래 중에는 창고를 쓸 수 없어요', 2); return; }
+        const it = ITEMS[id]; if (!it) return;
+        const from = dir === 'put' ? S.inv : S.store, to = dir === 'put' ? S.store : S.inv, max = dir === 'put' ? STORE_MAX : bagMax();
+        const e = from.find(x => x.id === id); if (!e) return;
+        const n = it.slot ? 1 : tab.stOne ? 1 : e.n, t = to.find(x => x.id === id);
+        if (!t && to.length >= max) { say(dir === 'put' ? `창고가 가득 찼어요 (${STORE_MAX}칸)` : `가방이 가득 찼어요 (${bagMax()}칸)`, 2.2); return; }
+        e.n -= n; if (e.n <= 0) from.splice(from.indexOf(e), 1);
+        if (t && !it.slot) t.n += n; else to.push({ id, n });
+        markDirty(true);
+      }
       function takeItem(id, n) { n = n || 1; const e = S.inv.find(x => x.id === id); if (!e || e.n < n) return false; e.n -= n; if (!e.n) S.inv.splice(S.inv.indexOf(e), 1); return true; }
 
       /* ---------- 글자 띄우기 ---------- */
@@ -912,7 +929,7 @@
         const M = MAPBY[id]; if (!M) return;
         const map = getMap(id); G.ysNav = null; G.bfx = []; G.dmark = null; G.stackN = 0; G.slideV = null;
         window.GoRPGKingRoom = M.sx === 'king';   // v150 왕을 죽인 검 아이콘: 전당 안에서만 화려한 그림
-        G.map = map; S.map = id; G.room = null; G.npcs = M.kind === 'village' ? villagers(map).concat(smithNpc(map), stationNpc(map), hellNpc(map)) : []; G.hellRun = null; G.onNpc = null; G.pst = null; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
+        G.map = map; S.map = id; G.room = null; G.npcs = M.kind === 'village' ? villagers(map).concat(smithNpc(map), stationNpc(map), hellNpc(map), storeNpc(map)) : []; G.hellRun = null; G.onNpc = null; G.pst = null; G.shots = []; G.fxs = []; G.pools = []; G.texts = []; Fx.reset(); G.hpGhost = null;
         if (!quiet) G.title = { t: 0, text: M.kind === 'village' ? M.name : M.name, sub: M.custom ? `특별 지역 · 권장 Lv.${M.lvMin < M.rec ? M.lvMin + '~' + M.rec : M.rec}${M.boss ? ' · 보스' : ''}${M.test ? ' · 🔒 시험 중 (관리자만)' : ''}` : M.hell ? `저승 ${M.gate}관문 · 몬스터 Lv.${100 + (M.gate - 1) * 5 + M.stage}${M.stage >= 5 ? ' · 대왕 Lv.' + M.rec : M.stage >= 3 ? ` · ${D.HELL.kills}마리 뒤 ${M.stage === 3 ? '옥졸' : '판관'}` : ` · ${D.HELL.kills}마리 잡으면 통과`}` : M.kind === 'village' ? (M.region === D.REGIONS.length - 1 ? '마지막 마을 · 부산진성 도원수' : `마을 ${M.region + 1}${D.REGIONS[M.region].castle ? ' · 성' : ''}`) : `사냥터 ${M.no} · 권장 Lv.${M.rec}${M.boss ? ' · 보스' : ''}` };
         const p = side && typeof side === 'object' ? (side.from != null ? arrivePos(map, side.from) || map.startL : side) : side === 'R' ? map.startR : side === 'door' ? doorFront(map) : side === 'pos' && S.x ? { x: S.x, y: S.y } : map.startL;
         G.px = p.x; G.py = p.y;
@@ -2416,6 +2433,34 @@
       // v60 대장장이: 대장간 앞에 서 있음 · 가까이 가면 강화 창
       const smithNpc = map => (map.forge ? [{ key: 'forge', def: D.npcDef(D.SMITH, map.M.region), x: (map.forge.x + map.forge.w + 1) * TS, y: (map.forge.y + map.forge.h + 0.2) * TS, face: -1, ph: 2, smith: true }] : []);
       // v85 역참지기: 역참 앞에 서 있음 · 가까이 가면 마을 이동 창
+      // v222 창고 (선생님 11/27): 마을마다 분수(우물) 오른쪽 옆 보물상자 · 가까이 가면 창고 창 · 모든 마을이 같은 창고
+      const STORE_DEF = { name: '창고', color: '#FFD23F', hello: ['맡길 물건을 고르세요'] };
+      //  성이 있는 마을(분수 없음)은 가운데 대장간·대장장이 오른쪽 옆 (대장장이와 겹치지 않게 2.6칸 띄움)
+      const storeNpc = map => { const p = map.fountain ? { x: (map.fx + 4.3) * TS, y: (map.fy + 1.55) * TS } : map.forge ? { x: (map.forge.x + map.forge.w + 3.6) * TS, y: (map.forge.y + map.forge.h + 0.2) * TS } : null;
+        return p ? [{ key: 'store', def: STORE_DEF, chest: true, x: p.x, y: p.y, face: 1, ph: 0, smith: true }] : []; };
+      /* 상자 자리 정하기 (그릴 때 한 번 · 지도의 그림들이 다 만들어진 뒤)
+       *  선생님 11/27 "분수에 조금 가려짐 · 다른 것에 안 가리게, 다른 것도 안 가리게"
+       *  → 분수 오른쪽 끝에서 시작해 옆·위아래로 조금씩 옮겨 보며, 어떤 그림(분수·천막·건물·바위·수정…)·사람과도 겹치지 않고 걸을 수 있는 자리를 고름
+       *  끝내 없으면 처음 자리에서 겹치는 무작위 장식만 치움 */
+      function storePlace(map, n) {
+        if (n._placed || !map.objs || !map.objs.length) return; n._placed = 1;
+        const box = (x, y) => ({ x0: x - 36, x1: x + 36, y0: y - 70, y1: y + 12 });   // 상자 + '창고' 글씨 + 그림자
+        const over = (r, o) => o.img && o.x < r.x1 && o.x + o.img.width > r.x0 && o.y < r.y1 && o.y + o.img.height > r.y0;
+        const ok = (x, y) => {
+          const r = box(x, y);
+          if (map.objs.some(o => over(r, o))) return false;
+          if ((G.npcs || []).some(q => q !== n && q.x > r.x0 - 22 && q.x < r.x1 + 22 && q.y > r.y0 && q.y - 64 < r.y1)) return false;
+          for (let tx = Math.floor(r.x0 / TS); tx <= Math.floor(r.x1 / TS); tx++) for (const yy of [y - 4, y - 30]) { const v = map.at(tx, Math.floor(yy / TS)); if (v !== 0 && v !== 1 && v !== 5) return false; }
+          return true;
+        };
+        const fo = map.objs.find(o => o.fountain), x0 = fo ? fo.x + fo.img.width + 38 : n.x, y0 = fo ? fo.y + fo.img.height - 10 : n.y;
+        const cand = []; for (let dx = 0; dx <= 224; dx += 16) for (const dy of [0, -20, 20, -40, 40, -64, 64, -96, 96]) cand.push([dx, dy]);
+        cand.sort((a, b) => Math.hypot(a[0], a[1] * 1.3) - Math.hypot(b[0], b[1] * 1.3));
+        const c = cand.find(([dx, dy]) => ok(x0 + dx, y0 + dy));
+        if (c) { n.x = x0 + c[0]; n.y = y0 + c[1]; return; }
+        const r = box(n.x, n.y);   // 빈자리가 없으면: 겹치는 무작위 장식만 치움
+        map.objs = map.objs.filter(o => { const hit = o.kind && o.tx != null && over(r, o); if (hit && map.set) map.set(o.tx, o.ty, 0); return !hit; });
+      }
       const stationNpc = map => (map.station ? [{ key: 'station', def: D.npcDef(D.STATION, map.M.region), x: map.station.nx * TS, y: (map.station.y + map.station.h + 0.4) * TS, face: map.station.nx > map.station.x ? -1 : 1, ph: 3, smith: true }] : []);
       const villageNo = id => +String(id).slice(1) - 1;   // 'v3' → 2
       const stationFront = id => { const m = getMap(id), st = m.station; return st ? { x: (st.path + 0.5) * TS, y: (st.y + st.h + 1.2) * TS } : doorFront(m); };
@@ -2439,7 +2484,7 @@
       // v69 저승차사 강림: Lv.100 이 되면 마지막 마을(도원수 진영) 큰길 오른쪽에 나타남
       const hellNpc = map => (map.M.region === D.REGIONS.length - 1 && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: window.__GoRPGParts.VXf(30.5) * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);   // v158 넓은 마을
       function talk(n) {
-        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station', 'sxnpc', 'ysnpc', 'ysmural'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
+        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station', 'sxnpc', 'ysnpc', 'ysmural', 'store'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
         n.say = null; openPanel(n.key, { npc: n, hello: n.def.hello && n.def.hello.length ? pick(n.def.hello) : '' });   // v180 인사말이 없는 NPC(송희립·벽화 틀)도 열리게
       }
       function updateNpcs(dt) {
@@ -2906,6 +2951,21 @@
       }
       // v80 조선 병사 (Meshy 그림 한 장): 걸을 때 통통 + 살짝 기울기 · 다친 병사는 가만히
       // v129 사람 이름 · 느낌표 · 말풍선 (그림 NPC · 실내 그림 속 사람 같이 씀)
+      // v222 창고 보물상자: Gemini 그림(store_chest) · 없으면 코드로 그린 상자 · 위에 '창고' 글씨와 반짝이
+      function drawChest(c, n, now) {
+        if (G.map) storePlace(G.map, n);
+        const im = img79('store_chest'), w = 58, h = 50, x = Math.round(n.x - w / 2), y = Math.round(n.y - h + 4);
+        c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(n.x, n.y, 30, 7, 0, 0, Math.PI * 2); c.fill();
+        if (im) { const k = Math.min(w / im.width, h / im.height) * 1.0, dw = im.width * k, dh = im.height * k; c.drawImage(im, Math.round(n.x - dw / 2), Math.round(n.y - dh + 4), dw, dh); }
+        else {
+          c.fillStyle = '#3A1E14'; rr(c, x, y + 14, w, h - 14, 5); c.fill(); c.fillStyle = '#8A3B24'; rr(c, x + 3, y + 17, w - 6, h - 20, 4); c.fill();
+          c.fillStyle = '#3A1E14'; rr(c, x, y, w, 18, 8); c.fill(); c.fillStyle = '#A4482C'; rr(c, x + 3, y + 3, w - 6, 13, 6); c.fill();
+          c.fillStyle = '#E8B84A'; c.fillRect(x + 8, y, 6, h - 2); c.fillRect(x + w - 14, y, 6, h - 2); rr(c, n.x - 7, y + 11, 14, 15, 3); c.fill(); c.fillStyle = '#3A1E14'; c.fillRect(n.x - 1.5, y + 16, 3, 6);
+        }
+        const tw = Math.sin(now / 330) * 0.5 + 0.5; c.fillStyle = `rgba(255,236,150,${0.35 + 0.5 * tw})`; c.fillRect(n.x + 14, y + 2 - tw * 3, 3, 3); c.fillRect(n.x - 20, y + 10 + tw * 2, 2, 2);
+        c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
+        c.strokeText('창고', n.x, y - 6); c.fillStyle = '#FFD23F'; c.fillText('창고', n.x, y - 6);
+      }
       function npcTags(c, n, y, now) {
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         c.strokeText(n.def.name, n.x, y - 6); c.fillStyle = n.def.color || '#9AE6FF'; c.fillText(n.def.name, n.x, y - 6);
@@ -3302,6 +3362,7 @@
       }
       function drawNpc(c, n, now) {
         if (n.mural) return drawYsFrame(c, n, now);   // v174 빈 벽화 틀
+        if (n.chest) return drawChest(c, n, now);   // v222 창고 보물상자
         if (n.baked) return npcTags(c, n, n.topY, now);   // v129 실내 그림 속 사람 (몸은 바닥 그림에 있음)
         if (n.def.img && (!n.def.av || img79(n.def.img))) return drawArmy(c, n, now);   // v110 NPC 그림 (못 불러오면 예전 아바타)
         const nv = n.moving ? 's' : 'f', fs = nv === 's' ? figSet(AV.normalize(n.def.av), {}, true, 0, 's') : null, img = fs ? fs.img : npcSprite(n.def.av, 0);   // v107 걸어 다니는 마을 사람은 옆모습
@@ -3986,6 +4047,15 @@
           });
           h += '<p class="sub" style="margin-top:8px">※ 퀘스트는 준비 중이에요. 나중에 마지막 마을의 성에서 나눠 줄 예정이에요.</p>';
           }
+        } else if (k === 'store') {   // v222 창고: 가방 ↔ 창고 (누르면 옮김 · 쌓이는 물건은 '한 개씩' 켜면 1개만)
+          const one = !!tab.stOne, tierStyle = it => it && it.slot ? `--c:${D.TIER[it.tier].color};--g:${D.TIER[it.tier].gem}` : '--c:#5A64A0;--g:#FFFFFF';
+          const cell = (x, k2) => { const it = ITEMS[x.id]; return `<button type="button" class="rg-cell${it.rare ? ' rare' : ''}" data-${k2}="${x.id}" style="${tierStyle(it)}" title="${it.name}${qTxt(it)}${x.n > 1 ? ' ×' + x.n : ''}"><img src="${P.itemImg(x.id)}" alt="${it.name}">${x.n > 1 ? `<span class="n">${x.n}</span>` : ''}${it.en ? `<span class="en">+${it.en}</span>` : ''}</button>`; };
+          const grid = (arr, k2, max) => { const cs = arr.map(x => cell(x, k2)); for (let i = arr.length; i < max; i++) cs.push('<span class="rg-cell empty"></span>'); return `<div class="rg-grid rg-stgrid">${cs.join('')}</div>`; };
+          h = head('창고', `모든 마을이 같은 창고예요 · 창고 <b>${S.store.length}</b>/${STORE_MAX}칸 · 가방 <b>${S.inv.length}</b>/${bagMax()}칸`);
+          h += `<p class="sub">가방 물건을 누르면 <b>창고에 맡기고</b>, 창고 물건을 누르면 <b>가방으로 꺼내요</b>. 창고에 둔 물건은 쓰러져도 잃어버리지 않아요. 입고 있는 장비는 먼저 벗어야 맡길 수 있어요.</p>`;
+          h += `<label class="rg-check"><input type="checkbox" data-stone ${one ? 'checked' : ''}> 물약·물건을 <b>한 개씩</b> 옮기기 <small style="color:#AEB7E0">(끄면 한 칸을 통째로)</small></label>`;
+          h += `<section class="rg-store"><h4>🗝 창고 <small>${S.store.length}/${STORE_MAX}</small></h4>${grid(S.store, 'stget', Math.max(40, Math.ceil((S.store.length + 1) / 10) * 10))}</section>`;
+          h += `<section class="rg-store"><h4>🎒 가방 <small>${S.inv.length}/${bagMax()}</small></h4>${grid(S.inv, 'stput', bagMax())}</section>`;
         } else if (k === 'ysnpc' || k === 'ysmural') {   // v172 이순신 장군님 던전 지킴이(이야기) · v174 빈 벽화 틀(퍼즐)
           h = ysPaneHtml(k === 'ysmural');
         } else if (k === 'sxnpc') {   // v150 사신의 땅 지킴이
@@ -4245,6 +4315,7 @@
         if (t.matches('[data-trgold]')) { const T = G.trade; if (!T || tradeLocked()) { if (T) t.value = T.mine.gold; return; } T.mine.gold = clamp(Math.floor(+t.value || 0), 0, S.gold); sendOffer(); renderPanel(); return; }
         if (t.matches('[data-god]')) { S.godOff = !t.checked; markDirty(true); say(t.checked ? '무적을 켰어요 (피해를 받지 않아요)' : '무적을 껐어요 (밸런스 시험용)', 2.5); return; }   // v176
         if (t.matches('[data-title]')) { S.title = t.value; markDirty(true); if (net) net.retrack(); renderPanel(); return; }   // v176
+        if (t.matches('[data-stone]')) { tab.stOne = t.checked; renderPanel(); return; }   // v222 창고 한 개씩
         if (t.matches('[data-hide]')) { S.hide = t.checked; markDirty(); if (net) net.retrack(); renderPanel(); }
         else if (t.matches('[data-fa]')) { tab.fa = t.value; if (tab.fb === t.value || (SKILLS[tab.fb] && SKILLS[tab.fb].el === SKILLS[t.value].el)) tab.fb = null; renderPanel(); }
         else if (t.matches('[data-fb]')) { tab.fb = t.value; renderPanel(); }
@@ -4256,6 +4327,7 @@
         if ('x' in d) { closePanel(); return; }
         if (d.tab) { const [k, v] = d.tab.split(':'); tab[k] = v; if (k === 'potion' && v === 'xchg') xchgLoad(); renderPanel(); return; }
         if ('yss' in d) { ysSlide(+d.yss); renderPanel(); return; }   // v172 벽화 퍼즐
+        if (d.stput || d.stget) { storeMove(d.stput ? 'put' : 'get', d.stput || d.stget); renderPanel(); return; }   // v222 창고
         if ('yspz' in d) { tab.ysPz = d.yspz === '1' && pane === 'ysmural' && ysHave() >= 9 && !S.ysMural ? { b: ysShuffle(), moves: 0 } : null; renderPanel(); return; }
         if ('petdraw' in d) { petDraw(); renderPanel(); return; }   // v149 펫
         if ('peton' in d) {   // v213 선생님 11/25: 펫은 바꾸면 10분 뒤에 다시 바꿀 수 있음 (특수 능력을 번갈아 쓰지 못하게)
