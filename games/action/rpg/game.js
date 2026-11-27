@@ -3848,6 +3848,8 @@
       }
       const optList = it => (it && it.op && it.op.length ? `<ul class="rg-opts">${it.op.map(o => `<li class="${o[1] > 0 ? 'pos' : 'neg'}">${optTxt(o)}</li>`).join('')}</ul>` : '');
       const stOf = it => Object.entries(it.st || {}).map(([k, v]) => ({ atk: '공격', mag: '마력', def: '방어', hp: '체력', mp: '마나', spd: '속도%' }[k] + ' +' + v)).join(' · ');
+      // v221 마법 목록을 레벨 높은 것부터 (선생님 11/27 · 같은 레벨이면 기본 마법 먼저 → 이름 순) · 저장된 S.skills 순서는 그대로
+      const byLv = ids => ids.slice().sort((a, b) => { const A = skill(a), B = skill(b); return (B.lv - A.lv) || ((A.fusion ? 1 : 0) - (B.fusion ? 1 : 0)) || String(A.name).localeCompare(String(B.name), 'ko'); });
       function renderPanel() {
         const k = pane; let h = '';
         if (k === 'inv') {   // v41 가방 창: 왼쪽 = 내 캐릭터 + 장비 칸 5개 + 능력치 · 오른쪽 = 가방 40칸 + 고른 물건 자세히
@@ -3888,7 +3890,7 @@
           h += `<div class="rg-skbar"><section class="rg-skset${tab.skf === 'b' ? ' on' : ''}" data-skf="b" role="button" tabindex="0" title="눌러서 기본 마법만 보기"><h4>⚡ 기본 마법<small>숫자 1~4</small><em>${tab.skf === 'b' ? '✔ 기본 마법만 보는 중' : '눌러서 기본 마법만 보기'}</em></h4><div class="rg-slots">${[0, 1, 2, 3].map(i => slotHtml(S.slots[i], i + 1, '비어 있음')).join('')}</div></section>`;
           h += `<section class="rg-skset fu${tab.skf === 'f' ? ' on' : ''}" data-skf="f" role="button" tabindex="0" title="눌러서 융합 마법만 보기"><h4>✦ 융합 마법<small>Q W E R</small><em>${tab.skf === 'f' ? '✔ 융합 마법만 보는 중' : '눌러서 융합 마법만 보기'}</em></h4><div class="rg-slots">${[0, 1, 2, 3].map(i => slotHtml(S.fslots[i], FKEY[i], '융합 마법')).join('')}</div></section></div>`;
           const skCol = sk => (ELEM[(sk.els || [])[0]] || {}).color || '#C9A24A';
-          const skShow = S.skills.filter(id => { const sk = skill(id); return sk && (tab.skf === 'b' ? !sk.fusion : tab.skf === 'f' ? !!sk.fusion : true); });   // v217
+          const skShow = byLv(S.skills.filter(id => { const sk = skill(id); return sk && (tab.skf === 'b' ? !sk.fusion : tab.skf === 'f' ? !!sk.fusion : true); }));   // v217 · v221 선생님 11/27: 배운 순서 → 레벨 높은 순서
           if (tab.skf) h += `<p class="rg-skfnote">${tab.skf === 'b' ? '⚡ 기본 마법' : '✦ 융합 마법'}만 보여요 (${skShow.length}개) · 위 판을 한 번 더 누르면 모두 보여요</p>`;
           h += `<ul class="rg-list">${skShow.length ? skShow.map(id => { const sk = skill(id); return `<li class="rg-row" style="--c:${skCol(sk)}"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${sk.fusion ? '융합 · ' : ''}${sk.name} <small style="color:#C9D0F0">Lv.${sk.lv}</small></span><span class="ds">${describe(sk)}</span></span><span class="keys">${[0, 1, 2, 3].map(i => sk.fusion ? `<button type="button" class="rg-mini${S.fslots[i] === id ? ' on' : ' ghost'}" data-slot="f${i}|${id}">${FKEY[i]}</button>` : `<button type="button" class="rg-mini${S.slots[i] === id ? ' on' : ' ghost'}" data-slot="${i}|${id}">${i + 1}</button>`).join('')}</span></li>`; }).join('') : '<li class="rg-row">아직 배운 마법이 없어요. Lv.3이 되면 의주 도술 서원에서 파이어볼을 배울 수 있어요.</li>'}</ul>`;
         } else if (k === 'potion') {
@@ -3913,10 +3915,10 @@
           const ri = G.map.M.region, t = tab.school || 'learn';
           h = head('도술 서원', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 마법 배우기 · 두 원소 섞기`) + npcBox() + tabs('school', [['learn', '마법 배우기'], ['fuse', '마법 융합']]);
           if (t === 'learn') {
-            const list = Object.values(SKILLS).filter(s => s.village <= ri).sort((a, b) => a.lv - b.lv);
+            const list = Object.values(SKILLS).filter(s => s.village <= ri).sort((a, b) => b.lv - a.lv);   // v221 높은 레벨부터
             h += `<p class="sub">이 마을까지의 마법을 배울 수 있어요. 다음 마을에 가면 더 강한 마법이 있어요.</p><ul class="rg-list">${list.map(s => { const has = S.skills.includes(s.id), ok = S.lv >= s.lv, sk = skill(s.id); return `<li class="rg-row${ok || has ? '' : ' off'}" style="--c:${(ELEM[(sk.els || [])[0]] || {}).color || '#C9A24A'}"><img class="rg-sk" src="${Fx.iconURL(sk)}" alt=""><span class="grow"><span class="nm">${s.name} <small style="color:#AEB7E0">Lv.${s.lv} · ${fmtN(s.price)} G</small></span><span class="ds">${describe(sk)}</span></span>${has ? '<span class="rg-mini on">배움</span>' : `<button type="button" class="rg-mini" data-learn="${s.id}" ${ok && S.gold >= s.price ? '' : 'disabled'}>${ok ? '배우기' : 'Lv.' + s.lv}</button>`}</li>`; }).join('')}</ul>`;
           } else {
-            const base = S.skills.filter(id => SKILLS[id]);
+            const base = byLv(S.skills.filter(id => SKILLS[id]));   // v221 재료 고르기도 레벨 높은 순서
             const a = tab.fa && base.includes(tab.fa) ? tab.fa : base[0], b = tab.fb && base.includes(tab.fb) ? tab.fb : base.find(x => SKILLS[x].el !== (SKILLS[a] || {}).el);
             tab.fa = a; tab.fb = b;
             h += `<p class="sub">서로 <b>다른 원소</b> 마법 2개를 섞으면 새 마법이 생겨요. 재료 마법은 그대로 남아요. (원소 짝 15가지)</p>`;
