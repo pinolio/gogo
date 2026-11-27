@@ -3019,8 +3019,7 @@
         const s = mv ? Math.sin(p) : 0, cs = mv ? Math.cos(p) : 0;
         if (kind === 'biped') {
           const HIP = 0.64, SHO = 0.3, bob = mv ? -Math.abs(cs) * h * 0.03 : Math.sin(p) * h * 0.006, leg = s * 0.42, arm = -s * 0.2;
-          pc(0, HIP - 0.03, 0.53, 1, leg, HIP, 0, -Math.max(0, -cs) * h * 0.025);         // 뒷다리
-          pc(0.47, HIP - 0.03, 1, 1, -leg, HIP, 0, -Math.max(0, cs) * h * 0.025);          // 앞다리
+          { const side = x => Math.max(-1, Math.min(1, (0.5 - x) * 5)), N = 24; for (let i = 0; i < N; i++) { const a = i / N, b = Math.min(1, (i + 1) / N + 0.008), xm = (a + b) / 2; pc(a, HIP - 0.03, b, 1, leg * side(xm), HIP, 0, -Math.max(0, -cs * side(xm)) * h * 0.025); } }   // 뒷다리·앞다리 (v218 가는 띠로 서서히 → 찢어짐 없음)
           c.save(); if (atk) { c.translate(w * 0.5, HIP * h); c.rotate(atk * 0.16); c.translate(-w * 0.5 + atk * w * 0.07, -HIP * h); }   // 공격: 윗몸을 앞으로 숙이며 내지름 (무기는 몸과 함께)
           pc(0, SHO, 0.4, HIP + 0.03, arm, SHO, 0, bob);                                    // 뒷팔 쪽
           pc(0.28, 0, 0.72, HIP + 0.04, 0, 0, 0, bob); pc(0, 0, 1, SHO + 0.02, 0, 0, 0, bob);  // 몸통 · 머리
@@ -3028,7 +3027,7 @@
           c.restore();
         } else if (kind === 'quad') {
           const HIP = 0.6, bob = mv ? -Math.abs(cs) * h * 0.025 : Math.sin(p) * h * 0.006, leg = s * 0.4;
-          [[0, 0.27, leg], [0.25, 0.5, -leg], [0.48, 0.75, leg * 0.9], [0.73, 1, -leg * 0.9]].forEach(([a, b, k]) => pc(a, HIP - 0.03, b, 1, k, HIP, 0, -Math.max(0, k > 0 ? -cs : cs) * h * 0.02));
+          { const wv = x => Math.cos(x * Math.PI * 4 - Math.PI / 4) * (x > 0.5 ? 0.9 : 1), N = 32; for (let i = 0; i < N; i++) { const a = i / N, b = Math.min(1, (i + 1) / N + 0.006), xm = (a + b) / 2; pc(a, HIP - 0.03, b, 1, leg * wv(xm), HIP, 0, -Math.max(0, -cs * wv(xm)) * h * 0.02); } }   // v218 네 다리 = 물결 두 번 (꼬리가 찢어지지 않게)
           pc(0, 0, 1, HIP + 0.03, 0, 0, atk * w * 0.08, bob);
         } else if (kind === 'float' || kind === 'flap') {
           const t = performance.now() / 380, fy = Math.sin(t + p) * h * 0.05;
@@ -3078,14 +3077,16 @@
           c.drawImage(im, sx, sy, sw, shh, sx * kx + (dx || 0), sy * ky + (dy || 0), sw * kx, shh * ky); c.restore();
         };
         const s = Math.sin(p), cs = Math.cos(p);
+        /* v218 (선생님 11/27 "꼬리·팔이 잘려 보임") 예전: 아래쪽을 2~4 덩어리로 나눠 서로 반대로 기울임 → 덩어리 경계에서 꼬리·팔·옷자락이 찢어져 보임
+         *  새로: 가는 띠 32개로 나누고 기울기를 가로 위치에 따라 '서서히' 바꿈 (이웃한 띠는 거의 같게) → 찢어지는 틈이 없음 */
+        const legBand = (HIP, kOf, lOf) => { const N = 32; for (let i = 0; i < N; i++) { const a = i / N, b = (i + 1) / N + 0.006, xm = (a + b) / 2; pc(a, HIP - 0.02, Math.min(1, b), 1, kOf(xm), HIP, 0, lOf(xm)); } };
         if (kind === 'biped' && mv > 0.03) {
-          const HIP = 0.66, leg = s * 0.34 * mv, lift = h * 0.022 * mv;
-          pc(0, HIP - 0.02, 0.5, 1, leg, HIP, 0, -Math.max(0, -cs) * lift);
-          pc(0.5, HIP - 0.02, 1, 1, -leg, HIP, 0, -Math.max(0, cs) * lift);
+          const HIP = 0.66, leg = s * 0.34 * mv, lift = h * 0.022 * mv, side = x => Math.max(-1, Math.min(1, (0.5 - x) * 5));   // 왼쪽 반 +1 · 오른쪽 반 -1 · 가운데는 서서히
+          legBand(HIP, x => leg * side(x), x => -Math.max(0, -cs * side(x)) * lift);
           pc(0, 0, 1, HIP + 0.02, 0, 0, 0, 0);
         } else if (kind === 'quad' && mv > 0.03) {
-          const HIP = 0.62, leg = s * 0.22 * mv, lift = h * 0.016 * mv;
-          [[0, 0.26, leg], [0.25, 0.5, -leg], [0.5, 0.75, leg], [0.75, 1, -leg]].forEach(([a, b, k]) => pc(a, HIP - 0.02, b, 1, k, HIP, 0, -Math.max(0, k > 0 ? -cs : cs) * lift));
+          const HIP = 0.62, leg = s * 0.22 * mv, lift = h * 0.016 * mv, wv = x => Math.cos(x * Math.PI * 4 - Math.PI / 4);   // 앞다리·뒷다리 짝이 번갈아 (물결 두 번)
+          legBand(HIP, x => leg * wv(x), x => -Math.max(0, -cs * wv(x)) * lift);
           pc(0, 0, 1, HIP + 0.02, 0, 0, 0, Math.sin(p * 2) * h * 0.006 * mv);
         } else if (kind === 'serpent') {   // 청룡: 세로 띠마다 물결 (머리 쪽이 먼저)
           const N = 14; for (let i = 0; i < N; i++) { const a = i / N, b = (i + 1) / N + 0.004, off = Math.sin(t * 2.6 - a * 5.5) * h * (0.018 + 0.012 * mv); pc(a, 0, b, 1, 0, 0, 0, off); }
@@ -3261,7 +3262,8 @@
         // R·L·S = 팔 각도(라디안: 앞모습 오른팔·왼팔, 옆모습 팔) · bf·bs = 칼날 방향(도, 위=0 · 시계 방향) — null 이면 들고 있던 기울기 그대로
         if (o._pk === 'a') return { k: 'a', t, R: keyf(t, [[0, 0], [0.3, -1.0], [0.55, -0.35], [1, 0]]), L: keyf(t, [[0, 0], [0.3, 0.3], [0.55, -0.12], [1, 0]]), S: keyf(t, [[0, 0], [0.3, -2.7], [0.55, -0.35], [1, 0]]),
           bf: [[0.3, 5], [0.55, 125]], bs: [[0.3, -55], [0.55, 85]] };
-        return { k: 'c', t, R: keyf(t, [[0, 0], [0.22, -2.4], [0.78, -2.4], [1, 0]]), L: keyf(t, [[0, 0], [0.22, 2.4], [0.78, 2.4], [1, 0]]), S: keyf(t, [[0, 0], [0.22, -1.35], [0.78, -1.35], [1, 0]]),
+        return { k: 'c', t, R: keyf(t, [[0, 0], [0.22, -1.25], [0.78, -1.25], [1, 0]]), L: keyf(t, [[0, 0], [0.22, 1.25], [0.78, 1.25], [1, 0]]),   // 앞모습은 팔을 옆으로 비스듬히 (더 들면 어깨에서 떨어져 보임)
+          S: keyf(t, [[0, 0], [0.22, -1.35], [0.78, -1.35], [1, 0]]),
           bf: [[0.22, 0], [0.78, 0]], bs: [[0.22, 38], [0.78, 38]] };
       }
       const HOLD = { sword: [32, 100], staff: [18, -12] };   // 들고 있을 때 칼날 기울기(도) [앞, 옆] — world.js WP_ANG·WP_ANG_S 와 같게
