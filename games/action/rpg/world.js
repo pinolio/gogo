@@ -1256,6 +1256,7 @@
 
   const SLOT_IC = { helmet: 'ic_hm', armor: 'ic_ar', ring: 'ic_rg', boots: 'ic_bt' }, WP_IC = { sword: 'ic_sw', staff: 'ic_st' }, WP_SZ = { sword: [16, 0.86], staff: [18, 0.8] },   // 무기 높이(칸) · 손잡이 자리(위에서부터 비율)
     WP_ANG = { sword: { 0: 32, c: 40, a: 75 }, staff: { 0: 18, c: 32, a: 45 } },   // 자세별 기울기(도)
+    WP_ANG_S = { sword: 100, staff: -12 },   // v218 옆모습: 칼은 앞으로 낮게(얼굴을 가리지 않게) · 지팡이는 뒤로 살짝 (머리 뒤로)
     HAND = { 0: [0, 0], 1: [0, 1], 3: [0, -1], c: [0, -6.5], a: [1, -2] };   // 자세별 무기 쥔 손 위치 (서 있을 때 기준, 칸)   // 무기 그림 · 손에 들 때 높이·아래 끝(칸)
   const swBoxC = {};
   /* v151 선생님 11/15: 왕을 죽인 검을 손에 든 모양 — 광개토대왕의 전당 안 = 화려한 검(ic_sw_kingh) · 밖 = 허술한 검(ic_sw_kingp) (Gemini 아이콘을 칼끝이 위로 가게 세운 그림) */
@@ -1340,10 +1341,10 @@
     const CX = side ? 9.4 : 8.875;   // 몸 가운데 (칸)
     const drawWeapon = () => {
       const n = WPK.one ? 0 : nOf(wp), b = swBox(swI, n, wIc), [hc, gf] = WP_SZ[wp.look];
-      const hx = (side ? 9.9 : 12.75) * k + PAD, hy = 18.5 * k;
+      const hx = (side ? (arm ? CX - 2.65 : 9.9) : 12.75) * k + PAD, hy = (side && arm ? 20.25 : 18.5) * k;   // v218 옆 팔 조각: 떼어 낸 팔의 손에 쥠
       let hh = hc * k, ww = Math.max(1, Math.round(b.w * hh / b.h)); if (ww > 13 * k) { hh = Math.round(hh * 13 * k / ww); ww = 13 * k; }
       x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
-      x.save(); x.translate(hx, hy); x.rotate(WP_ANG[wp.look][0] * Math.PI / 180); x.drawImage(swI, n * 80 + b.x, b.y, b.w, b.h, -ww / 2, -hh * gf, ww, hh); x.restore();
+      x.save(); x.translate(hx, hy); x.rotate((side && arm ? WP_ANG_S[wp.look] : WP_ANG[wp.look][0]) * Math.PI / 180); x.drawImage(swI, n * 80 + b.x, b.y, b.w, b.h, -ww / 2, -hh * gf, ww, hh); x.restore();
       x.imageSmoothingEnabled = false;
     };
     if (swI && view === 'b') drawWeapon();   // 뒤: 무기는 몸 뒤에
@@ -1400,7 +1401,7 @@
     const bodyI = bodyOf(av, 'f', eq, hide);
     if (!bodyI) return blankSp(2);   // v120
     const hwN = !hide && eq && eq.helmet && D.ITEMS[eq.helmet] ? nOfIt(D.ITEMS[eq.helmet]) : -1, hwI = hwN >= 0 ? hwImg(hwN) : null;
-    const key = JSON.stringify([av, hide ? {} : eq, frame, !!bodyI, !!hwI, kingKey(), !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
+    const key = JSON.stringify([av, hide ? {} : eq, frame, part || '', !!bodyI, !!hwI, kingKey(), !!imgOk('ic_sw'), !!imgOk('ic_st'), !!imgOk('ic_hm'), !!imgOk('ic_ar'), !!imgOk('ic_bt')]);
     if (avCache[key]) return avCache[key];
     const pose = frame, leg = typeof frame === 'number' ? frame : 0;   // 'c'·'a' 는 다리는 서 있기
     frame = leg;
@@ -1435,7 +1436,7 @@
       const ww = Math.round(12 * k * HM_GROW), hh = Math.max(Math.round(11 * k * HM_GROW), Math.round(b.h * ww / b.w)), cx = 8.875 * k + PAD, by = 12.8 * k;
       hmDraw(x, hmI, n * 80 + b.x, b.y, b.w, b.h, Math.round(cx - ww / 2), Math.round(by - hh), ww, hh, [5.5 * k + PAD, 6.5 * k, 12.5 * k + PAD, 10 * k]);   // v108 눈구멍 투명 · 조금 크게
     }
-    if (swI) {   // v101 손잡이를 손에 맞춰 쥐게 하고, 손은 무기 위에 다시 그려 '잡은' 모양으로
+    if (swI && part !== 'noWp') {   // v101 손잡이를 손에 맞춰 쥐게 하고, 손은 무기 위에 다시 그려 '잡은' 모양으로 · v218 'noWp' = 무기 빼고 몸만 · 'wp' = 무기+쥔 손만 (팔과 함께 돌리려고)
       const n = WPK.one ? 0 : wp.legend ? 9 : wp.rare ? 10 + wp.tier : wp.tier, b = swBox(swI, n, wIc), [hc, gf] = WP_SZ[wp.look];
       const o = HAND[pose] || HAND[0], hx = (12.75 + o[0]) * k + PAD, hy = (18.5 + o[1]) * k;   // 무기 쥔 손의 가운데 (칸 → 그림 점)
       const hb = [Math.round(hx - 4 * k / 2), Math.round(hy - 4 * k / 2), 4 * k, 4 * k], [hc2, hx2] = mk(hb[2], hb[3]);
@@ -1443,9 +1444,12 @@
       let hh = hc * k, ww = Math.max(1, Math.round(b.w * hh / b.h)); if (ww > 13 * k) { hh = Math.round(hh * 13 * k / ww); ww = 13 * k; }   // 날개처럼 넓은 무기는 줄여서 얼굴을 덜 가리게
       x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
       const ang = (WP_ANG[wp.look][pose] != null ? WP_ANG[wp.look][pose] : WP_ANG[wp.look][0]) * Math.PI / 180;   // 바깥쪽으로 비스듬히 (머리·얼굴을 가리지 않게)
-      x.save(); x.translate(hx, hy); x.rotate(ang); x.drawImage(swI, n * 80 + b.x, b.y, b.w, b.h, -ww / 2, -hh * gf, ww, hh); x.restore();
-      x.imageSmoothingEnabled = false; x.drawImage(hc2, hb[0], hb[1]);   // 손을 손잡이 위에
-    }
+      const [c3, x3] = part === 'wp' ? mk(c.width, c.height) : [c, x], xx = part === 'wp' ? x3 : x;
+      xx.imageSmoothingEnabled = true; xx.imageSmoothingQuality = 'high';
+      xx.save(); xx.translate(hx, hy); xx.rotate(ang); xx.drawImage(swI, n * 80 + b.x, b.y, b.w, b.h, -ww / 2, -hh * gf, ww, hh); xx.restore();
+      xx.imageSmoothingEnabled = false; xx.drawImage(hc2, hb[0], hb[1]);   // 손을 손잡이 위에
+      if (part === 'wp') { const keys = Object.keys(avCache); if (keys.length > 240) delete avCache[keys[0]]; return (avCache[key] = c3); }
+    } else if (part === 'wp') return (avCache[key] = mk(c.width, c.height)[0]);
     const keys = Object.keys(avCache); if (keys.length > 240) delete avCache[keys[0]];
     return (avCache[key] = c);
   }

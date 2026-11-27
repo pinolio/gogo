@@ -934,7 +934,7 @@
       o = o || {}; const sx0 = (x0 + gx) * cs, sy0 = y0 * cs, sw = (x1 - x0) * cs, shh = (y1 - y0) * cs; if (sw <= 0 || shh <= 0) return;
       const pX = ((o.px != null ? o.px : (x0 + x1) / 2) + gx) * cs * kx, pY = (o.py != null ? o.py : y0) * cs * ky;
       ctx.save(); ctx.translate(dx + pX + (o.ox || 0) * cs * kx, dy + pY + (o.oy || 0) * cs * ky); if (o.ang) ctx.rotate(o.ang); if (o.sx || o.sy) ctx.scale(o.sx || 1, o.sy || 1);
-      ctx.drawImage(img, sx0, sy0, sw, shh, sx0 * kx - pX, sy0 * ky - pY, sw * kx, shh * ky); ctx.restore();
+      ctx.drawImage(o.im || img, sx0, sy0, sw, shh, sx0 * kx - pX, sy0 * ky - pY, sw * kx, shh * ky); ctx.restore();
     };
     // 다리: 든 다리는 엉덩이를 축으로 짧아지고(앞으로 내딛음) 발이 들림 · 디딘 다리는 그대로 · 엉덩이 줄은 먼저 깔아 빈틈 막기
     const lL = mv ? Math.max(0, s) * A : 0, lR = mv ? Math.max(0, -s) * A : 0;
@@ -949,20 +949,54 @@
     P(-gx * 0 + 0, 0, GW, NECK + 0.6, { px: 9, py: NECK, ox: sway * 1.1, oy: bob + (idle ? -0.18 * (br * 0.5 + 0.5) : 0.15 * Math.abs(Math.sin(p - 0.6)) * A), ang: mv ? 0.03 * Math.sin(p - 0.5) * A : 0.012 * Math.sin(t * 1.3) });
     // 팔: 어깨를 축으로 다리와 반대로 흔듦 (앞으로 나오는 팔은 조금 짧아 보이게)
     // 앞에서 보면 팔을 앞뒤로 흔드는 것은 '팔이 짧아졌다 길어졌다' + 살짝 안팎으로 기울기
-    const swing = mv ? s * A : 0.3 * br, aL = arms ? swing : 0, aR = arms === true ? -swing : 0;
-    P(0, NECK + 0.4, 5.4, HIP + 2.2, { px: 4.6, py: SHO, ox: sway, oy: bob, ang: 0.07 * aL, sy: 1 - 0.13 * Math.max(0, aL) + 0.04 * Math.max(0, -aL) });
-    P(12.6, NECK + 0.4, GW, HIP + 2.2, { px: 13.4, py: SHO, ox: sway, oy: bob, ang: -0.07 * aR, sy: 1 - 0.13 * Math.max(0, aR) + 0.04 * Math.max(0, -aR) });
+    /* v218 무기를 든 오른팔도 조금(rAmp) 흔들고, 무기 층(opt.wp: 손잡이를 쥔 손까지 그린 그림)을 오른팔과 똑같이 돌려 칼이 손에서 떨어지지 않게
+     *  opt.armR·armL = 공격·마법 때 어깨를 축으로 더 돌리는 각도(라디안 · 오른팔은 음수가 바깥·위) */
+    const swing = mv ? s * A : 0.3 * br, aL = arms ? swing : 0, aR = arms === true ? -swing : opt.wp ? -swing * (opt.rAmp == null ? 0.4 : opt.rAmp) : 0;
+    const big = Math.abs(opt.armR || 0) + Math.abs(opt.armL || 0) > 0.3;   // 크게 들 때는 팔 길이를 줄이지 않음
+    P(0, NECK + 0.4, 5.4, HIP + 2.2, { px: 4.6, py: SHO, ox: sway, oy: bob, ang: 0.07 * aL + (opt.armL || 0), sy: big ? 1 : 1 - 0.13 * Math.max(0, aL) + 0.04 * Math.max(0, -aL) });
+    const oR = { px: 13.4, py: SHO, ox: sway, oy: bob, ang: -0.07 * aR + (opt.armR || 0), sy: big ? 1 : 1 - 0.13 * Math.max(0, aR) + 0.04 * Math.max(0, -aR) };
+    P(12.9, NECK + 0.4, GW, HIP + 2.2, oR);
+    if (opt.wp) {   // 무기 층: 오른팔과 같은 변환 + (opt.wpAng) 손잡이를 축으로 칼만 더 돌림
+      const g = opt.grip || [12.75, 18.5], pX = (13.4 + gx) * cs * kx, pY = SHO * cs * ky, gX = (g[0] + gx) * cs * kx, gY = g[1] * cs * ky;
+      ctx.save(); ctx.translate(dx + pX + sway * cs * kx, dy + pY + bob * cs * ky); ctx.rotate(oR.ang); ctx.scale(1, oR.sy); ctx.translate(-pX, -pY);
+      if (opt.wpAng) { ctx.translate(gX, gY); ctx.rotate(opt.wpAng); ctx.translate(-gX, -gY); }
+      const sm2 = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true; ctx.drawImage(opt.wp, 0, 0, opt.wp.width * kx, opt.wp.height * ky); ctx.imageSmoothingEnabled = sm2; ctx.restore();
+    }
     ctx.imageSmoothingEnabled = sm;
   }
-  function rigSide(ctx, body, arm, dx, dy, dw, dh, p, mv, opt) {
+  /* v218 옆모습 팔 떼어 내기: 옆 몸 그림에는 가까운 팔이 붙어 있어 걸을 때 팔이 굳어 있었음 →
+   *  등 쪽 가장자리(어깨~손 줄)에서 팔 부분만 오려 따로 그림(어깨를 축으로 흔듦), 몸에서는 그 자리를 지움. 그림마다 한 번 */
+  const armSp = new WeakMap();
+  function armSplit(im, cs) {
+    let v = armSp.get(im); if (v) return v; v = { ok: false };
+    try {
+      const W2 = im.width, H2 = im.height, c = document.createElement('canvas'); c.width = W2; c.height = H2; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+      const d = x.getImageData(0, 0, W2, H2), D = d.data, al = (i, y) => D[(y * W2 + i) * 4 + 3], lum = (i, y) => { const q = (y * W2 + i) * 4; return 0.3 * D[q] + 0.59 * D[q + 1] + 0.11 * D[q + 2]; };
+      const y0 = Math.round(13 * cs), y1 = Math.min(H2 - 1, Math.round(21.8 * cs)), ym = Math.round(16.5 * cs);
+      let L = W2; for (let y = ym; y < ym + Math.round(2 * cs); y++) for (let i = 0; i < W2; i++) if (al(i, y) > 60) { if (i < L) L = i; break; }
+      if (L < W2 * 0.6) {
+        const wD = Math.round(2.75 * cs), arm = document.createElement('canvas'); arm.width = W2; arm.height = H2; const ax = arm.getContext('2d'), ad = ax.createImageData(W2, H2);
+        for (let y = y0; y <= y1; y++) {
+          let cut = L + wD; for (let i = L + Math.round(cs); i <= L + Math.round(4 * cs) && i < W2; i++) if (al(i, y) > 60 && lum(i, y) < 120) { cut = i; break; }
+          const clr = y >= 15.2 * cs;   // 겨드랑이 위(소매)는 몸에도 남겨 둠 — 어깨 근처는 거의 안 움직여 겹쳐도 안 보이고, 빈 구멍이 안 생김
+          for (let i = Math.max(0, L - Math.round(cs)); i < cut; i++) { const q = (y * W2 + i) * 4; for (let k = 0; k < 4; k++) ad.data[q + k] = D[q + k]; if (clr) D[q + 3] = 0; }
+        }
+        ax.putImageData(ad, 0, 0); x.putImageData(d, 0, 0);
+        v = { ok: true, body: c, arm, px: L + 1.4 * cs, py: 13.6 };   // 어깨 (px = 그림 점, py = 칸)
+      }
+    } catch (e) { v = { ok: false }; }
+    armSp.set(im, v); return v;
+  }
+  function rigSide(ctx, body0, arm, dx, dy, dw, dh, p, mv, opt) {
     opt = opt || {};
-    const cs = body.height / GH, kx = dw / body.width, ky = dh / body.height, A = opt.amp == null ? 1 : opt.amp, t = performance.now() / 1000;
+    const cs = body0.height / GH, kx = dw / body0.width, ky = dh / body0.height, A = opt.amp == null ? 1 : opt.amp, t = performance.now() / 1000;
+    const AB = opt.noSplit ? { ok: false } : armSplit(body0, cs), body = AB.ok ? AB.body : body0;
     const s = mv ? Math.sin(p) : 0, HIP = 20, KNEE = 24.2, SHO = 13.2;
     const idle = !mv && opt.idle !== false, br = idle ? Math.sin(t * 2.4) : 0;
     const bob = mv ? (0.45 * Math.abs(s) - 0.3) * A : -0.2 * (br * 0.5 + 0.5);   // 다리가 벌어질 때 낮아짐
     /* v153 '오른쪽으로 갈 때 다리가 4개' 고침: 옆모습 그림에는 다리가 이미 둘 → 다리 줄을 통째로 두 번 그리면 넷이 됨.
      *  종아리·신발 줄에서 두 다리 사이 틈을 찾아 [앞쪽 다리 | 뒤쪽 다리] 로 나눠 하나씩 움직임. 치마(허벅지 줄이 넓음)는 허벅지는 그대로 두고 종아리만 */
-    const LB = legSplit(body, cs, HIP, KNEE, GH), lean = mv ? 0.05 * A : 0;
+    const LB = legSplit(body0, cs, HIP, KNEE, GH), lean = mv ? 0.05 * A : 0;
     const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = body.width > dw + 1;   // v154 큰 그림을 줄여 그릴 때는 부드럽게
     const P = (im, y0, y1, o) => {   // im 의 y0~y1 줄(가로 sx0~sx1 점)을 (축 px 점, py 칸) 기준으로 ang 돌려 (ox 점, oy 칸) 옮겨 그림
       o = o || {}; const sy0 = y0 * cs, shh = (y1 - y0) * cs; if (shh <= 0) return;
@@ -986,7 +1020,17 @@
     if (LB.ok) leg(p, LB.a, LB.mid);                                 // 앞쪽 다리
     else P(body, top, GH, { py: HIP, oy: bob });                      // 다리를 못 나누면 그대로 (넷으로 보이지 않게)
     const aa = mv ? 0.5 * Math.sin(p) * A : 0.04 * br;               // 가까운 팔: 앞쪽 다리와 반대로
-    P(arm, SHO - 1, GH, { py: SHO, oy: bob, ang: aa + lean, px: LB.mid + (opt.armDx || 0) });
+    if (AB.ok) {   // v218 떼어 낸 팔 + 무기(손에 쥔 자리)를 어깨 축으로 함께 · 무기를 들면 덜 흔듦 · opt.armAng = 공격·마법 (음수 = 앞·위)
+      const ang = aa * 0.8 * (opt.aAmp == null ? 1 : opt.aAmp) + (opt.armAng || 0) + lean * 0.5, o = { py: AB.py, oy: bob, ang, px: AB.px };
+      if (arm && arm.width === body0.width) {
+        if (opt.wpAng) {   // 손잡이(opt.grip 칸)를 축으로 무기만 더 돌림
+          const g = opt.grip || [6.75, 20.25], pad = (body0.width - GW * cs) / 2, pX = AB.px * kx, pY = AB.py * cs * ky, gX = (g[0] * cs + pad) * kx, gY = g[1] * cs * ky;
+          ctx.save(); ctx.translate(dx + pX, dy + pY + bob * cs * ky); ctx.rotate(ang); ctx.translate(-pX, -pY); ctx.translate(gX, gY); ctx.rotate(opt.wpAng); ctx.translate(-gX, -gY);
+          ctx.drawImage(arm, 0, 0, arm.width * kx, arm.height * ky); ctx.restore();
+        } else P(arm, 0, GH, o);
+      }
+      P(AB.arm, 0, GH, o);
+    } else P(arm, SHO - 1, GH, { py: SHO, oy: bob, ang: aa + lean, px: LB.mid + (opt.armDx || 0) });
     ctx.imageSmoothingEnabled = sm;
   }
   // 옆모습 다리 나누기: 종아리·신발 줄(KNEE~발)에서 다리 자리 [a, b] 와 두 다리 사이 가장 얇은 곳(mid) · 허벅지 줄이 훨씬 넓으면 치마 · 그림마다 한 번
@@ -1094,7 +1138,7 @@
     preload,
     SLOTS, DEFAULT, OPTIONAL, ITEMS: SHOP_I, ALL_ITEMS: I, byId, bodyImg, useBody, bodyNorm, bodySrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, CLOTH, SHOES,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
-    normalize, draw, paint, paintAll, random, legs, OUT, rig, rigSide,
+    normalize, draw, paint, paintAll, random, legs, OUT, rig, rigSide, armBox: im => armSplit(im, im.height / GH),
     walkP: t => t * Math.PI * 2,   // 걸음 수(바퀴) → 위상
     freeIds: () => I.filter(it => it.price === 0).map(it => it.id),
     bgImg: av => { const it = byId[normalize(av).bg]; return it && it.img ? (window.GOGO_BASE || '') + it.img : null; },   // v121 배경 그림 주소 (미리보기 칸 전체 배경용)

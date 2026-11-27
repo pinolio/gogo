@@ -2295,7 +2295,7 @@
       }
       function basicAttack() {
         if (G.atkCd > 0 || G.dead || (G.pst && (G.pst.stun > 0 || G.pst.fear > 0)) || (G.duel && G.duel.st !== 'fight')) return;
-        G.atkCd = ST.atkCd; G.poseK = 'a'; G.poseUntil = performance.now() + 220;   // v79 공격 동작
+        G.atkCd = ST.atkCd; G.poseK = 'a'; G.poseUntil = performance.now() + 300;   // v79 공격 동작
         const staff = S.eq.weapon && ITEMS[S.eq.weapon].look === 'staff';
         const [dx, dy] = aimDir(staff ? 150 : 70);
         G.face = dx < 0 ? -1 : 1;
@@ -2509,9 +2509,12 @@
         } else if (ml > 0.15) {
           const sp = 150 * (1 + ST.spd / 100) * dt * Math.min(1, ml) * (G.pst && G.pst.slow > 0 ? 0.6 : 1) * (G.pst && (G.pst.stun > 0 || G.pst.root > 0) ? 0 : 1);   // v87 느려짐 · 기절 · v173 속박
           G.fx = mx / ml; G.fy = my / ml; if (Math.abs(mx) > 0.2) G.face = mx < 0 ? -1 : 1;
-          G.view = Math.abs(G.fy) > Math.abs(G.fx) * 1.15 ? (G.fy > 0 ? 'f' : 'b') : 's';   // v107 아래 = 앞모습 · 위 = 뒷모습 · 옆 = 옆모습
-          movePlayer(G.fx * sp, G.fy * sp); G.moving = true; G.walk += dt; if (Math.floor(G.walk * 8) !== Math.floor((G.walk - dt) * 8)) Fx.dust(G.px, G.py, M.region === 5 ? 'rgba(255,255,255,.8)' : 'rgba(255,240,210,.55)');
-        } else { G.moving = false; G.walk = 0; }
+          { const ay = Math.abs(G.fy), ax = Math.abs(G.fx), cur = G.view || 'f';   // v107 아래 = 앞 · 위 = 뒤 · 옆 = 옆 · v218 대각선에서 왔다 갔다 하지 않게 (문턱 둘)
+            if (cur === 's' ? ay > ax * 1.5 : ax > ay * 1.5) G.view = ay > ax ? (G.fy > 0 ? 'f' : 'b') : 's'; else if (cur !== 's' && ay > ax) G.view = G.fy > 0 ? 'f' : 'b'; }
+          const ox = G.px, oy = G.py; movePlayer(G.fx * sp, G.fy * sp); G.moving = true; G.walk += dt;
+          stepAnim(G, Math.hypot(G.px - ox, G.py - oy), dt, true);   // v218 걸음은 간 거리로 (벽에 막히면 다리도 멈춤)
+          if (G.stepped) Fx.dust(G.px, G.py, M.region === 5 ? 'rgba(255,255,255,.8)' : 'rgba(255,240,210,.55)');
+        } else { G.moving = false; G.walk = 0; stepAnim(G, 0, dt, false); }
         if ((K.Space || K.KeyJ || G.btnDown.atk) && !(G.duel && G.duel.st !== 'fight')) basicAttack();
         if (net) { const vx = (G.px - (G.lpx == null ? G.px : G.lpx)) / dt, vy = (G.py - (G.lpy == null ? G.py : G.lpy)) / dt; G.lpx = G.px; G.lpy = G.py; net.tick(dt, { x: G.px, y: G.py, vx, vy, face: G.face, lv: S.lv }); }
 
@@ -2969,16 +2972,16 @@
         }
       }
       function drawMe(c, now) {
-        const posing = now < (G.poseUntil || 0), walkMv = G.moving && !posing, fr = posing ? G.poseK : 0;   // v79 마법·공격 동작 · v105 걷기는 한 장을 조각내 부드럽게(drawFig)
-        const view = posing ? 'f' : G.view || 'f', fs = figSet(Hub.user ? Hub.user.avatar : AV.normalize({}), S.eq, S.hide, fr, view), img = fs.img;
-        const s = img.width > AV.size.w ? 1 : 2, w = img.width * s, h = img.height * s, bob = G.moving ? 0 : Math.round(Math.sin(now / 400)), x = Math.round(G.px - w / 2), y = Math.round(G.py - h + 2 + bob);
+        const pose = actPose(G, now), walkMv = (G.wamp || 0) > 0.02, fr = 0;   // v79 마법·공격 동작 · v105 걷기는 한 장을 조각내 부드럽게(drawFig) · v218 동작은 팔을 돌려서 (actPose · 걸으면서도)
+        const view = pose && G.view === 'b' ? 'f' : G.view || 'f', fs = figSet(Hub.user ? Hub.user.avatar : AV.normalize({}), S.eq, S.hide, fr, view), img = fs.img;
+        const s = img.width > AV.size.w ? 1 : 2, w = img.width * s, h = img.height * s, bob = walkMv || pose ? 0 : Math.round(Math.sin(now / 400)), x = Math.round(G.px - w / 2), y = Math.round(G.py - h + 2 + bob);
         G.meImg = { img, x, y, w, h };
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(G.px, G.py, 16, 5, 0, 0, Math.PI * 2); c.fill();
         if (G.dash) Fx.afterimage(img, x, y, w, h, G.face < 0, Fx.pal(G.dash.els[0])[2]);
         if (G.inv > 0 && !G.dash && Math.floor(now / 60) % 2) c.globalAlpha = 0.45;
         const mt = Fx.motionTf ? Fx.motionTf(G.mot, now, G.face) : null;   // v153 마법 동작 (발밑을 기준으로 옮기고·기울이고·늘이고)
         if (mt) { c.save(); c.translate(G.px + mt.dx, G.py + mt.dy); c.rotate(mt.rot); c.scale(mt.sx, mt.sy); c.translate(-G.px, -G.py); }
-        drawFig(c, img, x, y, w, h, G.face, G.walk * Math.PI * 4, walkMv, S.eq.weapon && !S.hide ? 'left' : true, fs.side);
+        drawFig(c, img, x, y, w, h, G.face, G.wph || 0, walkMv, S.eq.weapon && !S.hide ? 'left' : true, fs.side, walkMv ? G.wamp : undefined, turnK(G), { pose, wp: fs.wp, held: fs.held, look: fs.look });
         if (mt) c.restore();
         if (Fx.motionGlow) Fx.motionGlow(c, G.mot, now, G.px, G.py, G.motEl);
         c.globalAlpha = 1;
@@ -3035,35 +3038,130 @@
           const t = performance.now() / 600; pc(0, 0, 1, 1, Math.sin(t + p) * 0.09 + atk * 0.3, 1, 0, 0);
         } else c.drawImage(im, 0, 0, w, h);
       }
+      /* v218 선생님 11/26: 보스·장수·사방신 움직임을 부드럽게 (옛 PC 리니지 느낌)
+       *  ① 그리는 자리를 살짝 따라가게(위치 끊김 없앰) ② 걸음은 시간이 아니라 '간 거리'로 맞춤 (발이 미끄러지지 않게)
+       *  ③ 걷기 두 장 + 기본 그림을 4박자(디딤-지나감-디딤-지나감)로 섞어 이어 줌 ④ 자세(공격·마법·맞음)가 바뀔 때 0.13초 겹쳐 바뀜
+       *  ⑤ 돌아설 때 0.1초 동안 몸을 돌림 ⑥ 가는 쪽으로 몸을 기울이고 디딜 때 살짝 눌림 · 큰 몸은 발밑 흙먼지
+       *  걷기 그림이 없는 지역 보스·백호·현무: 아랫몸(다리)을 번갈아 내딛게 그림을 나눠 움직임 · 슬라임은 통통 · 청룡은 몸이 물결 · 주작은 날갯짓 */
+      const MOT = { rb0: 'blob', rb1: 'biped', rb2: 'blob', rb3: 'quad', rb4: 'biped', rb5: 'biped', rb6: 'biped', rb7: 'biped', rb8: 'quad', sx_bh: 'quad', sx_hm: 'quad', sx_cr: 'serpent', sx_jj: 'wing' };
+      const motKind = (m, F) => m.def.motion || MOT[(F && F.idle || '').replace(/_idle$/, '')] || (F && F.walk ? 'frames' : 'biped');
+      function motion(m, now, stride) {
+        const M = m._mo || (m._mo = { t: now, x: m.x, y: m.y, lx: m.x, ly: m.y, mv: 0, spd: 0, ph: 0, face: 0, step: 0 });
+        const dt = Math.min(0.1, Math.max(0, (now - M.t) / 1000)); M.t = now;
+        const dx = m.x - M.x, dy = m.y - M.y;
+        if (Math.hypot(dx, dy) > 180) { M.x = m.x; M.y = m.y; }   // 순간이동은 바로
+        else { const k = 1 - Math.exp(-dt * 18); M.x += dx * k; M.y += dy * k; }
+        const md = Math.hypot(m.x - M.lx, m.y - M.ly); M.lx = m.x; M.ly = m.y;
+        const v = dt > 0 && md < 120 ? md / dt : 0; M.spd += (v - M.spd) * (1 - Math.exp(-dt * 9));
+        const tgt = Math.min(1, M.spd / 30); M.mv += (tgt - M.mv) * (1 - Math.exp(-dt * (tgt > M.mv ? 8 : 5)));
+        if (md < 120) M.ph += md / Math.max(18, stride) * Math.PI;   // 한 걸음(π) = stride px
+        if (M.mv < 0.05) M.ph += dt * 0.6;   // 멈추면 숨쉬기 쪽으로 천천히
+        const want = (m.aggro || M.spd < 12 ? G.px < m.x : (m.x - (M.px == null ? m.x : M.px)) < 0) ? -1 : 1; M.px = m.x;
+        if (!M.face) M.face = want; M.face += (want - M.face) * (1 - Math.exp(-dt * 20)); if (Math.abs(want - M.face) < 0.02) M.face = want;
+        const st = Math.floor(M.ph / Math.PI); M.stepped = st !== M.step && M.mv > 0.45; M.step = st;
+        return M;
+      }
+      // 자세가 바뀔 때 겹쳐 바꾸기: 지금 그림 k(0→1) · 앞 그림
+      function poseFade(m, im, now) {
+        const X = m._xf || (m._xf = { cur: im, prev: null, t: 0 });
+        if (im !== X.cur) { X.prev = X.cur; X.cur = im; X.t = now; }
+        const k = X.prev ? Math.min(1, (now - X.t) / 80) : 1; if (k >= 1) X.prev = null;   // 자세 바뀜은 아주 짧게만 겹침
+        return { k, prev: X.prev };
+      }
+      const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+      // 그림 하나로 걸음 만들기 (그림 왼쪽 위 = 0,0 · w×h)
+      function gait(c, im, w, h, kind, p, mv, t) {
+        const SW = im.width, SH = im.height, kx = w / SW, ky = h / SH;
+        const pc = (x0, y0, x1, y1, sh, ay, dx, dy) => {
+          const sx = Math.round(x0 * SW), sy = Math.round(y0 * SH), sw = Math.max(1, Math.round((x1 - x0) * SW)), shh = Math.max(1, Math.round((y1 - y0) * SH));
+          c.save(); if (sh) { c.translate(0, ay * h); c.transform(1, 0, sh, 1, 0, 0); c.translate(0, -ay * h); }
+          c.drawImage(im, sx, sy, sw, shh, sx * kx + (dx || 0), sy * ky + (dy || 0), sw * kx, shh * ky); c.restore();
+        };
+        const s = Math.sin(p), cs = Math.cos(p);
+        if (kind === 'biped' && mv > 0.03) {
+          const HIP = 0.66, leg = s * 0.34 * mv, lift = h * 0.022 * mv;
+          pc(0, HIP - 0.02, 0.5, 1, leg, HIP, 0, -Math.max(0, -cs) * lift);
+          pc(0.5, HIP - 0.02, 1, 1, -leg, HIP, 0, -Math.max(0, cs) * lift);
+          pc(0, 0, 1, HIP + 0.02, 0, 0, 0, 0);
+        } else if (kind === 'quad' && mv > 0.03) {
+          const HIP = 0.62, leg = s * 0.22 * mv, lift = h * 0.016 * mv;
+          [[0, 0.26, leg], [0.25, 0.5, -leg], [0.5, 0.75, leg], [0.75, 1, -leg]].forEach(([a, b, k]) => pc(a, HIP - 0.02, b, 1, k, HIP, 0, -Math.max(0, k > 0 ? -cs : cs) * lift));
+          pc(0, 0, 1, HIP + 0.02, 0, 0, 0, Math.sin(p * 2) * h * 0.006 * mv);
+        } else if (kind === 'serpent') {   // 청룡: 세로 띠마다 물결 (머리 쪽이 먼저)
+          const N = 14; for (let i = 0; i < N; i++) { const a = i / N, b = (i + 1) / N + 0.004, off = Math.sin(t * 2.6 - a * 5.5) * h * (0.018 + 0.012 * mv); pc(a, 0, b, 1, 0, 0, 0, off); }
+        } else if (kind === 'wing') {   // 주작: 몸은 그대로, 날개 끝일수록 위아래로 크게
+          const N = 16, f = Math.sin(t * (5 + 3 * mv)); for (let i = 0; i < N; i++) { const a = i / N, b = (i + 1) / N + 0.004, d = Math.pow(Math.abs((a + b) / 2 - 0.5) * 2, 1.6); pc(a, 0, b, 1, 0, 0, 0, -f * d * h * 0.07); }
+        } else c.drawImage(im, 0, 0, w, h);
+      }
+      /* 몸 그리기 (지금 자리 = 발밑 가운데): fim = 자세 그림, F = 그림 묶음, fd = 그리는 크기, ax = 발 자리(가로 비율) */
+      function bossBody(c, m, now, F, fim, fd, ax, flash) {
+        const M = m._mo, mv = M.mv, p = M.ph, kind = motKind(m, F), t = now / 1000;
+        const walking = m._fr === 'walk' || m._fr === 'idle';
+        const ground = kind !== 'serpent' && kind !== 'wing';
+        const real = !!(F.walk && F.walk.length >= 3);   // 걷기 그림이 있으면 몸짓은 그림이 하고, 코드는 살짝만 거듦
+        const bob = ground && walking ? -Math.abs(Math.sin(p)) * fd.h * (kind === 'blob' ? (real ? 0.05 : 0.07) : real ? 0.01 : 0.022) * mv : 0;
+        const squash = ground && walking ? (kind === 'blob' ? 0.06 * Math.cos(p * 2) * mv : -0.022 * Math.abs(Math.cos(p)) * mv) : 0;
+        const breath = 0.016 * Math.sin(t * 2.2 + m.hx) * (1 - mv);
+        const lean = walking ? 0.055 * mv : 0, sway = walking && ground ? Math.sin(p) * 0.022 * mv : 0;
+        const act = m._fr === 'atk1' ? -0.05 : m._fr === 'atk2' || m._fr === 'melee' ? 0.07 : m._fr === 'hit' ? -0.06 : 0;
+        const PF = poseFade(m, fim, now);
+        c.save(); c.translate(0, bob); c.rotate((lean + act) * Math.sign(M.face) + sway);
+        c.scale((M.face < 0 ? -1 : 1) * (0.82 + 0.18 * Math.abs(M.face)) * (1 - squash * 0.6), 1 + squash + breath);   // 돌아설 때 얇아지지 않게 (살짝만 좁아졌다 펴짐)
+        const draw = (im, a) => {
+          if (a <= 0.01 || !im) return; c.globalAlpha = a;
+          const d = im === fim ? fd : frameDim(im, F, m.spr), x0 = -d.w * ax;
+          c.save(); c.translate(x0, -d.h);
+          if (walking && !F.walk && im === img79(F.idle)) gait(c, im, d.w, d.h, kind, p, mv, t);   // 걷기 그림이 없을 때만 그림을 나눠 다리 움직임
+          else if (!ground) gait(c, im, d.w, d.h, kind, p, mv, t);
+          else c.drawImage(im, 0, 0, d.w, d.h);
+          c.restore();
+        };
+        const WL = walking && F.walk && F.walk.length >= 3 ? F.walk.map(n => img79(n)) : null;
+        if (WL && WL.every(Boolean)) { const M2 = m._mo; M2.wk = M2.wk ? M2.mv > 0.12 : M2.mv > 0.3; }   // 걷기 시작·멈춤 (흔들림 없게 문턱 둘)
+        if (WL && WL.every(Boolean) && m._mo.wk) {   // v218 Gemini 걷기 그림 4장: 간 거리에 맞춰 또렷하게 한 장씩 (도트 게임처럼 · 겹치면 두 겹으로 보임)
+          const N = WL.length, cyc = ((p / (Math.PI * 2)) % 1 + 1) % 1 * N;
+          draw(WL[Math.floor(cyc) % N], 1);
+        } else if (walking && F.walk && F.walk.length === 2 && mv > 0.03) {   // 걷기 4박자: 걷기1 - 기본 - 걷기2 - 기본 (겹쳐 섞음)
+          const w1 = img79(F.walk[0]), w2 = img79(F.walk[1]), cp = Math.cos(p), a = sstep(0.25, 0.85, Math.abs(cp)) * mv;
+          draw(fim, 1); draw(cp > 0 ? w1 : w2, a);
+        } else {
+          if (PF.prev) draw(PF.prev, 1);
+          draw(fim, PF.prev ? PF.k : 1);
+        }
+        if (flash) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45; c.drawImage(fim, -fd.w * ax, -fd.h, fd.w, fd.h); }
+        c.restore(); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+        if (ground && M.stepped && fd.h > 100) for (let i = 0; i < 5; i++) Fx.emit({ x: M.x + rand(-fd.w * 0.25, fd.w * 0.25), y: M.y + rand(-4, 2), vx: rand(-40, 40), vy: rand(-26, -6), life: rand(0.4, 0.7), size: rand(4, 7), grow: 1.4, color: pick(['#E8DCC0', '#CDBB98', '#F4ECDA']), shape: 'glow' });
+      }
       function drawMon(c, m, now) {
         if (m.hidden) return;   // v173 땅속·공중
         if (m.stealth > 0 && !m.drawingSt) { c.save(); c.globalAlpha = 0.14; m.drawingSt = true; drawMon(c, m, now); m.drawingSt = false; c.restore(); return; }   // v173 투명
         if (m.dummy) return drawDummy(c, m, now);   // v144
         if (m.spr.wait) { const s2 = monSprite(m.def, m.boss ? 6 : 3); if (!s2.wait) m.spr = s2; }   // v80 Meshy 그림이 늦게 오면 바꿔 끼움
         if (m.def.float || m.def.aura) return drawFloater(c, m, now);   // v150 사방신: 떠 있음(float) · 땅을 딛고 섬(aura) + 발밑 물·불·바람 기운
+        const RF0 = m.boss && rbFrames(m.def), MO = RF0 ? motion(m, now, (m.spr.h || 150) * (RF0.walk ? 0.2 : 0.34)) : null, MX = MO ? MO.x : m.x, MY = MO ? MO.y : m.y;   // v218
         const sp = m.spr, moving = m.aggro || Math.abs(m.wx) + Math.abs(m.wy) > 0.1, kind = rigKind(m.def);
         const ph = now / (moving ? 110 : 260) + m.hx, bounce = (kind === 'blob' || kind === 'hop') && !(m.boss && rbFrames(m.def));   // v83 통통 튀기·찌그러지기는 슬라임·버섯·장승만
         const hop = bounce && moving ? Math.abs(Math.sin(ph)) * (m.boss ? 6 : 5) : 0, sq = !bounce ? 1 : moving ? 1 + Math.cos(ph * 2) * 0.05 : 1 + Math.sin(ph) * 0.04;
-        const lunge = m.lunge > 0 ? Math.sin(m.lunge / 0.25 * Math.PI) * 10 : 0, la = Math.atan2(G.py - m.y, G.px - m.x);
-        const w = sp.w * (2 - sq), h = sp.h * sq, bx = m.x + Math.cos(la) * lunge + (m.knock || 0), x = Math.round(bx - w / 2), y = Math.round(m.y - h - hop + Math.sin(la) * lunge * 0.5);
-        c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(m.x, m.y, sp.w * 0.38 * (1 - hop / 30), sp.w * 0.12, 0, 0, Math.PI * 2); c.fill();
-        if (m.boss) { c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, m.x, m.y - sp.h / 2, sp.w * 0.9, m.def.colors.d || '#FF3D4A', 0.35 + 0.15 * Math.sin(now / 300)); c.restore(); if (Math.random() < 0.3) Fx.emit({ x: m.x + rand(-sp.w / 2, sp.w / 2), y: m.y - rand(0, sp.h), vx: 0, vy: rand(-60, -20), life: 0.8, size: rand(3, 5), color: m.def.colors.d || '#FF3D4A', shape: 'glow', add: true }); }
-        const flip = m.aggro || Math.abs(m.wx) < 0.1 ? G.px < m.x : m.wx < 0;   // v83 돌아다닐 때는 가는 쪽을 봄
+        const lunge = m.lunge > 0 ? Math.sin(m.lunge / 0.25 * Math.PI) * 10 : 0, la = Math.atan2(G.py - MY, G.px - MX);
+        const w = sp.w * (2 - sq), h = sp.h * sq, bx = MX + Math.cos(la) * lunge + (m.knock || 0), x = Math.round(bx - w / 2), y = Math.round(MY - h - hop + Math.sin(la) * lunge * 0.5);
+        c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(MX, MY, sp.w * 0.38 * (1 - hop / 30), sp.w * 0.12, 0, 0, Math.PI * 2); c.fill();
+        if (m.boss) { c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, MX, MY - sp.h / 2, sp.w * 0.9, m.def.colors.d || '#FF3D4A', 0.35 + 0.15 * Math.sin(now / 300)); c.restore(); if (Math.random() < 0.3) Fx.emit({ x: MX + rand(-sp.w / 2, sp.w / 2), y: MY - rand(0, sp.h), vx: 0, vy: rand(-60, -20), life: 0.8, size: rand(3, 5), color: m.def.colors.d || '#FF3D4A', shape: 'glow', add: true }); }
+        const flip = m.aggro || Math.abs(m.wx) < 0.1 ? G.px < MX : m.wx < 0;   // v83 돌아다닐 때는 가는 쪽을 봄
         c.save(); if (flip) { c.translate(x + w, y); c.scale(-1, 1); } else c.translate(x, y);
         const atk = m.lunge > 0 ? Math.sin(Math.min(1, m.lunge / 0.25) * Math.PI) : 0, wp = now / (m.boss ? 170 : kind === 'quad' ? 95 : 125) + m.hx * 3;
         const RF = m.boss && rbFrames(m.def);
         if (RF) {   /* v150 지역 보스: 하는 일에 따라 그림을 바꿔 끼움 (공격·마법·맞음) + 숨 쉬듯 들썩 */
-          const fim = kingFrame(m, now, RF), fd = frameDim(fim, RF, sp), br = 1 + 0.02 * Math.sin(now / 420 + m.hx);
-          c.translate(w / 2, h); c.scale(1, br); c.drawImage(fim, -fd.w / 2, -fd.h, fd.w, fd.h);
-          if (m.flash > 0) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45; c.drawImage(fim, -fd.w / 2, -fd.h, fd.w, fd.h); }
+          const fim = kingFrame(m, now, RF), fd = frameDim(fim, RF, sp);
+          c.restore(); c.save(); c.translate(MX + (x + w / 2 - MX), MY - hop + (y + h - (MY - hop)));   // v218 뒤집기는 bossBody 가 천천히
+          bossBody(c, m, now, RF, fim, fd, 0.5, m.flash > 0);
           if (m._fr === 'cast') { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1; Fx.drawGlow(c, 0, -fd.h * 0.55, 50 + 10 * Math.sin(now / 110), m.def.colors.d || '#FFE45C', 0.4); }
         } else if (bounce) c.drawImage(m.flash > 0 ? sp.flash : sp.img, 0, 0, w, h);
         else rig(c, m.flash > 0 ? sp.flash : sp.img, w, h, kind, moving ? wp : now / 700 + m.hx, moving, atk);
         c.restore();
-        if (m.stun > 0) for (let i = 0; i < 3; i++) { const a = now / 150 + i * 2.1; c.fillStyle = '#FFE45C'; c.fillRect(m.x + Math.cos(a) * 14 - 2, y - 6 + Math.sin(a) * 4, 4, 4); }
-        if (m.slow > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5; c.drawImage(Fx.glow('#5AB8F5', 24), m.x - 24, m.y - sp.h / 2 - 24); c.restore(); if (Math.random() < 0.1) Fx.emit({ x: m.x + rand(-10, 10), y: m.y - rand(0, sp.h), vx: 0, vy: 20, life: 0.5, size: 2, color: '#BDE8FF', shape: 'star', add: true }); }
-        if (m.curse > 0 && Math.random() < 0.15) Fx.emit({ x: m.x + rand(-10, 10), y: m.y - rand(4, sp.h), vx: 0, vy: -30, life: 0.7, size: 3, color: '#B08AFF', shape: 'glow', add: true });   // v87 저주
-        if (m.burn && Math.random() < 0.4) Fx.emit({ x: m.x + rand(-sp.w / 3, sp.w / 3), y: m.y - rand(4, sp.h * 0.8), vx: rand(-10, 10), vy: rand(-80, -40), life: 0.5, size: rand(3, 5), color: pick(['#FFE45C', '#FF9A3D', '#E8402A']), shape: 'glow', add: true });
+        if (m.stun > 0) for (let i = 0; i < 3; i++) { const a = now / 150 + i * 2.1; c.fillStyle = '#FFE45C'; c.fillRect(MX + Math.cos(a) * 14 - 2, y - 6 + Math.sin(a) * 4, 4, 4); }
+        if (m.slow > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5; c.drawImage(Fx.glow('#5AB8F5', 24), MX - 24, MY - sp.h / 2 - 24); c.restore(); if (Math.random() < 0.1) Fx.emit({ x: MX + rand(-10, 10), y: MY - rand(0, sp.h), vx: 0, vy: 20, life: 0.5, size: 2, color: '#BDE8FF', shape: 'star', add: true }); }
+        if (m.curse > 0 && Math.random() < 0.15) Fx.emit({ x: MX + rand(-10, 10), y: MY - rand(4, sp.h), vx: 0, vy: -30, life: 0.7, size: 3, color: '#B08AFF', shape: 'glow', add: true });   // v87 저주
+        if (m.burn && Math.random() < 0.4) Fx.emit({ x: MX + rand(-sp.w / 3, sp.w / 3), y: MY - rand(4, sp.h * 0.8), vx: rand(-10, 10), vy: rand(-80, -40), life: 0.5, size: rand(3, 5), color: pick(['#FFE45C', '#FF9A3D', '#E8402A']), shape: 'glow', add: true });
         if ((m.hp < m.max || m.aggro) && !m.boss) {
           const bw = 36, hpw = bw * Math.max(0, m.hp / m.max); m.hpShow = m.hpShow == null ? hpw : m.hpShow + (hpw - m.hpShow) * 0.1;
           c.fillStyle = '#0A0E24'; c.fillRect(m.x - bw / 2 - 1, y - 9, bw + 2, 6); c.fillStyle = '#FFE45C'; c.fillRect(m.x - bw / 2, y - 8, m.hpShow, 4); c.fillStyle = '#FF5A5F'; c.fillRect(m.x - bw / 2, y - 8, hpw, 4); c.fillStyle = 'rgba(255,255,255,.4)'; c.fillRect(m.x - bw / 2, y - 8, hpw, 1);
@@ -3081,7 +3179,8 @@
       }
       /* v150 지역 보스 9마리: Gemini 그림 4장 (기본·공격·마법·맞음) — 그림이 다 들어간 지역만 RB_ART 에 적음 */
       const RB_ART = P.RB_ART || [];
-      const rbFrames = def => def && def.kind === 'boss' && def.ri != null && !def.dot && !def.img && !def.img79 && RB_ART.includes(def.ri) ? (def._rbF || (def._rbF = { idle: 'rb' + def.ri + '_idle', atk1: 'rb' + def.ri + '_atk', atk2: 'rb' + def.ri + '_atk', cast: 'rb' + def.ri + '_cast', hit: 'rb' + def.ri + '_hit' })) : null;
+      const RB_WALK = [1, 2, 3, 4, 5, 6, 7];   // v218 Gemini 걷기 그림 4장(rb{n}_walk1~4)이 들어간 지역 보스
+      const rbFrames = def => def && def.kind === 'boss' && def.ri != null && !def.dot && !def.img && !def.img79 && RB_ART.includes(def.ri) ? (def._rbF || (def._rbF = { idle: 'rb' + def.ri + '_idle', atk1: 'rb' + def.ri + '_atk', atk2: 'rb' + def.ri + '_atk', cast: 'rb' + def.ri + '_cast', hit: 'rb' + def.ri + '_hit', walk: RB_WALK.includes(def.ri) ? [1, 2, 3, 4].map(n => 'rb' + def.ri + '_walk' + n) : undefined })) : null;
       const BIG_CAST = { ring: 1, laser: 1, mines: 1, windwall: 1, whirl: 1, bomb: 1, realm: 1, hook: 1, barrage: 1 };
       function kingFrame(m, now, F) {
         F = F || m.def.frames; const c = m.cast;
@@ -3097,19 +3196,20 @@
         else if (m._hold && now < m._hold.until) k = m._hold.k;
         else if (m.flash > 0 && now > (m._hitNext || 0)) { m._hitNext = now + 1400; m._hold = { k: 'hit', until: now + 220 }; k = 'hit'; }
         else {
-          if (m._lx != null && Math.hypot(m.x - m._lx, m.y - m._ly) > 0.3) m._mvT = now;
-          if (now - (m._mvT || -1e9) < 160) k = 'walk';
+          if (m._mo) { if (m._mo.mv > 0.12) k = 'walk'; }   // v218 걷기는 부드러운 움직임(motion) 값으로
+          else { if (m._lx != null && Math.hypot(m.x - m._lx, m.y - m._ly) > 0.3) m._mvT = now; if (now - (m._mvT || -1e9) < 160) k = 'walk'; }
         }
         if (k === 'atk2' || k === 'cast' || k === 'melee' || k === 'cast2') m._hold = { k, until: now + 300 };
         m._lx = m.x; m._ly = m.y; m._fr = k;
-        const n = k === 'walk' ? (F.walk ? F.walk[Math.floor(now / 260) % 2] : F.idle) : F[k] || F.idle;
+        const n = k === 'walk' ? (m._mo ? F.idle : F.walk ? F.walk[Math.floor(now / 260) % 2] : F.idle) : F[k] || F.idle;   // v218 걷기 그림 섞기는 bossBody
         return img79(n) || img79(F.idle) || m.spr.img;
       }
       function drawFloater(c, m, now) {
+        const MO = motion(m, now, (m.spr.h || 380) * 0.3), MX = MO.x, MY = MO.y;   // v218 부드러운 자리·걸음·돌아서기
         const sp = m.spr, d = m.def, t = now / 1000, col = d.baseCol || '#9AE6FF';
         const fly = !!d.float, bob = fly ? Math.sin(t * 1.6 + m.hx) * 9 : 0, lift = fly ? 26 + bob : 0, flip = G.px < m.x, breath = fly ? 1 : 1 + 0.018 * Math.sin(t * 2.1 + m.hx);   // v150 aura = 땅을 딛고 숨 쉬듯 들썩
-        const lunge = m.lunge > 0 ? Math.sin(m.lunge / 0.25 * Math.PI) * 14 : 0, la = Math.atan2(G.py - m.y, G.px - m.x);
-        const bx = m.x + Math.cos(la) * lunge, by = m.y + Math.sin(la) * lunge * 0.4;
+        const lunge = m.lunge > 0 ? Math.sin(m.lunge / 0.25 * Math.PI) * 14 : 0, la = Math.atan2(G.py - MY, G.px - MX);
+        const bx = MX + Math.cos(la) * lunge, by = MY + Math.sin(la) * lunge * 0.4;
         // 발밑 소용돌이 (그림 + 일렁임 + 퍼지는 물결)
         const pool = img79(d.base);
         if (pool) {
@@ -3124,31 +3224,79 @@
         // 그림자처럼 몸 밑에 빛
         c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, bx, by - sp.h * 0.45 - lift, Math.min(sp.w * 0.8, 260), col, 0.16 + 0.06 * Math.sin(t * 2)); c.restore();
         // 몸
-        const tilt = Math.sin(t * 1.1 + m.hx) * 0.035 + (m.lunge > 0 ? 0.08 * (flip ? -1 : 1) : 0);
-        c.save(); c.translate(bx, by - lift); c.rotate(fly ? tilt : tilt * 0.4); c.scale(flip ? -1 : 1, breath);
-        if (d.frames) {   // v150 광개토대왕: 하는 일에 따라 그림을 바꿔 끼움 (그림은 모두 같은 크기 · 발 위치 ax)
-          const fim = kingFrame(m, now), fd = frameDim(fim, d.frames, sp), ax = fd.w * (d.ax || 0.5);   /* v150 사방신 자세 그림은 크기가 저마다 달라서 기본 그림 비율로 맞춤 */
-          c.drawImage(fim, -ax, -fd.h, fd.w, fd.h);
-          if (m.flash > 0) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45; c.drawImage(fim, -ax, -fd.h, fd.w, fd.h); }
-          if (m._fr === 'cast') { const ca = d.castAt || [0, 0.55]; c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1; Fx.drawGlow(c, fd.w * ca[0], -fd.h * ca[1], 60 + 12 * Math.sin(t * 9), d.castCol || col, 0.55); }
-        } else c.drawImage(m.flash > 0 ? sp.flash : sp.img, -sp.w / 2, -sp.h, sp.w, sp.h);
+        const tilt = Math.sin(t * 1.1 + m.hx) * 0.035 + (fly ? 0.07 * MO.mv * Math.sign(MO.face) : 0);   // v218 날 때는 가는 쪽으로 몸을 숙임
+        c.save(); c.translate(bx, by - lift); c.rotate(fly ? tilt : tilt * 0.4);
+        if (d.frames) {
+          const fim = kingFrame(m, now), fd = frameDim(fim, d.frames, sp);
+          bossBody(c, m, now, d.frames, fim, fd, d.ax || 0.5, m.flash > 0);
+          if (m._fr === 'cast') { const ca = d.castAt || [0, 0.55]; c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1; Fx.drawGlow(c, fd.w * ca[0] * Math.sign(MO.face), -fd.h * ca[1], 60 + 12 * Math.sin(t * 9), d.castCol || col, 0.55); c.globalCompositeOperation = 'source-over'; }
+        } else { c.scale((MO.face < 0 ? -1 : 1) * (0.82 + 0.18 * Math.abs(MO.face)), breath); c.drawImage(m.flash > 0 ? sp.flash : sp.img, -sp.w / 2, -sp.h, sp.w, sp.h); }
         c.restore();
         const top = by - lift - sp.h;
-        if (m.stun > 0) for (let i = 0; i < 3; i++) { const a = now / 150 + i * 2.1; c.fillStyle = '#FFE45C'; c.fillRect(m.x + Math.cos(a) * 18 - 2, top + 10 + Math.sin(a) * 4, 4, 4); }
-        if (m.burn && Math.random() < 0.4) Fx.emit({ x: m.x + rand(-sp.w / 3, sp.w / 3), y: by - lift - rand(4, sp.h * 0.8), vx: rand(-10, 10), vy: rand(-80, -40), life: 0.5, size: rand(3, 5), color: pick(['#FFE45C', '#FF9A3D', '#E8402A']), shape: 'glow', add: true });
-        if (m.curse > 0 && Math.random() < 0.15) Fx.emit({ x: m.x + rand(-10, 10), y: by - lift - rand(4, sp.h), vx: 0, vy: -30, life: 0.7, size: 3, color: '#B08AFF', shape: 'glow', add: true });
+        if (m.stun > 0) for (let i = 0; i < 3; i++) { const a = now / 150 + i * 2.1; c.fillStyle = '#FFE45C'; c.fillRect(MX + Math.cos(a) * 18 - 2, top + 10 + Math.sin(a) * 4, 4, 4); }
+        if (m.burn && Math.random() < 0.4) Fx.emit({ x: MX + rand(-sp.w / 3, sp.w / 3), y: by - lift - rand(4, sp.h * 0.8), vx: rand(-10, 10), vy: rand(-80, -40), life: 0.5, size: rand(3, 5), color: pick(['#FFE45C', '#FF9A3D', '#E8402A']), shape: 'glow', add: true });
+        if (m.curse > 0 && Math.random() < 0.15) Fx.emit({ x: MX + rand(-10, 10), y: by - lift - rand(4, sp.h), vx: 0, vy: -30, life: 0.7, size: 3, color: '#B08AFF', shape: 'glow', add: true });
       }
       // v105 사람 그리기: 걸을 때는 AV.rig 로 다리·팔·몸을 이어서 움직임 (순찰병처럼 부드럽게), 왼쪽을 보면 뒤집음
-      function drawFig(c, img, x, y, w, h, face, ph, mv, arms, side) {
-        c.save(); if (face < 0) { c.translate(x + w, y); c.scale(-1, 1); } else c.translate(x, y);
-        if (side && AV.rigSide) AV.rigSide(c, side.body, side.arm, 0, 0, w, h, ph, mv);   // v107 옆모습: 다리 둘·가까운 팔(무기)을 따로 흔듦
-        else if (AV.rig) AV.rig(c, img, 0, 0, w, h, ph, mv, { arms }); else c.drawImage(img, 0, 0, w, h);
-        c.restore();
+      /* v218 아바타 걸음 부드럽게: 걸음 위상 = 간 거리 (37px 에 반 걸음) · 흔들림 크기(wamp)는 출발 0.08초·멈춤 0.15초 동안 서서히
+       *  돌아설 때 0.1초 살짝 좁아졌다 펴짐 (turnK) */
+      function stepAnim(o, dist, dt, moving) {
+        const ph0 = o.wph || 0; o.wph = ph0 + dist / 37 * Math.PI;
+        o.stepped = moving && Math.floor(o.wph / Math.PI) !== Math.floor(ph0 / Math.PI);
+        const tg = moving && dist > 0.01 ? 1 : 0, a = o.wamp || 0; o.wamp = a + (tg - a) * (1 - Math.exp(-dt * (tg > a ? 14 : 9)));
+        if (!moving && o.wamp < 0.03) { o.wamp = 0; o.wph = Math.round(o.wph / Math.PI) * Math.PI; }   // 멈추면 두 발 모은 자세로
+        if (o.face !== o._f0) { o._f0 = o.face; o.turnAt = performance.now(); }
       }
-      // v107 방향별 그림 묶음 (옆모습이면 몸·팔 따로)
+      const turnK = o => { const t = (performance.now() - (o.turnAt || 0)) / 100; return t >= 1 ? 1 : 0.8 + 0.2 * t; };
+      /* v218 팔 동작 (선생님 11/27 "무기를 자연스럽게 들고 · 쓸 때 팔 움직임")
+       *  예전: 공격·마법 때 정지 그림으로 툭 바뀌고(옆모습이어도 앞모습), 0.22초 뒤 툭 돌아옴
+       *  새로: 지금 모습 그대로 어깨를 축으로 팔(+무기)을 돌림 — 공격 = 들어 올림(0.3) → 내려 벰(0.55) → 제자리 · 마법 = 0.22 동안 들어 올려 버팀 → 내림
+       *  걷는 중에 공격해도 다리는 계속 걸음 · 칼을 휘두를 때 하얀 칼자국 */
+      const eS = u => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
+      const keyf = (t, K) => { for (let i = 1; i < K.length; i++) if (t <= K[i][0]) { const a = K[i - 1], b = K[i]; return a[1] + (b[1] - a[1]) * eS((t - a[0]) / (b[0] - a[0])); } return K[K.length - 1][1]; };
+      function actPose(o, now) {
+        if (o.poseUntil !== o._pu) { o._pu = o.poseUntil; o._ps = now; o._pk = o.poseK || 'c'; }
+        const D = (o._pu || 0) - (o._ps || 0), t = D > 0 ? (now - o._ps) / D : 1;
+        if (!(t >= 0 && t < 1)) return null;
+        // R·L·S = 팔 각도(라디안: 앞모습 오른팔·왼팔, 옆모습 팔) · bf·bs = 칼날 방향(도, 위=0 · 시계 방향) — null 이면 들고 있던 기울기 그대로
+        if (o._pk === 'a') return { k: 'a', t, R: keyf(t, [[0, 0], [0.3, -1.0], [0.55, -0.35], [1, 0]]), L: keyf(t, [[0, 0], [0.3, 0.3], [0.55, -0.12], [1, 0]]), S: keyf(t, [[0, 0], [0.3, -2.7], [0.55, -0.35], [1, 0]]),
+          bf: [[0.3, 5], [0.55, 125]], bs: [[0.3, -55], [0.55, 85]] };
+        return { k: 'c', t, R: keyf(t, [[0, 0], [0.22, -2.4], [0.78, -2.4], [1, 0]]), L: keyf(t, [[0, 0], [0.22, 2.4], [0.78, 2.4], [1, 0]]), S: keyf(t, [[0, 0], [0.22, -1.35], [0.78, -1.35], [1, 0]]),
+          bf: [[0.22, 0], [0.78, 0]], bs: [[0.22, 38], [0.78, 38]] };
+      }
+      const HOLD = { sword: [32, 100], staff: [18, -12] };   // 들고 있을 때 칼날 기울기(도) [앞, 옆] — world.js WP_ANG·WP_ANG_S 와 같게
+      const bladeAt = (ps, side, H) => { const K = side ? ps.bs : ps.bf; return keyf(ps.t, [[0, H]].concat(K, [[1, H]])); };
+      function drawFig(c, img, x, y, w, h, face, ph, mv, arms, side, amp, tk, ex) {
+        c.save(); if (face < 0) { c.translate(x + w, y); c.scale(-1, 1); } else c.translate(x, y);
+        if (tk && tk < 1) { c.translate(w / 2, 0); c.scale(tk, 1); c.translate(-w / 2, 0); }
+        const ps = ex && ex.pose, wp = ex && ex.wp, o = amp == null && !ps && !wp ? undefined : { amp: amp == null ? 1 : amp, arms: wp ? 'left' : arms };
+        if (o && wp) o.wp = wp;
+        if (o && ps) {
+          o.armR = ps.R; o.armL = arms === true || wp ? ps.L : 0; o.armAng = ps.S;
+          const H = ex.held && HOLD[ex.look]; if (H) { const hs = side ? H[1] : H[0]; o.wpAng = (bladeAt(ps, !!side, hs) - hs) * Math.PI / 180 - (side ? ps.S : ps.R); }
+        }
+        if (o && side && ex && ex.held) o.aAmp = 0.45;   // 무기를 든 팔은 덜 흔듦
+        const mv2 = mv || !!ps;   // 동작 중에는 숨쉬기 대신 팔만
+        if (side && AV.rigSide) AV.rigSide(c, side.body, side.arm, 0, 0, w, h, ph, mv, o);   // v107 옆모습: 다리 둘 · v218 떼어 낸 팔(+무기)을 어깨 축으로
+        else if (AV.rig) AV.rig(c, img, 0, 0, w, h, ph, mv, o || { arms }); else c.drawImage(img, 0, 0, w, h);
+        if (ps && ps.k === 'a' && ex.held && ps.t > 0.28 && ps.t < 0.8) {   // 칼자국: 어깨를 중심으로 휘두른 길
+          const u = h / AV.size.h, AB = side && AV.armBox ? AV.armBox(side.body) : null, gx = (img.width / (img.height / AV.size.h) - AV.size.w) / 2;
+          const cx = AB && AB.ok ? AB.px * (w / side.body.width) : (13.4 + gx) * u, cy = (AB && AB.ok ? AB.py : 13.3) * u, r = 15 * u, H = HOLD[ex.look] || HOLD.sword, hs = side ? H[1] : H[0];
+          const a1 = -Math.PI / 2 + bladeAt(ps, !!side, hs) * Math.PI / 180, a0 = Math.max(-Math.PI / 2 + (side ? ps.bs : ps.bf)[0][1] * Math.PI / 180, a1 - 1.9), al = 1 - (ps.t - 0.28) / 0.52;
+          if (a1 > a0 + 0.05) {
+            c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+            c.strokeStyle = 'rgba(160,220,255,' + (0.45 * al).toFixed(3) + ')'; c.lineWidth = 7 * u / 2; c.beginPath(); c.arc(cx, cy, r, a0, a1); c.stroke();
+            c.strokeStyle = 'rgba(255,255,255,' + (0.85 * al).toFixed(3) + ')'; c.lineWidth = 2.4 * u / 2; c.beginPath(); c.arc(cx, cy, r, a0 + (a1 - a0) * 0.3, a1); c.stroke();
+            c.restore();
+          }
+        }
+        c.restore(); return mv2;
+      }
+      // v107 방향별 그림 묶음 (옆모습이면 몸·팔 따로) · v218 앞모습에 무기를 들면 몸(noWp)·무기+손(wp) 따로 (팔과 함께 돌리려고)
       function figSet(av, eq, hide, fr, view) {
-        const img = avatarSprite(av, eq, hide, fr, view);
-        return { img, side: view === 's' ? { body: avatarSprite(av, eq, hide, 0, 's', 'noArm'), arm: avatarSprite(av, eq, hide, 0, 's', 'arm') } : null };
+        const held = !hide && eq && eq.weapon, split = held && view === 'f' && !fr;
+        const img = avatarSprite(av, eq, hide, fr, view, split ? 'noWp' : undefined);
+        return { img, held: !!held, look: held && ITEMS[eq.weapon] ? ITEMS[eq.weapon].look : null, wp: split ? avatarSprite(av, eq, hide, 0, 'f', 'wp') : null, side: view === 's' ? { body: avatarSprite(av, eq, hide, 0, 's', 'noArm'), arm: avatarSprite(av, eq, hide, 0, 's', 'arm') } : null };
       }
       function drawNpc(c, n, now) {
         if (n.mural) return drawYsFrame(c, n, now);   // v174 빈 벽화 틀
@@ -3158,7 +3306,8 @@
         const k = (img.width > AV.size.w ? 1 : 2) * (n.scale || 1), w = img.width * k, h = img.height * k, bob = n.moving ? 0 : Math.round(Math.sin(now / 420 + n.ph));
         const x = Math.round(n.x - w / 2), y = Math.round(n.y - h + 2 + bob);
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(n.x, n.y, 16 * (n.scale || 1), 5, 0, 0, Math.PI * 2); c.fill();
-        drawFig(c, img, x, y, w, h, n.face, (n.walk || 0) * Math.PI * 3.5, n.moving, true, fs && fs.side);
+        { const dtn = Math.min(0.1, (now - (n._at || now)) / 1000), d = n._ax == null ? 0 : Math.hypot(n.x - n._ax, n.y - n._ay); n._at = now; n._ax = n.x; n._ay = n.y; stepAnim(n, d < 60 ? d : 0, dtn, !!n.moving); }   // v218 마을 사람 걸음도 거리로 · 서서히 멈춤
+        drawFig(c, img, x, y, w, h, n.face, n.wph || 0, (n.wamp || 0) > 0.02, true, fs && fs.side, n.wamp || 0, turnK(n));
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         c.strokeText(n.def.name, n.x, y - 6); c.fillStyle = n.def.color || '#9AE6FF'; c.fillText(n.def.name, n.x, y - 6);
         let top = y - 22;
@@ -3193,11 +3342,12 @@
       // 다른 플레이어 (아바타 + 장비, 이름 하늘색)
       function drawPeer(c, p, now) {
         if (!p.av) return;
-        if (Math.hypot(p.vx || 0, p.vy || 0) > 12) p.view = Math.abs(p.vy) > Math.abs(p.vx) * 1.15 ? (p.vy > 0 ? 'f' : 'b') : 's';   // v107 다른 사람도 움직이는 방향 모습
-        const posing = now < (p.poseUntil || 0), pv = posing ? 'f' : p.view || 'f', fs = figSet(AV.normalize(p.av), p.eq || {}, p.hide, posing ? 'c' : 0, pv), img = fs.img;
+        if (Math.hypot(p.vx || 0, p.vy || 0) > 12) { const ay = Math.abs(p.vy), ax = Math.abs(p.vx), cur = p.view || 'f'; if (cur === 's' ? ay > ax * 1.5 : ax > ay * 1.5) p.view = ay > ax ? (p.vy > 0 ? 'f' : 'b') : 's'; else if (cur !== 's' && ay > ax) p.view = p.vy > 0 ? 'f' : 'b'; }   // v107 · v218 문턱 둘
+        { const dtp = Math.min(0.1, (now - (p._at || now)) / 1000), d = p._ax == null ? 0 : Math.hypot(p.x - p._ax, p.y - p._ay); p._at = now; p._ax = p.x; p._ay = p.y; stepAnim(p, d < 60 ? d : 0, dtp, !!p.moving); }   // v218 다른 사람 걸음도 거리로
+        const pose = actPose(p, now), pv = pose && p.view === 'b' ? 'f' : p.view || 'f', fs = figSet(AV.normalize(p.av), p.eq || {}, p.hide, 0, pv), img = fs.img;   // v218 다른 사람 마법 동작도 팔을 돌려서
         const k = img.width > AV.size.w ? 1 : 2, w = img.width * k, h = img.height * k, x = Math.round(p.x - w / 2), y = Math.round(p.y - h + 2);
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(p.x, p.y, 16, 5, 0, 0, Math.PI * 2); c.fill();
-        drawFig(c, img, x, y, w, h, p.face, (p.walk || 0) * Math.PI * 4, p.moving && !posing, p.eq && p.eq.weapon && !p.hide ? 'left' : true, fs.side);
+        drawFig(c, img, x, y, w, h, p.face, p.wph || 0, (p.wamp || 0) > 0.02, p.eq && p.eq.weapon && !p.hide ? 'left' : true, fs.side, p.wamp || 0, turnK(p), { pose, wp: fs.wp, held: fs.held, look: fs.look });
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         const nm = p.nick + ' Lv.' + p.lv; c.strokeText(nm, p.x, y - 6); c.fillStyle = '#9AE6FF'; c.fillText(nm, p.x, y - 6);
         if (p.title) { c.save(); drawTitle(c, p.title, p.x, y); c.restore(); }   // v176 다른 사람 타이틀
@@ -4364,7 +4514,7 @@
         if (Hub.extraTop) Hub.extraTop(GAME, 'ys').then(t => { G.ysFirst = t ? t.user_id : ''; if (net) net.retrack(); }).catch(() => {});   // v182 '처음으로 이순신과 함께한 자'
         if (Hub.extraTop) Hub.extraTop(GAME, 'king').then(t => { G.kingFirst = t ? t.user_id : ''; if (net) net.retrack(); if (pane === 'stat') renderPanel(); }).catch(() => {});   // v176 '최초로 광개토대왕을 죽인 자' 타이틀 (서버 기록 1위)
         if (Hub.user) Hub.myBest(GAME).then(b => { if ((b || 0) < rankScore()) submitRank(); }).catch(() => {});
-        window.__rpg = { usePetSp: () => usePetSp(), petSp: () => petSp(), petSpLeft: id => petSpLeft(id), pane: () => pane, bsk: (m, k) => newSkill(m, k, Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x)), sxBlock: t => sxBlock(t), godsDone: () => godsDone(), roomKey: () => roomKey(), kingSwordOn: () => kingSwordOn(), petDraw, petEnh, petRates, petRoll, petBonus: () => petBonus(S), stats: () => stats(), hitMon: (m, b, e, o) => hitMon(m, b, e, o), hitPlayer: (a, b, c2, d) => hitPlayer(a, b, c2, d), pStatus: (a, b, c2) => pStatus(a, b, c2), stationGo, rig, rigKind, rollOpts, optCount, step: dt => update(dt), drawNow: () => draw(performance.now()), usePotion, basicAttack, net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, enhStart, enhOnce, tab: () => tab, gearSt: (b, q, en) => gearSt(ITEMS[b], q, en), validGear, mkGear: (b, en, op, q) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; if (q) S.gear[u].q = q; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
+        window.__rpg = { mkMon: (def, lv, b) => makeMon(def, lv, b), D, cam: () => cam, usePetSp: () => usePetSp(), petSp: () => petSp(), petSpLeft: id => petSpLeft(id), pane: () => pane, bsk: (m, k) => newSkill(m, k, Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x)), sxBlock: t => sxBlock(t), godsDone: () => godsDone(), roomKey: () => roomKey(), kingSwordOn: () => kingSwordOn(), petDraw, petEnh, petRates, petRoll, petBonus: () => petBonus(S), stats: () => stats(), hitMon: (m, b, e, o) => hitMon(m, b, e, o), hitPlayer: (a, b, c2, d) => hitPlayer(a, b, c2, d), pStatus: (a, b, c2) => pStatus(a, b, c2), stationGo, rig, rigKind, rollOpts, optCount, step: dt => update(dt), drawNow: () => draw(performance.now()), usePotion, basicAttack, net: () => net, S: () => S, G: () => G, ST: () => ST, enter, enterRoom, leaveRoom, cast, gainExp, save, openPanel, closePanel, skill, addItem, renderPanel: () => renderPanel(), killMon, hitPlayer, enhance, cleanOffer, restat, pane: () => pane, sellPrice, enhStart, enhOnce, tab: () => tab, gearSt: (b, q, en) => gearSt(ITEMS[b], q, en), validGear, mkGear: (b, en, op, q) => { const u = newUid(); S.gear[u] = { b, en: en || 0, op: op || [] }; if (q) S.gear[u].q = q; const id = regGear(u, S.gear[u]); addItem(id, 1); return id; } };   // 점검(테스트)용
       })();
       raf = requestAnimationFrame(loop);
       BGM.play();
