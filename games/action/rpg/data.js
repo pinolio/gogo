@@ -391,6 +391,15 @@
   }
   POTIONS.push({ id: 'scroll', name: '귀환 주문서', kind: 'scroll', price: 15, tier: 0, desc: '마지막으로 들른 마을의 이장 댁 앞으로 돌아가요' });
   POTIONS.forEach(p => { ITEMS[p.id] = Object.assign({ slot: null, stack: true }, p); });
+  /* v223 선생님 11/27: 우주에서 떨어진 원석 — 대장간에서 500만 G · 장비 강화 1번 두드릴 때 성공 확률 ×1.5 (최대 100%) · 1회용(성공·실패 모두 쓰임)
+   *  목표 단계마다 필요한 개수: +1~+5 = 1개 · +6~+10 = 2개 · +11~+15 = 3개 · +16~+20 = 4개 · 펫 강화에는 안 씀 · 거래 됨
+   *  가방에 있으면 쓰러질 때 장비처럼 하나하나 증발할 수 있음(vanish) · 창고는 안전 */
+  const METEOR = { id: 'meteor', price: 5000000, k: 1.5, need: n => (n <= 5 ? 1 : n <= 10 ? 2 : n <= 15 ? 3 : 4) };
+  // v223 잡화상 물건 (선생님 11/27): 마을 이동 주문서 · 폭죽
+  ITEMS.warp = { id: 'warp', name: '마을 이동 주문서', kind: 'warp', slot: null, stack: true, price: 30000, tier: 0, desc: '가 본 마을 중 한 곳을 골라 바로 이동해요 (1회용)' };
+  ITEMS.firework = { id: 'firework', name: '폭죽', kind: 'firework', slot: null, stack: true, price: 1000, tier: 0, desc: '하늘에 알록달록 불꽃을 터뜨려요 (꾸미기 · 1회용)' };
+  ITEMS.meteor = { id: 'meteor', name: '우주에서 떨어진 원석', kind: 'meteor', slot: null, stack: true, vanish: true, price: METEOR.price, tier: 0, icon79: 'ic_meteor',
+    desc: '대장간 강화 성공 확률 1.5배 (한 번 두드릴 때 +1~5: 1개 · +6~10: 2개 · +11~15: 3개 · +16~20: 4개 · 성공해도 실패해도 쓰여요)' };
 
   /* ---------------- 마법 (임시 · skillcom 연결 후 교체) ----------------
    *  kind (game.js 가 아는 종류)
@@ -840,5 +849,5 @@
     { id: 'ys', name: '이순신과 함께한 자', color: '#9AE6FF', how: '이순신 장군님 던전에서 와키자카를 이기면' },
     { id: 'ys1', name: '처음으로 이순신과 함께한 자', color: '#FF9AE0', how: '가장 먼저 이순신 장군님 던전을 깬 단 한 사람' }
   ];
-  window.GoRPGData = { GURI, YSFOLK, TITLES, SASIN, YS, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  window.GoRPGData = { METEOR, GURI, YSFOLK, TITLES, SASIN, YS, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();

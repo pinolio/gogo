@@ -344,7 +344,9 @@
       if (ysHome && MAPBY[D.YS.entry]) { const gx = (w >> 1) + 3.6; map.ysSign = { x: (gx + 1) * TS, y: (h - 2.6) * TS }; }   // v174 이순신 던전 푯말 (아래쪽 입구 오른쪽)
       villageRoads(map, rnd);   // v109 직각 길 → 부드럽게 굽은 흙길·마당·디딤돌 (칸도 새 길 모양에 맞춤)
       armyCamp(map, rnd);   // v80 임진왜란 진영 꾸미기 (천막·대포·깃발 + 조선 병사 · 다친 병사)
-      villageHouses(map, rnd);   // v186 민가 · 불타는 집 · 집 둘레 나무 · 작은 바위 (선생님: 마을이 너무 삭막하다)
+      villageLanes(map, seeded('lanes-' + id));   // v223 갈림길·뒷길·오솔길 (선생님 11/27: 한 길이 아니라 여러 갈림길로 자연스럽게)
+      villageHouses(map, rnd);
+      houseWalks(map, seeded('walks-' + id));   // v223 집 앞 디딤돌 오솔길 → 가까운 길   // v186 민가 · 불타는 집 · 집 둘레 나무 · 작은 바위 (선생님: 마을이 너무 삭막하다)
     } else {
       if (M.hell) {   // 저승: 예전 칸 길 그대로
         let y = mid;
@@ -607,7 +609,7 @@
   }
   function villageRoads(map, rnd) {
     const { w, h, at, set, mid } = map, last = !!map.R.castle, cy = mid + 1;   // 큰길 가운데 줄(칸 경계 기준)
-    const mainY = x => cy + 0.5 * Math.sin((x + 3) * 0.26) + 0.18 * Math.sin(x * 0.71 + 1.3);
+    const mainY = x => cy + 0.62 * Math.sin((x + 3) * 0.26) + 0.22 * Math.sin(x * 0.71 + 1.3) + 0.12 * Math.sin(x * 0.13 + 2.1);   // v223 조금 더 굽게
     const roads = [], plazas = [];
     const main = []; for (let x = -1; x <= w + 1; x += 0.5) main.push([x, mainY(x)]);
     roads.push({ pts: main, w: 2.35, main: true });
@@ -658,6 +660,103 @@
       else if (!on && v === 1) set(x, y, 0);
     }
   }
+  /* v223 갈림길: 칸 지도 위에서 A* 로 길을 찾고(건물·물·소품은 피함 · 이미 있는 길은 싸게 → 자연스럽게 합쳐짐) 곡선으로 다듬음 */
+  function laneFind(map, sx, sy, goal, opt) {
+    const { w, h, at } = map, nz = opt.nz, onRoad = opt.onRoad, maxN = opt.max || 4000;
+    const HARD = v => v === 4 || v === 6 || v === 7 || v === 8 || v === 9 || v === 10 || v === 11 || v === 12;
+    const near = (x, y) => { for (let k = -1; k <= 1; k++) for (let j = -1; j <= 1; j++) { const v = at(x + j, y + k); if (v === 6 || v === 8 || v === 9 || v === 10 || v === 11 || v === 4) return true; } return false; };
+    const key = (x, y) => y * w + x, g = new Map([[key(sx, sy), 0]]), from = new Map(), open = [[0, sx, sy]], done = new Set();
+    const hgt = typeof goal === 'function' ? () => 0 : (x, y) => Math.hypot(x - goal[0], y - goal[1]);
+    const isGoal = typeof goal === 'function' ? goal : (x, y) => x === goal[0] && y === goal[1];
+    let n = 0;
+    while (open.length && n++ < maxN) {
+      let bi = 0; for (let i = 1; i < open.length; i++) if (open[i][0] < open[bi][0]) bi = i;
+      const [, x, y] = open.splice(bi, 1)[0], k0 = key(x, y); if (done.has(k0)) continue; done.add(k0);
+      if (isGoal(x, y) && !(x === sx && y === sy)) { const out = [[x, y]]; let c = k0; while (from.has(c)) { c = from.get(c); out.push([c % w, Math.floor(c / w)]); } return out.reverse(); }
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const nx = x + dx, ny = y + dy; if (nx < 2 || ny < 2 || nx > w - 3 || ny > h - 3) continue;
+        const v = at(nx, ny); if (HARD(v) && !isGoal(nx, ny)) continue;
+        if (dx && dy && (HARD(at(x + dx, y)) || HARD(at(x, y + dy)))) continue;
+        const c = (dx && dy ? 1.42 : 1) * (onRoad(nx, ny) ? opt.roadCost : 1 + nz(nx, ny) * 1.6 + (near(nx, ny) ? 3.5 : 0) + (v === 2 || v === 3 ? 1.2 : 0));
+        const ng = g.get(k0) + c, k1 = key(nx, ny);
+        if (ng < (g.get(k1) ?? 1e9)) { g.set(k1, ng); from.set(k1, k0); open.push([ng + hgt(nx, ny), nx, ny]); }
+      }
+    }
+    return null;
+  }
+  function laneSmooth(path, step) {   // 칸 길 → 몇 칸마다 점을 골라 곡선용 점들로
+    const pts = path.map(([x, y]) => [x + 0.5, y + 0.5]), out = [pts[0]];
+    for (let i = step; i < pts.length - 1; i += step) out.push(pts[i]);
+    out.push(pts[pts.length - 1]); return out;
+  }
+  function laneTiles(map, list) {   // 새 길이 지나는 풀밭 칸 → 길 칸(1)
+    const { w, h, at, set } = map;
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      if (![0, 2, 3, 5].includes(at(x, y))) continue;
+      const X = x + 0.5, Y = y + 0.5;
+      if (list.some(r => r.d.some(([px, py]) => (px - X) ** 2 + (py - Y) ** 2 <= (r.w / 2) ** 2)) || list.some(r => r.plz && r.plz.some(q => (q.x - X) ** 2 + (q.y - Y) ** 2 <= q.r * q.r))) set(x, y, 1);
+    }
+  }
+  function villageLanes(map, rnd) {
+    const { w, h, at, set } = map, nz0 = noise2('lane-' + map.id), nz = (x, y) => nz0(x, y, 3);
+    const onRoad = (x, y) => at(x, y) === 1;
+    const free = (x, y) => [0, 1, 2, 3, 5].includes(at(x, y));
+    const snap = (x, y) => { x = Math.round(x); y = Math.round(y); for (let r = 0; r < 6; r++) for (let k = -r; k <= r; k++) for (let j = -r; j <= r; j++) { const X = x + j, Y = y + k; if (X > 2 && Y > 2 && X < w - 3 && Y < h - 3 && free(X, Y) && at(X, Y) !== 1) return [X, Y]; } return null; };
+    const added = [];
+    const lane = (pts, wd, o) => { o = o || {}; const r = { pts, w: wd, lane: true, stones: !!o.stones, plz: [] }; r.d = denseCurve(pts); added.push(r); map.roads.push(r); return r; };
+    const joinPlaza = (r, p) => { if (onRoad(p[0], p[1])) { const q = { x: p[0] + 0.5, y: p[1] + 0.5, r: 0.85 + rnd() * 0.25 }; r.plz.push(q); map.plazas.push(q); } };
+    // ① 큰길에서 내려가 마을 아래를 한 바퀴 도는 뒷길 (왼쪽 · 오른쪽 둘로 나눠 갈림길이 여럿 생기게)
+    const mainAt = x => { for (let y = 2; y < h - 2; y++) if (at(x, y) === 1 && Math.abs(y - map.mid) < 4) return [x, y]; return null; };
+    const legs = [[Math.round(w * (0.08 + rnd() * 0.05)), [w * 0.27, h - 5.5], [w * 0.47, h - 4.5]], [Math.round(w * (0.9 - rnd() * 0.05)), [w * 0.74, h - 5.5], [w * 0.52, h - 4.5]]];
+    const MEET = snap(w * (0.45 + rnd() * 0.1), h - 4.5);   // 두 뒷길이 만나는 곳 (한 바퀴 도는 길)
+    legs.forEach(([mx, a], li) => {
+      const s0 = mainAt(mx), A = snap(a[0], a[1] + (rnd() - 0.5) * 2), B = MEET; if (!s0 || !A || !B) return;
+      const p1 = laneFind(map, s0[0], s0[1], A, { nz, onRoad, roadCost: 1 }), p2 = p1 && laneFind(map, A[0], A[1], B, { nz, onRoad, roadCost: 0.6 });
+      if (!p1 || !p2) return;
+      const path = p1.concat(p2.slice(1)); const r = lane(laneSmooth(path, 3), 1.45); joinPlaza(r, path[0]); if (li) { const q = { x: B[0] + 0.5, y: B[1] + 0.5, r: 1.25 }; r.plz.push(q); map.plazas.push(q); }
+      laneTiles(map, added);
+    });
+    // 아래 두 뒷길을 가운데서 잇기 (이미 이어졌으면 짧게 끝남)
+    laneTiles(map, added);
+    // ② 분수 마당 ↔ 대장간 · 분수 ↔ 왼쪽 동네 (분수 있는 마을)
+    if (map.fx != null && !map.R.castle) {
+      const F = [map.fx + 1, map.fy + 3];
+      const tgt = [];
+      if (map.forge) tgt.push([map.forge.x - 1, map.forge.y + map.forge.h + 1]);
+      tgt.push([Math.round(w * 0.2), map.fy + 4]);
+      tgt.forEach(T => {
+        const A = snap(F[0], F[1]), B = snap(T[0], T[1]); if (!A || !B) return;
+        const p = laneFind(map, A[0], A[1], (x, y) => onRoad(x, y) && Math.hypot(x - B[0], y - B[1]) < 3, { nz, onRoad, roadCost: 0.5 }) || laneFind(map, A[0], A[1], B, { nz, onRoad, roadCost: 0.5 });
+        if (p && p.length > 3) { const r = lane(laneSmooth([[F[0], F[1] - 1]].concat(p), 3), 1.2); joinPlaza(r, p[p.length - 1]); }
+        laneTiles(map, added);
+      });
+    }
+    // ③ 큰길 위쪽: 건물 사이 빈 틈으로 뒷산 오솔길 1~2개 (끝은 작은 쉼터 마당)
+    const tops = []; for (let x = 6; x < w - 6; x++) { let ok = true; for (let y = 3; y < map.mid - 1 && ok; y++) for (let j = -1; j <= 1; j++) if (!free(x + j, y)) { ok = false; break; } if (ok) tops.push(x); }
+    const picks = []; tops.forEach(x => { if (!picks.some(p => Math.abs(p - x) < 7)) picks.push(x); });
+    picks.sort(() => rnd() - 0.5).slice(0, 2).forEach(x => {
+      const s0 = mainAt(x); if (!s0) return;
+      const T = [x + Math.round((rnd() - 0.5) * 4), 4]; const B = snap(T[0], T[1]); if (!B) return;
+      const p = laneFind(map, s0[0], s0[1], B, { nz, onRoad, roadCost: 1 }); if (!p || p.length < 4) return;
+      const r = lane(laneSmooth(p, 3), 1.1, { stones: true }); joinPlaza(r, p[0]);
+      const q = { x: B[0] + 0.5, y: B[1] + 0.2, r: 1.15 }; r.plz.push(q); map.plazas.push(q);
+    });
+    laneTiles(map, added);
+    // 길가 꽃 (풀밭 칸에 드문드문)
+    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) if (at(x, y) === 0 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([j, k]) => at(x + j, y + k) === 1) && rnd() < 0.07) set(x, y, 5);
+    map.lanes = added.length;
+  }
+  function houseWalks(map, rnd) {   // v223 민가 앞 → 가까운 길 (디딤돌)
+    const { at } = map, nz0 = noise2('walk-' + map.id), nz = (x, y) => nz0(x, y, 2), onRoad = (x, y) => at(x, y) === 1, added = [];
+    (map.props || []).filter(p => p.house).forEach(P => {
+      const sx = P.x + Math.floor(P.fw / 2), sy = P.y + P.fh; if (onRoad(sx, sy) || ![0, 2, 3, 5].includes(at(sx, sy))) return;
+      const p = laneFind(map, sx, sy, (x, y) => onRoad(x, y), { nz, onRoad, roadCost: 1, max: 700 });
+      if (!p || p.length > 7) return;
+      const pts = [[sx + 0.5, sy + 0.15]].concat(laneSmooth(p, 2).slice(1));
+      const r = { pts, w: 0.95, lane: true, stones: true, walk: true, plz: [] }; r.d = denseCurve(pts); added.push(r); map.roads.push(r);
+    });
+    laneTiles(map, added);
+  }
   function nearDoor(map, x, y) { return map.doors.some(b => Math.abs(b.door.x - x) <= 2 && y >= b.door.y && y <= b.door.y + 3); }
   const solidAt = (map, px, py) => !!SOLID[map.at(Math.floor(px / TS), Math.floor(py / TS))];
 
@@ -704,6 +803,11 @@
       if (rnd() > 0.035) return; const L = Math.hypot(dx, dy) || 1, sd = rnd() < 0.5 ? -1 : 1, o = r.w / 2 * (0.85 + rnd() * 0.25);
       stone((X - dy / L * o * sd) * TS, (Y + dx / L * o * sd) * TS, 3 + Math.floor(rnd() * 4), rnd() < 0.5 ? '#9A9488' : '#B5AC9A');
     }));
+    // v223 오솔길 디딤돌 (길 가운데 넓적한 돌이 띄엄띄엄)
+    map.roads.filter(r => r.stones).forEach(r => { let acc = 0.5; walk(r.d, (X, Y, dx, dy) => { acc += Math.hypot(dx, dy) / Math.max(1, Math.ceil(Math.hypot(dx, dy) * TS / 3)); if (acc < 0.78) return; acc = 0; const rx = 7 + rnd() * 3, ry = 4.5 + rnd() * 1.5, X2 = X * TS + (rnd() - 0.5) * 4, Y2 = Y * TS + (rnd() - 0.5) * 3;
+      x.fillStyle = 'rgba(40,30,20,.35)'; x.beginPath(); x.ellipse(X2 + 1, Y2 + 2, rx, ry, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = rnd() < 0.5 ? '#ADA696' : '#9C9586'; x.beginPath(); x.ellipse(X2, Y2, rx, ry, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = 'rgba(255,255,255,.28)'; x.beginPath(); x.ellipse(X2 - 2, Y2 - 1.5, rx * 0.5, ry * 0.4, 0, 0, Math.PI * 2); x.fill(); }); });
     // 문 앞 디딤돌 (넓적한 돌 3장) · 진영 앞은 박석(돌판) 마당
     map.plazas.filter(q => q.door).forEach(q => {
       if (q.castle && !castleGeo(q.castle).A) { /* v169 그림에 문 앞 마당이 있는 성 → 박석 길 안 그림 */ }
@@ -1477,7 +1581,10 @@
     if (it.stack) {
       const col = it.kind === 'hp' ? D.TIER[0] && ['#FF5A5F', '#FF8A3D', '#E8402A', '#FF6A8A', '#D2143A', '#B0102A', '#A040C0', '#FFB3D1', '#FF9A3D'][it.tier] : it.kind === 'mp' ? ['#4C7DFF', '#5AB8F5', '#2EC0B8', '#3E4AC0', '#2F55D9', '#7FA0FF', '#8A6AF0', '#BDE8FF', '#3BC8F5'][it.tier] : null;
       const p = (a, b, w, h, cc) => { x.fillStyle = cc; x.fillRect(a, b, w, h); };
-      if (it.kind === 'scroll') { p(7, 8, 22, 22, '#1D2340'); p(9, 10, 18, 18, '#F5E2B8'); p(11, 14, 14, 2, '#B8834A'); p(11, 18, 14, 2, '#B8834A'); p(11, 22, 10, 2, '#B8834A'); p(5, 6, 26, 5, '#1D2340'); p(6, 7, 24, 3, '#E8C07A'); p(22, 24, 6, 6, '#D2343A'); }
+      if (it.kind === 'meteor') { p(6, 20, 24, 12, '#1D2340'); p(8, 22, 20, 8, '#3A3450'); p(15, 4, 7, 20, '#1D2340'); p(16, 5, 5, 17, '#8A6CFF'); p(16, 5, 2, 17, '#C8B8FF'); p(9, 10, 6, 13, '#1D2340'); p(10, 11, 4, 11, '#4C7DFF'); p(22, 11, 6, 12, '#1D2340'); p(23, 12, 4, 10, '#B070FF'); return (icC[id] = c.toDataURL()); }   // v223 원석 (그림을 받기 전)
+      if (it.kind === 'warp') { p(7, 8, 22, 22, '#1D2340'); p(9, 10, 18, 18, '#BFE8FF'); p(12, 13, 12, 12, '#3E7BE0'); p(14, 15, 8, 8, '#9AF0D4'); p(17, 11, 2, 16, '#FFD23F'); p(10, 18, 16, 2, '#FFD23F'); p(5, 6, 26, 5, '#1D2340'); p(6, 7, 24, 3, '#3E7BE0'); p(5, 29, 26, 5, '#1D2340'); p(6, 30, 24, 3, '#3E7BE0'); }
+      else if (it.kind === 'firework') { p(15, 12, 7, 20, '#1D2340'); p(16, 13, 5, 18, '#E8402A'); p(16, 17, 5, 3, '#FFD23F'); p(16, 24, 5, 3, '#FFD23F'); p(17, 6, 3, 7, '#1D2340'); p(18, 3, 1, 4, '#FFE45C'); p(10, 3, 3, 3, '#FF6AB0'); p(23, 2, 3, 3, '#6CC4FF'); p(25, 8, 2, 2, '#9AF0D4'); p(9, 9, 2, 2, '#FFD23F'); }
+      else if (it.kind === 'scroll') { p(7, 8, 22, 22, '#1D2340'); p(9, 10, 18, 18, '#F5E2B8'); p(11, 14, 14, 2, '#B8834A'); p(11, 18, 14, 2, '#B8834A'); p(11, 22, 10, 2, '#B8834A'); p(5, 6, 26, 5, '#1D2340'); p(6, 7, 24, 3, '#E8C07A'); p(22, 24, 6, 6, '#D2343A'); }
       else { p(13, 3, 10, 7, '#1D2340'); p(14, 4, 8, 5, '#C8A070'); p(15, 9, 6, 4, '#1D2340'); p(8, 12, 20, 21, '#1D2340'); p(10, 14, 16, 17, '#D9E4FF'); p(10, 19, 16, 12, col); p(10, 19, 16, 2, shade(col, 0.4)); p(12, 15, 3, 6, '#FFFFFF'); p(20, 26, 4, 3, shade(col, -0.3)); if (it.tier >= 3) { p(16, 22, 4, 4, '#FFFFFF'); } }
     } else {
       const eq = {}; eq[it.slot] = id;

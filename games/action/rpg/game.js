@@ -487,6 +487,10 @@
   .rg-statgrid b { color: #FFFFFF; font-family: var(--f-display); font-size: 14px; }
   .rg-bag { min-width: 0; } .rg-bag .rg-tabs { margin-top: 0; }
   .rg-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+  .rg-metuse { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; border: 2px solid #8A6CFF; background: rgba(110,80,220,.22); } .rg-metuse img { width: 28px; height: 28px; } .rg-metuse b { color: #FFD23F; } .rg-metuse small { color: #CFE0FF; }
+  .rg-meteor { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px; border-radius: 12px; border: 2px solid #8A6CFF; background: linear-gradient(90deg, rgba(110,80,220,.28), rgba(20,24,60,.5)); }
+  .rg-meteor img { width: 48px; height: 48px; image-rendering: auto; } .rg-meteor .grow { display: flex; flex-direction: column; gap: 3px; } .rg-meteor b { color: #FFD23F; } .rg-meteor small { color: #CFE0FF; }
+  .rg-meteor .btns { display: flex; flex-direction: column; align-items: stretch; gap: 6px; flex: none; } .rg-meteor .btns .rg-check { white-space: nowrap; margin: 0; } .ladder.met > * { box-shadow: 0 0 0 2px #8A6CFF inset; }   /* v223 원석 */
   .rg-store { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(0,0,0,.14)); border: 2px solid #0A0E24; border-radius: 14px; padding: 10px; margin-top: 10px; } .rg-store h4 { margin: 0 0 8px; color: #FFD23F; font-size: 16px; } .rg-store h4 small { color: #9AE6FF; font-size: 13px; margin-left: 6px; }   /* v222 창고 */
   .rg-cell { position: relative; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #2A3266, #12183A 75%); border: 2px solid var(--c, #2A3260); border-radius: 8px; padding: 0; cursor: pointer; transition: transform .1s, filter .1s; min-width: 0; }
   .rg-cell.empty { background: rgba(10,14,36,.5); border: 2px solid #20264E; cursor: default; box-shadow: inset 0 2px 4px rgba(0,0,0,.4); }
@@ -2245,7 +2249,7 @@
       function vaporize() {
         const p = CFG.deathVanish != null ? CFG.deathVanish : 0.02, gone = [];
         Object.keys(S.eq).forEach(slot => { const id = S.eq[slot]; if (id && ITEMS[id] && ITEMS[id].slot && Math.random() < p) { gone.push({ id, where: '착용' }); delete S.eq[slot]; } });
-        S.inv.slice().forEach(x => { const it = ITEMS[x.id]; if (!it || !it.slot) return; let k = 0; for (let i = 0; i < x.n; i++) if (Math.random() < p) k++; for (let i = 0; i < k; i++) { takeItem(x.id, 1); gone.push({ id: x.id, where: '가방' }); } });
+        S.inv.slice().forEach(x => { const it = ITEMS[x.id]; if (!it || (!it.slot && !it.vanish)) return; /* v223 원석도 (창고는 안전) */ let k = 0; for (let i = 0; i < x.n; i++) if (Math.random() < p) k++; for (let i = 0; i < k; i++) { takeItem(x.id, 1); gone.push({ id: x.id, where: '가방' }); } });
         return gone;
       }
 
@@ -2381,11 +2385,21 @@
         if (!id) { say(kind === 'hp' ? '체력 포션이 없어요' : '마나 포션이 없어요'); return; }
         useItem(id);
       }
+      function fireworks(x, y) {   // v223 폭죽: 머리 위로 다섯 번 펑펑
+        const pals = ['fire', 'water', 'wind', 'thunder', 'light', 'dark', 'blood'];
+        for (let i = 0; i < 5; i++) setTimeout(() => {
+          const bx = x + (Math.random() - 0.5) * 160, by = y - 150 - Math.random() * 70, P = Fx.pal(pals[Math.floor(Math.random() * pals.length)]);
+          Fx.burst(x, y - 30, 6, Fx.pal('light'), { angle: Math.atan2(by - y, bx - x), spread: 0.1, min: 200, max: 260, lmin: 0.25, lmax: 0.35, smin: 2, smax: 3 });
+          setTimeout(() => { Fx.burst(bx, by, 40, P, { min: 60, max: 170, lmin: 0.7, lmax: 1.2, g: 60, drag: 1.2, smin: 2, smax: 5, shape: i % 2 ? 'star' : 'spark' }); Fx.burst(bx, by, 10, Fx.pal('light'), { min: 10, max: 40, lmin: 0.4, lmax: 0.7, shape: 'glow', smin: 6, smax: 10 }); }, 300);
+        }, i * 380);
+      }
       function useItem(id) {
         const it = ITEMS[id]; if (!it || !count(id)) return;
         if (G.duel) { say('결투 중에는 물약을 쓸 수 없어요'); return; }   // v143
         if (it.kind === 'hp') { if (S.hp >= ST.hp) { say('체력이 가득 찼어요'); return; } takeItem(id); S.hp = Math.min(ST.hp, S.hp + it.amount); float(G.px, G.py - 70, '+' + it.amount, '#3DDC84'); Fx.heal(G.px, G.py - 28, false); }
         else if (it.kind === 'mp') { if (S.mp >= ST.mp) { say('마나가 가득 찼어요'); return; } takeItem(id); S.mp = Math.min(ST.mp, S.mp + it.amount); float(G.px, G.py - 70, '+' + it.amount, '#6FA0FF'); Fx.burst(G.px, G.py - 28, 16, Fx.pal('water'), { min: 30, max: 90, up: -90, g: -40, shape: 'glow', lmin: 0.5, lmax: 0.9 }); }
+        else if (it.kind === 'warp') { openPanel('warp'); return; }   // v223 마을 이동 주문서: 마을 고르기
+        else if (it.kind === 'firework') { takeItem(id); fireworks(G.px, G.py); }   // v223 폭죽
         else if (it.kind === 'scroll') { if (G.map.M.kind !== 'field' && S.map === S.home) { say('이미 마을이에요'); return; } takeItem(id); closePanel(); enter(S.home, 'door'); }
         markDirty();
       }
@@ -2435,21 +2449,27 @@
       // v85 역참지기: 역참 앞에 서 있음 · 가까이 가면 마을 이동 창
       // v222 창고 (선생님 11/27): 마을마다 분수(우물) 오른쪽 옆 보물상자 · 가까이 가면 창고 창 · 모든 마을이 같은 창고
       const STORE_DEF = { name: '창고', color: '#FFD23F', hello: ['맡길 물건을 고르세요'] };
+      // v223 잡화상 (선생님 11/27): 마을마다 창고 옆 · 우주에서 떨어진 원석 · 귀환 주문서를 팖
+      const SHOP_DEF = { name: '잡화상 아저씨', color: '#9AF0B0', av: { skin: 's2', hair: 'h_short', top: 't_hanbok', bottom: 'b_hanbok', shoes: 'sh_black' },
+        hello: ['어서 오시오! 하늘에서 떨어진 귀한 원석이 있소.', '귀환 주문서도 있으니 넉넉히 챙겨 가시오.', '원석을 대장간에서 쓰면 강화가 잘 된다오.'], lines: ['잡화상이오! 가까이 오시오.'] };
       //  성이 있는 마을(분수 없음)은 가운데 대장간·대장장이 오른쪽 옆 (대장장이와 겹치지 않게 2.6칸 띄움)
       const storeNpc = map => { const p = map.fountain ? { x: (map.fx + 4.3) * TS, y: (map.fy + 1.55) * TS } : map.forge ? { x: (map.forge.x + map.forge.w + 3.6) * TS, y: (map.forge.y + map.forge.h + 0.2) * TS } : null;
-        return p ? [{ key: 'store', def: STORE_DEF, chest: true, x: p.x, y: p.y, face: 1, ph: 0, smith: true }] : []; };
+        return p ? [{ key: 'store', def: STORE_DEF, chest: true, x: p.x, y: p.y, face: 1, ph: 0, smith: true }, { key: 'shop', def: SHOP_DEF, shopNpc: true, stall: true, x: p.x + 110, y: p.y, face: -1, ph: 4, smith: true }] : []; };
       /* 상자 자리 정하기 (그릴 때 한 번 · 지도의 그림들이 다 만들어진 뒤)
        *  선생님 11/27 "분수에 조금 가려짐 · 다른 것에 안 가리게, 다른 것도 안 가리게"
        *  → 분수 오른쪽 끝에서 시작해 옆·위아래로 조금씩 옮겨 보며, 어떤 그림(분수·천막·건물·바위·수정…)·사람과도 겹치지 않고 걸을 수 있는 자리를 고름
        *  끝내 없으면 처음 자리에서 겹치는 무작위 장식만 치움 */
       function storePlace(map, n) {
         if (n._placed || !map.objs || !map.objs.length) return; n._placed = 1;
-        const box = (x, y) => ({ x0: x - 36, x1: x + 36, y0: y - 70, y1: y + 12 });   // 상자 + '창고' 글씨 + 그림자
+        let BW = 36, BH = 70;   // 상자 + '창고' 글씨 + 그림자 (잡화상 가판대는 더 큼)
+        const box = (x, y) => ({ x0: x - BW, x1: x + BW, y0: y - BH, y1: y + 12 });
         const over = (r, o) => o.img && o.x < r.x1 && o.x + o.img.width > r.x0 && o.y < r.y1 && o.y + o.img.height > r.y0;
+        let who = n;
         const ok = (x, y) => {
           const r = box(x, y);
           if (map.objs.some(o => over(r, o))) return false;
-          if ((G.npcs || []).some(q => q !== n && q.x > r.x0 - 22 && q.x < r.x1 + 22 && q.y > r.y0 && q.y - 64 < r.y1)) return false;
+          if ((G.npcs || []).some(q => q !== n && q !== who && q.x > r.x0 - (q.chest ? 36 : 22) && q.x < r.x1 + (q.chest ? 36 : 22) && q.y > r.y0 && q.y - 64 < r.y1)) return false;
+          if (false && (G.npcs || []).some(q => q !== n && q.x > r.x0 - 22 && q.x < r.x1 + 22 && q.y > r.y0 && q.y - 64 < r.y1)) return false;
           for (let tx = Math.floor(r.x0 / TS); tx <= Math.floor(r.x1 / TS); tx++) for (const yy of [y - 4, y - 30]) { const v = map.at(tx, Math.floor(yy / TS)); if (v !== 0 && v !== 1 && v !== 5) return false; }
           return true;
         };
@@ -2457,9 +2477,18 @@
         const cand = []; for (let dx = 0; dx <= 224; dx += 16) for (const dy of [0, -20, 20, -40, 40, -64, 64, -96, 96]) cand.push([dx, dy]);
         cand.sort((a, b) => Math.hypot(a[0], a[1] * 1.3) - Math.hypot(b[0], b[1] * 1.3));
         const c = cand.find(([dx, dy]) => ok(x0 + dx, y0 + dy));
-        if (c) { n.x = x0 + c[0]; n.y = y0 + c[1]; return; }
+        const shop = (G.npcs || []).find(q => q.shopNpc);
+        const placeShop = () => {   // v223 잡화상 가판대: 창고 가까운 빈자리 (오른쪽 먼저 · 안 되면 왼쪽 · 위아래)
+          if (!shop) return; who = shop; shop.x = -9999; BW = 70; BH = 150;
+          const c2 = []; for (let dx = -300; dx <= 300; dx += 12) for (let dy = -140; dy <= 140; dy += 14) if (Math.abs(dx) >= 96 || Math.abs(dy) >= 90) c2.push([dx, dy]);
+          c2.sort((a, b) => Math.hypot(a[0] * (a[0] < 0 ? 1.25 : 1), a[1] * 1.4) - Math.hypot(b[0] * (b[0] < 0 ? 1.25 : 1), b[1] * 1.4));
+          const offRoad = (x, y) => { for (let tx = Math.floor((x - 60) / TS); tx <= Math.floor((x + 60) / TS); tx++) for (const yy of [y - 6, y - 40]) if (map.at(tx, Math.floor(yy / TS)) === 1) return false; return true; };   // 길 위는 되도록 피함
+          const f = c2.find(([dx, dy]) => ok(n.x + dx, n.y + dy) && offRoad(n.x + dx, n.y + dy)) || c2.find(([dx, dy]) => ok(n.x + dx, n.y + dy)) || [110, 0]; shop.x = n.x + f[0]; shop.y = n.y + f[1]; BW = 36; BH = 70; who = n;
+        };
+        if (c) { n.x = x0 + c[0]; n.y = y0 + c[1]; placeShop(); return; }
         const r = box(n.x, n.y);   // 빈자리가 없으면: 겹치는 무작위 장식만 치움
         map.objs = map.objs.filter(o => { const hit = o.kind && o.tx != null && over(r, o); if (hit && map.set) map.set(o.tx, o.ty, 0); return !hit; });
+        placeShop();
       }
       const stationNpc = map => (map.station ? [{ key: 'station', def: D.npcDef(D.STATION, map.M.region), x: map.station.nx * TS, y: (map.station.y + map.station.h + 0.4) * TS, face: map.station.nx > map.station.x ? -1 : 1, ph: 3, smith: true }] : []);
       const villageNo = id => +String(id).slice(1) - 1;   // 'v3' → 2
@@ -2484,7 +2513,7 @@
       // v69 저승차사 강림: Lv.100 이 되면 마지막 마을(도원수 진영) 큰길 오른쪽에 나타남
       const hellNpc = map => (map.M.region === D.REGIONS.length - 1 && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: window.__GoRPGParts.VXf(30.5) * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);   // v158 넓은 마을
       function talk(n) {
-        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station', 'sxnpc', 'ysnpc', 'ysmural', 'store'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
+        if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station', 'sxnpc', 'ysnpc', 'ysmural', 'store', 'shop'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
         n.say = null; openPanel(n.key, { npc: n, hello: n.def.hello && n.def.hello.length ? pick(n.def.hello) : '' });   // v180 인사말이 없는 NPC(송희립·벽화 틀)도 열리게
       }
       function updateNpcs(dt) {
@@ -2966,6 +2995,26 @@
         c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         c.strokeText('창고', n.x, y - 6); c.fillStyle = '#FFD23F'; c.fillText('창고', n.x, y - 6);
       }
+      function drawStall(c, n, now) {   // v223 잡화상: 그림(shop_stall) · 없으면 도트 가판대
+        if (G.map) { const st = (G.npcs || []).find(q => q.chest); if (st) storePlace(G.map, st); }
+        const im = img79('shop_stall'), W = 140, H = 146;
+        c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(n.x, n.y, 62, 10, 0, 0, Math.PI * 2); c.fill();
+        let top;
+        if (im) { const k = Math.min(W / im.width, H / im.height), dw = im.width * k, dh = im.height * k; top = Math.round(n.y - dh + 6); c.drawImage(im, Math.round(n.x - dw / 2), top, dw, dh); }
+        else {
+          const x = n.x - 54, y = n.y - 100; top = y;
+          c.fillStyle = '#5A3418'; c.fillRect(x + 4, y + 24, 6, 74); c.fillRect(x + 98, y + 24, 6, 74);
+          for (let i = 0; i < 6; i++) { c.fillStyle = i % 2 ? '#FFD23F' : '#E0368C'; c.beginPath(); c.moveTo(x + i * 18, y + 10); c.lineTo(x + i * 18 + 18, y + 10); c.lineTo(x + i * 18 + 18, y + 34); c.quadraticCurveTo(x + i * 18 + 9, y + 40, x + i * 18, y + 34); c.fill(); }
+          c.fillStyle = '#7A2FC9'; c.fillRect(x - 2, y + 4, 112, 8);
+          c.fillStyle = '#8A4E22'; c.fillRect(x, y + 70, 108, 26); c.fillStyle = '#C07A38'; c.fillRect(x, y + 66, 108, 7);
+          const tw = Math.sin(now / 300) * 0.5 + 0.5;
+          c.fillStyle = `rgba(190,120,255,${0.6 + 0.4 * tw})`; c.beginPath(); c.moveTo(x + 24, y + 50); c.lineTo(x + 31, y + 66); c.lineTo(x + 17, y + 66); c.fill();
+          c.fillStyle = '#F2E2B0'; c.fillRect(x + 62, y + 56, 22, 10); c.fillStyle = '#C0392B'; c.fillRect(x + 71, y + 56, 4, 10);
+          for (const lx of [x + 10, x + 98]) { c.fillStyle = '#FF6A3D'; c.beginPath(); c.ellipse(lx, y + 44, 6, 8, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = `rgba(255,220,120,${0.4 + 0.4 * tw})`; c.beginPath(); c.arc(lx, y + 44, 11, 0, Math.PI * 2); c.fill(); }
+        }
+        const tw = Math.sin(now / 330 + 1) * 0.5 + 0.5; c.fillStyle = `rgba(210,170,255,${0.35 + 0.5 * tw})`; c.fillRect(n.x - 40, top + 30 - tw * 4, 3, 3); c.fillRect(n.x + 36, top + 46 + tw * 3, 2, 2);
+        n.topY = top; npcTags(c, { ...n, def: { ...n.def, name: '잡화상' } }, top + 2, now);
+      }
       function npcTags(c, n, y, now) {
         c.font = '12px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#1D2340';
         c.strokeText(n.def.name, n.x, y - 6); c.fillStyle = n.def.color || '#9AE6FF'; c.fillText(n.def.name, n.x, y - 6);
@@ -3363,6 +3412,7 @@
       function drawNpc(c, n, now) {
         if (n.mural) return drawYsFrame(c, n, now);   // v174 빈 벽화 틀
         if (n.chest) return drawChest(c, n, now);   // v222 창고 보물상자
+        if (n.stall) return drawStall(c, n, now);   // v223 잡화상 가판대
         if (n.baked) return npcTags(c, n, n.topY, now);   // v129 실내 그림 속 사람 (몸은 바닥 그림에 있음)
         if (n.def.img && (!n.def.av || img79(n.def.img))) return drawArmy(c, n, now);   // v110 NPC 그림 (못 불러오면 예전 아바타)
         const nv = n.moving ? 's' : 'f', fs = nv === 's' ? figSet(AV.normalize(n.def.av), {}, true, 0, 's') : null, img = fs ? fs.img : npcSprite(n.def.av, 0);   // v107 걸어 다니는 마을 사람은 옆모습
@@ -3934,7 +3984,7 @@
           if (it) {
             const cur = it.slot && !worn ? ITEMS[S.eq[it.slot]] : null, keys = ['atk', 'mag', 'def', 'hp', 'mp', 'spd'], nm = { atk: '공격', mag: '마력', def: '방어', hp: '체력', mp: '마나', spd: '속도%' };
             const cmp = it.slot ? keys.filter(q => (it.st || {})[q] || (cur && (cur.st || {})[q])).map(q => { const v = (it.st || {})[q] || 0, d = v - ((cur && cur.st && cur.st[q]) || 0); return `<span>${nm[q]} <b>${v}</b>${!worn && d ? ` <em class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</span>`; }).join('') : '';
-            const btn = worn ? `<button type="button" class="rg-mini ghost" data-unequip="${it.slot}">벗기</button>` : it.stack ? `<button type="button" class="rg-mini" data-use="${id}">쓰기</button>` : `<button type="button" class="rg-mini" data-equip="${id}" ${S.lv >= it.req ? '' : 'disabled'}>${S.lv >= it.req ? (cur ? '바꿔 입기' : '입기') : 'Lv.' + it.req + ' 필요'}</button>`;
+            const btn = worn ? `<button type="button" class="rg-mini ghost" data-unequip="${it.slot}">벗기</button>` : it.kind === 'meteor' ? '<span class="rg-mini on">대장간 강화에 써요</span>' : it.stack ? `<button type="button" class="rg-mini" data-use="${id}">쓰기</button>` : `<button type="button" class="rg-mini" data-equip="${id}" ${S.lv >= it.req ? '' : 'disabled'}>${S.lv >= it.req ? (cur ? '바꿔 입기' : '입기') : 'Lv.' + it.req + ' 필요'}</button>`;
             h += `<div class="rg-detail">${itemIcon(id)}<div class="grow"><b class="nm${it.rare ? ' rare' : ''}"${it.grade != null ? ` style="color:${GRADE[it.grade].color}"` : ''}>${it.name}${qTag(it)}${it.grade != null ? `<span class="rg-grade">${GRADE[it.grade].name}</span>` : ''}${worn ? ' <small>입는 중</small>' : ''}</b><span class="ds">${it.slot ? `${D.SLOT_NAME[it.slot]} · ${it.rare && !it.legend ? '정예 · ' : ''}Lv.${it.req} 이상 · 강화 +${it.en || 0}/${ENH.max}${cur ? ' · 지금: ' + cur.name : ''}${it.noTrade ? ' · 거래 안 됨' : ''}` : it.desc + ' · 가진 수 ' + count(id)}</span>${it.slot ? `<span class="rg-itdesc">${itemBlurb(it)}</span>` : ''}${cmp ? `<div class="cmp">${cmp}</div>` : ''}${optList(it)}</div>${btn}</div>`;
           } else h += `<div class="rg-detail hint">칸을 누르면 자세히 보여요. 필요 없는 물건은 <b>🗑 쓰레기통</b>을 누른 뒤 고르면 버릴 수 있어요. 장비는 <b>입기</b>, 물약은 <b>쓰기</b>. 사냥터 몬스터가 장비를 떨어뜨려요 (보스는 꼭!)</div>`;
           h += '</section></div>';
@@ -4013,7 +4063,7 @@
           const RUN = tab.fgRun;
           if (!RUN && !mine.some(x => x.id === tab.fgSel)) tab.fgSel = (mine.find(x => (ITEMS[x.id].en || 0) < ENH.max) || mine[0] || {}).id || null;
           h = head('대장간 · 장비 강화', `<span class="rg-gold">${fmtN(S.gold)} G</span> · +0 → +${ENH.max} · 1강마다 기본 능력치 +${Math.round(ENH.per * 100)}% · <b style="color:#FFD23F">+${ENH.safeTo} 까지는 실패하면 한 단계 내려가요 (자동으로 다시 두드려요)</b> · <b style="color:#FF8A8E">+${ENH.safeTo + 1} 부터는 실패하면 장비가 부서져요!</b>`) + npcBox();
-          h += `<div class="rg-forge${RUN ? ' running' : ''}"><ul class="rg-list"><li class="rg-forgeh">🛡 내 장비 고르기</li>${mine.length ? mine.map(x => { const it = ITEMS[x.id], en = it.en || 0, full = en >= ENH.max; return `<li class="rg-row${tab.fgSel === x.id ? ' sel' : ''}">${itemIcon(x.id)}<span class="grow"><span class="nm" style="color:${GRADE[it.grade || 0].color}">${it.name}${qTag(it)}${x.worn ? ' <small style="color:#9AF0B0">입는 중</small>' : ''}</span><span class="ds">${full ? '최고 강화!' : `+${en}→+${en + 1} · 성공 ${ENH.rate[en]}% · ${fmtN(ENH.cost(en))} G`}</span></span><button type="button" class="rg-mini${tab.fgSel === x.id ? ' on' : ' ghost'}" data-fgsel="${x.id}">고르기</button></li>`; }).join('') : '<li class="rg-row">강화할 장비가 없어요. 사냥터에서 장비를 얻어 오세요!</li>'}</ul>`;
+          h += `<div class="rg-forge${RUN ? ' running' : ''}"><ul class="rg-list"><li class="rg-forgeh">🛡 내 장비 고르기</li>${mine.length ? mine.map(x => { const it = ITEMS[x.id], en = it.en || 0, full = en >= ENH.max; return `<li class="rg-row${tab.fgSel === x.id ? ' sel' : ''}">${itemIcon(x.id)}<span class="grow"><span class="nm" style="color:${GRADE[it.grade || 0].color}">${it.name}${qTag(it)}${x.worn ? ' <small style="color:#9AF0B0">입는 중</small>' : ''}</span><span class="ds">${full ? '최고 강화!' : `+${en}→+${en + 1} · 성공 ${Math.round(enhRate(en, !!tab.fgMet) * 10) / 10}%${tab.fgMet ? ' 🌠' : ''} · ${fmtN(ENH.cost(en))} G`}</span></span><button type="button" class="rg-mini${tab.fgSel === x.id ? ' on' : ' ghost'}" data-fgsel="${x.id}">고르기</button></li>`; }).join('') : '<li class="rg-row">강화할 장비가 없어요. 사냥터에서 장비를 얻어 오세요!</li>'}</ul>`;
           const id = tab.fgSel, it = ITEMS[id];
           h += '<section class="rg-anvil"><p class="rg-forgeh">🔨 모루 · 목표 단계를 누르고 한 번에 강화</p>';
           if (it && !RUN) {
@@ -4022,17 +4072,23 @@
             const nm = { atk: '공격', mag: '마력', def: '방어', hp: '체력', mp: '마나', spd: '속도%' };
             const after = Object.keys(it.st).map(q => `<span>${nm[q]} <b>${it.st[q]}</b>${!full && q !== 'spd' ? ` <em class="up">→ ${gearSt(B, it.q, T)[q]}</em>` : ''}</span>`).join('');
             h += `<div class="big">${itemIcon(id)}<div class="grow"><b class="nm" style="font-size:17px;color:${GRADE[it.grade || 0].color}">${it.name}${qTag(it)}<span class="rg-grade">${GRADE[it.grade || 0].name}</span></b><div class="cmp" style="display:flex;flex-wrap:wrap;gap:2px 10px;font-size:13px">${after}${!full ? ` <small style="color:#FFE45C">(+${T} 이 되면)</small>` : ''}</div>${optList(it)}</div></div>`;
-            h += `<div class="ladder">${ENH.rate.map((r, i) => { const tg = i >= en ? 'button' : 'span'; return `<${tg}${tg === 'button' ? ` type="button" data-fgtgt="${i + 1}"` : ''} class="${i < en ? 'done' : i === en ? 'next' : ''}${i >= ENH.safeTo ? ' risk' : ''}${i >= en && i < T ? ' path' : ''}${i + 1 === T ? ' tgt' : ''}" title="+${i + 1} 성공 ${r}% · ${fmtN(ENH.cost(i))} G · 실패하면 ${i >= ENH.safeTo ? '부서짐' : '한 단계 내려감'}">+${i + 1}<br>${r}%</${tg}>`; }).join('')}</div>`;
+            const MET = !!tab.fgMet;   // v223 원석 쓰기
+            h += `<div class="ladder${MET ? ' met' : ''}">${ENH.rate.map((r0, i) => { const r = Math.round(enhRate(i, MET) * 10) / 10, tg = i >= en ? 'button' : 'span'; return `<${tg}${tg === 'button' ? ` type="button" data-fgtgt="${i + 1}"` : ''} class="${i < en ? 'done' : i === en ? 'next' : ''}${i >= ENH.safeTo ? ' risk' : ''}${i >= en && i < T ? ' path' : ''}${i + 1 === T ? ' tgt' : ''}" title="+${i + 1} 성공 ${r}%${MET ? ` (원석 ${metNeed(i)}개)` : ''} · ${fmtN(ENH.cost(i))} G · 실패하면 ${i >= ENH.safeTo ? '부서짐' : '한 단계 내려감'}">+${i + 1}<br>${r}%</${tg}>`; }).join('')}</div>`;
             if (full) h += `<p class="sub" style="text-align:center;margin:8px 0">+${ENH.max} 최고 강화! 더는 강화할 수 없어요.</p>`;
             else {
               const sumAll = (() => { let t = 0; for (let i = en; i < T; i++) t += ENH.cost(i); return t; })(), risky = Math.max(0, T - Math.max(en, ENH.safeTo));
-              let pAll = 1; for (let i = Math.max(en, ENH.safeTo); i < T; i++) pAll *= ENH.rate[i] / 100;
+              let pAll = 1; for (let i = Math.max(en, ENH.safeTo); i < T; i++) pAll *= enhRate(i, MET) / 100;
+              const metAll = (() => { let t = 0; for (let i = en; i < T; i++) t += metNeed(i); return t; })();
               const cost0 = ENH.cost(en);
-              h += `<div class="rg-fgplan"><b>목표 +${T}</b> · ${T - en}단계 · 모두 한 번에 성공하면 <b>${fmtN(sumAll)} G</b>${en < ENH.safeTo ? ' <small>(+' + ENH.safeTo + ' 까지는 실패하면 더 들어요)</small>' : ''}${risky ? `<br><span class="danger2">⚠ 부서질 수 있는 단계 ${risky}개 · +${T} 까지 부서지지 않을 확률 ${pAll * 100 >= 1 ? Math.round(pAll * 100) : (pAll * 100).toFixed(2)}%</span>` : '<br><span style="color:#9AF0B0">부서지지 않는 단계만 있어요</span>'}</div>`;
+              h += `<div class="rg-fgplan"><b>목표 +${T}</b> · ${T - en}단계 · 모두 한 번에 성공하면 <b>${fmtN(sumAll)} G</b>${MET ? ` + 🌠 원석 <b>${metAll}개</b> <small>(가진 원석 ${count('meteor')}개)</small>${count('meteor') < metAll ? ' <span class="danger2">원석이 모자라면 그 단계에서 멈춰요</span>' : ''}` : ''}${en < ENH.safeTo ? ' <small>(+' + ENH.safeTo + ' 까지는 실패하면 더 들어요)</small>' : ''}${risky ? `<br><span class="danger2">⚠ 부서질 수 있는 단계 ${risky}개 · +${T} 까지 부서지지 않을 확률 ${pAll * 100 >= 1 ? Math.round(pAll * 100) : (pAll * 100).toFixed(2)}%</span>` : '<br><span style="color:#9AF0B0">부서지지 않는 단계만 있어요</span>'}</div>`;
               if (tab.fgAsk === id) h += `<div class="warnbox">정말 <b>+${T}</b> 까지 강화할까요?${en < Math.min(T, ENH.safeTo) ? `<br>· +${Math.min(T, ENH.safeTo)} 까지는 한 번에 두드려요 (실패하면 한 단계 내려가고 자동으로 다시 · 골드가 모자라면 멈춤)` : ''}${risky ? `<br>· +${Math.max(en, ENH.safeTo) + 1} 부터는 한 단계씩 두드려요. 성공하면 다음 단계로, <span class="danger">실패하면 <b>${it.name}</b>이(가) 부서져서 영영 사라져요!</span>` : ''}</div><div class="two"><button type="button" class="go warn" data-fgdo="${id}">예, 두드려요!</button><button type="button" class="go" style="background:#2A325E;color:#FFFFFF" data-fgno>아니요</button></div>`;
               else h += `<button type="button" class="go" data-fgask="${id}" ${S.gold >= cost0 ? '' : 'disabled'}>${S.gold >= cost0 ? `${risky ? '⚠ 파괴 위험 ' : ''}+${T} 까지 강화하기` : `골드가 모자라요 (${fmtN(cost0)} G 필요)`}</button>`;
             }
           } else if (!RUN) h += '<p class="sub">왼쪽에서 강화할 장비를 골라요.</p>';
+          if (!RUN) {   // v223 원석 쓰기 (원석은 마을 잡화상에서 삼)
+            const mc = count('meteor');
+            h += `<label class="rg-check rg-metuse"><input type="checkbox" data-fgmet ${tab.fgMet ? 'checked' : ''}> <img src="${P.itemImg('meteor')}" alt=""> <b>원석 쓰기</b> <small>가진 원석 <b>${mc}</b>개 · 성공 확률 ×1.5 · 한 번에 +1~5: 1개 · +6~10: 2개 · +11~15: 3개 · +16~20: 4개 · 원석은 마을 <b>잡화상</b>에서 사요</small></label>`;
+          }
           if (RUN) h += enhRunHtml(RUN);
           h += '</section></div>';
         } else if (k === 'chief') {
@@ -4047,6 +4103,16 @@
           });
           h += '<p class="sub" style="margin-top:8px">※ 퀘스트는 준비 중이에요. 나중에 마지막 마을의 성에서 나눠 줄 예정이에요.</p>';
           }
+        } else if (k === 'warp') {   // v223 마을 이동 주문서
+          h = head('마을 이동 주문서', `가진 주문서 <b>${count('warp')}</b>장 · 가 본 마을 중 한 곳을 고르세요 (주문서 1장을 써요)`);
+          h += '<div class="rg-tabs" style="flex-wrap:wrap;gap:8px">' + D.REGIONS.map((R, ri) => { const vid = 'v' + (ri + 1); if (!(S.visited || []).includes(vid)) return ''; const here = vid === S.map; return `<button type="button" class="rg-mini${here ? ' ghost' : ''}" data-warp="${vid}" ${here || !count('warp') ? 'disabled' : ''}>${ri + 1}. ${R.name}${here ? ' (여기)' : ''}</button>`; }).join('') + '</div>';
+        } else if (k === 'shop') {   // v223 잡화상: 원석 · 귀환 주문서
+          const MP = D.METEOR.price, sc = ITEMS.scroll;
+          h = head('잡화상', `<span class="rg-gold">${fmtN(S.gold)} G</span> · 가방 <b>${S.inv.length}</b>/${bagMax()}칸`) + npcBox();
+          const row = (id, n, sub) => { const it = ITEMS[id], cost = it.price * n; return `<li class="rg-row"><img class="rg-sk" src="${P.itemImg(id)}" alt=""><span class="grow"><span class="nm">${it.name}${n > 1 ? ' ×' + n : ''} <small style="color:#9AE6FF">가진 것 ${count(id)}개</small></span><span class="ds">${sub}</span></span><button type="button" class="rg-mini" data-buy="${id}:${n}" ${S.gold >= cost ? '' : 'disabled'}>${fmtN(cost)} G</button></li>`; };
+          h += `<ul class="rg-list">${row('meteor', 1, `🌠 대장간에서 <b>원석 쓰기</b>를 켜고 강화하면 성공 확률 <b>×1.5</b> (최대 100%) · 한 번 두드릴 때 필요한 개수 <b>+1~5: 1개 · +6~10: 2개 · +11~15: 3개 · +16~20: 4개</b> · 성공해도 실패해도 쓰여요 · 거래 돼요`)}
+            ${row('scroll', 1, sc.desc)}${row('scroll', 5, sc.desc)}${row('warp', 1, ITEMS.warp.desc)}${row('firework', 1, ITEMS.firework.desc)}${row('firework', 10, ITEMS.firework.desc)}</ul>`;
+          h += `<p class="sub">가방에 든 원석은 위험한 사냥터(권장 Lv.101~)에서 쓰러지면 사라질 수 있어요. 창고에 맡기면 안전해요.</p>`;
         } else if (k === 'store') {   // v222 창고: 가방 ↔ 창고 (누르면 옮김 · 쌓이는 물건은 '한 개씩' 켜면 1개만)
           const one = !!tab.stOne, tierStyle = it => it && it.slot ? `--c:${D.TIER[it.tier].color};--g:${D.TIER[it.tier].gem}` : '--c:#5A64A0;--g:#FFFFFF';
           const cell = (x, k2) => { const it = ITEMS[x.id]; return `<button type="button" class="rg-cell${it.rare ? ' rare' : ''}" data-${k2}="${x.id}" style="${tierStyle(it)}" title="${it.name}${qTxt(it)}${x.n > 1 ? ' ×' + x.n : ''}"><img src="${P.itemImg(x.id)}" alt="${it.name}">${x.n > 1 ? `<span class="n">${x.n}</span>` : ''}${it.en ? `<span class="en">+${it.en}</span>` : ''}</button>`; };
@@ -4207,14 +4273,17 @@
       // v60 강화: 골드를 내고 확률로 +1. 실패하면 장비가 부서짐 (입고 있던 것이면 벗겨지고 사라짐)
       /* v209 한 번 두드리기: 골드를 쓰고 결과를 바로 정함 (그림은 그 뒤에 보여 줌 → 새로고침해도 결과가 안 바뀜)
        *  돌려주는 값 { ok, down, broke, en(지금 단계), from(두드리기 전), cost } · 골드가 모자라면 { nogold } */
-      function enhOnce(id) {
+      // v223 원석: 이번 두드림(en → en+1)에 원석을 쓰면 확률 ×1.5 (최대 100%) · 필요한 개수 = D.METEOR.need(목표 단계)
+      const metNeed = en => D.METEOR.need(en + 1), enhRate = (en, met) => Math.min(100, ENH.rate[en] * (met ? D.METEOR.k : 1));
+      function enhOnce(id, met) {
         const it = ITEMS[id]; if (!it || !it.uid || !S.gear[it.uid]) return null;
         const en = it.en || 0; if (en >= ENH.max) return null;
         const cost = ENH.cost(en); if (S.gold < cost) return { nogold: true, en, cost };
         const worn = Object.keys(S.eq).find(sl => S.eq[sl] === id); if (!worn && !count(id)) return null;
-        S.gold -= cost;
-        const ok = Math.random() * 100 < ENH.rate[en], g = S.gear[it.uid]; let r;
-        if (ok) { g.en = en + 1; regGear(it.uid, g); r = { ok: true, en: g.en, from: en, cost, name: ITEMS[id].name }; }
+        const mn = met ? metNeed(en) : 0; if (mn && count('meteor') < mn) return { nomet: true, en, cost, need: mn };
+        S.gold -= cost; if (mn) takeItem('meteor', mn);
+        const ok = Math.random() * 100 < enhRate(en, mn > 0), g = S.gear[it.uid]; let r;
+        if (ok) { g.en = en + 1; regGear(it.uid, g); r = { ok: true, en: g.en, from: en, cost, name: ITEMS[id].name, met: mn }; }
         else if (en < ENH.safeTo) { g.en = Math.max(0, en - 1); regGear(it.uid, g); r = { ok: false, down: true, en: g.en, from: en, cost, name: ITEMS[id].name }; }   // v72 +7 까지는 실패해도 한 단계 내려감
         else { if (worn) delete S.eq[worn]; else takeItem(id, 1); delete S.gear[it.uid]; r = { ok: false, broke: true, en, from: en, cost, name: it.name, tier: it.tier }; }
         restat(); if (worn && net) net.retrack();
@@ -4236,12 +4305,12 @@
       function enhStart(id, target) {
         const it = ITEMS[id]; if (!it || tab.fgRun) return;
         target = clamp(Math.floor(target), (it.en || 0) + 1, ENH.max);
-        const R = tab.fgRun = { id, target, name: it.name, from: it.en || 0, tries: 0, ok: 0, down: 0, gold: 0, stage: 'safe', stop: false, end: '' };
+        const R = tab.fgRun = { id, target, name: it.name, from: it.en || 0, tries: 0, ok: 0, down: 0, gold: 0, stage: 'safe', stop: false, end: '', met: !!tab.fgMet, metUsed: 0 };   // v223 met = 원석 쓰기
         enhPreload();
         const safeTop = Math.min(target, ENH.safeTo); let guard = 0;
         while (ITEMS[id] && (ITEMS[id].en || 0) < safeTop && guard++ < 3000) {
-          const r = enhOnce(id); if (!r) break; if (r.nogold) { R.end = 'gold'; break; }
-          R.tries++; R.gold += r.cost; if (r.ok) R.ok++; else R.down++;
+          const mn = R.met ? metNeed(ITEMS[id].en || 0) : 0, r = enhOnce(id, R.met); if (!r) break; if (r.nogold) { R.end = 'gold'; break; } if (r.nomet) { R.end = 'met'; break; }
+          R.tries++; R.gold += r.cost; R.metUsed += mn; if (r.ok) R.ok++; else R.down++;
         }
         if (R.tries) { R.safe = { tries: R.tries, ok: R.ok, down: R.down, gold: R.gold, en: ITEMS[id] ? ITEMS[id].en || 0 : 0 }; save(true); markDirty(true); float(G.px, G.py - 74, `+${R.safe.en} 까지 한 번에!`, '#FFE45C', true); Fx.levelUp(G.px, G.py); }
         const en = ITEMS[id] ? ITEMS[id].en || 0 : 0;
@@ -4253,10 +4322,11 @@
         const R = tab.fgRun; if (!R) return;
         const it = ITEMS[R.id];
         if (R.stop || !it || (it.en || 0) >= R.target || pane !== 'forge') { if (it && pane !== 'forge' && !R.stop && (it.en || 0) < R.target) R.end = 'closed'; R.stage = 'done'; R.final = it ? it.en || 0 : R.final; enhShow(); return; }   // 창을 닫았으면(다른 창·거래 포함) 위험 단계는 두드리지 않음
-        const rate = ENH.rate[it.en || 0], r = enhOnce(R.id);
+        const mn = R.met ? metNeed(it.en || 0) : 0, rate = enhRate(it.en || 0, R.met), r = enhOnce(R.id, R.met);
         if (!r) { R.stage = 'done'; R.final = it.en || 0; R.end = R.end || 'gone'; enhShow(); return; }
         if (r.nogold) { R.end = 'gold'; R.stage = 'done'; R.final = r.en; enhShow(); return; }
-        R.tries++; R.gold += r.cost; R.cur = Object.assign({ rate }, r); R.stage = 'try';
+        if (r.nomet) { R.end = 'met'; R.stage = 'done'; R.final = r.en; enhShow(); return; }   // v223 원석이 모자람
+        R.tries++; R.gold += r.cost; R.metUsed += mn; R.cur = Object.assign({ rate }, r); R.stage = 'try';
         save(true); markDirty(true);
         enhShow();
         clearTimeout(enhT);
@@ -4281,7 +4351,7 @@
         if (R.stage === 'res') { const c = R.cur; return c.ok ? `<div class="rg-enhrun ok">${im('fx_enh_ok2')}<b>강화 성공! +${c.en}</b><small>${c.name}</small>${c.en < R.target && !R.stop ? `<small class="next">다음: +${c.en + 1} 도전 (성공 ${ENH.rate[c.en]}%)</small>` : ''}</div>` : `<div class="rg-enhrun bad">${im('fx_enh_break2')}<b>강화 실패… 부서졌어요</b><small>${c.name} (+${c.from})</small></div>`; }
         // 끝 (요약)
         const fin = R.broke ? `<b class="bad">부서졌어요… (+${R.cur ? R.cur.from : R.from} 에서 +${R.cur ? R.cur.from + 1 : ''} 도전)</b>` : `<b>${R.final >= R.target ? `목표 +${R.target} 달성!` : `+${R.final} 에서 멈췄어요`}</b>`;
-        const why = R.broke ? '' : R.end === 'gold' ? '<small>골드가 모자라서 멈췄어요</small>' : R.end === 'closed' ? '<small>창을 닫아서 멈췄어요</small>' : R.end === 'gone' ? '<small>장비가 가방에 없어서 멈췄어요</small>' : R.stop && R.final < R.target ? '<small>[멈추기]로 멈췄어요</small>' : '';
+        const why = R.broke ? '' : R.end === 'gold' ? '<small>골드가 모자라서 멈췄어요</small>' : R.end === 'met' ? '<small>원석이 모자라서 멈췄어요</small>' : R.end === 'closed' ? '<small>창을 닫아서 멈췄어요</small>' : R.end === 'gone' ? '<small>장비가 가방에 없어서 멈췄어요</small>' : R.stop && R.final < R.target ? '<small>[멈추기]로 멈췄어요</small>' : '';
         return `<div class="rg-enhrun ${R.broke ? 'bad' : 'ok'} done">${im(R.broke ? 'fx_enh_break2' : 'fx_enh_ok2')}${fin}<small>${R.name.replace(/^\+\d+ /, '')} · +${R.from} → ${R.broke ? '부서짐' : '+' + R.final}</small>${why}<div class="rg-fgsum">시도 ${R.tries}번 · 쓴 골드 <b>${fmtN(R.gold)} G</b> · 남은 골드 ${fmtN(S.gold)} G</div><button type="button" class="rg-mini x2" data-fgok>확인</button></div>`;
       }
       function enhance(id) { const it = ITEMS[id]; if (it) enhStart(id, (it.en || 0) + 1); }   // 예전 한 단계 강화 (다른 곳에서 부를 때)
@@ -4315,6 +4385,7 @@
         if (t.matches('[data-trgold]')) { const T = G.trade; if (!T || tradeLocked()) { if (T) t.value = T.mine.gold; return; } T.mine.gold = clamp(Math.floor(+t.value || 0), 0, S.gold); sendOffer(); renderPanel(); return; }
         if (t.matches('[data-god]')) { S.godOff = !t.checked; markDirty(true); say(t.checked ? '무적을 켰어요 (피해를 받지 않아요)' : '무적을 껐어요 (밸런스 시험용)', 2.5); return; }   // v176
         if (t.matches('[data-title]')) { S.title = t.value; markDirty(true); if (net) net.retrack(); renderPanel(); return; }   // v176
+        if (t.matches('[data-fgmet]')) { tab.fgMet = t.checked; tab.fgAsk = null; renderPanel(); return; }   // v223 원석 쓰기
         if (t.matches('[data-stone]')) { tab.stOne = t.checked; renderPanel(); return; }   // v222 창고 한 개씩
         if (t.matches('[data-hide]')) { S.hide = t.checked; markDirty(); if (net) net.retrack(); renderPanel(); }
         else if (t.matches('[data-fa]')) { tab.fa = t.value; if (tab.fb === t.value || (SKILLS[tab.fb] && SKILLS[tab.fb].el === SKILLS[t.value].el)) tab.fb = null; renderPanel(); }
@@ -4406,6 +4477,7 @@
         } else if (d.stgo) { stationGo(d.stgo); return;   // v85 역참 출발
         } else if (d.toongate) { const g = D.HELL.gates[+d.toongate - 1]; if (!g) return; pane = null; panel.hidden = true; showToon(gateCuts(g), { title: `저승 제${g.no}관문 · ${g.hell}`, go: '닫기' }); return;   // v130 관문 웹툰 다시 보기
         } else if (d.hellgo) { const id = d.hellgo, M = MAPBY[id]; if (!M || S.lv < D.MAX_LV || (M.gate - 1) * 5 + M.stage > (S.hell || 0) + 1) return; pane = null; panel.hidden = true; G.paused = false; enter(id, 'L'); return; }   // v69 저승 단계 들어가기
+        else if (d.warp) { const id = d.warp; if (!count('warp') || id === S.map || !(S.visited || []).includes(id)) return; takeItem('warp'); pane = null; panel.hidden = true; G.paused = false; enter(id, 'door'); markDirty(); return; }   // v223
         else if (d.go) { const id = d.go; pane = null; panel.hidden = true; G.paused = false; enter(id, MAPBY[id].kind === 'village' ? 'door' : 'L'); return; }
         else if (d.addst) { const [q, n0] = d.addst.split(':'), n = Math.min(+n0, S.sp, statMax(S) - (S.stat[q] || 0)); if (n > 0 && S.stat[q] != null) { S.stat[q] += n; S.sp -= n; const hr = S.hp / ST.hp; restat(); if (q === 'vit') S.hp = Math.round(ST.hp * hr); markDirty(true); } }
         else if ('streset' in d) { D.STAT.keys.forEach(q => { S.sp += S.stat[q]; S.stat[q] = 0; }); restat(); markDirty(true); say('스탯 포인트를 모두 돌려받았어요. 다시 나눠 주세요', 2.4); }
