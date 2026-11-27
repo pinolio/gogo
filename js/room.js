@@ -156,6 +156,10 @@
     const isHost = e === host, av = isHost ? owner.avatar : myAv();
     const [x, y] = P(e.i, e.j, 0);
     const moving = e.path.length > 0;
+    // v220 걸음을 RPG 처럼: 흔들림이 출발 0.08초·멈춤 0.15초 동안 서서히 · 멈출 때 두 발 모으기 · 돌아설 때 0.1초 살짝 좁아졌다 펴짐 · 멈추는 동안은 옆모습 유지
+    const dtW = Math.min(0.1, (now - (e._wt || now)) / 1000); e._wt = now;
+    const walking = AV.step ? AV.step(e, e._d || 0, dtW, moving, 0.52) : moving; e._d = 0;
+    if (!walking && !moving && e.view === 's') e.view = 'f';
     // 걷기: 다리와 팔을 번갈아 (RPG 와 같은 4단계)
     const frame = moving && !reduce ? [1, 0, 3, 0][Math.floor(e.walkT * 7) % 4] : 0;
     nameTag(c, e, x, y - 62);
@@ -163,9 +167,9 @@
     c.fillStyle = 'rgba(29,35,64,.2)'; c.beginPath(); c.ellipse(x + 2, y + 1, 12, 5, 0, 0, Math.PI * 2); c.fill();   // v94 가구 그림자와 같은 색 · 같은 방향
     const bob = 0;   // v154 서 있을 때 들썩임 대신 숨쉬기(AV.draw breathe)
     c.translate(x, y);
-    if (e.face < 0) c.scale(-1, 1);
+    { const tk = AV.turnK ? AV.turnK(e) : 1; if (e.face < 0 || tk < 1) c.scale((e.face < 0 ? -1 : 1) * tk, 1); }
     const view = e.view || 'f';   // v106 방향 (멈춰도 마지막 방향 유지)
-    AV.draw(c, av, -18, -56 + (moving ? 0 : bob), 2, moving && !reduce ? { walk: e.walkT * Math.PI * 3.5, view, hold: e } : { frame, view: view === 's' ? 'f' : view, breathe: !reduce, hold: e });   // v172 hold = 새 그림을 받는 동안 전 그림 (깜빡임 방지)   // v105 부드러운 걷기 · v154 서 있을 때 숨쉬기
+    AV.draw(c, av, -18, -56 + (walking ? 0 : bob), 2, walking && !reduce ? { walk: AV.step ? e.wph : e.walkT * Math.PI * 3.5, amp: e.wamp == null ? 1 : e.wamp, view, hold: e } : { frame, view: view === 's' ? 'f' : view, breathe: !reduce, hold: e });   // v172 hold = 새 그림을 받는 동안 전 그림 (깜빡임 방지)   // v105 부드러운 걷기 · v154 서 있을 때 숨쉬기
     c.restore();
   }
   // v163 그림 가구에 맞춘 자세 — 값은 그림 가로(w) 대비 비율 · 가운데 아래 기준 (fx 오른쪽 +, fy 위쪽 +)
@@ -314,11 +318,12 @@
     const sp = Math.max(0.6, e.v) * dt;
     const sx = (di - dj), sy = (di + dj) / 2;   // 화면 위 움직임 (가로 · 세로)
     if (Math.abs(sx) > 0.01) e.face = sx > 0 ? 1 : -1;
-    if (dist > 0.02) e.view = Math.abs(sx) > Math.abs(sy) * 1.3 ? 's' : sy > 0 ? 'f' : 'b';   // v106 앞·뒤 · v154 옆
+    if (dist > 0.02) { if (AV.viewOf) AV.viewOf(e, sx, sy); else e.view = Math.abs(sx) > Math.abs(sy) * 1.3 ? 's' : sy > 0 ? 'f' : 'b'; }   // v106 앞·뒤 · v154 옆 · v220 문턱 둘(대각선에서 깜빡이지 않게)
     const mv = Math.min(dist, sp);
-    if (dist <= sp) { e.i = ti; e.j = tj; e.path.shift(); if (!e.path.length) { e.v = 0; if (e.view === 's') e.view = 'f'; if (e.after) { const f = e.after; e.after = null; f(); } } }
+    if (dist <= sp) { e.i = ti; e.j = tj; e.path.shift(); if (!e.path.length) { e.v = 0; if (e.after) { const f = e.after; e.after = null; f(); } } }
     else { e.i += di / dist * sp; e.j += dj / dist * sp; }
     e.walkT += mv * 0.55;   // 걸음 위상 = 간 거리
+    e._d = (e._d || 0) + mv;   // v220 그릴 때 AV.step 에 넘김
   }
   function bubble(t, sec) { st.bubble = { t, t2: sec || 1.8 }; }
 

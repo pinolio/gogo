@@ -36,8 +36,8 @@
       ctx.drawImage(im, (im.naturalWidth - sw) / 2, (im.naturalHeight - sh) / 2, sw, sh, x, y, w, h);
     },
     // 블록 판 바탕: 밤하늘 그림 + 살짝 어둡게
-    boardBg(ctx, x, y, w, h) {   // v202 오로라 우주 도시 (Gemini) · 없으면 예전 밤하늘
-      let im = P.img('aurora.jpg'); if (!P.ok(im)) im = P.img('sky');
+    boardBg(ctx, x, y, w, h) {   // v202 오로라 우주 도시 (Gemini) · v221 선생님 11/27 "도시라 블록이 잘 안 보임" → 오로라 아래 한옥 시골 마을(불빛 없는 검은 그림자) · 없으면 예전 그림
+      let im = P.img('village.jpg'); if (!P.ok(im)) im = P.img('aurora.jpg'); if (!P.ok(im)) im = P.img('sky');
       if (!P.ok(im)) { ctx.fillStyle = P.BOARD; ctx.fillRect(x, y, w, h); return; }
       ctx.save(); ctx.imageSmoothingEnabled = true; P.cover(ctx, im, x, y, w, h);
       ctx.fillStyle = 'rgba(10,12,40,.32)'; ctx.fillRect(x, y, w, h); ctx.restore();
@@ -110,7 +110,7 @@
   };
   window.GoPixel = P;
   // 게임 그림 미리 불러오기 (첫 화면을 방해하지 않게 조금 늦게)
-  P.img('aurora.jpg'); P.img('sky');
+  P.img('village.jpg'); P.img('sky');
   setTimeout(() => ['wood', 'grass', 'apple', 'tray', 'table'].concat(['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'].flatMap(k => ['w_' + k, 'b_' + k])).forEach(n => P.img(n)), 1200);
 })();
 

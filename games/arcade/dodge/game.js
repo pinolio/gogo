@@ -67,7 +67,10 @@
     if (blink) return;
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x, y + 16, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = RING[slot] || RING[0]; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(x, y + 16, 10, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
-    AV.draw(ctx, av, Math.round(x - 9), Math.round(y - 15), 1, frame && frame.walk != null ? frame : { frame });
+    const fo = frame && typeof frame === 'object' ? frame : null, tk = fo && fo.tk || 1, fl = fo && fo.face < 0 ? -1 : 1;
+    if (fl < 0 || tk < 1) { ctx.save(); ctx.translate(Math.round(x), 0); ctx.scale(fl * tk, 1); ctx.translate(-Math.round(x), 0); }   // v220 왼쪽으로 가면 옆모습을 뒤집음 · 돌아설 때 살짝 좁아졌다 펴짐
+    AV.draw(ctx, av, Math.round(x - 9), Math.round(y - 15), 1, fo ? fo : { frame });
+    if (fl < 0 || tk < 1) ctx.restore();
     if (XMAS) santaHat(ctx, Math.round(x), Math.round(y - 15));
     if (name) { ctx.font = '700 11px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#05070F'; ctx.strokeText(name, x, y - 20); ctx.fillStyle = RING[slot] ? '#FFFFFF' : '#FFFFFF'; ctx.fillText(name, x, y - 20); }
   }
@@ -272,7 +275,15 @@
           if (!p.alive) return;
           { const pul = 0.55 + 0.25 * Math.sin(bgT * 5), gr = ctx.createRadialGradient(p.x, p.y, 6, p.x, p.y, 20); gr.addColorStop(0, 'rgba(143,227,255,0)'); gr.addColorStop(0.75, `rgba(143,227,255,${0.12 * pul})`); gr.addColorStop(1, `rgba(143,227,255,${0.35 * pul})`); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, 20, 0, Math.PI * 2); ctx.fill(); }   // v205 얇은 보호막 빛 (맞는 범위와는 상관없음)
           if (phase === 'play') B.forEach(b => { if (b.nm) return; const d2 = (b.x - p.x) ** 2 + (b.y - p.y) ** 2; if (d2 < 22 * 22 && d2 > hitR() ** 2) { b.nm = 1; for (let k = 0; k < 6; k++) { const a = Math.random() * 6.28, s2 = 30 + Math.random() * 50; FX.push({ x: b.x, y: b.y, vx: Math.cos(a) * s2, vy: Math.sin(a) * s2, life: 0.35, c: k % 2 ? '#FFFFFF' : (XMAS ? '#FFD23F' : '#8FE3FF') }); } } });   // v205 아슬아슬 피하면 반짝 (v206 금빛)
-          const fr = p.moving > 0 ? { walk: p.walk * Math.PI * 4 } : 0;   // v105 부드러운 걷기
+          // v220 걸음을 RPG 처럼: 간 거리로 걸음(14px 반 걸음) · 출발·멈춤 서서히 · 가는 쪽 모습(앞·뒤·옆) · 돌아설 때 살짝 좁아졌다 펴짐
+          let fr = p.moving > 0 ? { walk: p.walk * Math.PI * 4 } : 0;   // v105 부드러운 걷기 (AV.step 이 없을 때)
+          if (AV.step) {
+            const nw = performance.now(), dtp = Math.min(0.1, (nw - (p._at || nw)) / 1000), dx = p._ax == null ? 0 : p.x - p._ax, dy = p._ax == null ? 0 : p.y - p._ay, d = Math.hypot(dx, dy);
+            p._at = nw; p._ax = p.x; p._ay = p.y;
+            if (d > 0.3 && d < 60) { if (Math.abs(dx) > 0.2) p.face = dx < 0 ? -1 : 1; AV.viewOf(p, dx, dy); }
+            const w = AV.step(p, d < 60 ? d : 0, dtp, p.moving > 0, 14), v = p.view || 'f';
+            fr = w ? { walk: p.wph, amp: p.wamp, view: v, face: v === 's' ? p.face : 1, tk: v === 's' ? AV.turnK(p) : 1 } : { frame: 0, view: v, breathe: true, face: v === 's' ? p.face : 1 };
+          }
           drawAvatar(ctx, p.av, p.x, p.y, two() ? p.slot : 0, fr, phase === 'ready' && Math.floor(bgT * 6) % 2 === 1, two() ? p.name : '');
         });
         FX.forEach(f => { ctx.globalAlpha = Math.max(0, Math.min(1, f.life * 1.6)); ctx.fillStyle = f.c; ctx.fillRect(f.x - 2, f.y - 2, 4, 4); }); ctx.globalAlpha = 1;

@@ -1125,6 +1125,24 @@
     return av;
   }
 
+  /* v220 걸음 도우미 (RPG 와 같은 방식 · 피구·내 방에서 씀)
+   *  step(o, dist, dt, moving, half): 걸음 위상 o.wph = 간 거리(half 마다 반 걸음) · 흔들림 크기 o.wamp 출발 0.08초·멈춤 0.15초 서서히 · 멈추면 두 발 모은 자세
+   *  turnK(o): 돌아선 뒤 0.1초 동안 80%→100% (툭 뒤집히지 않게) · view(o, vx, vy): 앞/뒤/옆을 문턱 둘(1.5배)로 (대각선에서 깜빡이지 않게) */
+  function step(o, dist, dt, moving, half) {
+    const ph0 = o.wph || 0; o.wph = ph0 + dist / (half || 37) * Math.PI;
+    o.stepped = moving && Math.floor(o.wph / Math.PI) !== Math.floor(ph0 / Math.PI);
+    const tg = moving && dist > 0.0001 ? 1 : 0, a = o.wamp || 0; o.wamp = a + (tg - a) * (1 - Math.exp(-dt * (tg > a ? 14 : 9)));
+    if (!moving && o.wamp < 0.03) { o.wamp = 0; o.wph = Math.round(o.wph / Math.PI) * Math.PI; }
+    if (o.face !== o._f0) { o._f0 = o.face; o.turnAt = performance.now(); }
+    return o.wamp > 0.02;
+  }
+  const turnK = o => { const t = (performance.now() - (o.turnAt || 0)) / 100; return t >= 1 ? 1 : 0.8 + 0.2 * t; };
+  function viewOf(o, vx, vy) {
+    const ay = Math.abs(vy), ax = Math.abs(vx), cur = o.view || 'f';
+    if (cur === 's' ? ay > ax * 1.5 : ax > ay * 1.5) o.view = ay > ax ? (vy > 0 ? 'f' : 'b') : 's';
+    else if (cur !== 's' && ay > ax) o.view = vy > 0 ? 'f' : 'b';
+    return o.view;
+  }
   try { if (typeof document !== 'undefined') setTimeout(() => clothAtlas(null), 300); } catch (e) { /* noop */ }   // v120 옷 색 그림 미리 받기 (게임 속 몸 그림용)
   /* v172 로그인한 내 아바타 그림(앞·옆·뒤 몸 · 옷 색 · 신발 · 머리·모자·얼굴 장식 · 등 장식)을 사이트를 열자마자 미리 받아 둠
    *  → 내 방·skillcom RPG 에 처음 들어갈 때 캐릭터가 늦게 나타나거나 잠깐 사라지는 것 줄이기 */
@@ -1138,7 +1156,7 @@
     preload,
     SLOTS, DEFAULT, OPTIONAL, ITEMS: SHOP_I, ALL_ITEMS: I, byId, bodyImg, useBody, bodyNorm, bodySrc, bodyCanvas, bodyComp, fitBody, BODY_SKINS, CLOTH, SHOES,
     THEMES: [['all', '전체'], ['basic', '기본'], ['school', '학교·일상'], ['job', '직업'], ['fantasy', '판타지'], ['season', '동물·계절']], size: { w: GW, h: GH },
-    normalize, draw, paint, paintAll, random, legs, OUT, rig, rigSide, armBox: im => armSplit(im, im.height / GH),
+    normalize, draw, paint, paintAll, random, legs, OUT, rig, rigSide, armBox: im => armSplit(im, im.height / GH), step, turnK, viewOf,
     walkP: t => t * Math.PI * 2,   // 걸음 수(바퀴) → 위상
     freeIds: () => I.filter(it => it.price === 0).map(it => it.id),
     bgImg: av => { const it = byId[normalize(av).bg]; return it && it.img ? (window.GOGO_BASE || '') + it.img : null; },   // v121 배경 그림 주소 (미리보기 칸 전체 배경용)
