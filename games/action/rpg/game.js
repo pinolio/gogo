@@ -168,6 +168,7 @@
     s.kingAt = +s.kingAt || (s.petOpen.legend ? Date.now() : 0);   // v158 광개토대왕을 처음 이긴 때(ms) — 예전에 이긴 사람(전설 펫 열림)은 지금 시각으로 · 메인 카드 '광개토대왕 최초 토벌자'
     const sa = s.sasin && typeof s.sasin === 'object' ? s.sasin : {}; s.sasin = {}; D.SASIN.gods.forEach(k => { s.sasin[k] = sa[k] ? 1 : 0; }); s.sasinAll = s.sasinAll ? 1 : 0;
     const yp = Array.isArray(s.ysp) ? s.ysp : []; s.ysp = [0, 0, 0, 0, 0, 0, 0, 0, 0].map((_, i) => yp[i] ? 1 : 0); s.ysMural = s.ysMural ? 1 : 0; s.ysAll = s.ysAll ? 1 : 0;   // v172
+    if (typeof s.tool !== 'string') s.tool = 'firework';   // v229 B 도구 칸 (처음엔 폭죽)
     { const g = Array.isArray(s.jjg) ? s.jjg : [], l = Array.isArray(s.jjl) ? s.jjl : []; s.jjg = [0, 1, 2].map(i => g[i] ? 1 : 0); s.jjl = [0, 1, 2].map(i => l[i] ? 1 : 0); s.jjWin = +s.jjWin || 0; s.jjAt = +s.jjAt || 0; s.undyAt = +s.undyAt || 0; }   // v224
     s.title = (D.TITLES || []).some(t => t.id === s.title) ? s.title : '';   // v176 고른 타이틀
     const bw = s.bossWon && typeof s.bossWon === 'object' ? s.bossWon : {}; s.bossWon = {}; Object.keys(bw).slice(0, 400).forEach(k => { if (k.length <= 40) s.bossWon[k] = clamp(Math.floor(+bw[k] || 1), 1, 600); });   // v174 이긴 보스 (Skillcom Fight 보스 도전)
@@ -2080,7 +2081,7 @@
         const cx = o.x + o.img.width / 2, by = o.sy;
         if (o.jjGate) {   // 진주 12시 · 진주성 던전 입구
           const im = img79('jj_gate');
-          if (im) { const w = 250, h = w * im.height / im.width; c.drawImage(im, cx - w / 2, o.y + o.img.height - h + 4, w, h); }
+          if (im) { const w = 340, h = w * im.height / im.width; c.drawImage(im, cx - w / 2, o.y + o.img.height - h + 4, w, h); }   // v229 정면 성문 (Gemini) 크게
           else { c.fillStyle = '#3A2A1E'; c.fillRect(cx - 90, o.y + 60, 180, 100); c.fillStyle = '#120C18'; c.beginPath(); c.ellipse(cx, o.y + 160, 50, 70, 0, Math.PI, 0); c.fill(); }
           c.font = '14px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 4; c.strokeStyle = '#1D2340'; c.strokeText('🏯 진주성 던전', cx, o.y + o.img.height + 18); c.fillStyle = '#FFD23F'; c.fillText('🏯 진주성 던전', cx, o.y + o.img.height + 18);
           return;
@@ -2695,6 +2696,15 @@
         else if (it.kind === 'scroll') { if (G.map.M.kind !== 'field' && S.map === S.home) { say('이미 마을이에요'); return; } takeItem(id); closePanel(); enter(S.home, 'door'); }
         markDirty();
       }
+      /* v229 선생님 11/28: B 도구 칸 — 가방의 쓰는 물건(폭죽·귀환 주문서·마을 이동 주문서·물약)을 하나 넣어 두고 B 로 바로 쓰기 (처음엔 폭죽) */
+      const TOOL_K = ['firework', 'scroll', 'warp', 'hp', 'mp'];
+      function useTool() {
+        const id = S.tool || 'firework', it = ITEMS[id]; if (!it) return;
+        if (G.dead || G.room) return;
+        if (!count(id)) { say(`${it.name}이(가) 없어요 · 잡화상에서 살 수 있어요 (가방에서 다른 물건을 B 칸에 넣을 수도 있어요)`); return; }
+        if (it.kind === 'firework') { if ((G.toolCd || 0) > 0) return; G.toolCd = 0.8; }   // 폭죽은 0.8초에 한 번
+        useItem(id);
+      }
 
       /* ---------- 움직임 ---------- */
       function canStand(map, x, y) { return !solidAt(map, x - 9, y - 4) && !solidAt(map, x + 9, y - 4) && !solidAt(map, x - 9, y) && !solidAt(map, x + 9, y); }
@@ -2865,7 +2875,7 @@
         if (pane === 'ysmural' && M.ys) { G.inv = Math.max(G.inv, 0.3); if (G.title) G.title.t += dt; return; }   // v180 선생님 11/23: 벽화 퍼즐 중엔 시간이 멈춤 (몬스터·탄·기술 모두 멈추고 나도 안 다침, 혼자 하는 던전)
         S.play += dt; G.saveT += dt; G.srvT += dt; if (msgT > 0 && (msgT -= dt) <= 0) msgEl.hidden = true;
         if ((G.trackT = (G.trackT || 0) - dt) <= 0) { G.trackT = 0.5; bgmPick(M); }   // v190 지역·보스 음악
-        G.atkCd -= dt; G.inv -= dt; G.lastHit += dt;
+        G.atkCd -= dt; G.inv -= dt; G.lastHit += dt; if (G.toolCd > 0) G.toolCd -= dt;   // v229
         if (G.setCd > 0) G.setCd -= dt;   // v215
         if (G.sxGuard && (G.sxGuard.t -= dt) <= 0) G.sxGuard = null; if (G.yiGuard && (G.yiGuard.t -= dt) <= 0) G.yiGuard = null; if (G.spTxT > 0) G.spTxT -= dt;   // v213
         duelTick(dt);   // v143 결투
@@ -3930,7 +3940,7 @@
         drawTrainHud(c);   // v144 훈련장 딜량
         if (G.touch || (G.room && !G.room.duel && !G.room.train)) return;   // v144 훈련장은 마법 칸 보임   // 건물 안에서는 아래 마법 칸을 숨김 (나가는 문이 보이게) · 결투장은 보임
         // 아래 가운데: 기본 마법 4칸(1~4) + 융합 마법 4칸(Q W E R) + v213 특수 능력(T, 작은 칸) + 포션 2칸(Z X) + v125 귀환(V)
-        const SPW = 38, bw = 11 * 54 + 3 * 12 + SPW * 2 - 4 + 6 + 12, x0 = Math.round(W / 2 - bw / 2), y0 = H - 62, xw = x0 + 8 * 54 + 24, xs = xw + SPW + 12, xp = xs + SPW + 18;   // v215 xw = 마법 세팅 칸
+        const SPW = 38, bw = 12 * 54 + 3 * 12 + SPW * 2 - 4 + 6 + 12, x0 = Math.round(W / 2 - bw / 2), y0 = H - 62, xw = x0 + 8 * 54 + 24, xs = xw + SPW + 12, xp = xs + SPW + 18;   // v215 xw = 마법 세팅 칸
         panelBox(c, x0 - 8, y0 - 8, bw + 16, 60, 12);
         for (let i = 0; i < 4; i++) skillSlot(c, x0 + i * 54, y0, 46, i, now);
         for (let i = 0; i < 4; i++) skillSlot(c, x0 + 4 * 54 + 12 + i * 54, y0, 46, 4 + i, now);
@@ -3938,6 +3948,7 @@
         petSpSlot(c, xs, y0 + 4, SPW, now); G.petSpBox = { x: xs, y: y0 + 4, s: SPW };
         potionSlot(c, xp, y0, 46, 'hp', 'Z'); potionSlot(c, xp + 54, y0, 46, 'mp', 'X');
         recallSlot(c, xp + 108, y0, 46); G.recallBox = { x: xp + 108, y: y0, s: 46 };
+        toolSlot(c, xp + 162, y0, 46); G.toolBox = { x: xp + 162, y: y0, s: 46 };   // v229 B 도구
       }
       // v215 마법 세팅 칸: ⇄ + 지금 세팅 번호 + 남은 시간
       function setSlot(c, x, y, s, now) {
@@ -4053,6 +4064,16 @@
         c.fillStyle = '#0A0E24'; rr(c, x - 3, y - 3, 15, 15, 4); c.fill(); c.font = '11px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFD23F'; c.fillText(key, x + 4.5, y + 5);
       }
       const potionImgs = {};
+      function toolSlot(c, x, y, s) {   // v229 B 도구 칸
+        const id = S.tool || 'firework', n = count(id);
+        c.fillStyle = '#0A0E24'; rr(c, x - 1, y - 1, s + 2, s + 2, 7); c.fill(); const bg = c.createLinearGradient(0, y, 0, y + s); bg.addColorStop(0, '#3A1E5E'); bg.addColorStop(1, '#1A2148'); c.fillStyle = bg; rr(c, x, y, s, s, 6); c.fill();
+        const im = potionImgs[id] || (potionImgs[id] = Object.assign(new Image(), { src: P.itemImg(id) }));
+        if (im.complete && im.naturalWidth) { c.globalAlpha = n ? 1 : 0.35; c.drawImage(im, x + 5, y + 4, 40, 40); c.globalAlpha = 1; }
+        if ((G.toolCd || 0) > 0) { c.fillStyle = 'rgba(10,14,36,.55)'; rr(c, x, y, s, s, 6); c.fill(); }
+        c.lineWidth = 2; c.strokeStyle = n ? '#FF8AD8' : '#5A4A7A'; rr(c, x, y, s, s, 6); c.stroke();
+        c.font = '12px "Jua", sans-serif'; c.textAlign = 'right'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = '#0A0E24'; c.strokeText(String(n), x + s - 3, y + s - 4); c.fillStyle = '#FFFFFF'; c.fillText(String(n), x + s - 3, y + s - 4);
+        c.fillStyle = '#0A0E24'; rr(c, x - 3, y - 3, 15, 15, 4); c.fill(); c.font = '11px "Jua", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFD23F'; c.fillText('B', x + 4.5, y + 5);
+      }
       // 휴대폰 버튼 (캔버스 좌표)
       const TB = { atk: { x: 880, y: 456, r: 48 }, s0: { x: 768, y: 482, r: 31 }, s1: { x: 778, y: 398, r: 31 }, s2: { x: 836, y: 346, r: 31 }, s3: { x: 914, y: 334, r: 31 }, f0: { x: 694, y: 420, r: 26 }, f1: { x: 712, y: 346, r: 26 }, f2: { x: 768, y: 290, r: 26 }, f3: { x: 842, y: 262, r: 26 }, hp: { x: 688, y: 500, r: 25 }, mp: { x: 636, y: 500, r: 25 }, rc: { x: 584, y: 500, r: 25 }, sp: { x: 532, y: 500, r: 22 }, ss: { x: 480, y: 500, r: 20 } };   // v215 ss = 마법 세팅 바꾸기   // v213 sp = 전설 펫 특수 능력   // v125 rc = 귀환
       function drawTouch(c) {
@@ -4309,7 +4330,7 @@
           if (it) {
             const cur = it.slot && !worn ? ITEMS[S.eq[it.slot]] : null, keys = ['atk', 'mag', 'def', 'hp', 'mp', 'spd'], nm = { atk: '공격', mag: '마력', def: '방어', hp: '체력', mp: '마나', spd: '속도%' };
             const cmp = it.slot ? keys.filter(q => (it.st || {})[q] || (cur && (cur.st || {})[q])).map(q => { const v = (it.st || {})[q] || 0, d = v - ((cur && cur.st && cur.st[q]) || 0); return `<span>${nm[q]} <b>${v}</b>${!worn && d ? ` <em class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</span>`; }).join('') : '';
-            const btn = worn ? `<button type="button" class="rg-mini ghost" data-unequip="${it.slot}">벗기</button>` : it.kind === 'meteor' ? '<span class="rg-mini on">대장간 강화에 써요</span>' : it.stack ? `<button type="button" class="rg-mini" data-use="${id}">쓰기</button>` : `<button type="button" class="rg-mini" data-equip="${id}" ${S.lv >= it.req ? '' : 'disabled'}>${S.lv >= it.req ? (cur ? '바꿔 입기' : '입기') : 'Lv.' + it.req + ' 필요'}</button>`;
+            const btn = worn ? `<button type="button" class="rg-mini ghost" data-unequip="${it.slot}">벗기</button>` : it.kind === 'meteor' ? '<span class="rg-mini on">대장간 강화에 써요</span>' : it.stack ? `<button type="button" class="rg-mini" data-use="${id}">쓰기</button>` + (TOOL_K.includes(it.kind) ? ((S.tool || 'firework') === id ? ' <span class="rg-mini on">B 칸에 있음</span>' : ` <button type="button" class="rg-mini ghost" data-tool="${id}">B 칸에 넣기</button>`) : '') : `<button type="button" class="rg-mini" data-equip="${id}" ${S.lv >= it.req ? '' : 'disabled'}>${S.lv >= it.req ? (cur ? '바꿔 입기' : '입기') : 'Lv.' + it.req + ' 필요'}</button>`;
             h += `<div class="rg-detail">${itemIcon(id)}<div class="grow"><b class="nm${it.rare ? ' rare' : ''}"${it.grade != null ? ` style="color:${GRADE[it.grade].color}"` : ''}>${it.name}${qTag(it)}${it.grade != null ? `<span class="rg-grade">${GRADE[it.grade].name}</span>` : ''}${worn ? ' <small>입는 중</small>' : ''}</b><span class="ds">${it.slot ? `${D.SLOT_NAME[it.slot]} · ${it.rare && !it.legend ? '정예 · ' : ''}Lv.${it.req} 이상 · 강화 +${it.en || 0}/${ENH.max}${cur ? ' · 지금: ' + cur.name : ''}${it.noTrade ? ' · 거래 안 됨' : ''}` : it.desc + ' · 가진 수 ' + count(id)}</span>${it.slot ? `<span class="rg-itdesc">${itemBlurb(it)}</span>` : ''}${cmp ? `<div class="cmp">${cmp}</div>` : ''}${optList(it)}</div>${btn}</div>`;
           } else h += `<div class="rg-detail hint">칸을 누르면 자세히 보여요. 필요 없는 물건은 <b>🗑 쓰레기통</b>을 누른 뒤 고르면 버릴 수 있어요. 장비는 <b>입기</b>, 물약은 <b>쓰기</b>. 사냥터 몬스터가 장비를 떨어뜨려요 (보스는 꼭!)</div>`;
           h += '</section></div>';
@@ -4564,7 +4585,7 @@
           else {
           h += (imgOk('key') ? `<img src="${imgOk('key').src}" alt="" style="width:100%;border-radius:10px;border:2px solid #0A0E24;margin:4px 0 10px;display:block">` : '');
           h += `<ul class="ult-rules">
-            <li><b>이동</b> 방향키 · <b>공격</b> Space·J · <b>기본 마법</b> 1~4 · <b>융합 마법</b> Q W E R · <b>포션</b> Z(체력) X(마나) · <b>귀환</b> V(가까운 마을, 2분마다) · <b>펫 특수 능력</b> T(영웅·전설 펫) · <b>마법 세팅 바꾸기</b> Y(1번↔2번, 스킬 창 K 에서 세팅) · <b>가방</b> I · <b>마법 창</b> K · <b>창 닫기</b> Esc</li>
+            <li><b>이동</b> 방향키 · <b>공격</b> Space·J · <b>기본 마법</b> 1~4 · <b>융합 마법</b> Q W E R · <b>포션</b> Z(체력) X(마나) · <b>귀환</b> V(가까운 마을, 2분마다) · <b>도구</b> B(폭죽 등 · 가방에서 'B 칸에 넣기'로 바꿈) · <b>펫 특수 능력</b> T(영웅·전설 펫) · <b>마법 세팅 바꾸기</b> Y(1번↔2번, 스킬 창 K 에서 세팅) · <b>가방</b> I · <b>마법 창</b> K · <b>창 닫기</b> Esc</li>
             <li>휴대폰은 화면 왼쪽을 끌면 이동(조이스틱), 오른쪽 버튼으로 공격·마법·포션·귀환(🏠). 가로로 돌리면 더 커요.</li>
             <li>지도 <b>오른쪽 끝 → 다음 지도</b>, 왼쪽 끝 → 이전 지도. 마을 → 사냥터 10곳 → 다음 마을 … 마을 하나가 10레벨씩(의주 Lv.1~10 … 동래 Lv.71~80), 마지막 부산은 Lv.80~100.</li>
             <li>문으로 걸어 들어가면 <b>건물 안</b>이에요. 안에 있는 사람에게 가까이 가면 이야기해요: <b>약방</b> 아씨 · <b>도술 서원</b> 도사(마법 배우기·융합) · <b>이장 댁</b> 이장님(무료 이동·저장). 아래 가운데 문으로 나가요.</li>
@@ -4764,6 +4785,7 @@
         else if (d.unequip) {
           const id = S.eq[d.unequip]; if (!id) return; if (!addItem(id, 1)) return; delete S.eq[d.unequip]; restat(); markDirty(true); if (net) net.retrack(); tab.invSel = id;
         } else if (d.use) { useItem(d.use); if (!count(d.use)) tab.invSel = null; }
+        else if (d.tool) { S.tool = d.tool; markDirty(); say(`${ITEMS[d.tool].name}을(를) B 칸에 넣었어요 · B 를 누르면 바로 써요`); }   // v229
         else if (d.slot) {
           // v53: 융합 마법 id 에 ':' 가 들어 있어(fu:a+b) 예전엔 칸에 안 들어갔음 → '|' 로 나눔
           const cut = d.slot.indexOf('|'), key = d.slot.slice(0, cut), id = d.slot.slice(cut + 1), fu = key[0] === 'f', n = +key.replace('f', '');
@@ -4855,7 +4877,7 @@
       });
 
       /* ================= 입력 ================= */
-      const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyJ', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyZ', 'KeyX', 'KeyV', 'KeyT', 'KeyY', 'KeyI', 'KeyK', 'KeyC', 'KeyP', 'KeyF', 'KeyM', 'Enter', 'Escape']);
+      const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyJ', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyZ', 'KeyX', 'KeyV', 'KeyB', 'KeyT', 'KeyY', 'KeyI', 'KeyK', 'KeyC', 'KeyP', 'KeyF', 'KeyM', 'Enter', 'Escape']);
       function onKey(e) {
         if (!S || !G.map) return;
         const tag = (e.target.tagName || '').toLowerCase();
@@ -4878,6 +4900,7 @@
         else if (e.code === 'KeyZ') usePotion('hp');
         else if (e.code === 'KeyX') usePotion('mp');
         else if (e.code === 'KeyV') doRecall();   // v125 귀환
+        else if (e.code === 'KeyB') useTool();   // v229 B 도구
         else if (e.code === 'KeyT') usePetSp();   // v213 전설 펫 특수 능력
         else if (e.code === 'KeyY') swapSet();   // v215 마법 세팅 바꾸기
         else if (e.code === 'KeyF' || e.code === 'Enter') {
@@ -4904,6 +4927,7 @@
           if (!(G.touch && btnAt(q))) { const pp = peerAt(q); if (pp) { e.preventDefault(); askTrade(pp); return; } } }   // v44 다른 사람 누르기 → 거래
         { const q = toC(e), wb = G.setBox; if (!G.touch && wb && !G.room && q.x >= wb.x && q.x <= wb.x + wb.s && q.y >= wb.y && q.y <= wb.y + wb.s) { e.preventDefault(); swapSet(); return; } }   // v215
         { const q = toC(e), sb = G.petSpBox; if (!G.touch && sb && !G.room && q.x >= sb.x && q.x <= sb.x + sb.s && q.y >= sb.y && q.y <= sb.y + sb.s) { e.preventDefault(); usePetSp(); return; } }   // v213 특수 능력 칸 누르기
+        { const q = toC(e), tb = G.toolBox; if (!G.touch && tb && !G.room && q.x >= tb.x && q.x <= tb.x + tb.s && q.y >= tb.y && q.y <= tb.y + tb.s) { e.preventDefault(); useTool(); return; } }   // v229 B 도구 칸 누르기
         { const q = toC(e), rb = G.recallBox; if (!G.touch && rb && !G.room && q.x >= rb.x && q.x <= rb.x + rb.s && q.y >= rb.y && q.y <= rb.y + rb.s) { e.preventDefault(); doRecall(); return; } }   // v125 귀환 칸 누르기
         if (!G.touch) { screenEl.focus({ preventScroll: true }); return; }
         e.preventDefault(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);

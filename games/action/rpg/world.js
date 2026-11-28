@@ -1186,7 +1186,7 @@
       x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(st.x * TS - 4, (st.y + st.h) * TS - 10, st.w * TS + 8, 12);
       map.objs.push({ station: st, img: { width: st.w * TS, height: 120 }, x: st.x * TS, y: (st.y + st.h) * TS - 120, sy: (st.y + st.h) * TS - 1 });
     }
-    if (map.jjGate) { const g = map.jjGate; map.objs.push({ jjGate: true, img: { width: 260, height: 170 }, x: g.x - 130, y: g.y - 160, sy: 2.2 * TS }); }
+    if (map.jjGate) { const g = map.jjGate; map.objs.push({ jjGate: true, img: { width: 340, height: 160 }, x: g.x - 170, y: 2, sy: 2.2 * TS }); }   // v229 성문 그림 새로 (정면 · 지도 맨 위에 딱 맞게: 위 끝 y=2 · 아래 끝 y≈166)
     if (map.ysSign) { const sg = map.ysSign; map.objs.push({ ysSign: true, img: { width: 152, height: 92 }, x: sg.x - 76, y: sg.y - 90, sy: sg.y }); map.glows.push({ x: sg.x, y: sg.y - 70, r: 110, col: '#FFD8A0' }); }   // v174 그림은 game.js drawObj
     (map.props || []).forEach(p => {   // v80 진영 소품 (Meshy) — 그림 폭 pw 에 맞춰 칸 아래 가운데에 세움
       const cx0 = (p.x + p.fw / 2) * TS, by = (p.y + p.fh) * TS + 2;
