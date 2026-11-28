@@ -254,7 +254,7 @@
       const art = () => { const im = img79(d.art); if (!im) return false; const g = map.ground.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(im, 0, 0, w * TS, h * TS); return true; };
       map.reArt = () => { if (art()) map.mini = map.ground; }; if (!art()) img79(d.art, map.reArt); else map.mini = map.ground;
     }
-    if (M.jj && D.JJ) jjProps(map);   // v224 진주성 던전 소품 (등불 · 사당 · 바위 방패 · 블랙홀)
+    if (M.jj && D.JJ) jjProps(map); else regionDeco(map);   // v226 사신·이순신 던전도 꾸미기 · v224 진주성 던전 소품 (등불 · 사당 · 바위 방패 · 블랙홀)
     mapCache[id] = map; const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
     return map;
   }
@@ -278,6 +278,77 @@
       if (on && [0, 1, 2, 3, 5].includes(v)) set(tx, ty, 1); else if (!on && v === 1) set(tx, ty, 0);
     }
     map.roads = roads; map.plazas = plazas.filter(q => q.r);
+  }
+  /* v226 사냥터·마을 꾸미기 (선생님 11/28 17:06 · '렉은 안 걸리게'):
+   *  ① 나무 칸(2)·바위 칸(3) 그림 일부를 지역에 맞는 큰 Gemini 그림으로 바꿈 (그릴 개수는 늘지 않음)
+   *  ② 꽃밭·버섯·통나무 같은 땅에 붙은 것은 바닥 그림(map.ground)에 한 번만 구워 넣음 (매 장면 그리지 않음)
+   *  ③ 마을: 우물·장독대·석등·장승·짚더미 · 나무·바위가 가로로 3칸 이어진 곳은 돌담 */
+  const RDECO = [
+    { tree: [['dc_zelkova', 150], ['dc_persimmon', 120], ['dc_ginkgo', 130], ['jj_maple', 120]], rock: [], flat: [['dc_flowerbed', 96, 10], ['jj_dandelion', 60, 14]], farm: true },   // 0 의주 들판
+    { tree: [['dc_bamboo', 130], ['dc_oak', 150], ['jj_pine1', 140], ['jj_pine2', 140]], rock: [], flat: [['dc_mushroom', 80, 8], ['dc_log', 96, 4], ['dc_flowerbed', 90, 4]] },   // 1 평양 숲
+    { tree: [['dc_swamptree', 140], ['jj_willow', 140]], rock: [], flat: [['dc_reed', 88, 12], ['dc_log', 96, 4]] },   // 2 한양 늪
+    { tree: [['dc_desertshrub', 110], ['dc_drytree', 120]], rock: [['dc_sandpillar', 100]], flat: [] },   // 3 충주 모래
+    { tree: [['dc_cliffpine', 140], ['jj_pine2', 130]], rock: [['dc_boulders', 110]], flat: [['jj_forsythia', 70, 6]] },   // 4 남원 바위산
+    { tree: [['dc_snowpine', 145], ['dc_birch', 130]], rock: [['dc_icerock', 100]], flat: [] },   // 5 진주 눈
+    { tree: [['dc_glowshroom', 112]], rock: [['dc_crystal', 100]], flat: [['dc_mushroom', 76, 6]] },   // 6 통영 수정 동굴
+    { tree: [['jj_cherry1', 145], ['jj_cherry2', 145], ['dc_magnolia', 140], ['dc_cloudbush', 110]], rock: [], flat: [['dc_flowerbed', 96, 10]] },   // 7 동래 하늘 정원
+    { tree: [['dc_charred', 130]], rock: [['dc_lavarock', 100]], flat: [] }   // 8 부산 화산
+  ];
+  const VPROP = [['dc_well', 100, 1], ['dc_jars', 104, 2], ['dc_lantern', 70, 3], ['dc_jangseung', 84, 1], ['dc_hay', 96, 2]];
+  // v226 선생님 11/28 20:48: 저승 10관문 · 사신(광개토대왕)·이순신 던전도
+  const HL = (tree, rock, flat) => ({ tree, rock, flat: [['hl_lily', 92, 10]].concat(flat || []) });
+  const HELLDECO = { 1: HL([['hl_tree', 130]], [['hl_swordrock', 110], ['hl_soulfire', 70]]), 2: HL([['hl_tree', 130]], [['hl_cauldron', 110], ['hl_soulfire', 70]]),
+    3: HL([['dc_birch', 130], ['hl_tree', 120]], [['dc_icerock', 100], ['hl_soulfire', 70]]), 4: HL([['hl_tree', 135]], [['hl_swordrock', 110]]),
+    5: HL([['hl_tree', 130]], [['hl_stele', 90], ['hl_soulfire', 70]]), 6: HL([['dc_swamptree', 135], ['hl_tree', 120]], [['hl_soulfire', 70]], [['dc_reed', 84, 8]]),
+    7: HL([['hl_tree', 130]], [['hl_stele', 90], ['hl_swordrock', 105]]), 8: HL([['hl_tree', 130]], [['hl_cauldron', 105], ['hl_stele', 90]]),
+    9: HL([['dc_charred', 130], ['hl_tree', 120]], [['dc_boulders', 105]]), 10: HL([['hl_tree', 130]], [['hl_soulfire', 70], ['hl_stele', 90]]) };
+  const SXX = { rock: [['sx_pillar', 90], ['sx_statue', 90], ['sx_brazier', 72]], flat: [['sx_ruinflat', 100, 6]] };
+  const YSX = { rock: [['ys_cannon', 100], ['ys_barrels', 96], ['ys_anchor', 90]], flat: [] };
+  function regionDeco(map) {
+    const M = map.M; if (!M || M.jj || (M.def && M.def.art) || (M.kind !== 'field' && M.kind !== 'village')) return;
+    let T = RDECO[M.region]; if (!T) return;
+    if (M.hell) T = HELLDECO[M.gate] || HELLDECO[1];
+    else if (M.sx || M.ys) { const X = M.sx ? SXX : YSX; T = { tree: T.tree, rock: X.rock.concat(T.rock), flat: X.flat.concat(T.flat) }; }
+    const rnd = seeded('rdeco-' + map.id), { at, w, h } = map, vil = M.kind === 'village';
+    const pickW = L => L[Math.floor(rnd() * L.length)];
+    const solidAt2 = (x, y) => at(x, y) === 2 || at(x, y) === 3;
+    const byTile = new Map(); map.objs.forEach(o => { if (o.alt && o.tx != null && !o.sign) byTile.set(o.tx + ',' + o.ty, o); });   // 나무·바위 칸 그림만
+    const drop = new Set(), add = [];
+    const mk = (im, S, tx, ty, o2) => { const x = tx * TS + 16 + (rnd() - 0.5) * 8, y = (ty + 1) * TS - 2; return Object.assign({ jj: 'deco', im, dw: S, flip: rnd() < 0.5, noSh: true, img: { width: S, height: S }, x: x - S / 2, y: y - S, sy: y, bx: x, by: y }, o2 || {}); };
+    // ③ 마을 소품 + 돌담
+    if (vil) {
+      for (let ty = 2; ty < h - 2; ty++) for (let tx = 2; tx < w - 4; tx++) {
+        if (!(solidAt2(tx, ty) && solidAt2(tx + 1, ty) && solidAt2(tx + 2, ty)) || ['a', 'b', 'c'].some((_, i) => drop.has((tx + i) + ',' + ty)) || rnd() > 0.35) continue;
+        const os = [0, 1, 2].map(i => byTile.get((tx + i) + ',' + ty)); if (os.some(o => !o)) continue;
+        os.forEach(o => drop.add(o.tx + ',' + o.ty)); add.push(mk('dc_wall', 3 * TS + 10, tx + 1, ty, { flip: false })); tx += 3;
+      }
+      const cand = [...byTile.values()].filter(o => !drop.has(o.tx + ',' + o.ty) && o.tx > 3 && o.tx < w - 4 && o.ty > 2 && o.ty < h - 3).sort(() => rnd() - 0.5);
+      VPROP.forEach(([im, S, n]) => { for (let i = 0; i < n && cand.length; i++) { const o = cand.pop(); drop.add(o.tx + ',' + o.ty); add.push(mk(im, S, o.tx, o.ty)); } });
+    } else if (T.farm && rnd() < 0.6) {   // 들판에 짚더미·장승 하나씩
+      const cand = [...byTile.values()].filter(o => o.tx > 4 && o.tx < w - 5 && at(o.tx, o.ty) === 3).sort(() => rnd() - 0.5);
+      [['dc_hay', 96], ['dc_jangseung', 84]].forEach(([im, S]) => { const o = cand.pop(); if (o) { drop.add(o.tx + ',' + o.ty); add.push(mk(im, S, o.tx, o.ty)); } });
+    }
+    // ① 나무·바위 그림 바꾸기 (나무 55% · 바위 45%, 바로 옆 칸끼리는 겹치지 않게)
+    const used = [];
+    byTile.forEach(o => {
+      const k = o.tx + ',' + o.ty; if (drop.has(k)) return;
+      const v = at(o.tx, o.ty), L = v === 2 ? T.tree : T.rock; if (!L.length || rnd() > (v === 2 ? 0.55 : 0.45)) return;
+      if (used.some(([a, b]) => Math.abs(a - o.tx) + Math.abs(b - o.ty) < 2)) return;
+      used.push([o.tx, o.ty]); drop.add(k); const [im, S] = pickW(L); add.push(mk(im, S * (0.85 + rnd() * 0.3), o.tx, o.ty));
+    });
+    map.objs = map.objs.filter(o => !(o.alt && o.tx != null && !o.sign && drop.has(o.tx + ',' + o.ty))).concat(add);
+    // ② 땅에 붙은 것 → 바닥 그림에 굽기 (풀밭 칸만 · 길·물·건물 칸 제외)
+    const flat = [];
+    T.flat.concat(vil ? [['dc_flowerbed', 84, 6]] : []).forEach(([im, S, n]) => { for (let i = 0, t = 0; i < n && t < n * 10; t++) {
+      const x = 3 + Math.floor(rnd() * (w - 6)), y = 3 + Math.floor(rnd() * (h - 6)); if (at(x, y) !== 0 && at(x, y) !== 5) continue;
+      if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => at(x + a, y + b) === 1 || at(x + a, y + b) >= 6)) continue; i++;
+      const s2 = S * (0.8 + rnd() * 0.4), bx = x * TS + 16 + (rnd() - 0.5) * 16, by = y * TS + 26; flat.push({ im, dw: s2, flip: rnd() < 0.5, bx, by }); } });
+    const g = map.ground && map.ground.getContext('2d'); if (!g) return;
+    const bake = () => { let miss = null;
+      flat.forEach(o => { if (o.baked) return; const im = img79(o.im); if (!im) { miss = o.im; return; } o.baked = true; const w2 = o.dw, h2 = w2 * im.height / im.width;
+        g.save(); g.imageSmoothingEnabled = true; g.translate(o.bx, o.by); if (o.flip) g.scale(-1, 1); g.drawImage(im, -w2 / 2, -h2 + 6, w2, h2); g.restore(); });
+      if (miss) img79(miss, bake); };
+    bake();
   }
   function jjProps(map) {   // v224 그림은 game.js drawObj 가 img79 로 늦게 그림 (o.jj = 종류)
     const J = D.JJ, k = map.M.jj, cx = map.w >> 1, cy = map.h >> 1, O = (o, x, y, w, h, sy) => map.objs.push(Object.assign({ img: { width: w, height: h }, x: x - w / 2, y: y - h, sy }, o));
@@ -522,6 +593,7 @@
       if (M.kind === 'field' && xx > 6 && xx < w - 7 && v !== 7) map.spawns.push({ x: (xx + 0.5) * TS, y: (yy + 0.8) * TS });
     }
     map.ground = paintGround(map);
+    regionDeco(map);   // v226 선생님 11/28: 사냥터·마을을 Gemini 나무·우물·돌담 등으로 화려하게 (사당 맵처럼)
     if (map.gStele) { const R2 = map.gStele, sp = steleSprite(); map.objs.push({ sign: true, stele: true, img: sp, x: R2.x - sp.width / 2, y: R2.y - sp.height + 6, sy: R2.y }); }
     if (map.sxRock) { const R2 = map.sxRock, sp = rockSprite(); map.objs.push({ sign: true, img: sp, x: R2.x - sp.width / 2, y: R2.y - sp.height + 6, sy: R2.y }); }
     mapCache[id] = map;
@@ -1007,7 +1079,7 @@
     const TX = texOf(map), NEED = TX.concat((map.ponds || []).map(p => p.k), (map.dgs || []).map(d => d.k), LAVA_ART && map.M.hell ? POOL_ART[poolKind(map, texOf(map)[2])].slice(0, 2) : []), ok = NEED.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
     if (!ok && !map.texWait) {   // v82 고침: 이미 받은 그림은 기다릴 수에서 빼야 함 (전에는 하나라도 먼저 받아져 있으면 영영 다시 안 그렸음)
       map.texWait = true; const need = NEED.filter(n => !img79(n)); let left = need.length;
-      const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) { map.ground = paintGround(map); if (map.M.jj && D.JJ) jjProps(map); if (map.reArt) map.reArt(); } };   // v224 다시 그리면 진주성 소품도 다시
+      const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) { map.ground = paintGround(map); if (map.M.jj && D.JJ) jjProps(map); else regionDeco(map); if (map.reArt) map.reArt(); } };   // v224 다시 그리면 진주성 소품도 다시
       need.forEach(n => img79(n, done));
     }
     if (ok) {   // 1) 땅 = 재질 무늬 + 큰 얼룩(밝게·어둡게)으로 단조로움 깨기

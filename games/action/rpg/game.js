@@ -2080,7 +2080,7 @@
           const im = img79(o.im); if (!im) return;
           if (o.pond) { c.drawImage(im, o.x, o.y, o.pw, o.ph); return; }
           const w = o.dw, h = w * im.height / im.width, sway = o.flat ? 0 : Math.sin(now / 1400 + o.bx * 0.01) * 0.018;
-          if (!o.flat) { c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(o.bx, o.by - 2, w * 0.3, w * 0.08, 0, 0, Math.PI * 2); c.fill(); }
+          if (!o.flat && !o.noSh) { c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(o.bx, o.by - 2, w * 0.3, w * 0.08, 0, 0, Math.PI * 2); c.fill(); }
           c.save(); c.translate(o.bx, o.by); if (sway) c.transform(1, 0, sway, 1, 0, 0); if (o.flip) c.scale(-1, 1); c.drawImage(im, -w / 2, -h + 4, w, h); c.restore();
           return;
         }
