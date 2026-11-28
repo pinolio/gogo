@@ -2853,7 +2853,7 @@
        *  GoBGM 의 audio 하나에서 src 만 바꿈 (음악 끄기·켜기는 그대로) · 보스가 사라져도 4초 동안은 보스 음악 유지 */
       const TRACK = { bgm: 'bgm/bgm.mp3', hell: 'bgm/hell.mp3', sx: 'bgm/sx.mp3', ys: 'bgm/ys.mp3', boss: 'bgm/boss.mp3' };
       function bgmPick(M) {
-        let k = M.hell ? 'hell' : M.sx ? 'sx' : M.jj ? (M.jj === 'boss' ? 'boss' : 'ys') : M.ys ? 'ys' : 'bgm';
+        let k = M.hell ? 'hell' : M.sx ? 'sx' : M.jj ? (M.jj === 'boss' ? 'boss' : M.jj === 'shrine' ? 'hell' : 'ys') : M.ys ? 'ys' : 'bgm';   // v228 선생님 11/28: 진주성 = 길·마당·왜장 이순신 던전 음악(같은 임진왜란) · 사당(장군의 넋) 저승 음악 · 보스 방 보스 음악 (진주성 전용 곡은 나중에 Suno)
         if (!G.room && G.mons.some(m => !m.dead && m.boss && Math.abs(m.x - G.px) < 700 && Math.abs(m.y - G.py) < 500)) G.bossMusic = 4; else G.bossMusic = Math.max(0, (G.bossMusic || 0) - 0.5);
         if (G.bossMusic > 0) k = 'boss';
         const a = BGM.audio; if (!a) return; const cur = ((a.getAttribute('src') || a.src || '').match(/bgm\/(\w+)\.mp3/) || [])[1]; if (!cur || cur === k) return;
