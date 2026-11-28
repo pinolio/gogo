@@ -1590,12 +1590,14 @@
       function knock(a, dist, wallStun) { G.bfx.push({ k: 'push', t: 0, a, left: dist, wallStun: wallStun || 0 }); }
       const PASSIVE = ['egg', 'stack'];
       function lunge(m) { const a = Math.atan2(G.py - m.y, G.px - m.x), d = Math.hypot(G.px - m.x, G.py - m.y), go = Math.max(0, Math.min(220, d - 80)); for (let i = 0; i < 10; i++) { const nx = m.x + Math.cos(a) * go / 10, ny = m.y + Math.sin(a) * go / 10; if (!canStand(G.map, nx, ny)) break; m.x = nx; m.y = ny; } Fx.dust(m.x, m.y, '#FF8A6A'); }   // 걷어차기 전에 휙 다가옴
+      const HK = (m, k) => (m && m.def && m.def.jjHard && m.def.jjHard[k]) || 1;   // v224 진주성 왜장·우키타: 투사체 수(shot) · 부채꼴 넓이(fan) · 범위(range) · 피해(dmg)
+      const fanA = (n0, sp0, m) => { const n = Math.round(n0 * HK(m, 'shot')), span = sp0 * (n0 - 1) * HK(m, 'fan'); return Array.from({ length: n }, (_, j) => n > 1 ? -span / 2 + j * span / (n - 1) : 0); };   // 원래 n0발·간격 sp0 → n0×shot 발 · 전체 폭×fan
       function newSkill2(m, k, a0, big) {
-        const cx = m.x, cy = m.y - m.spr.h / 2, pa = Math.atan2(G.py - 24 - cy, G.px - cx), R = big ? 1.25 : 1;
+        const cx = m.x, cy = m.y - m.spr.h / 2, pa = Math.atan2(G.py - 24 - cy, G.px - cx), R = (big ? 1.25 : 1) * HK(m, 'range');
         switch (k) {
           // ── 투사체 ──
           case 'snipe': m.cast = { k: 'laser', t: 0, a: a0, x: cx, y: cy, L: 2400, w: 22, fast: true }; return true;   // 4 화면 끝 저격 (예고 1초 → 빠른 직선)
-          case 'boomer': for (let i = -1; i <= 1; i++) eShot(m, cx, cy, pa + i * 0.35, 420, 1.0, { r: 12, life: 2.6, upd: (s, dt) => { s.age = (s.age || 0) + dt; if (s.age > 1.05 && !s.back) { s.back = true; s.vx = -s.vx * 1.1; s.vy = -s.vy * 1.1; } } }); return true;   // 5 부메랑 (돌아올 때 또 맞음)
+          case 'boomer': for (const o of fanA(3, 0.35, m)) eShot(m, cx, cy, pa + o, 420, 1.0, { r: 12, life: 2.6, upd: (s, dt) => { s.age = (s.age || 0) + dt; if (s.age > 1.05 && !s.back) { s.back = true; s.vx = -s.vx * 1.1; s.vy = -s.vy * 1.1; } } }); return true;   // 5 부메랑 (돌아올 때 또 맞음)
           case 'bounce': { let n = 0; const go = (x, y, a) => eShot(m, x, y, a, 380, 1.1, { r: 11, onHit: s => { if (++n < 4) { const t = G.mons.filter(q => !q.dead && q !== m).sort((p, q) => Math.hypot(p.x - G.px, p.y - G.py) - Math.hypot(q.x - G.px, q.y - G.py))[0]; if (t) G.bfx.push({ k: 'later', t: 0, at: 0.5, fn: () => { go(t.x, t.y - 30, Math.atan2(G.py - 24 - (t.y - 30), G.px - t.x)); } }); } } }); go(cx, cy, pa); return true; }   // 6 튕기는 불덩이 (근처 졸개에서 다시 날아옴)
           case 'homing': for (let i = 0; i < (big ? 3 : 2); i++) eShot(m, cx, cy, pa + (i - 0.5) * 1.2, 170, 1.0, { r: 13, life: 3.2, upd: (s, dt) => { const ta = Math.atan2(G.py - 24 - s.y, G.px - s.x), ca = Math.atan2(s.vy, s.vx); let da = ta - ca; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2; const na = ca + Math.max(-1.6 * dt, Math.min(1.6 * dt, da)), v = Math.hypot(s.vx, s.vy); s.vx = Math.cos(na) * v; s.vy = Math.sin(na) * v; } }); return true;   // 7 유도탄 (천천히 따라옴)
           case 'split': eShot(m, cx, cy, pa, 300, 0.9, { r: 14, life: 0.8, upd: (s, dt) => { if (s.life - dt <= 0 && !s.done) { s.done = true; const n = big ? 7 : 5; for (let i = 0; i < n; i++) eShot(m, s.x, s.y, Math.atan2(s.vy, s.vx) + (i - (n - 1) / 2) * 0.32, 340, 0.8); } } }); return true;   // 8 분열탄
@@ -1605,12 +1607,12 @@
           case 'web': for (let i = -1; i <= 1; i += 2) eShot(m, cx, cy, pa + i * 0.12, 460, 0.7, { r: 10, color: '#9AF0B0', onHit: () => pCC('root', 1.5, m) }); return true;   // 12 거미줄탄 (속박)
           case 'hush': eShot(m, cx, cy, pa, 420, 0.8, { r: 12, color: '#C8A8FF', onHit: () => pCC('silence', 2, m) }); return true;   // 13 침묵탄
           case 'scare': for (let i = -1; i <= 1; i++) eShot(m, cx, cy, pa + i * 0.25, 380, 0.6, { r: 10, color: '#FF8A8E', onHit: () => pCC('fear', 1.4, m) }); return true;   // 14 공포탄 (매혹 대신)
-          case 'harpoon': m.cast = { k: 'hook', t: 0, a: a0, x: cx, y: cy, L: 620, both: true }; return true;   // 16 작살 (맞으면 보스도 다가옴)
+          case 'harpoon': m.cast = { k: 'hook', t: 0, a: a0, x: cx, y: cy, L: 620 * HK(m, 'range'), both: true }; return true;   // 16 작살 (맞으면 보스도 다가옴)
           // ── 바닥 범위 ──
           case 'donut': zone(m, { shape: 'donut', x: m.x, y: m.y, r: 300 * R, r2: 95, warn: 1.0, dmgK: 1.5 }); return true;   // 19 도넛 (보스 가까이가 안전)
-          case 'cage': G.bfx.push({ k: 'cage', m, x: G.px, y: G.py, r: 150, t: 0, warn: 0.7, dur: 3.5 }); return true;   // 20 고리 감옥 (테두리 닿으면 기절)
+          case 'cage': G.bfx.push({ k: 'cage', m, x: G.px, y: G.py, r: 150 * HK(m, 'range'), t: 0, warn: 0.7, dur: 3.5 }); return true;   // 20 고리 감옥 (테두리 닿으면 기절)
           case 'cross': { const x = G.px, y = G.py, a = Math.random() < 0.5 ? 0 : Math.PI / 4; for (let i = 0; i < 4; i++) zone(m, { shape: 'rect', x, y, a: a + i * Math.PI / 2, L: 520, w: 60 * R, warn: 1.0, dmgK: 1.4 }); return true; }   // 21 십자·X자
-          case 'chain': { const n = 6; for (let i = 0; i < n; i++) zone(m, { x: cx + Math.cos(pa) * (90 + i * 95), y: m.y + Math.sin(pa) * (90 + i * 95), r: 80 * R, warn: 0.6 + i * 0.22, dmgK: 1.2 }); return true; }   // 22 차례 폭발 줄
+          case 'chain': { const n = 6, g = HK(m, 'range'); for (let i = 0; i < n; i++) zone(m, { x: cx + Math.cos(pa) * (90 + i * 95) * g, y: m.y + Math.sin(pa) * (90 + i * 95) * g, r: 80 * R, warn: 0.6 + i * 0.22, dmgK: 1.2 }); return true; }   // 22 차례 폭발 줄
           case 'meteor': zone(m, { x: G.px, y: G.py, r: 230 * R, warn: 1.8, dmgK: 2.4, big: true }); return true;   // 23 운석 낙하
           case 'poison': G.bfx.push({ k: 'field', sub: 'poison', m, x: G.px, y: G.py, r: 120 * R, t: 0, dur: 6, tick: 0 }); return true;   // 24 독 장판
           case 'swamp': G.bfx.push({ k: 'field', sub: 'swamp', m, x: G.px, y: G.py, r: 150 * R, t: 0, dur: 6, tick: 0 }); return true;   // 25 늪 (느려짐)
@@ -1629,7 +1631,7 @@
           case 'headbutt': { const a = Math.atan2(G.py - m.y, G.px - m.x), v = 520; m.cast = { k: 'charge', t: 0.3, a, vx: Math.cos(a) * v, vy: Math.sin(a) * v, air: true }; return true; }   // 44 박치기 (띄움)
           // ── 소환 ──
           case 'turret': for (let i = 0; i < (big ? 3 : 2); i++) { const a = Math.random() * 6.28, x = G.px + Math.cos(a) * 220, y = G.py + Math.sin(a) * 150; if (!canStand(G.map, x, y)) continue; const q = makeMon({ name: '포탑', img: m.def.img, h: 40, el: m.el, kind: 'shoot', shape: 'golem', colors: m.def.colors }, Math.max(1, m.lvl - 5), false); q.x = q.hx = x; q.y = q.hy = y; q.spd = 0; q.noRespawn = true; q.turret = 10; q.max = q.hp = Math.round(q.max * 2); q.aggro = true; G.mons.push(q); } return true;   // 47 포탑 (10초)
-          case 'phalanx': G.bfx.push({ k: 'phalanx', m, t: 0, dur: 3.2, a: pa, x: cx - Math.cos(pa) * 40, y: m.y - Math.sin(pa) * 40, L: 520, hit: false }); return true;   // 49 병사 벽 돌격 (밀어냄)
+          case 'phalanx': G.bfx.push({ k: 'phalanx', m, t: 0, dur: 3.2, a: pa, x: cx - Math.cos(pa) * 40, y: m.y - Math.sin(pa) * 40, L: 520 * HK(m, 'range'), hit: false }); return true;   // 49 병사 벽 돌격 (밀어냄)
           case 'shadow': { const x = G.px + rand(-260, 260), y = G.py + rand(-160, 160); if (!canStand(G.map, x, y)) return false; m.shadow = { x, y, t: 7 }; Fx.nova(x, y - 40, 60, ['dark', 'dark']); return true; }   // 50 그림자 (7초 동안 부채·링을 같이 씀)
           case 'healer': for (let i = 0; i < 2; i++) { const x = m.x + (i ? 160 : -160), y = m.y + 40; if (!canStand(G.map, x, y)) continue; const q = makeMon({ name: '회복 정령', img: m.def.img, h: 50, el: 'light', kind: 'aggro', shape: 'slime', colors: { a: '#9AF0B0', b: '#3DDC84', c: '#FFFFFF', d: '#FFFFFF' } }, m.lvl, false); q.x = q.hx = x; q.y = q.hy = y; q.spd = 40; q.noRespawn = true; q.healer = m; q.healT = 1.5; q.aggro = true; G.mons.push(q); } return true;   // 52 회복 정령
           case 'orbit': G.bfx.push({ k: 'orbit', m, t: 0, dur: 6, a: 0, cd: 0 }); return true;   // 53 도는 위성 공
@@ -1670,8 +1672,8 @@
             if (f.big) G.shake = Math.max(G.shake, 10); }
           return f.t < f.warn + 0.25;
         }
-        if (f.k === 'spiral') { if ((f.tick -= dt) <= 0) { f.tick = 0.11; f.a += 0.38 * f.dir; for (let i = 0; i < 3; i++) eShot(m, m.x, m.y - m.spr.h / 2, f.a + i * 2.094, 260, 0.6, { r: 8 }); } return f.t < f.dur; }
-        if (f.k === 'volley') { if ((f.tick -= dt) <= 0) { f.tick = 0.09; eShot(m, m.x, m.y - m.spr.h / 2, f.a + rand(-0.18, 0.18), 520, 0.5, { r: 7 }); } return f.t < f.dur; }
+        if (f.k === 'spiral') { if ((f.tick -= dt) <= 0) { f.tick = 0.11; f.a += 0.38 * f.dir; const n = Math.round(3 * HK(m, 'shot')); for (let i = 0; i < n; i++) eShot(m, m.x, m.y - m.spr.h / 2, f.a + i * Math.PI * 2 / n, 260, 0.6, { r: 8 }); } return f.t < f.dur; }
+        if (f.k === 'volley') { if ((f.tick -= dt) <= 0) { f.tick = 0.09; const sh = HK(m, 'shot'), fw = 0.18 * HK(m, 'fan'); for (let i = 0; i < sh; i++) eShot(m, m.x, m.y - m.spr.h / 2, f.a + rand(-fw, fw), 520, 0.5, { r: 7 }); } return f.t < f.dur; }
         if (f.k === 'cage') { if (f.t > f.warn) { const d = Math.hypot(G.px - f.x, G.py - f.y); if (Math.abs(d - f.r) < 14 && !f.hit) { f.hit = true; pCC('stun', 1.5, m); hitPlayer(m.atk * 0.8, m.lvl, m.el, m); } } return f.t < f.warn + f.dur; }
         if (f.k === 'field') { const inside = Math.hypot(G.px - f.x, (G.py - f.y) / 0.62) < f.r;
           if (inside && (f.tick -= dt) <= 0) { f.tick = 0.5; if (f.sub === 'poison') hitPlayer(m.atk * 0.35, m.lvl, m.el, m); if (f.sub === 'swamp') pCC('slow', 1.0, m); }
@@ -1712,7 +1714,7 @@
           if (f.safe) { c.globalAlpha = 1; c.strokeStyle = '#3DDC84'; c.lineWidth = 5; c.beginPath(); c.ellipse(f.x, f.y, f.r, f.r * 0.62, 0, 0, Math.PI * 2); c.stroke(); c.font = 'bold 18px "Jua", sans-serif'; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = '#1D2340'; c.fillStyle = '#3DDC84'; c.strokeText('여기로!', f.x, f.y - 10); c.fillText('여기로!', f.x, f.y - 10); }
           if (f.shape === 'circle' && !f.safe) { c.globalAlpha = 0.6; c.fillStyle = 'rgba(255,210,63,.45)'; c.beginPath(); c.ellipse(f.x, f.y, f.r * k, f.r * 0.62 * k, 0, 0, Math.PI * 2); c.fill(); } return true; }
         if (f.k === 'cage') { const on = f.t > f.warn; c.globalAlpha = on ? 0.9 : 0.4; c.strokeStyle = '#B07AFF'; c.lineWidth = on ? 10 : 4; c.beginPath(); c.arc(f.x, f.y, f.r, 0, Math.PI * 2); c.stroke(); if (on) { c.strokeStyle = '#FFFFFF'; c.lineWidth = 2; c.stroke(); } return true; }
-        if (f.k === 'field') { const col = { poison: ['rgba(140,220,60,.32)', '#8CDC3C'], swamp: ['rgba(90,70,40,.38)', '#7A5A2A'], ice: ['rgba(154,230,255,.35)', '#9AE6FF'] }[f.sub]; const fade = Math.min(1, (f.dur - f.t) / 0.6); c.globalAlpha = fade; c.fillStyle = col[0]; c.strokeStyle = col[1]; c.lineWidth = 2; c.beginPath(); c.ellipse(f.x, f.y, f.r, f.r * 0.62, 0, 0, Math.PI * 2); c.fill(); c.stroke(); return true; }
+        if (f.k === 'field') { const col = f.sub === 'poison' && f.m && f.m.def.el === 'fire' ? ['rgba(255,110,40,.34)', '#FF8A3D'] : { poison: ['rgba(140,220,60,.32)', '#8CDC3C'], swamp: ['rgba(90,70,40,.38)', '#7A5A2A'], ice: ['rgba(154,230,255,.35)', '#9AE6FF'] }[f.sub]; /* v224 고바야카와(불) = 불길 장판 */ const fade = Math.min(1, (f.dur - f.t) / 0.6); c.globalAlpha = fade; c.fillStyle = col[0]; c.strokeStyle = col[1]; c.lineWidth = 2; c.beginPath(); c.ellipse(f.x, f.y, f.r, f.r * 0.62, 0, 0, Math.PI * 2); c.fill(); c.stroke(); return true; }
         if (f.k === 'spin') { c.globalAlpha = 0.5; c.strokeStyle = '#FFFFFF'; c.lineWidth = 4; for (let i = 0; i < 3; i++) { c.beginPath(); c.ellipse(f.m.x, f.m.y, f.r, f.r * 0.62, 0, now / 120 + i * 2.1, now / 120 + i * 2.1 + 0.9); c.stroke(); } return true; }
         if (f.k === 'phalanx' && f.ox != null) { const px = -Math.sin(f.a), py = Math.cos(f.a); for (let i = -5; i <= 5; i++) { const x = f.ox + px * i * f.L / 11, y = f.oy + py * i * f.L / 11; c.globalAlpha = 1; c.fillStyle = '#5A3A22'; c.fillRect(x - 8, y - 34, 16, 30); c.fillStyle = '#C0A060'; c.fillRect(x - 10, y - 40, 20, 8); c.strokeStyle = '#E0E8F0'; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y - 30); c.lineTo(x + Math.cos(f.a) * 34, y - 30 + Math.sin(f.a) * 34); c.stroke(); } return true; }
         if (f.k === 'orbit' && f.ox != null) { c.globalAlpha = 1; const g = c.createRadialGradient(f.ox, f.oy, 2, f.ox, f.oy, 24); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, 'rgba(255,210,63,0)'); c.fillStyle = g; c.beginPath(); c.arc(f.ox, f.oy, 24, 0, Math.PI * 2); c.fill(); return true; }
@@ -1759,8 +1761,8 @@
         if (k === 'slam') m.slam = { t: 0, x: m.x, y: m.y - 20 };
         else if (k === 'blades') m.cast = { k, t: 0, pts: Array.from({ length: (bg ? (rage ? 9 : 7) : (rage ? 7 : 5)) + (H ? 3 : 0) }, (_, i) => ({ x: G.px + (i ? rand(-120, 120) * (m.def.bladeSpread || 1) : 0), y: G.py - 20 + (i ? rand(-80, 80) * (m.def.bladeSpread || 1) : 0) })) };
         else if (k === 'charge') { const a = Math.atan2(G.py - m.y, G.px - m.x); const v = H ? 580 : 430; m.cast = { k, t: 0, a, vx: Math.cos(a) * v, vy: Math.sin(a) * v }; }   // v157 H 는 준비가 1.35배 빨라 돌진 시간이 짧으니 속도를 올림
-        else if (k === 'ring') { const n = (bg ? (rage ? 24 : 16) : (rage ? 18 : 12)) + (H ? 6 : 0); for (let i = 0; i < n; i++) bossShot(m, a0 + i / n * Math.PI * 2, H ? 230 : 190, 0.7); m.cast = { k, t: 0 }; }
-        else if (k === 'fan') { const n = (bg ? (rage ? 9 : 7) : (rage ? 7 : 5)) + (H ? 2 : 0); for (let i = 0; i < n; i++) bossShot(m, a0 + (i - (n - 1) / 2) * (H ? 0.17 : 0.2), H ? 300 : 250, 0.8); m.cast = { k, t: 0 }; }
+        else if (k === 'ring') { const n = Math.round(((bg ? (rage ? 24 : 16) : (rage ? 18 : 12)) + (H ? 6 : 0)) * HK(m, 'shot')); for (let i = 0; i < n; i++) bossShot(m, a0 + i / n * Math.PI * 2, H ? 230 : 190, 0.7); m.cast = { k, t: 0 }; }
+        else if (k === 'fan') { const n = (bg ? (rage ? 9 : 7) : (rage ? 7 : 5)) + (H ? 2 : 0); for (const o of fanA(n, H ? 0.17 : 0.2, m)) bossShot(m, a0 + o, H ? 300 : 250, 0.8); m.cast = { k, t: 0 }; }
         else if (k === 'summon') {
           const g = D.HELL.gates[(G.map.M.gate || 1) - 1];
           if (G.mons.filter(x => !x.dead && !x.boss).length < 8) for (let i = 0; i < 3; i++) { const x = makeMon(i === 2 && g.mob2 ? g.mob2 : g.mob, m.lvl - 3); x.noRespawn = true; x.x = m.x + rand(-70, 70); x.y = m.y + rand(-40, 40); x.aggro = true; G.mons.push(x); Fx.death(x.x, x.y - 20, x.def.colors, false); }
@@ -1885,12 +1887,12 @@
       const jjCuts = i => {
         const A = JJ.ARM[i], N = JJ_SOUL[i], soul = (text, wait) => ({ kind: 'say', img: 'jj_soul' + i, name: N.name, role: N.role, text, side: 'l', col: A.col, wait: wait || 3400 });
         const T = [
-          [{ kind: 'nar2', bg: 'jj_shrine0.png?v=224', col: A.col, small: '진주성 북쪽 · 충민사', big: '김시민 장군 사당', text: '왜장이 쓰러지자 사당 문이 열리고, 초록빛 넋이 조용히 모습을 드러냈다…', wait: 3000 },
+          [{ kind: 'nar2', bg: 'jj_shrine0.png?v=224', col: A.col, small: '진주성 북쪽 · 창렬사1', big: '김시민 장군 사당', text: '왜장이 쓰러지자 사당 문이 열리고, 초록빛 넋이 조용히 모습을 드러냈다…', wait: 3000 },
             { kind: 'pic', img: 'toon_jj_k1.jpg', cap: '1592년 10월, 왜군 2만 명이 진주성을 에워쌌다. 성안의 군사는 겨우 <b>3,800명</b>.', wait: 3200 },
             soul('나는 진주목사 김시민이오. 화약과 총통을 새로 만들고, 노인과 아이에게까지 군복을 입혀 군사가 많아 보이게 했지.'),
             { kind: 'pic', img: 'toon_jj_k2.jpg', fx: 'flash', sfx: '와아아!', cap: '엿새 밤낮의 싸움 끝에 왜군이 물러갔다. 한산도대첩·행주대첩과 함께 <b>임진왜란 3대첩</b>, 진주대첩이다.', wait: 3400 },
             soul('…그 싸움 끝에 나는 적의 총탄을 맞아 서른아홉에 눈을 감았소. 그대가 이 성을 다시 지켜 주겠는가? 내 <b>초록 불</b>을 가져가시오.', 3800)],
-          [{ kind: 'nar2', bg: 'jj_shrine1.png?v=224', col: A.col, small: '진주성 서쪽 · 창렬사', big: '황진 장군 사당', text: '사당 안에 푸른 불빛이 일렁이더니, 활을 든 장수의 넋이 나타났다…', wait: 3000 },
+          [{ kind: 'nar2', bg: 'jj_shrine1.png?v=224', col: A.col, small: '진주성 서쪽 · 창렬사2', big: '황진 장군 사당', text: '사당 안에 푸른 불빛이 일렁이더니, 활을 든 장수의 넋이 나타났다…', wait: 3000 },
             { kind: 'pic', img: 'toon_jj_h1.jpg', cap: '1592년, 황진은 이치 고개에서 왜군을 막아 곡창 <b>호남</b>을 지켜 냈다.', wait: 3200 },
             soul('나는 황진이오. 전쟁 전 통신사를 따라 일본에 다녀와, 그들이 쳐들어올 것을 알았지. 그날부터 좋아하던 술도 끊고 활을 갈고닦았소.'),
             { kind: 'pic', img: 'toon_jj_h2.jpg', fx: 'shake', sfx: '탕! 탕!', cap: '1593년 6월, 왜군 9만 명이 다시 진주성을 덮쳤다. 황진은 <b>9일 동안</b> 성벽 위에서 싸웠다.', wait: 3400 },
@@ -1903,7 +1905,7 @@
         return T[i];
       };
       function spawnJj(M) {
-        const k = M.jj, cx = G.map.w * TS / 2, cy = (G.map.h >> 1) * TS, mk = (def, lv, dx, dy) => { const m = makeMon(def, lv, true); m.noRespawn = true; m.x = m.hx = cx + dx; m.y = m.hy = cy + dy; return m; };
+        const k = M.jj, cx = G.map.w * TS / 2, cy = (G.map.h >> 1) * TS, mk = (def, lv, dx, dy) => { const m = makeMon(def, lv, true); m.noRespawn = true; if (def.jjHard) m.atk = Math.round(m.atk * def.jjHard.dmg);   /* v224 선생님 11/28 16:30: 피해 1.5배 */ m.x = m.hx = cx + dx; m.y = m.hy = cy + dy; return m; };
         if (k === 'gen') { const i = M.ji, g = JJ.gens[i]; if (!S.jjg[i]) { G.mons.push(mk(Object.assign({}, g), M.rec, 0, 60)); G.title = { t: 0, text: `${g.name} (Lv.${M.rec})`, sub: g.say }; G.shake = 6; say('왜장에게는 융합 마법이 통하지 않아요! 기본 마법·평타로 싸우세요', 5); } else say(`${g.name}은(는) 이미 이겼어요 · 안쪽 ${JJ.ARM[i].shrine.split(' · ')[0]}으로 가세요`, 3.5); return; }
         if (k === 'shrine') { const i = M.ji, A = JJ.ARM[i], N = JJ_SOUL[i]; G.npcs = [{ key: 'jjsoul', ai: i, def: { name: N.name, img: 'jj_soul' + i, h: [110, 110, 98][i], color: A.col, nearSay: N.nearSay, lines: [N.nearSay] }, x: cx, y: 13.6 * TS, face: 1, ph: 1, smith: true }];
           G.title = { t: 0, text: A.shrine, sub: S.jjl[i] ? `${A.clock} 등불에 ${A.colName} 불이 켜져 있어요` : `${A.hero}의 넋에게 다가가 이야기를 들어 보세요` }; return; }
@@ -2007,8 +2009,8 @@
       }
       function drawJjGround(c, now) {
         const th = G.map.jjTheme;   // v224 꾸미기: 벚꽃잎 · 민들레 홀씨 · 나비
-        if (th === 'cherry' && Math.random() < 0.55) Fx.emit({ x: G.px + rand(-520, 520), y: G.py - rand(240, 320), vx: rand(10, 45), vy: rand(30, 60), g: 4, life: 5, size: rand(2.5, 4), color: pick(['#FFC6DD', '#FFB3D1', '#FFFFFF', '#FF9CC4']) });
-        if (th === 'dandelion' && Math.random() < 0.25) Fx.emit({ x: G.px + rand(-520, 520), y: G.py + rand(-260, 260), vx: rand(15, 35), vy: rand(-20, -5), g: -2, life: 4, size: 2.5, color: '#FFFFFF' });
+        if (th === 'cherry' && Math.random() < 0.3) Fx.emit({ x: G.px + rand(-520, 520), y: G.py - rand(240, 320), vx: rand(10, 45), vy: rand(30, 60), g: 4, life: 5, size: rand(2.5, 4), color: pick(['#FFC6DD', '#FFB3D1', '#FFFFFF', '#FF9CC4']) });
+        if (th === 'dandelion' && Math.random() < 0.15) Fx.emit({ x: G.px + rand(-520, 520), y: G.py + rand(-260, 260), vx: rand(15, 35), vy: rand(-20, -5), g: -2, life: 4, size: 2.5, color: '#FFFFFF' });
         if ((th === 'dandelion' || th === 'mix') && Math.random() < 0.05) Fx.emit({ x: G.px + rand(-480, 480), y: G.py + rand(-240, 240), vx: rand(-25, 25), vy: rand(-25, 10), g: 0, life: 2.5, size: 4, color: pick(['#FFE45C', '#FF8AB0', '#9AE6FF', '#FFFFFF']) });
         G.mons.forEach(m => {
           const J = m.jd; if (!J || m.dead) return; const k = Math.min(1, J.t / JJ.castTime), pulse = 0.5 + 0.5 * Math.sin(now / 120);

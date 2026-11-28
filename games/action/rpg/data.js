@@ -814,15 +814,15 @@
     const W2 = 40, H2 = 28;
     // 갈래 3개: [사당 열쇠, 위인, 사당 이름, 등불 색, 등불 방향, 왜장]
     const ARM = [
-      { k: 'kim', hero: '김시민', shrine: '김시민 장군 사당 · 충민사', col: '#3DDC84', colName: '초록', dir: 'u', clock: '12시' },
-      { k: 'hwang', hero: '황진', shrine: '황진 장군 사당 · 창렬사', col: '#3C9BFF', colName: '파랑', dir: 'l', clock: '9시' },
+      { k: 'kim', hero: '김시민', shrine: '김시민 장군 사당 · 창렬사1', col: '#3DDC84', colName: '초록', dir: 'u', clock: '12시' },
+      { k: 'hwang', hero: '황진', shrine: '황진 장군 사당 · 창렬사2', col: '#3C9BFF', colName: '파랑', dir: 'l', clock: '9시' },
       { k: 'non', hero: '논개', shrine: '의암 주논개 사당 · 의기사', col: '#FF4A4A', colName: '빨강', dir: 'r', clock: '3시' }
     ];
     // 왜장 3명 (2차 진주성 공격에 실제로 온 장수 · 이순신 던전과 겹치지 않게)
     const GEN = [
-      ['jj_g0', '구로다 나가마사', 'dark', '#8A5AD8', '검은 투구의 구로다 나가마사가 김시민 장군의 넋을 사당에 가두었다!', ['fan', 'charge', 'volley', 'chain'], ['dark', 'earth']],
-      ['jj_g1', '깃카와 히로이에', 'water', '#3C9BFF', '깃카와 히로이에가 황진 장군의 넋 앞을 가로막는다!', ['ring', 'fan', 'spiral', 'cage'], ['water', 'wind']],
-      ['jj_g2', '고바야카와 다카카게', 'fire', '#FF8A3D', '노장 고바야카와 다카카게가 의암으로 가는 길을 막았다!', ['slam', 'blades', 'meteor', 'cross'], ['fire', 'light']]
+      ['jj_g0', '구로다 나가마사', 'dark', '#8A5AD8', '검은 투구의 구로다 나가마사가 김시민 장군의 넋을 사당에 가두었다!', ['charge', 'harpoon', 'stealth', 'chain', 'dark'], ['dark', 'earth']],
+      ['jj_g1', '깃카와 히로이에', 'water', '#3C9BFF', '깃카와 히로이에가 황진 장군의 넋 앞을 가로막는다!', ['spiral', 'boomer', 'swamp', 'ice', 'cage'], ['water', 'wind']],
+      ['jj_g2', '고바야카와 다카카게', 'fire', '#FF8A3D', '노장 고바야카와 다카카게가 의암으로 가는 길을 막았다!', ['sweep', 'spin', 'meteor', 'poison', 'shieldup'], ['fire', 'light']]
     ];
     // 엑셀 배치 (열, 행) · 행 6 = 진주(지도에만)
     const cells = [
@@ -883,11 +883,16 @@
     });
     const B = (name, img, el, light, colors, say, skills, more) => Object.assign({ name, img, h: 150, el, immune: el, light, shape: 'golem', colors, kind: 'boss', say, skills, noKnock: true, hard: true, bh: 300, aura: true, baseCol: light,
       frames: { idle: img, atk1: img + '_atk', atk2: img + '_atk', cast: img + '_cast', hit: img + '_hit', walk: [img + '_walk1', img + '_walk2'] } }, more || {});
-    const gens = GEN.map((g, i) => B(g[1], g[0], g[2], g[3], { a: g[3], b: '#1D2340', c: '#FFFFFF', d: '#FF4A3A' }, g[4], g[5], { jjGen: i, immune: g[6], noFusion: true, spdK: 1.5, aspd: 1.5 }));
+    const JJH = { shot: 2, fan: 2, range: 1.5, dmg: 1.5 };   // v224 선생님 11/28 16:30: 이순신 던전보다 어렵게 — 기술 1.5배 자주(aspd 1.5→2.25) · 투사체 2배 · 부채꼴 2배 · 범위 1.5배 · 피해 1.5배
+    const GSKN = [
+      { charge: '흑룡 돌격', harpoon: '쇠사슬 갈고리', stealth: '어둠 숨기', chain: '연쇄 폭발', dark: '검은 투구의 어둠' },
+      { spiral: '소용돌이 물살', boomer: '돌아오는 물칼', swamp: '남강 늪', ice: '얼음 바닥', cage: '물의 감옥' },
+      { sweep: '노장의 큰칼', spin: '불꽃 회오리', meteor: '불화살 비', poison: '불길 장판', shieldup: '노장의 방패' }];
+    const gens = GEN.map((g, i) => B(g[1], g[0], g[2], g[3], { a: g[3], b: '#1D2340', c: '#FFFFFF', d: '#FF4A3A' }, g[4], g[5], { jjGen: i, immune: g[6], noFusion: true, spdK: 1.5, aspd: 2.25, jjHard: JJH, skName: GSKN[i], undying: i === 2, undyT: 4 }));   // v224 선생님 11/28 16:25: 왜장 스킬 추천안 · 고바야카와는 체력 1 → 4초 무적
     // 보스: 기술 8개 = ① 총대장의 군기(체력 1 → 5초 무적, undying) ②~⑥ 아래 skills ⑦⑧ 즉사(체력 단계 · game.js jjDoom)
     const boss = B('우키타 히데이에', 'jj_boss', 'dark', '#B07AFF', { a: '#5A2A8A', b: '#1D2340', c: '#FFD23F', d: '#3CE8D8' }, '왜군 총대장 우키타 히데이에의 원령이 촉석루를 차지했다! 진주성을 다시 불태우겠다고 한다…',
       ['volley', 'meteor', 'phalanx', 'sweep', 'shadow'], { immune: null, frames: { idle: 'jj_boss', atk1: 'jj_boss_atk1', atk2: 'jj_boss_atk2', cast: 'jj_boss_cast', hit: 'jj_boss_hit', walk: ['jj_boss_walk1', 'jj_boss_walk2'] },
-        bh: 380, skCd: [0.9, 1.3], jjBoss: true, noFusion: true, spdK: 2, aspd: 1.5, noCC: true, undying: true, undyT: 5, passAll: true,
+        bh: 380, skCd: [0.9, 1.3], jjBoss: true, noFusion: true, jjHard: JJH, spdK: 2, aspd: 2.25, noCC: true, undying: true, undyT: 5, passAll: true,
         skName: { volley: '철포대 일제 사격', meteor: '대포 포격', phalanx: '창병 돌격', sweep: '비젠의 명검', shadow: '원군의 그림자' } });
     // 즉사 ① 진주성 총공격(바위 뒤) 50·30·10% · ② 세 깃발 군령(같은 색 링) 60·40·20% · 시전 4초(보스 무적)
     const DOOM = [{ at: 0.6, k: 'ring' }, { at: 0.5, k: 'wall' }, { at: 0.4, k: 'ring' }, { at: 0.3, k: 'wall' }, { at: 0.2, k: 'ring' }, { at: 0.1, k: 'wall' }];

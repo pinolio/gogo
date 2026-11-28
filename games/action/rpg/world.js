@@ -234,6 +234,7 @@
     const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 2 : t[y * w + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) t[y * w + x] = v; };
     const map = { id, M, R, w, h, t, at, set, mid: h >> 1, buildings: [], doors: [], spawns: [], exitL: null, exitR: null,
       ponds: (d.ponds || []).filter(p => POND[p.k]).map(p => ({ k: p.k, x: +p.x, y: +p.y })), dgs: (d.dungeons || []).filter(q => DUNGEON[q.k]).map(q => ({ k: q.k, x: +q.x, y: +q.y, to: String(q.to || '') })) };
+    if (M.jj && D.JJ) jjRoads(map, d.exits || {});   // v224 선생님 11/28 16:31: 진주성 길을 직각 칸 길 대신 굽은 흙길로
     addGates(map);
     // 들어설 자리: 첫 출구 → 없으면 가운데에서 가장 가까운 빈칸
     const free = (x, y) => !SOLID[at(x, y)] && !SOLID[at(x - 1, y)] && !SOLID[at(x + 1, y)];
@@ -256,6 +257,27 @@
     if (M.jj && D.JJ) jjProps(map);   // v224 진주성 던전 소품 (등불 · 사당 · 바위 방패 · 블랙홀)
     mapCache[id] = map; const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
     return map;
+  }
+  /* v224 진주성 던전 길: 출구마다 가운데(사당은 사당 앞 마당)까지 부드럽게 굽은 흙길 (마을 길과 같은 drawRoads) · 예전 직각 길 칸은 풀로 */
+  function jjRoads(map, ex) {
+    const { w, h, at, set } = map, k = map.M.jj, rnd = seeded('jjroad-' + map.id), cx = w >> 1, cy = h >> 1;
+    if (k === 'boss') return;
+    const end = k === 'shrine' ? [cx, 14.2] : [cx, cy + 0.5], roads = [], plazas = [];
+    Object.keys(ex).forEach(sd => {
+      const st = sd === 'u' ? [cx, -1] : sd === 'd' ? [cx, h + 1] : sd === 'l' ? [-1, cy + 0.5] : [w + 1, cy + 0.5];
+      const in2 = sd === 'u' ? [cx, 3] : sd === 'd' ? [cx, h - 3] : sd === 'l' ? [3, cy + 0.5] : [w - 3, cy + 0.5];
+      const pts = [st, in2], n = 3;
+      for (let i = 1; i <= n; i++) { const t2 = i / (n + 1), x = in2[0] + (end[0] - in2[0]) * t2, y = in2[1] + (end[1] - in2[1]) * t2, horiz = sd === 'l' || sd === 'r';
+        pts.push(horiz ? [x, clamp(y + (rnd() - 0.5) * 5, 4, h - 5)] : [clamp(x + (rnd() - 0.5) * 7, 4, w - 5), y]); }
+      pts.push(end); const r = { pts, w: k === 'path' ? 2.8 : 2.4, main: true }; r.d = denseCurve(pts); roads.push(r);
+    });
+    if (!roads.length) return;
+    plazas.push({ x: end[0], y: end[1], r: k === 'shrine' ? 3.2 : k === 'hub' ? 0 : 2.4 });
+    for (let ty = 1; ty < h - 1; ty++) for (let tx = 0; tx < w; tx++) {
+      const X = tx + 0.5, Y = ty + 0.5, v = at(tx, ty), on = roads.some(r => r.d.some(([a, b]) => (a - X) ** 2 + (b - Y) ** 2 <= (r.w / 2) ** 2)) || plazas.some(q => q.r && (q.x - X) ** 2 + (q.y - Y) ** 2 <= q.r ** 2);
+      if (on && [0, 1, 2, 3, 5].includes(v)) set(tx, ty, 1); else if (!on && v === 1) set(tx, ty, 0);
+    }
+    map.roads = roads; map.plazas = plazas.filter(q => q.r);
   }
   function jjProps(map) {   // v224 그림은 game.js drawObj 가 img79 로 늦게 그림 (o.jj = 종류)
     const J = D.JJ, k = map.M.jj, cx = map.w >> 1, cy = map.h >> 1, O = (o, x, y, w, h, sy) => map.objs.push(Object.assign({ img: { width: w, height: h }, x: x - w / 2, y: y - h, sy }, o));
@@ -300,6 +322,16 @@
       comps.push(cs); });
     comps.forEach((cs, i) => { const xs = cs.map(c => c[0]), ys = cs.map(c => c[1]), x0 = Math.min(...xs) * TS - 26, x1 = (Math.max(...xs) + 1) * TS + 26, y0 = Math.min(...ys) * TS - 22, y1 = (Math.max(...ys) + 1) * TS + 26;
       map.objs.push({ jj: 'deco', pond: true, im: 'jj_pond' + (1 + (i % 2)), flat: true, pw: x1 - x0, ph: y1 - y0, img: { width: x1 - x0, height: y1 - y0 }, x: x0, y: y0, sy: y0 - 200, bx: (x0 + x1) / 2, by: y1 }); });
+    // v224 렉 줄이기 (선생님 11/28 16:25): 땅에 붙은 꽃·연못은 매 장면 그리지 않고 바닥 그림(map.ground)에 한 번만 구워 넣음 (황진 사당 48 → 60fps 목표)
+    const flat = map.objs.filter(o => o.jj === 'deco' && o.flat); map.objs = map.objs.filter(o => !(o.jj === 'deco' && o.flat));
+    flat.sort((a, b) => (b.pond ? 1 : 0) - (a.pond ? 1 : 0) || a.sy - b.sy);
+    const bake = () => { const g = map.ground && map.ground.getContext('2d'); if (!g) return; let miss = null;
+      flat.forEach(o => { if (o.baked) return; const im = img79(o.im); if (!im) { miss = o.im; return; } o.baked = true; g.save(); g.imageSmoothingEnabled = true;
+        if (o.pond) g.drawImage(im, o.x, o.y, o.pw, o.ph);
+        else { const w2 = o.dw, h2 = w2 * im.height / im.width; g.translate(o.bx, o.by); if (o.flip) g.scale(-1, 1); g.drawImage(im, -w2 / 2, -h2 + 4, w2, h2); }
+        g.restore(); });
+      if (miss) img79(miss, bake); };
+    bake();
     if (false) (map.water || []).forEach(([tx, ty]) => { if (rnd() < 0.22) { const s2 = 44 + rnd() * 20, bx = tx * TS + 16 + (rnd() - 0.5) * 10, by = ty * TS + 24; map.objs.push({ jj: 'deco', im: 'jj_lotus', dw: s2, flip: rnd() < 0.5, flat: true, img: { width: s2, height: s2 }, x: bx - s2 / 2, y: by - s2, sy: ty * TS - 40, bx, by }); } });
   }
   // v150 글씨 새긴 바위 (18번 사냥터 숨은 입구 옆) — 푸른 돌 · 빛나는 새김 글씨
