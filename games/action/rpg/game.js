@@ -2067,6 +2067,15 @@
         if (Math.random() < 0.3) Fx.emit({ x: n.x + rand(-26, 26), y: n.y - rand(10, H0), vx: rand(-8, 8), vy: rand(-40, -15), g: -6, life: 1.0, size: 2.5, color: A.col });
         npcTags(c, n, top, now);
       }
+      // v227 꾸미기 그림 미리 줄여 두기 (300px 그림을 매 장면 줄여 그리면 느림 → 8px 단위 크기·좌우 뒤집기별로 한 번만 만들어 둠)
+      const DECO_C = new Map();
+      function decoBmp(name, im, dw, flip) {
+        const W = Math.max(8, Math.round(dw / 8) * 8), H = Math.round(W * im.height / im.width), k = name + '|' + W + '|' + (flip ? 1 : 0);
+        let cv = DECO_C.get(k); if (cv) return cv;
+        if (DECO_C.size > 300) DECO_C.clear();
+        cv = document.createElement('canvas'); cv.width = W; cv.height = H; const x = cv.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+        if (flip) { x.translate(W, 0); x.scale(-1, 1); } x.drawImage(im, 0, 0, W, H); DECO_C.set(k, cv); return cv;
+      }
       function drawJjObj(c, o, now) {
         const cx = o.x + o.img.width / 2, by = o.sy;
         if (o.jjGate) {   // 진주 12시 · 진주성 던전 입구
@@ -2079,9 +2088,10 @@
         if (o.jj === 'deco') {   // v224 꾸미기 나무·꽃·연꽃
           const im = img79(o.im); if (!im) return;
           if (o.pond) { c.drawImage(im, o.x, o.y, o.pw, o.ph); return; }
-          const w = o.dw, h = w * im.height / im.width, sway = o.flat ? 0 : Math.sin(now / 1400 + o.bx * 0.01) * 0.018;
+          const bm = decoBmp(o.im, im, o.dw, o.flip), w = bm.width, h = bm.height, sway = o.flat || o.still ? 0 : Math.sin(now / 1400 + o.bx * 0.01) * 0.018;   // v227 렉 줄이기: 미리 줄여 둔 그림(크기 그대로 찍기)
           if (!o.flat && !o.noSh) { c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(o.bx, o.by - 2, w * 0.3, w * 0.08, 0, 0, Math.PI * 2); c.fill(); }
-          c.save(); c.translate(o.bx, o.by); if (sway) c.transform(1, 0, sway, 1, 0, 0); if (o.flip) c.scale(-1, 1); c.drawImage(im, -w / 2, -h + 4, w, h); c.restore();
+          if (!sway) { c.drawImage(bm, Math.round(o.bx - w / 2), Math.round(o.by - h + 4)); return; }
+          c.save(); c.translate(o.bx, o.by); c.transform(1, 0, sway, 1, 0, 0); c.drawImage(bm, -w / 2, -h + 4); c.restore();
           return;
         }
         if (o.jj === 'lamp') {

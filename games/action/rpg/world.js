@@ -284,14 +284,14 @@
    *  ② 꽃밭·버섯·통나무 같은 땅에 붙은 것은 바닥 그림(map.ground)에 한 번만 구워 넣음 (매 장면 그리지 않음)
    *  ③ 마을: 우물·장독대·석등·장승·짚더미 · 나무·바위가 가로로 3칸 이어진 곳은 돌담 */
   const RDECO = [
-    { tree: [['dc_zelkova', 150], ['dc_persimmon', 120], ['dc_ginkgo', 130], ['jj_maple', 120]], rock: [], flat: [['dc_flowerbed', 96, 10], ['jj_dandelion', 60, 14]], farm: true },   // 0 의주 들판
-    { tree: [['dc_bamboo', 130], ['dc_oak', 150], ['jj_pine1', 140], ['jj_pine2', 140]], rock: [], flat: [['dc_mushroom', 80, 8], ['dc_log', 96, 4], ['dc_flowerbed', 90, 4]] },   // 1 평양 숲
+    { tree: [['dc_zelkova', 150], ['dc_persimmon', 120], ['dc_ginkgo', 130], ['jj_maple', 120]], rock: [], flat: [['jj_forsythia', 64, 10], ['jj_dandelion', 60, 14]], farm: true },   // 0 의주 들판
+    { tree: [['dc_bamboo', 130], ['dc_oak', 150], ['jj_pine1', 140], ['jj_pine2', 140]], rock: [], flat: [['dc_mushroom', 80, 8], ['dc_log', 96, 4], ['jj_dandelion', 56, 6]] },   // 1 평양 숲
     { tree: [['dc_swamptree', 140], ['jj_willow', 140]], rock: [], flat: [['dc_reed', 88, 12], ['dc_log', 96, 4]] },   // 2 한양 늪
     { tree: [['dc_desertshrub', 110], ['dc_drytree', 120]], rock: [['dc_sandpillar', 100]], flat: [] },   // 3 충주 모래
     { tree: [['dc_cliffpine', 140], ['jj_pine2', 130]], rock: [['dc_boulders', 110]], flat: [['jj_forsythia', 70, 6]] },   // 4 남원 바위산
     { tree: [['dc_snowpine', 145], ['dc_birch', 130]], rock: [['dc_icerock', 100]], flat: [] },   // 5 진주 눈
-    { tree: [['dc_glowshroom', 112]], rock: [['dc_crystal', 100]], flat: [['dc_mushroom', 76, 6]] },   // 6 통영 수정 동굴
-    { tree: [['jj_cherry1', 145], ['jj_cherry2', 145], ['dc_magnolia', 140], ['dc_cloudbush', 110]], rock: [], flat: [['dc_flowerbed', 96, 10]] },   // 7 동래 하늘 정원
+    { tree: [['dc_glowshroom', 96]], rock: [['dc_crystal', 100]], flat: [['dc_mushroom', 76, 6]] },   // 6 통영 수정 동굴
+    { tree: [['jj_cherry1', 145], ['jj_cherry2', 145], ['dc_magnolia', 140], ['dc_cloudbush', 110]], rock: [], flat: [['jj_forsythia', 64, 8], ['jj_dandelion', 56, 10]] },   // 7 동래 하늘 정원
     { tree: [['dc_charred', 130]], rock: [['dc_lavarock', 100]], flat: [] }   // 8 부산 화산
   ];
   const VPROP = [['dc_well', 100, 1], ['dc_jars', 104, 2], ['dc_lantern', 70, 3], ['dc_jangseung', 84, 1], ['dc_hay', 96, 2]];
@@ -303,7 +303,7 @@
     7: HL([['hl_tree', 130]], [['hl_stele', 90], ['hl_swordrock', 105]]), 8: HL([['hl_tree', 130]], [['hl_cauldron', 105], ['hl_stele', 90]]),
     9: HL([['dc_charred', 130], ['hl_tree', 120]], [['dc_boulders', 105]]), 10: HL([['hl_tree', 130]], [['hl_soulfire', 70], ['hl_stele', 90]]) };
   const SXX = { rock: [['sx_pillar', 90], ['sx_statue', 90], ['sx_brazier', 72]], flat: [['sx_ruinflat', 100, 6]] };
-  const YSX = { rock: [['ys_cannon', 100], ['ys_barrels', 96], ['ys_anchor', 90]], flat: [] };
+  const YSX = { rock: [['ys_cannon', 100], ['ys_barrels', 96], ['ys_anchor', 90], ['ys_wreck', 130]], flat: [['ys_seaweed', 100, 6]] };
   function regionDeco(map) {
     const M = map.M; if (!M || M.jj || (M.def && M.def.art) || (M.kind !== 'field' && M.kind !== 'village')) return;
     let T = RDECO[M.region]; if (!T) return;
@@ -320,26 +320,26 @@
       for (let ty = 2; ty < h - 2; ty++) for (let tx = 2; tx < w - 4; tx++) {
         if (!(solidAt2(tx, ty) && solidAt2(tx + 1, ty) && solidAt2(tx + 2, ty)) || ['a', 'b', 'c'].some((_, i) => drop.has((tx + i) + ',' + ty)) || rnd() > 0.35) continue;
         const os = [0, 1, 2].map(i => byTile.get((tx + i) + ',' + ty)); if (os.some(o => !o)) continue;
-        os.forEach(o => drop.add(o.tx + ',' + o.ty)); add.push(mk('dc_wall', 3 * TS + 10, tx + 1, ty, { flip: false })); tx += 3;
+        os.forEach(o => drop.add(o.tx + ',' + o.ty)); add.push(mk('dc_wall', 3 * TS + 10, tx + 1, ty, { flip: false, still: true })); tx += 3;
       }
       const cand = [...byTile.values()].filter(o => !drop.has(o.tx + ',' + o.ty) && o.tx > 3 && o.tx < w - 4 && o.ty > 2 && o.ty < h - 3).sort(() => rnd() - 0.5);
-      VPROP.forEach(([im, S, n]) => { for (let i = 0; i < n && cand.length; i++) { const o = cand.pop(); drop.add(o.tx + ',' + o.ty); add.push(mk(im, S, o.tx, o.ty)); } });
+      VPROP.forEach(([im, S, n]) => { for (let i = 0; i < n && cand.length; i++) { const o = cand.pop(); drop.add(o.tx + ',' + o.ty); add.push(mk(im, S, o.tx, o.ty, { still: true })); } });
     } else if (T.farm && rnd() < 0.6) {   // 들판에 짚더미·장승 하나씩
       const cand = [...byTile.values()].filter(o => o.tx > 4 && o.tx < w - 5 && at(o.tx, o.ty) === 3).sort(() => rnd() - 0.5);
       [['dc_hay', 96], ['dc_jangseung', 84]].forEach(([im, S]) => { const o = cand.pop(); if (o) { drop.add(o.tx + ',' + o.ty); add.push(mk(im, S, o.tx, o.ty)); } });
     }
     // ① 나무·바위 그림 바꾸기 (나무 55% · 바위 45%, 바로 옆 칸끼리는 겹치지 않게)
-    const used = [];
-    byTile.forEach(o => {
+    const used = [], cap = { 2: 55, 3: 28 }, got = { 2: 0, 3: 0 };   // v227 렉 줄이기: 한 맵에 큰 나무 그림 55개 · 바위 소품 28개까지
+    [...byTile.values()].sort(() => rnd() - 0.5).forEach(o => {   // 섞어서 고르게 (위쪽에만 몰리지 않게)
       const k = o.tx + ',' + o.ty; if (drop.has(k)) return;
-      const v = at(o.tx, o.ty), L = v === 2 ? T.tree : T.rock; if (!L.length || rnd() > (v === 2 ? 0.55 : 0.45)) return;
+      const v = at(o.tx, o.ty), L = v === 2 ? T.tree : T.rock; if (!L.length || got[v] >= cap[v] || rnd() > (v === 2 ? 0.55 : 0.45)) return; got[v]++;
       if (used.some(([a, b]) => Math.abs(a - o.tx) + Math.abs(b - o.ty) < 2)) return;
-      used.push([o.tx, o.ty]); drop.add(k); const [im, S] = pickW(L); add.push(mk(im, S * (0.85 + rnd() * 0.3), o.tx, o.ty));
+      used.push([o.tx, o.ty]); drop.add(k); const [im, S] = pickW(L); add.push(mk(im, S * (0.85 + rnd() * 0.3), o.tx, o.ty, v === 3 ? { still: true } : null));   // 바위·소품은 흔들리지 않음
     });
     map.objs = map.objs.filter(o => !(o.alt && o.tx != null && !o.sign && drop.has(o.tx + ',' + o.ty))).concat(add);
     // ② 땅에 붙은 것 → 바닥 그림에 굽기 (풀밭 칸만 · 길·물·건물 칸 제외)
     const flat = [];
-    T.flat.concat(vil ? [['dc_flowerbed', 84, 6]] : []).forEach(([im, S, n]) => { for (let i = 0, t = 0; i < n && t < n * 10; t++) {
+    T.flat.concat(vil ? [['jj_forsythia', 60, 6]] : [])   /* v227 꽃밭 그림은 작게 줄이면 흙바닥처럼 보여서 개나리·민들레 덤불로 */.forEach(([im, S, n]) => { for (let i = 0, t = 0; i < n && t < n * 10; t++) {
       const x = 3 + Math.floor(rnd() * (w - 6)), y = 3 + Math.floor(rnd() * (h - 6)); if (at(x, y) !== 0 && at(x, y) !== 5) continue;
       if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => at(x + a, y + b) === 1 || at(x + a, y + b) >= 6)) continue; i++;
       const s2 = S * (0.8 + rnd() * 0.4), bx = x * TS + 16 + (rnd() - 0.5) * 16, by = y * TS + 26; flat.push({ im, dw: s2, flip: rnd() < 0.5, bx, by }); } });
