@@ -124,13 +124,13 @@
     Object.keys(LINKS).forEach(k => { delete LINKS[k]; });
     Object.keys(mapCache).forEach(k => { delete mapCache[k]; });
     const list = [];
-    (rows || []).concat(D.SASIN && D.SASIN.on ? D.SASIN.rows : [], D.YS && D.YS.on ? D.YS.rows : []).forEach(r => {   // v172 이순신 장군님 던전(관리자만 · pub:false)   // v150 숨은 던전 '사신의 땅' 20장은 늘 함께 등록
+    (rows || []).concat(D.SASIN && D.SASIN.on ? D.SASIN.rows : [], D.YS && D.YS.on ? D.YS.rows : [], D.JJ && D.JJ.on ? D.JJ.rows : []).forEach(r => {   // v224 진주성 던전 (pub:false = 관리자만)   // v172 이순신 장군님 던전(관리자만 · pub:false)   // v150 숨은 던전 '사신의 땅' 20장은 늘 함께 등록
       const d = r && r.data, w = d && +d.w, h = d && +d.h;
       if (!d || !(w >= 20 && w <= 80 && h >= 14 && h <= 60) || !Array.isArray(d.t) || d.t.length !== w * h) return;
       if (!/^[a-z0-9_-]{2,40}$/.test(r.id) || MAPBY[r.id]) return;   // 게임에 원래 있는 맵 아이디(f1·v1…)는 덮어쓰지 않음
       // v182 선생님 11/23 11:33: 이순신 장군님 던전 공개 (예전 v174: 관리자 '파워복복'만)
       if (!d.pub && !admin) return;
-      const mo = d.mons || {}, region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1), LV = v => clamp(Math.floor(+v || 1), 1, d.ys ? 520 : d.sx ? 400 : D.MAX_LV);   /* v150 사신의 땅 Lv.150 */
+      const mo = d.mons || {}, region = clamp(Math.floor(+d.region || 0), 0, D.REGIONS.length - 1), LV = v => clamp(Math.floor(+v || 1), 1, d.jj ? 700 : d.ys ? 520 : d.sx ? 400 : D.MAX_LV);   /* v150 사신의 땅 Lv.150 */
       let list = [], boss = null, bossLv = 1;
       if (Array.isArray(mo.list)) {   // v143 몬스터마다 레벨·마릿수 (합쳐서 30마리까지)
         let left = 30;
@@ -148,7 +148,8 @@
         monList: list.map(e => ({ mon: e.mon, lv: e.lv, n: e.n, old: !!e.old })), bossMon: boss ? boss.mon : null, bossLv,
         lvMin: lvs.length ? Math.min(...lvs) : 1, dropR: first ? first.region : region, dropNo: first ? first.no : 1, def: d };
       if (d.sx) { M.sx = d.sx; M.solo = !!d.solo; M.tex = d.tex; M.rec = M.lvMin = +d.rec || M.rec; }
-      if (d.ys) { M.ys = d.ys; M.yi = d.yi; M.solo = true; M.rec = M.lvMin = +d.rec || M.rec; }   // v172 이순신 장군님 던전 (혼자 · 다른 사람 안 보임)   // v150 사신의 땅
+      if (d.ys) { M.ys = d.ys; M.yi = d.yi; M.solo = true; M.rec = M.lvMin = +d.rec || M.rec; }
+      if (d.jj) { M.jj = d.jj; M.ji = d.ji; M.solo = true; M.rec = M.lvMin = +d.rec || M.rec; }   // v224 진주성 던전 (혼자)   // v172 이순신 장군님 던전 (혼자 · 다른 사람 안 보임)   // v150 사신의 땅
       CUSTOM[M.id] = M; MAPBY[M.id] = M; list.push(M);
     });
     const add = (to, L) => { (LINKS[to] = LINKS[to] || []).push(L); };
@@ -158,7 +159,8 @@
       Object.keys(ex).forEach(s => { const T = MAPBY[ex[s]]; if (!OPP[s] || !back(T) || T.id === M.id || M.def.noBack) return; if (T.custom && (T.def.exits || {})[OPP[s]] === M.id) return; add(T.id, { side: OPP[s], to: M.id }); });
       (M.def.dungeons || []).forEach(dg => { const T = MAPBY[dg.to]; if (!back(T) || T.id === M.id) return; if (T.custom && (T.def.exits || {}).d === M.id) return; add(T.id, { side: 'd', to: M.id, dg: true }); });
     });
-    if (D.YS && MAPBY[D.YS.entry] && MAPBY[D.YS.home]) add(D.YS.home, { side: 'd', to: D.YS.entry });   // v172 통영 아래쪽 출구 → 이순신 장군님 던전 (던전이 등록된 사람 = 관리자만)
+    if (D.YS && MAPBY[D.YS.entry] && MAPBY[D.YS.home]) add(D.YS.home, { side: 'd', to: D.YS.entry });
+    if (D.JJ && MAPBY[D.JJ.entry] && MAPBY[D.JJ.home]) add(D.JJ.home, { side: 'u', to: D.JJ.entry });   // v224 진주 위쪽(12시) 출구 → 진주성 던전   // v172 통영 아래쪽 출구 → 이순신 장군님 던전 (던전이 등록된 사람 = 관리자만)
     return list.map(M => M.id);
   }
   // 가장자리 출구 자리 (칸 범위 a0~a1) · idx = 그쪽에 몇 번째로 뚫는 출구인지
@@ -251,8 +253,54 @@
       const art = () => { const im = img79(d.art); if (!im) return false; const g = map.ground.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(im, 0, 0, w * TS, h * TS); return true; };
       map.reArt = () => { if (art()) map.mini = map.ground; }; if (!art()) img79(d.art, map.reArt); else map.mini = map.ground;
     }
+    if (M.jj && D.JJ) jjProps(map);   // v224 진주성 던전 소품 (등불 · 사당 · 바위 방패 · 블랙홀)
     mapCache[id] = map; const ids = Object.keys(mapCache); if (ids.length > 4) delete mapCache[ids[0]];
     return map;
+  }
+  function jjProps(map) {   // v224 그림은 game.js drawObj 가 img79 로 늦게 그림 (o.jj = 종류)
+    const J = D.JJ, k = map.M.jj, cx = map.w >> 1, cy = map.h >> 1, O = (o, x, y, w, h, sy) => map.objs.push(Object.assign({ img: { width: w, height: h }, x: x - w / 2, y: y - h, sy }, o));
+    if (k === 'hub') {
+      J.ARM.forEach((A, i) => { const [dx, dy] = J.HUB_LAMP[A.dir], x = (cx + dx + 0.5) * TS, y = (cy + dy + 1) * TS - 4; O({ jj: 'lamp', ai: i }, x, y, 80, 150, y); });
+      O({ jj: 'hole' }, cx * TS, cy * TS + 260, 640, 820, cy * TS - 40);
+    }
+    if (k === 'shrine') { const x = cx * TS, y = 12 * TS; O({ jj: 'shrine', ai: map.M.ji }, x, y + 120, 720, 720, y - 2); map.glows.push({ x, y: y - 60, r: 120, col: J.ARM[map.M.ji].col }); }
+    if (k === 'boss') J.BOSS_ROCK.forEach(([dx, dy], i) => { const x = (cx + dx) * TS, y = (cy + dy + 1) * TS; O({ jj: 'rock', ri: i }, x, y + 6, 112, 112, y - 2); });
+    jjDeco(map);
+  }
+  /* v224 진주성 던전 꾸미기 (선생님 11/28): 나무 칸 일부를 큰 Gemini 나무로 · 꽃 · 연꽃
+   *  김시민 사당 = 소나무 숲 · 논개 사당 = 벚꽃 숲(꽃잎이 날림) · 황진 사당 = 민들레 꽃밭 · 그 밖 = 소나무·단풍·벚꽃·버드나무(물가)·개나리 */
+  function jjDeco(map) {
+    const k = map.M.jj, ji = map.M.ji, rnd = seeded('jjdeco-' + map.id), { w, h, at } = map, cx = w >> 1, cy = h >> 1;
+    const theme = k === 'shrine' ? ['pine', 'dandelion', 'cherry'][ji] : 'mix';
+    map.jjTheme = theme;
+    const nearWater = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2]].some(([a, b]) => at(x + a, y + b) === 4);
+    const TREE = { pine: ['jj_pine1', 'jj_pine2'], cherry: ['jj_cherry1', 'jj_cherry2'], maple: ['jj_maple'], willow: ['jj_willow'] };
+    const SIZE = { pine: 150, cherry: 150, maple: 128, willow: 150 };
+    const pickTree = (x, y) => { if (theme === 'pine') return rnd() < 0.9 ? 'pine' : 'maple'; if (theme === 'cherry') return rnd() < 0.88 ? 'cherry' : 'willow'; if (theme === 'dandelion') return rnd() < 0.5 ? 'maple' : 'cherry';
+      if (nearWater(x, y) && rnd() < 0.6) return 'willow'; const r = rnd(); return r < 0.38 ? 'pine' : r < 0.62 ? 'maple' : r < 0.86 ? 'cherry' : 'willow'; };
+    const keep = [], used = [];
+    map.objs = map.objs.filter(o => {
+      if (o.tx == null || at(o.tx, o.ty) !== 2) return true;
+      if (used.some(([a, b]) => Math.abs(a - o.tx) + Math.abs(b - o.ty) < 2) || rnd() < 0.18) return true;   // 빈틈은 작은 나무 그대로
+      used.push([o.tx, o.ty]); const t = pickTree(o.tx, o.ty), S = SIZE[t] * (0.85 + rnd() * 0.3), x = o.tx * TS + 16 + (rnd() - 0.5) * 10, y = (o.ty + 1) * TS - 2;
+      keep.push({ jj: 'deco', im: TREE[t][Math.floor(rnd() * TREE[t].length)], dw: S, flip: rnd() < 0.5, img: { width: S, height: S }, x: x - S / 2, y: y - S, sy: y, bx: x, by: y });
+      return false;
+    });
+    map.objs.push(...keep);
+    // 꽃 (밟고 지나갈 수 있음) · 연꽃 (물 위)
+    const grass = (x, y) => (at(x, y) === 0 || at(x, y) === 5) && !(Math.abs(x - cx) < 2 && Math.abs(y - cy) < 2);
+    const nFlower = theme === 'dandelion' ? 170 : theme === 'mix' ? 16 : 8, nBush = theme === 'dandelion' ? 6 : theme === 'mix' ? 6 : 3;
+    const put = (im, n, S) => { for (let i = 0, t = 0; i < n && t < n * 8; t++) { const x = 2 + Math.floor(rnd() * (w - 4)), y = 2 + Math.floor(rnd() * (h - 4)); if (!grass(x, y)) continue; if (theme === 'dandelion' && im === 'jj_dandelion' && Math.hypot(x - cx, (y - 12) * 1.3) < 4.5) continue; i++;
+      const s2 = S * (0.8 + rnd() * 0.4), bx = x * TS + rnd() * TS, by = y * TS + 10 + rnd() * 20; map.objs.push({ jj: 'deco', im, dw: s2, flip: rnd() < 0.5, flat: true, img: { width: s2, height: s2 }, x: bx - s2 / 2, y: by - s2, sy: by - 30, bx, by }); } };
+    put('jj_dandelion', nFlower, theme === 'dandelion' ? 86 : 60); put('jj_forsythia', nBush, 70);
+    // 연못: 물 칸 덩어리마다 Gemini 연못 그림을 덮어 둥글게 (돌 테두리 · 연꽃 · 잉어)
+    const seen = new Set(), comps = [];
+    (map.water || []).forEach(([tx, ty]) => { const k0 = ty * w + tx; if (seen.has(k0)) return; const q = [[tx, ty]], cs = []; seen.add(k0);
+      while (q.length) { const [x, y] = q.pop(); cs.push([x, y]); [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([a, b]) => { const X = x + a, Y = y + b, kk = Y * w + X; if (!seen.has(kk) && at(X, Y) === 4) { seen.add(kk); q.push([X, Y]); } }); }
+      comps.push(cs); });
+    comps.forEach((cs, i) => { const xs = cs.map(c => c[0]), ys = cs.map(c => c[1]), x0 = Math.min(...xs) * TS - 26, x1 = (Math.max(...xs) + 1) * TS + 26, y0 = Math.min(...ys) * TS - 22, y1 = (Math.max(...ys) + 1) * TS + 26;
+      map.objs.push({ jj: 'deco', pond: true, im: 'jj_pond' + (1 + (i % 2)), flat: true, pw: x1 - x0, ph: y1 - y0, img: { width: x1 - x0, height: y1 - y0 }, x: x0, y: y0, sy: y0 - 200, bx: (x0 + x1) / 2, by: y1 }); });
+    if (false) (map.water || []).forEach(([tx, ty]) => { if (rnd() < 0.22) { const s2 = 44 + rnd() * 20, bx = tx * TS + 16 + (rnd() - 0.5) * 10, by = ty * TS + 24; map.objs.push({ jj: 'deco', im: 'jj_lotus', dw: s2, flip: rnd() < 0.5, flat: true, img: { width: s2, height: s2 }, x: bx - s2 / 2, y: by - s2, sy: ty * TS - 40, bx, by }); } });
   }
   // v150 글씨 새긴 바위 (18번 사냥터 숨은 입구 옆) — 푸른 돌 · 빛나는 새김 글씨
   let rockC = null;
@@ -341,6 +389,7 @@
       for (let y = R.castle ? mid + 2 : fy0 + 3; y <= st.y + st.h; y++) set(st.path, y, 1);
       for (let x = Math.min(st.path, st.x); x <= Math.max(st.path, st.x + st.w - 1); x++) set(x, st.y + st.h, 1);
       map.station = st;
+      if (D.JJ && M.id === D.JJ.home && MAPBY[D.JJ.entry]) map.jjGate = { x: (w >> 1) * TS, y: 3.6 * TS };   // v224 진주성 던전 입구 (12시 · 성문 그림)
       if (ysHome && MAPBY[D.YS.entry]) { const gx = (w >> 1) + 3.6; map.ysSign = { x: (gx + 1) * TS, y: (h - 2.6) * TS }; }   // v174 이순신 던전 푯말 (아래쪽 입구 오른쪽)
       villageRoads(map, rnd);   // v109 직각 길 → 부드럽게 굽은 흙길·마당·디딤돌 (칸도 새 길 모양에 맞춤)
       armyCamp(map, rnd);   // v80 임진왜란 진영 꾸미기 (천막·대포·깃발 + 조선 병사 · 다친 병사)
@@ -519,6 +568,7 @@
     if (map.station) { const t = map.station; mark(t.x - 1, t.y - 4, t.x + t.w, t.y + t.h); }
     if (map.fx != null) mark(map.fx - 2, map.fy - 3, map.fx + 3, map.fy + 2);
     if (map.ysSign) mark(map.ysSign.x / TS - 3, map.ysSign.y / TS - 3, map.ysSign.x / TS + 3, map.ysSign.y / TS + 1);
+    if (map.jjGate) mark(map.jjGate.x / TS - 5, 0, map.jjGate.x / TS + 5, map.jjGate.y / TS + 2);
     if (D.SASIN && D.SASIN.on && map.M.id === D.SASIN.gateMap) mark((w >> 1) - 6, 0, (w >> 1) + 5, 9);   // v188 광개토대왕 던전 입구 자리 (평양 12시 방향)
     (map.props || []).forEach(q => { const ww = q.pw / TS; mark(q.x + q.fw / 2 - ww / 2, q.y + q.fh - ww * 0.8, q.x + q.fw / 2 + ww / 2, q.y + q.fh); });   // 진영 소품 · 명소 그림
     const fits = (x0, y0, H0) => {
@@ -925,7 +975,7 @@
     const TX = texOf(map), NEED = TX.concat((map.ponds || []).map(p => p.k), (map.dgs || []).map(d => d.k), LAVA_ART && map.M.hell ? POOL_ART[poolKind(map, texOf(map)[2])].slice(0, 2) : []), ok = NEED.every(n => img79(n)), pat = ok ? TX.map(n => x.createPattern(img79(n), 'repeat')) : null;
     if (!ok && !map.texWait) {   // v82 고침: 이미 받은 그림은 기다릴 수에서 빼야 함 (전에는 하나라도 먼저 받아져 있으면 영영 다시 안 그렸음)
       map.texWait = true; const need = NEED.filter(n => !img79(n)); let left = need.length;
-      const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) { map.ground = paintGround(map); if (map.reArt) map.reArt(); } };
+      const done = () => { if (--left > 0) return; map.texWait = false; if (mapCache[map.id] === map) { map.ground = paintGround(map); if (map.M.jj && D.JJ) jjProps(map); if (map.reArt) map.reArt(); } };   // v224 다시 그리면 진주성 소품도 다시
       need.forEach(n => img79(n, done));
     }
     if (ok) {   // 1) 땅 = 재질 무늬 + 큰 얼룩(밝게·어둡게)으로 단조로움 깨기
@@ -1032,6 +1082,7 @@
       x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(st.x * TS - 4, (st.y + st.h) * TS - 10, st.w * TS + 8, 12);
       map.objs.push({ station: st, img: { width: st.w * TS, height: 120 }, x: st.x * TS, y: (st.y + st.h) * TS - 120, sy: (st.y + st.h) * TS - 1 });
     }
+    if (map.jjGate) { const g = map.jjGate; map.objs.push({ jjGate: true, img: { width: 260, height: 170 }, x: g.x - 130, y: g.y - 160, sy: 2.2 * TS }); }
     if (map.ysSign) { const sg = map.ysSign; map.objs.push({ ysSign: true, img: { width: 152, height: 92 }, x: sg.x - 76, y: sg.y - 90, sy: sg.y }); map.glows.push({ x: sg.x, y: sg.y - 70, r: 110, col: '#FFD8A0' }); }   // v174 그림은 game.js drawObj
     (map.props || []).forEach(p => {   // v80 진영 소품 (Meshy) — 그림 폭 pw 에 맞춰 칸 아래 가운데에 세움
       const cx0 = (p.x + p.fw / 2) * TS, by = (p.y + p.fh) * TS + 2;

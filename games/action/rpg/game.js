@@ -77,7 +77,7 @@
     return id;
   }
   function rollOpts(t, n) {   // 단계 t(0~9) 장비에 옵션 n개
-    const keys = Object.keys(OPTS), out = [];
+    const keys = Object.keys(OPTS).filter(k => !OPTS[k].special), out = [];   // v224 특별 옵션(불사)은 무작위로 안 붙음
     while (out.length < n) {
       const q = pick(keys); if (out.some(o => o[0] === q)) continue;
       const neg = out.length > 0 && Math.random() < 0.35, v = Math.max(0.1, r1(OPTS[q].max * (0.25 + 0.75 * t / 9) * rand(0.2, 1) * (neg ? rand(0.5, 1) : 1)));   // v84 폭 키움
@@ -86,7 +86,7 @@
     return out;
   }
   function optCount(rare, boss, legend) { if (legend) return 4; const r = Math.random(); let n = r < 0.45 ? 1 : r < 0.8 ? 2 : r < 0.95 ? 3 : 4; if (rare) n++; if (boss) n++; return Math.min(4, n); }
-  const optTxt = o => `${OPTS[o[0]].name} ${o[1] > 0 ? '+' : '−'}${Math.abs(o[1])}%`;
+  const optTxt = o => OPTS[o[0]].txt ? OPTS[o[0]].txt(o[1]) : `${OPTS[o[0]].name} ${o[1] > 0 ? '+' : '−'}${Math.abs(o[1])}%`;
   /* v68 상점에 파는 값 (숫자는 data.js SELL): 장비 = (10 + 착용 레벨×3) × 등급 배수 + 강화에 쓴 골드의 30% · 그 밖의 물건 = 산 값의 40% */
   const SELL = D.SELL;
   const enhSpent = en => { let t = 0; for (let i = 0; i < (en || 0); i++) t += ENH.cost(i); return t; };
@@ -108,7 +108,7 @@
       inv: [{ id: 'hp1', n: 5 }, { id: 'mp1', n: 3 }, { id: 'scroll', n: 1 }], store: [], eq: {}, gear: {}, hide: false,
       stat: { str: 0, dex: 0, int: 0, vit: 0, res: 0 }, statV: 2, sp: 0, skills: ['magicarrow'], slots: ['magicarrow', null, null, null], fslots: [null, null, null, null], alt: { s: [null, null, null, null], f: [null, null, null, null] }, setNo: 1, visited: ['v1'], play: 0, kills: 0, bosses: {}, help: false, savedAt: 0, reb: 0, rebReady: false, toonSeen: [], dpsBest: 0 };
     s.pets = []; s.petOn = ''; s.petOpen = { hero: 0, legend: 0 }; s.petCd = {};   // v213 petCd = 전설 펫 특수 능력 다시 쓸 수 있는 때(ms)
-    s.sasin = { cr: 0, jj: 0, bh: 0, hm: 0 }; s.sasinAll = 0; s.ysp = [0, 0, 0, 0, 0, 0, 0, 0, 0]; s.ysMural = 0; s.ysAll = 0;   // v172 이순신 장군님 던전: 벽화 조각 9 · 벽화 완성 · 왜장 회합을 깸
+    s.sasin = { cr: 0, jj: 0, bh: 0, hm: 0 }; s.sasinAll = 0; s.ysp = [0, 0, 0, 0, 0, 0, 0, 0, 0]; s.ysMural = 0; s.ysAll = 0; s.jjg = [0, 0, 0]; s.jjl = [0, 0, 0];   /* v224 진주성 던전: 이긴 왜장 · 켠 등불 */   // v172 이순신 장군님 던전: 벽화 조각 9 · 벽화 완성 · 왜장 회합을 깸
       // v150 사신의 땅: 이긴 사방신(불) · 사방신 모두 방을 깸   // v149 펫: [{u, id, en}] · 데리고 다니는 펫 u · 열린 등급
     return s;
   }
@@ -168,6 +168,7 @@
     s.kingAt = +s.kingAt || (s.petOpen.legend ? Date.now() : 0);   // v158 광개토대왕을 처음 이긴 때(ms) — 예전에 이긴 사람(전설 펫 열림)은 지금 시각으로 · 메인 카드 '광개토대왕 최초 토벌자'
     const sa = s.sasin && typeof s.sasin === 'object' ? s.sasin : {}; s.sasin = {}; D.SASIN.gods.forEach(k => { s.sasin[k] = sa[k] ? 1 : 0; }); s.sasinAll = s.sasinAll ? 1 : 0;
     const yp = Array.isArray(s.ysp) ? s.ysp : []; s.ysp = [0, 0, 0, 0, 0, 0, 0, 0, 0].map((_, i) => yp[i] ? 1 : 0); s.ysMural = s.ysMural ? 1 : 0; s.ysAll = s.ysAll ? 1 : 0;   // v172
+    { const g = Array.isArray(s.jjg) ? s.jjg : [], l = Array.isArray(s.jjl) ? s.jjl : []; s.jjg = [0, 1, 2].map(i => g[i] ? 1 : 0); s.jjl = [0, 1, 2].map(i => l[i] ? 1 : 0); s.jjWin = +s.jjWin || 0; s.jjAt = +s.jjAt || 0; s.undyAt = +s.undyAt || 0; }   // v224
     s.title = (D.TITLES || []).some(t => t.id === s.title) ? s.title : '';   // v176 고른 타이틀
     const bw = s.bossWon && typeof s.bossWon === 'object' ? s.bossWon : {}; s.bossWon = {}; Object.keys(bw).slice(0, 400).forEach(k => { if (k.length <= 40) s.bossWon[k] = clamp(Math.floor(+bw[k] || 1), 1, 600); });   // v174 이긴 보스 (Skillcom Fight 보스 도전)
     const total = (s.lv - 1) * (CFG.statPerLevel || 2) + s.reb * D.REBIRTH.bonus, used = D.STAT.keys.reduce((a, k) => a + s.stat[k], 0);
@@ -825,7 +826,7 @@
         const st = {}, o = q => opt[q] || 0; Object.keys(base).forEach(k => { st[k] = base[k] + (sta[k] || 0) + (gear[k] || 0); });
         st.atk *= 1 + o('atkP') / 100; st.mag *= 1 + o('magP') / 100; st.hp *= 1 + o('hpP') / 100; st.mp *= 1 + o('mpP') / 100;
         st.spd = Math.min(T.spdMax || 100, r1(st.spd + o('spdP')));   /* v149 이동 속도 최대 +100% */ st.crit = r1(st.crit + o('crit')); st.dmg = r1(st.dmg + o('dmg')); st.mpRegen = r1(st.mpRegen + o('mpReg'));
-        st.goldP = o('goldP'); st.expP = o('expP'); st.critD = T.critDmg + o('critD') / 100;
+        st.goldP = o('goldP'); st.expP = o('expP'); st.undy = o('undy');   // v224 진주성의 무한 갑옷 st.critD = T.critDmg + o('critD') / 100;
         const cap = v => clamp(r1(v), -50, T.defCap);
         st.pdef = cap(st.pdef + o('pdef')); st.edefs = {}; Object.keys(ELEM).forEach(e => { st.edefs[e] = cap(st.edef + o('e_all') + o('e_' + e)); });
         ['atk', 'mag', 'def', 'hp', 'mp'].forEach(k => { st[k] = Math.max(1, Math.round(st[k])); });
@@ -1435,6 +1436,7 @@
           G.npcs = [{ key: 'ysmural', def: D.YS.frame, mural: true, x: fx0, y: fy0, face: -1, ph: 1, smith: true }];
           if (!G.map.ysFrameGlow) { G.map.ysFrameGlow = 1; G.map.glows.push({ x: fx0 - 116, y: fy0 - 62, r: 90, col: '#FFB050' }, { x: fx0 + 116, y: fy0 - 62, r: 90, col: '#FFB050' }, { x: fx0, y: fy0 - 120, r: 170, col: '#FFE9A0' }); }
         }   // v174 빈 벽화 틀 (퍼즐)
+        if (M.jj && M.jj !== 'path') return spawnJj(M);   // v224 진주성 던전
         if (M.ys && M.ys !== 'path') return spawnYs(M);   // v172 이순신 장군님 던전 장수·회합·본진·어귀   // v150 사신의 땅 보스 방 · 어귀
         if (M.custom) {   // v134 특별 지역: 메이커에서 고른 몬스터 · 레벨 · 마릿수 (+ 보스) · v143 몬스터마다 레벨 따로
           if (M.bossMon) G.mons.push(makeMon(M.bossMon, M.bossLv, true));
@@ -1751,7 +1753,7 @@
         if (pool.length > 1 && m.lastSk) pool = pool.filter(q => q !== m.lastSk);
         const k = pick(pool); m.lastSk = k; m.skCd = m.def.skCd ? rand(m.def.skCd[0], m.def.skCd[1]) : H ? rand(1.1, 1.6) : rand(2.0, 2.8);   // v173 쿨타임 3.2~4.4→2.0~2.8 · 1.5~2.2→1.1~1.6
         if (hpK < 0.3 && Math.random() < 0.4) m.skCd = Math.min(m.skCd, 0.45);
-        float(m.x, m.y - m.spr.h - 26, (rage ? '분노! ' : '') + (SKILL_NAME[k] || k), '#FF8A8E', true);
+        float(m.x, m.y - m.spr.h - 26, (rage ? '분노! ' : '') + ((m.def.skName && m.def.skName[k]) || SKILL_NAME[k] || k), '#FF8A8E', true);
         const a0 = Math.atan2(G.py - 24 - (m.y - m.spr.h / 2), G.px - m.x), bg = BIG(m);
         if (newSkill(m, k, a0)) return;
         if (k === 'slam') m.slam = { t: 0, x: m.x, y: m.y - 20 };
@@ -1870,6 +1872,269 @@
         G.title = { t: 0, text: `${SX.godName[g]}을(를) 이겼다!`, sub: `광개토대왕 던전 어귀 문에 ${SX.godName[g]}의 불이 켜졌어요 (${n}/4)` }; G.flash = 0.45;
         if (n === 4 && !S.petOpen.hero) { S.petOpen.hero = 1; setTimeout(() => say('사방신을 모두 이겼어요! 이장 댁 펫 뽑기에 「영웅」(청룡·주작·백호·현무)이 열렸어요', 5), 2500); }
         save(true);
+      }
+      /* ================= v224 진주성 던전 (선생님 11/27) =================
+       *  왜장(S.jjg) → 사당의 넋과 이야기(웹툰) → 등불(S.jjl) · 셋 = 촉석루 앞 마당 블랙홀 → 우키타 히데이에
+       *  즉사 ① 진주성 총공격(50·30·10%): 보스-바위-나 일직선이면 삶 · ② 세 깃발 군령(60·40·20%): 머리 위 링 색과 같은 땅 링 안이면 삶 · 시전 4초(보스 무적) · 갑옷 불사도 뚫음 */
+      const JJ = D.JJ, jjAdm = () => !!(JJ && Hub.user && JJ.only.includes(Hub.user.nickname));   // 지도 칸은 관리자에게만 등록됨(pub:false) + 닉네임 '파워복복'만
+      const jjLit = () => (S.jjl || []).filter(Boolean).length;
+      const JJ_SOUL = [
+        { name: '김시민 장군의 넋', role: '진주목사 · 1차 진주성 전투', nearSay: '진주성을… 다시 지켜 주겠는가?' },
+        { name: '황진 장군의 넋', role: '충청병사 · 2차 진주성 전투', nearSay: '성벽 위의 활시위가 아직 떨리는구나…' },
+        { name: '의암 주논개의 넋', role: '남강 의암의 넋', nearSay: '남강 물소리가 들리시오…?' }];
+      const jjCuts = i => {
+        const A = JJ.ARM[i], N = JJ_SOUL[i], soul = (text, wait) => ({ kind: 'say', img: 'jj_soul' + i, name: N.name, role: N.role, text, side: 'l', col: A.col, wait: wait || 3400 });
+        const T = [
+          [{ kind: 'nar2', bg: 'jj_shrine0.png?v=224', col: A.col, small: '진주성 북쪽 · 충민사', big: '김시민 장군 사당', text: '왜장이 쓰러지자 사당 문이 열리고, 초록빛 넋이 조용히 모습을 드러냈다…', wait: 3000 },
+            { kind: 'pic', img: 'toon_jj_k1.jpg', cap: '1592년 10월, 왜군 2만 명이 진주성을 에워쌌다. 성안의 군사는 겨우 <b>3,800명</b>.', wait: 3200 },
+            soul('나는 진주목사 김시민이오. 화약과 총통을 새로 만들고, 노인과 아이에게까지 군복을 입혀 군사가 많아 보이게 했지.'),
+            { kind: 'pic', img: 'toon_jj_k2.jpg', fx: 'flash', sfx: '와아아!', cap: '엿새 밤낮의 싸움 끝에 왜군이 물러갔다. 한산도대첩·행주대첩과 함께 <b>임진왜란 3대첩</b>, 진주대첩이다.', wait: 3400 },
+            soul('…그 싸움 끝에 나는 적의 총탄을 맞아 서른아홉에 눈을 감았소. 그대가 이 성을 다시 지켜 주겠는가? 내 <b>초록 불</b>을 가져가시오.', 3800)],
+          [{ kind: 'nar2', bg: 'jj_shrine1.png?v=224', col: A.col, small: '진주성 서쪽 · 창렬사', big: '황진 장군 사당', text: '사당 안에 푸른 불빛이 일렁이더니, 활을 든 장수의 넋이 나타났다…', wait: 3000 },
+            { kind: 'pic', img: 'toon_jj_h1.jpg', cap: '1592년, 황진은 이치 고개에서 왜군을 막아 곡창 <b>호남</b>을 지켜 냈다.', wait: 3200 },
+            soul('나는 황진이오. 전쟁 전 통신사를 따라 일본에 다녀와, 그들이 쳐들어올 것을 알았지. 그날부터 좋아하던 술도 끊고 활을 갈고닦았소.'),
+            { kind: 'pic', img: 'toon_jj_h2.jpg', fx: 'shake', sfx: '탕! 탕!', cap: '1593년 6월, 왜군 9만 명이 다시 진주성을 덮쳤다. 황진은 <b>9일 동안</b> 성벽 위에서 싸웠다.', wait: 3400 },
+            soul('…끝내 적의 총탄에 쓰러졌으나 후회는 없소. 이 <b>파란 불</b>로 촉석루의 원령을 몰아내 주시오.', 3800)],
+          [{ kind: 'nar2', bg: 'jj_shrine2.png?v=224', col: A.col, small: '촉석루 곁 · 의기사', big: '의암 주논개 사당', text: '남강 물소리 사이로, 붉은 가락지를 낀 넋이 고요히 다가왔다…', wait: 3000 },
+            { kind: 'pic', img: 'toon_jj_n1.jpg', cap: '1593년 6월, 진주성이 무너졌다. 왜군은 촉석루에서 이긴 것을 자축하는 잔치를 벌였다.', wait: 3200 },
+            soul('나는 논개라 하오. 성과 함께 스러진 이들을 생각하며, 나는 남강 바위 위에 섰다오.'),
+            { kind: 'pic', img: 'toon_jj_n2.jpg', cap: '논개는 왜장을 끌어안고 남강으로 몸을 던졌다고 전해진다. 사람들은 그 바위를 <b>의암(義巖)</b>이라 불렀다.', wait: 3600 },
+            soul('진주를 위해 싸워 준 그대에게 내 <b>붉은 불</b>을 맡기겠소.', 3600)]];
+        return T[i];
+      };
+      function spawnJj(M) {
+        const k = M.jj, cx = G.map.w * TS / 2, cy = (G.map.h >> 1) * TS, mk = (def, lv, dx, dy) => { const m = makeMon(def, lv, true); m.noRespawn = true; m.x = m.hx = cx + dx; m.y = m.hy = cy + dy; return m; };
+        if (k === 'gen') { const i = M.ji, g = JJ.gens[i]; if (!S.jjg[i]) { G.mons.push(mk(Object.assign({}, g), M.rec, 0, 60)); G.title = { t: 0, text: `${g.name} (Lv.${M.rec})`, sub: g.say }; G.shake = 6; say('왜장에게는 융합 마법이 통하지 않아요! 기본 마법·평타로 싸우세요', 5); } else say(`${g.name}은(는) 이미 이겼어요 · 안쪽 ${JJ.ARM[i].shrine.split(' · ')[0]}으로 가세요`, 3.5); return; }
+        if (k === 'shrine') { const i = M.ji, A = JJ.ARM[i], N = JJ_SOUL[i]; G.npcs = [{ key: 'jjsoul', ai: i, def: { name: N.name, img: 'jj_soul' + i, h: [110, 110, 98][i], color: A.col, nearSay: N.nearSay, lines: [N.nearSay] }, x: cx, y: 13.6 * TS, face: 1, ph: 1, smith: true }];
+          G.title = { t: 0, text: A.shrine, sub: S.jjl[i] ? `${A.clock} 등불에 ${A.colName} 불이 켜져 있어요` : `${A.hero}의 넋에게 다가가 이야기를 들어 보세요` }; return; }
+        if (k === 'hub') { const n = jjLit(); G.title = { t: 0, text: '촉석루 앞 마당', sub: n === 3 ? '등불 셋이 모두 켜졌다! 마당 한가운데 블랙홀로 들어가세요' : `켜진 등불 ${n}/3 · 북(김시민·초록) · 서(황진·파랑) · 동(논개·빨강)` }; return; }
+        if (k === 'boss') {
+          if (jjLit() < 3) { say('등불 셋이 켜지지 않아 본진이 닫혀 있어요', 3); setTimeout(() => enter(JJ.hub, { from: JJ.bossMap }), 300); return; }
+          G.px = cx; G.py = (G.map.h - 4) * TS;
+          const m = mk(Object.assign({}, JJ.boss), JJ.lv.boss, 0, -5 * TS); m.aggro = true; G.mons.push(m);
+          G.title = { t: 0, text: `${JJ.boss.name} (Lv.${JJ.lv.boss})`, sub: '체력 60·40·20% = 같은 색 링으로 · 50·30·10% = 바위 뒤에 숨기' }; say('우키타에게는 융합 마법이 통하지 않아요! 기본 마법·평타로 싸우세요', 5); G.shake = 12; G.flash = 0.4;
+          if (toonEl) setTimeout(() => { if (G.map && G.map.M.jj === 'boss') showToon([
+            { kind: 'say', img: 'jj_boss', name: '우키타 히데이에', role: '왜군 총대장의 원령', text: '나는 우키타 히데이에, 조선을 침략한 총대장이다! 진주성은 다시 내 것이다. 세 넋의 불 따위로 나를 막을 수 있을 것 같으냐!', side: 'l', king: true, col: '#B07AFF', wait: 3600 },
+            { kind: 'say', img: 'jj_soul1', name: '황진 장군의 넋', role: '파란 불', text: '체력이 <b>60·40·20%</b>가 되면 놈의 머리 위에 색 링이 뜰 것이오. <b>같은 색 링</b> 안으로 피하시오!', side: 'r', col: JJ.ARM[1].col, wait: 3400 },
+            { kind: 'say', img: 'jj_soul0', name: '김시민 장군의 넋', role: '초록 불', text: '<b>50·30·10%</b>에는 성 전체를 휩쓰는 총공격이 오오. 놈과 나 사이에 <b>바위</b>가 오도록 숨으시오!', side: 'l', col: JJ.ARM[0].col, wait: 3400 }
+          ], { title: '🏯 촉석루 본진', go: '⚔ 싸우기', auto: 5000 }); }, 700);
+        }
+      }
+      function jjBlock(to) {
+        const T = MAPBY[to]; if (!T || !T.jj) return '';
+        if (!jjAdm()) return '진주성 던전은 아직 준비 중이에요';
+        if ((S.reb || 0) < (JJ.minReb || 5)) return `진주성 던전은 환생 ${JJ.minReb || 5}번 이상부터 들어갈 수 있어요 (지금 환생 ${S.reb || 0}번)`;   // v224 선생님 11/28 15:56
+        if (T.jj === 'shrine' && !S.jjg[T.ji]) return `${JJ.gens[T.ji].name}을(를) 이겨야 ${JJ.ARM[T.ji].shrine.split(' · ')[0]}에 들어갈 수 있어요`;
+        return '';
+      }
+      function jjSoulTalk(n) {
+        const i = n.ai, A = JJ.ARM[i];
+        if (S.jjl[i]) { n.say = `${A.clock} 등불의 ${A.colName} 불이 그대를 지켜 줄 것이오.`; n.sayT = 3; return; }
+        showToon(jjCuts(i), { title: `🏯 ${A.shrine}`, go: `🔥 ${A.colName} 불 받기`, done: () => {
+          if (S.jjl[i]) return; S.jjl[i] = 1; save(true); const c = jjLit();
+          G.title = { t: 0, text: `${A.clock} 등불에 ${A.colName} 불이 켜졌다!`, sub: c === 3 ? '등불 셋이 모두 켜졌다! 촉석루 앞 마당 한가운데에 블랙홀이 열렸어요' : `켜진 등불 ${c}/3 · 촉석루 앞 마당으로 돌아가 보세요` };
+          G.flash = 0.45; Fx.burst(n.x, n.y - 50, 40, Fx.pal(i === 0 ? 'wind' : i === 1 ? 'water' : 'fire'), { min: 60, max: 200, shape: 'star', lmin: 0.5, lmax: 1.1 }); } });
+      }
+      function jjHole(map) {   // 블랙홀 가운데 = 마당 한가운데
+        if (jjLit() < 3 || G.dead) return false;
+        const hx = (map.w >> 1) * TS, hy = (map.h >> 1) * TS;
+        if (Math.hypot(G.px - hx, (G.py - hy) / 0.62) < 70) { G.flash = 0.6; enter(JJ.bossMap, { from: JJ.hub }); return true; }
+        if (Math.hypot(G.px - hx, G.py - hy) < 160 && Math.random() < 0.3) Fx.emit({ x: G.px + rand(-14, 14), y: G.py - rand(0, 40), vx: (hx - G.px) * 1.2, vy: (hy - G.py) * 1.2, life: 0.5, size: 2.5, color: pick(['#B07AFF', '#3CE8D8', '#FFFFFF']), g: 0 });
+        return false;
+      }
+      function jjKill(m) {
+        const d = m.def;
+        if (d.jjGen != null) { const i = d.jjGen; if (!S.jjg[i]) { S.jjg[i] = 1; G.title = { t: 0, text: `${d.name}을(를) 이겼다!`, sub: `${JJ.ARM[i].shrine.split(' · ')[0]}의 문이 열렸다 · 안쪽으로 가서 ${JJ.ARM[i].hero}의 넋을 만나세요` }; G.flash = 0.45; save(true); } return; }
+        if (!d.jjBoss) return;
+        const u = newUid(), base = ITEMS.arJJ, good = base.goodOpts.slice().sort(() => Math.random() - 0.5).slice(0, 1), rest = rollOpts(9, 6).filter(o => !good.includes(o[0])).slice(0, 2);
+        S.gear[u] = { b: 'arJJ', en: 0, q: rollQ(), op: [['undy', 3]].concat(good.map(q => [q, OPTS[q].max]), rest) };
+        const gid = regGear(u, S.gear[u]), got = addItem(gid, 1);
+        if (!got) S.store.push({ id: gid, n: 1 });   // v224 가방이 가득 차면 창고로 (보상이 사라지지 않게 · 창고가 차 있어도 넣음)
+        S.jjg = [0, 0, 0]; S.jjl = [0, 0, 0]; S.jjWin = (S.jjWin || 0) + 1; if (!S.jjAt) S.jjAt = Date.now();
+        G.title = { t: 0, text: '우키타 히데이에를 이겼다!', sub: got ? '진주성의 무한 갑옷을 얻었다!' : '가방이 가득 차서 진주성의 무한 갑옷을 창고에 넣었어요 (마을 창고에서 꺼내세요)' }; G.flash = 0.6; G.shake = 14; Fx.levelUp(G.px, G.py);
+        save(true); setTimeout(() => submitRank(0, true), 800);
+        setTimeout(() => { if (G.map && G.map.M.jj === 'boss' && toonEl) showToon([
+          { kind: 'say', img: 'jj_soul0', name: '김시민 장군의 넋', role: '초록 불', text: '고맙소. 이제야 진주성에 평화가 찾아왔구려.', side: 'l', col: JJ.ARM[0].col, wait: 2800 },
+          { kind: 'say', img: 'jj_soul1', name: '황진 장군의 넋', role: '파란 불', text: '그대의 용기를 이 성벽이 오래 기억할 것이오.', side: 'r', col: JJ.ARM[1].col, wait: 2800 },
+          { kind: 'say', img: 'jj_soul2', name: '의암 주논개의 넋', role: '빨간 불', text: '남강이 다시 맑게 흐르는구려. 우리 세 사람의 마음을 담은 <b>진주성의 무한 갑옷</b>을 받아 주시오.', side: 'l', col: JJ.ARM[2].col, wait: 3400 },
+          { kind: 'nar2', bg: 'jj_shrine1.png?v=224', col: '#FFD23F', small: '역사 이야기', big: '그 뒤의 우키타 히데이에', text: '실제 우키타 히데이에는 1600년 세키가하라 전투에서 지고 <b>하치조지마</b> 섬으로 유배되어, 50년 가까이 섬을 떠나지 못하고 84세에 세상을 떠났다.', wait: 4200 }
+        ], { title: '🏯 진주성을 되찾았다!', go: '확인', auto: 6000, done: () => { if (G.map && G.map.M.jj === 'boss') { enter(JJ.entry, { from: JJ.home }); say('진주성 던전이 처음으로 돌아갔어요. 왜장 셋을 다시 이기고 등불을 켜면 또 도전할 수 있어요', 5); } } }); }, 3500);
+      }
+      // ── 즉사기 ──
+      const jjRocks = () => { const map = G.map, cx = map.w >> 1, cy = map.h >> 1; return JJ.BOSS_ROCK.map(([dx, dy]) => ({ x: (cx + dx) * TS, y: (cy + dy) * TS, r: 44 })); };
+      function jjDoomStart(m, k) {
+        const map = G.map, cx = (map.w >> 1) * TS, cy = (map.h >> 1) * TS;
+        m.cast = null; m.slam = null; G.bfx = G.bfx.filter(f => f.m !== m);
+        const J = m.jd = { k, t: 0 };
+        if (k === 'wall') {
+          Fx.burst(m.x, m.y - 60, 30, Fx.pal('dark'), { min: 60, max: 180 }); m.x = cx; m.y = cy + 20; Fx.burst(m.x, m.y - 60, 40, Fx.pal('dark'), { min: 60, max: 220, shape: 'star' });
+          G.title = { t: 0, text: '진주성 총공격!', sub: '4초 안에 바위 뒤에 숨어라! (우키타 - 바위 - 나 일직선)' };
+        } else {
+          const c = Math.floor(Math.random() * 3); J.c = c; J.rings = [];
+          const R0 = 64, ok = (x, y) => canStand(map, x, y) && Math.abs(x - cx) < 14 * TS && Math.abs(y - cy) < 9 * TS && Math.hypot(x - m.x, y - m.y) > 150 && J.rings.every(q => Math.hypot(q.x - x, q.y - y) > 170);
+          const put = (cc, near) => { for (let i = 0; i < 80; i++) { const x = near ? G.px + Math.cos(i * 2.4) * rand(130, 300) : cx + rand(-13, 13) * TS, y = near ? G.py + Math.sin(i * 2.4) * rand(90, 220) : cy + rand(-8, 8) * TS; if (ok(x, y)) { J.rings.push({ x, y, c: cc, r: R0 }); return; } } };
+          put(c, true); put(c, false); [0, 1, 2].filter(q => q !== c).forEach(q => { put(q, false); put(q, false); });
+          const RC = JJ.RINGS[c]; G.title = { t: 0, text: '세 깃발 군령!', sub: `머리 위 링과 같은 「${RC.ch}」 링 안으로! (${RC.hero}의 불)` };
+        }
+        G.shake = 10; G.flash = 0.3; float(m.x, m.y - m.spr.h - 40, k === 'wall' ? '진주성 총공격!' : '세 깃발 군령!', '#FFD23F', true);
+      }
+      function jjDoomTick(m, dt) {
+        if (!m.jjQ) m.jjQ = JJ.DOOM.slice();
+        if (!m.jd) { if (m.jjQ.length && m.hp <= m.max * m.jjQ[0].at) { jjDoomStart(m, m.jjQ.shift().k); return true; } return false; }
+        const J = m.jd; J.t += dt; m.cast = null; m.slam = null; m.face = G.px < m.x ? -1 : 1;
+        if (Math.random() < 0.5) Fx.emit({ x: m.x + rand(-60, 60), y: m.y - rand(0, 140), vx: rand(-20, 20), vy: rand(-80, -20), g: -10, life: 0.8, size: 3, color: J.k === 'wall' ? pick(['#FF4A3A', '#FFD23F']) : JJ.RINGS[J.c].col });
+        if (J.t < JJ.castTime) return true;
+        const px = G.px, py = G.py - 16, bx = m.x, by = m.y - 30;
+        let safe;
+        if (J.k === 'wall') safe = jjRocks().some(r => { const vx = px - bx, vy = py - by, L2 = vx * vx + vy * vy || 1, t = clamp(((r.x - bx) * vx + (r.y - by) * vy) / L2, 0, 1); return Math.hypot(bx + vx * t - r.x, by + vy * t - r.y) < r.r && t < 0.97; });
+        else safe = J.rings.some(q => q.c === J.c && Math.hypot(G.px - q.x, (G.py - q.y) / 0.62) < q.r);
+        m.jd = null; m.skCd = 1.4; G.flash = 0.8; G.shake = 18;
+        Fx.nova(bx, by, 520, J.k === 'wall' ? ['fire', 'dark'] : [['fire', 'wind', 'water'][J.c], 'light']);
+        if (G.dead) return true;
+        if (safe) { float(G.px, G.py - 90, '피했다!', '#9AF0B0', true); }
+        else if (godOn()) float(G.px, G.py - 90, '즉사기! (무적 아이디라 버팀)', '#FF4A3A', true);
+        else { G.inv = 0; S.hp = 0; G.texts.push({ x: G.px, y: G.py - 70, text: '즉사!', color: '#FF4A3A', t: 0, big: true }); die(); }
+        return true;
+      }
+      // ── 그리기 ──
+      function jjGlows(map, cx, cy, now) {
+        const k = map.M.jj, mx = map.w >> 1, my = map.h >> 1;
+        if (k === 'hub') { JJ.ARM.forEach((A, i) => { if (!S.jjl[i]) return; const [dx, dy] = JJ.HUB_LAMP[A.dir]; glowLights.push({ x: (mx + dx + 0.5) * TS - cx, y: (my + dy + 1) * TS - 100 - cy, r: 150 + 10 * Math.sin(now / 200 + i), col: A.col, a: 0.95 }); });
+          if (jjLit() === 3) glowLights.push({ x: mx * TS - cx, y: my * TS - cy, r: 200, col: '#B07AFF', a: 0.9 }); }
+        if (k === 'shrine') glowLights.push({ x: mx * TS - cx, y: 13.6 * TS - 50 - cy, r: 150, col: JJ.ARM[map.M.ji].col, a: 0.85 });
+        if (k === 'boss') { G.mons.forEach(m => { if (m.jd && !m.dead) glowLights.push({ x: m.x - cx, y: m.y - 60 - cy, r: 260, col: m.jd.k === 'wall' ? '#FF4A3A' : JJ.RINGS[m.jd.c].col, a: 0.9 }); });
+          G.mons.forEach(m => { if (m.jd && m.jd.rings) m.jd.rings.forEach(q => glowLights.push({ x: q.x - cx, y: q.y - cy, r: 90, col: JJ.RINGS[q.c].col, a: 0.7 })); }); }
+      }
+      function drawJjGround(c, now) {
+        const th = G.map.jjTheme;   // v224 꾸미기: 벚꽃잎 · 민들레 홀씨 · 나비
+        if (th === 'cherry' && Math.random() < 0.55) Fx.emit({ x: G.px + rand(-520, 520), y: G.py - rand(240, 320), vx: rand(10, 45), vy: rand(30, 60), g: 4, life: 5, size: rand(2.5, 4), color: pick(['#FFC6DD', '#FFB3D1', '#FFFFFF', '#FF9CC4']) });
+        if (th === 'dandelion' && Math.random() < 0.25) Fx.emit({ x: G.px + rand(-520, 520), y: G.py + rand(-260, 260), vx: rand(15, 35), vy: rand(-20, -5), g: -2, life: 4, size: 2.5, color: '#FFFFFF' });
+        if ((th === 'dandelion' || th === 'mix') && Math.random() < 0.05) Fx.emit({ x: G.px + rand(-480, 480), y: G.py + rand(-240, 240), vx: rand(-25, 25), vy: rand(-25, 10), g: 0, life: 2.5, size: 4, color: pick(['#FFE45C', '#FF8AB0', '#9AE6FF', '#FFFFFF']) });
+        G.mons.forEach(m => {
+          const J = m.jd; if (!J || m.dead) return; const k = Math.min(1, J.t / JJ.castTime), pulse = 0.5 + 0.5 * Math.sin(now / 120);
+          c.save();
+          if (J.k === 'ring') J.rings.forEach(q => {
+            const RC = JJ.RINGS[q.c], hit = q.c === J.c;
+            c.fillStyle = RC.col; c.globalAlpha = 0.22 + (hit ? 0.12 * pulse : 0); c.beginPath(); c.ellipse(q.x, q.y, q.r, q.r * 0.62, 0, 0, Math.PI * 2); c.fill();
+            c.globalAlpha = 0.95; c.lineWidth = 5; c.strokeStyle = RC.col; c.beginPath(); c.ellipse(q.x, q.y, q.r, q.r * 0.62, 0, 0, Math.PI * 2); c.stroke();
+            c.lineWidth = 2; c.strokeStyle = '#FFFFFF'; c.beginPath(); c.ellipse(q.x, q.y, q.r - 7, (q.r - 7) * 0.62, 0, 0, Math.PI * 2); c.stroke();
+            c.font = '30px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 5; c.strokeStyle = '#1D2340'; c.strokeText(RC.ch, q.x, q.y); c.fillStyle = '#FFFFFF'; c.fillText(RC.ch, q.x, q.y);
+          });
+          else {
+            const bx = m.x, by = m.y - 30;
+            c.globalAlpha = 0.16 + 0.1 * pulse; c.fillStyle = '#FF3A2A'; c.fillRect(0, 0, G.map.w * TS, G.map.h * TS);   // 성 전체가 붉게
+            c.globalAlpha = 0.42; c.fillStyle = '#3DDC84';
+            jjRocks().forEach(r => { const a = Math.atan2(r.y - by, r.x - bx), d = Math.hypot(r.x - bx, r.y - by), s = Math.asin(Math.min(1, (r.r - 6) / d)), L = 1400;
+              c.beginPath(); c.moveTo(r.x + Math.cos(a + Math.PI / 2) * (r.r - 6), r.y + Math.sin(a + Math.PI / 2) * (r.r - 6)); c.lineTo(bx + Math.cos(a + s) * L, by + Math.sin(a + s) * L); c.lineTo(bx + Math.cos(a - s) * L, by + Math.sin(a - s) * L); c.lineTo(r.x + Math.cos(a - Math.PI / 2) * (r.r - 6), r.y + Math.sin(a - Math.PI / 2) * (r.r - 6)); c.closePath(); c.fill(); });
+            c.globalAlpha = 0.8; c.strokeStyle = '#FF4A3A'; c.lineWidth = 4; c.beginPath(); c.arc(bx, by + 30, 40 + 480 * k, 0, Math.PI * 2); c.stroke();
+          }
+          c.restore();
+        });
+      }
+      function drawJjTop(c, now) {
+        G.mons.forEach(m => {
+          const J = m.jd; if (!J || m.dead) return;
+          const top = m.y - (m.spr ? m.spr.h : 300) - 60 + Math.sin(now / 200) * 6;
+          c.save();
+          if (J.k === 'ring') { const RC = JJ.RINGS[J.c];
+            c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, m.x, top, 90, RC.col, 0.6); c.globalCompositeOperation = 'source-over';
+            c.lineWidth = 12; c.strokeStyle = '#1D2340'; c.beginPath(); c.ellipse(m.x, top, 62, 30, 0, 0, Math.PI * 2); c.stroke();
+            c.lineWidth = 8; c.strokeStyle = RC.col; c.beginPath(); c.ellipse(m.x, top, 62, 30, 0, 0, Math.PI * 2); c.stroke();
+            c.font = '34px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 6; c.strokeStyle = '#1D2340'; c.strokeText(RC.ch, m.x, top - 46); c.fillStyle = RC.col; c.fillText(RC.ch, m.x, top - 46);
+          } else { c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, m.x, m.y - 120, 160 + 60 * (J.t / JJ.castTime), '#FF4A3A', 0.5 + 0.3 * Math.sin(now / 90)); }
+          c.restore();
+        });
+      }
+      function drawJjHud(c, now) {
+        const m = G.mons.find(q => q.jd && !q.dead); if (!m) return; const J = m.jd, left = Math.max(0, JJ.castTime - J.t), n = Math.ceil(left);
+        const col = J.k === 'wall' ? '#FF4A3A' : JJ.RINGS[J.c].col, msg = J.k === 'wall' ? '바위 뒤에 숨어라!' : `「${JJ.RINGS[J.c].ch}」 링 안으로!`;
+        c.save(); c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillStyle = 'rgba(14,18,44,.78)'; rr(c, W / 2 - 170, 64, 340, 84, 12); c.fill(); c.strokeStyle = col; c.lineWidth = 3; rr(c, W / 2 - 170, 64, 340, 84, 12); c.stroke();
+        const pop = 1 + 0.25 * (1 - (left - Math.floor(left)));
+        c.font = Math.round(44 * pop) + 'px "Jua", "Malgun Gothic", sans-serif'; c.lineWidth = 6; c.strokeStyle = '#1D2340'; c.strokeText(String(n), W / 2 - 120, 106); c.fillStyle = '#FFD23F'; c.fillText(String(n), W / 2 - 120, 106);
+        c.font = '22px "Jua", "Malgun Gothic", sans-serif'; c.strokeText(msg, W / 2 + 26, 96); c.fillStyle = col; c.fillText(msg, W / 2 + 26, 96);
+        c.font = '14px "Jua", "Malgun Gothic", sans-serif'; c.fillStyle = '#FFFFFF'; c.fillText(J.k === 'wall' ? '진주성 총공격 · 즉사기' : '세 깃발 군령 · 즉사기', W / 2 + 26, 124);
+        c.restore();
+      }
+      function drawJjSoul(c, n, now) {
+        const A = JJ.ARM[n.ai], im = img79(n.def.img), bob = Math.sin(now / 520 + n.ai) * 6, H0 = n.def.h || 104;
+        c.save(); c.globalCompositeOperation = 'lighter'; Fx.drawGlow(c, n.x, n.y - H0 * 0.5 + bob, 90 + 8 * Math.sin(now / 300), A.col, 0.55); c.restore();
+        c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(n.x, n.y, 26, 6, 0, 0, Math.PI * 2); c.fill();
+        let top = n.y - H0;
+        if (im) { const h = H0, w = Math.round(im.naturalWidth * h / im.naturalHeight), y = Math.round(n.y - h - 8 + bob); c.save(); c.globalAlpha = 0.92; c.drawImage(im, n.x - w / 2, y, w, h); c.restore(); top = y; }
+        if (Math.random() < 0.3) Fx.emit({ x: n.x + rand(-26, 26), y: n.y - rand(10, H0), vx: rand(-8, 8), vy: rand(-40, -15), g: -6, life: 1.0, size: 2.5, color: A.col });
+        npcTags(c, n, top, now);
+      }
+      function drawJjObj(c, o, now) {
+        const cx = o.x + o.img.width / 2, by = o.sy;
+        if (o.jjGate) {   // 진주 12시 · 진주성 던전 입구
+          const im = img79('jj_gate');
+          if (im) { const w = 250, h = w * im.height / im.width; c.drawImage(im, cx - w / 2, o.y + o.img.height - h + 4, w, h); }
+          else { c.fillStyle = '#3A2A1E'; c.fillRect(cx - 90, o.y + 60, 180, 100); c.fillStyle = '#120C18'; c.beginPath(); c.ellipse(cx, o.y + 160, 50, 70, 0, Math.PI, 0); c.fill(); }
+          c.font = '14px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 4; c.strokeStyle = '#1D2340'; c.strokeText('🏯 진주성 던전', cx, o.y + o.img.height + 18); c.fillStyle = '#FFD23F'; c.fillText('🏯 진주성 던전', cx, o.y + o.img.height + 18);
+          return;
+        }
+        if (o.jj === 'deco') {   // v224 꾸미기 나무·꽃·연꽃
+          const im = img79(o.im); if (!im) return;
+          if (o.pond) { c.drawImage(im, o.x, o.y, o.pw, o.ph); return; }
+          const w = o.dw, h = w * im.height / im.width, sway = o.flat ? 0 : Math.sin(now / 1400 + o.bx * 0.01) * 0.018;
+          if (!o.flat) { c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(o.bx, o.by - 2, w * 0.3, w * 0.08, 0, 0, Math.PI * 2); c.fill(); }
+          c.save(); c.translate(o.bx, o.by); if (sway) c.transform(1, 0, sway, 1, 0, 0); if (o.flip) c.scale(-1, 1); c.drawImage(im, -w / 2, -h + 4, w, h); c.restore();
+          return;
+        }
+        if (o.jj === 'lamp') {
+          const A = JJ.ARM[o.ai], lit = !!S.jjl[o.ai], im = img79('jj_lamp'), w = 84, h = im ? w * im.height / im.width : 140, x = cx - w / 2, y = by - h + 6;
+          c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(cx, by, 30, 8, 0, 0, Math.PI * 2); c.fill();
+          if (im) c.drawImage(im, x, y, w, h); else { c.fillStyle = '#8C8776'; c.fillRect(cx - 10, by - 90, 20, 90); c.fillRect(cx - 28, by - 120, 56, 34); c.fillStyle = '#5E5A4C'; c.fillRect(cx - 34, by - 130, 68, 12); }
+          const fy = y + h * 0.36, fl = 0.85 + 0.15 * Math.sin(now / 90 + o.ai * 2);
+          c.save(); c.globalCompositeOperation = 'lighter';
+          if (lit) { Fx.drawGlow(c, cx, fy, 70 * fl, A.col, 0.85); Fx.drawGlow(c, cx, fy, 26 * fl, '#FFFFFF', 0.7); if (Math.random() < 0.35) Fx.emit({ x: cx + rand(-8, 8), y: fy, vx: rand(-10, 10), vy: rand(-60, -30), g: -10, life: 0.7, size: 3, color: A.col }); }
+          else Fx.drawGlow(c, cx, fy, 16, '#555566', 0.25);
+          c.restore();
+          c.font = '13px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 4; c.strokeStyle = '#1D2340';
+          const lb = `${A.clock} · ${A.hero} ${lit ? '🔥' : '(꺼짐)'}`; c.strokeText(lb, cx, by + 14); c.fillStyle = lit ? A.col : '#FFFFFF'; c.fillText(lb, cx, by + 14);
+          return;
+        }
+        if (o.jj === 'hole') {   // v224 더 크고 화려하게: 빛기둥 · 겹 고리 · 번개 · 도는 별
+          if (jjLit() < 3) { c.save(); c.globalAlpha = 0.35; c.strokeStyle = '#B07AFF'; c.lineWidth = 2; c.setLineDash([6, 8]); c.beginPath(); c.ellipse(cx, by + 40, 90, 44, 0, 0, Math.PI * 2); c.stroke(); c.restore(); return; }
+          const hy = (G.map.h >> 1) * TS, im = img79('jj_hole'), t = now / 1000, s2 = 1 + 0.07 * Math.sin(t * 2.2), R = 175 * s2;
+          c.save(); c.globalCompositeOperation = 'lighter';
+          const beam = c.createLinearGradient(0, hy - 520, 0, hy); beam.addColorStop(0, 'rgba(176,122,255,0)'); beam.addColorStop(1, 'rgba(176,122,255,.55)'); c.fillStyle = beam; c.fillRect(cx - 70 - 10 * Math.sin(t * 3), hy - 520, 140 + 20 * Math.sin(t * 3), 520);
+          Fx.drawGlow(c, cx, hy, R * 2.1, '#8A4AFF', 0.6); Fx.drawGlow(c, cx, hy, R * 1.3, '#3CE8D8', 0.35);
+          c.restore();
+          c.save(); c.translate(cx, hy); c.scale(1, 0.62);
+          c.save(); c.rotate(t * 0.9); if (im) c.drawImage(im, -R, -R, R * 2, R * 2); else { const g = c.createRadialGradient(0, 0, 8, 0, 0, R); g.addColorStop(0, '#000000'); g.addColorStop(0.55, '#1A0A30'); g.addColorStop(0.8, '#7A3AFF'); g.addColorStop(1, 'rgba(60,232,216,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, R, 0, Math.PI * 2); c.fill(); } c.restore();
+          c.globalCompositeOperation = 'lighter';
+          [[R * 1.08, '#D8B8FF', 1.6, 5], [R * 1.25, '#3CE8D8', -1.1, 3], [R * 1.42, '#FF8AE0', 0.7, 2]].forEach(([rr2, col, sp, lw]) => { c.strokeStyle = col; c.lineWidth = lw; for (let k2 = 0; k2 < 3; k2++) { const a0 = t * sp + k2 * 2.09; c.beginPath(); c.arc(0, 0, rr2, a0, a0 + 1.3); c.stroke(); } });
+          for (let i = 0; i < 10; i++) { const a = t * (1.2 + i * 0.05) + i * 0.63, rr2 = R * (1.1 + 0.35 * ((i * 37) % 10) / 10); Fx.drawGlow(c, Math.cos(a) * rr2, Math.sin(a) * rr2, 10, i % 2 ? '#FFFFFF' : '#D8B8FF', 0.9); }
+          if (Math.sin(t * 7) > 0.92) { c.strokeStyle = '#E8D8FF'; c.lineWidth = 3; c.beginPath(); let a = Math.random() * 6.28, x = Math.cos(a) * R * 1.5, y = Math.sin(a) * R * 1.5; c.moveTo(x, y); for (let k2 = 0; k2 < 6; k2++) { x *= 0.78; y *= 0.78; c.lineTo(x + rand(-14, 14), y + rand(-14, 14)); } c.stroke(); }
+          c.restore();
+          for (let i = 0; i < 2; i++) { const a = Math.random() * 6.28, d = rand(170, 300); Fx.emit({ x: cx + Math.cos(a) * d, y: hy + Math.sin(a) * d * 0.62, vx: -Math.cos(a) * d * 1.5, vy: -Math.sin(a) * d * 0.95, life: 0.65, size: rand(2, 3.5), color: pick(['#B07AFF', '#3CE8D8', '#FFFFFF', '#FF8AE0']), g: 0 }); }
+          c.font = '17px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 5; c.strokeStyle = '#1D2340'; c.strokeText('블랙홀 · 촉석루 본진', cx, hy + R * 0.62 + 30); c.fillStyle = '#E8D8FF'; c.fillText('블랙홀 · 촉석루 본진', cx, hy + R * 0.62 + 30);
+          return;
+        }
+        if (o.jj === 'shrine') {   // v224 더 크고 화려하게: 뒤쪽 빛무리 · 돌아가는 빛살 · 떠오르는 불빛
+          const im = img79('jj_shrine' + o.ai), A = JJ.ARM[o.ai], w = 470, h = im ? w * im.height / im.width : 320, top = by - h + 8, mid = top + h * 0.45, t = now / 1000;
+          { const rg = c.createRadialGradient(cx, mid, 20, cx, mid, 340); rg.addColorStop(0, A.col + '99'); rg.addColorStop(0.55, A.col + '33'); rg.addColorStop(1, A.col + '00'); c.fillStyle = rg; c.beginPath(); c.ellipse(cx, mid, 340, 300, 0, 0, Math.PI * 2); c.fill(); }   // 바닥 빛무리 (낮에도 보이게)
+          c.save(); c.globalCompositeOperation = 'lighter';
+          Fx.drawGlow(c, cx, mid, 300 + 20 * Math.sin(t * 1.3), A.col, 0.7);
+          c.translate(cx, mid); c.rotate(t * 0.15);
+          for (let i = 0; i < 12; i++) { c.rotate(Math.PI / 6); const g = c.createLinearGradient(0, 0, 0, -330); g.addColorStop(0, A.col + 'AA'); g.addColorStop(1, A.col + '00'); c.fillStyle = g; c.beginPath(); c.moveTo(-14, 0); c.lineTo(0, -330); c.lineTo(14, 0); c.closePath(); c.fill(); }
+          c.restore();
+          if (im) c.drawImage(im, cx - w / 2, top, w, h);
+          else { c.fillStyle = '#5A2A1E'; c.fillRect(cx - 180, by - 140, 360, 140); c.fillStyle = '#2E3A4A'; c.beginPath(); c.moveTo(cx - 230, by - 130); c.lineTo(cx, by - 270); c.lineTo(cx + 230, by - 130); c.closePath(); c.fill(); }
+          c.save(); c.globalCompositeOperation = 'lighter';
+          for (let i = 0; i < 14; i++) { const ph = (t * 0.25 + i / 14) % 1, x = cx + Math.sin(i * 7.3 + t * 0.8) * (150 + 60 * Math.sin(i)), y = by + 10 - ph * (h + 120), a = Math.sin(ph * Math.PI);
+            Fx.drawGlow(c, x, y, 18 + 6 * Math.sin(t * 3 + i), A.col, 0.75 * a); Fx.drawGlow(c, x, y, 5, '#FFFFFF', 0.9 * a); }
+          c.restore();
+          if (Math.random() < 0.6) Fx.emit({ x: cx + rand(-w * 0.45, w * 0.45), y: by - rand(0, h * 0.7), vx: rand(-10, 10), vy: rand(-50, -20), g: -6, life: 1.2, size: rand(2, 4), color: pick([A.col, '#FFFFFF', '#FFE45C']) });
+          return;
+        }
+        if (o.jj === 'rock') {
+          const im = img79('jj_rock'); c.fillStyle = 'rgba(0,0,0,.32)'; c.beginPath(); c.ellipse(cx, by - 6, 54, 14, 0, 0, Math.PI * 2); c.fill();
+          if (im) { const w = 124, h = w * im.height / im.width; c.drawImage(im, cx - w / 2, by - h + 2, w, h); }
+          else { c.fillStyle = '#6E6A60'; c.beginPath(); c.ellipse(cx, by - 46, 54, 50, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#8C8776'; c.beginPath(); c.ellipse(cx - 10, by - 60, 34, 28, 0, 0, Math.PI * 2); c.fill(); }
+        }
       }
       /* ================= v172 이순신 장군님 던전 ================= */
       const YS = D.YS, ysHave = () => S.ysp.filter(Boolean).length, isAdm = () => !!(Hub.isAdmin && Hub.isAdmin() && Hub.user && YS.only.includes(Hub.user.nickname));   // v174 관리자 '파워복복'만
@@ -2069,8 +2334,18 @@
       }
       const rankScore = () => ((S.hell || 0) > 0 ? 1000 + S.hell : S.lv);   // v69 랭킹: 지옥을 깨면 1000 + 깬 단계
       const hellTxt = n => (n > 0 ? `${Math.ceil(n / 5)}-${n - (Math.ceil(n / 5) - 1) * 5}` : '-');
+      // v224 선생님 11/28 '장애물에 끼여 못 움직이는 몬스터': 나무·바위에 둘러싸인 좁은 틈(이어진 빈 칸 30칸 미만)은 몬스터가 나오는 자리에서 뺌
+      function tileFree(map, x, y) { return x > 0 && y > 0 && x < map.w - 1 && y < map.h - 1 && !solidAt(map, x * TS + 16, y * TS + 20); }
+      function openSpawns(map) {
+        if (map._spOk && map._spOk.src === map.spawns && map._spOk.n === (map.objs || []).length) return map._spOk.list;
+        const room = q => { const s0 = [Math.floor(q.x / TS), Math.floor(q.y / TS)], seen = new Set([s0 + '']), qu = [s0]; let n = 0;
+          while (qu.length && n < 30) { const [x, y] = qu.shift(); n++; for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (x + a) + ',' + (y + b); if (!seen.has(k)) { seen.add(k); if (tileFree(map, x + a, y + b)) qu.push([x + a, y + b]); } } }
+          return n >= 30; };
+        const ok = (map.spawns || []).filter(q => tileFree(map, Math.floor(q.x / TS), Math.floor(q.y / TS)) && room(q)).map(q => ({ x: Math.floor(q.x / TS) * TS + 16, y: Math.floor(q.y / TS) * TS + 20 }));   // 칸 한가운데에 세움 (빈 칸 사이 좁은 틈에 끼지 않게)
+        map._spOk = { src: map.spawns, n: (map.objs || []).length, list: ok.length ? ok : map.spawns }; return map._spOk.list;
+      }
       function spawnPoint() {
-        const sp = G.map.spawns; let p = pick(sp);
+        const sp = openSpawns(G.map); let p = pick(sp);
         for (let i = 0; i < 12 && Math.hypot(p.x - G.px, p.y - G.py) < 260; i++) p = pick(sp);
         return p;
       }
@@ -2085,7 +2360,7 @@
         return { x: best.x, y: best.y };
       }
       function makeMon(def, lvl, boss) {
-        lvl = clamp(lvl, 1, G.map && G.map.M.hell ? D.HELL.maxMonLv : G.map && G.map.M.ys ? 520 : G.map && G.map.M.sx ? D.SASIN.lv.king : D.MAX_LV); /* v150 사신의 땅 Lv.150~400 */ const F = D.F, B = F.boss;   // v69 저승 몬스터는 Lv.100 넘음
+        lvl = clamp(lvl, 1, G.map && G.map.M.hell ? D.HELL.maxMonLv : G.map && G.map.M.jj ? 700 : G.map && G.map.M.ys ? 520 : G.map && G.map.M.sx ? D.SASIN.lv.king : D.MAX_LV); /* v150 사신의 땅 Lv.150~400 */ const F = D.F, B = F.boss;   // v69 저승 몬스터는 Lv.100 넘음
         const p = boss ? bossPoint(def) : spawnPoint();
         const sc = boss ? 6 : 3, spr = monSprite(def, sc);
         const hp = Math.round(F.monHp(lvl) * (boss ? B.hp : 1));
@@ -2103,6 +2378,8 @@
       function hitMon(m, base, els, opt) {
         if (m.dead) return 0;
         if (m.ysInv) { immTxt(m, '무적!', '#FF4A8A'); return 0; }
+        if (m.jd) { immTxt(m, '시전 중 무적!', '#FFD23F'); return 0; }
+        if (m.def.noFusion && els && els.fu) { immTxt(m, '융합 마법 무효!', '#FFD23F'); return 0; }   // v224 선생님 11/28: 진주성 왜장 3명 · 우키타는 융합 마법이 통하지 않음 (기본 마법·평타만)   // v224 우키타 즉사기 시전 4초
         if (m.inv2 > 0) { immTxt(m, '죽지 않는다!', '#FF4A3A'); return 0; }   // v173 죽지 않는 분노   // v173 와키자카: 왜선이 둘러싼 10초 동안 무적
         if (m.pvp) return duelHit(m, base, els, opt);   // v143 결투 상대
         opt = opt || {};
@@ -2120,6 +2397,7 @@
         dmg = Math.max(1, Math.round(dmg));
         if (m.dummy) return dummyHit(m, dmg, crit, weakHit, els);   // v144 훈련장 허수아비
         if (m.hidden) return 0; dmg = monGuard(m, dmg); if (dmg <= 0) return 0;   // v173 땅속·방패·보호막
+        if (m.def.jjBoss) { const q = (m.jjQ || JJ.DOOM)[0]; if (q && m.hp - dmg < m.max * q.at - 1) dmg = Math.max(1, Math.round(m.hp - (m.max * q.at - 1))); }   // v224 즉사기 단계를 건너뛰지 않게
         m.hp -= dmg; m.flash = 0.12; m.aggro = true; const fq = m.def.noFx ? (kingSwordOn() ? 0.25 : 0) : (m.def.fxQ || 1); m.knock = fq === 0 || m.def.noFx || m.def.noKnock ? 0 : (m.x < G.px ? -1 : 1) * (crit ? 6 : 3) * (m.def.fxQ || m.def.noFx ? fq : m.boss ? 1 / 3 : 1); /* v146 보스는 맞아도 1/3 만 움찔 (선생님 11/14) · v149 광개토대왕은 안 움찔 */
         const elc = els && els.length ? Fx.pal(els[0])[1] : '#FFFFFF';
         G.texts.push({ x: m.x + rand(-8, 8), y: m.y - m.spr.h - 4, text: (crit ? '치명! ' : '') + (weakHit ? '약점! ' : '') + dmg, color: crit ? '#FFD23F' : elc, t: 0, big: crit, dmg: true });
@@ -2138,13 +2416,13 @@
           else if (fx === 'curse') m.curse = 4 * q;   // v87 어둠: 4초 동안 받는 피해 +20%
         });
         if (m.def.ysBoss && !m.ysPh && m.hp <= m.max * 0.1) { ysNavStart(m); return dmg; }
-        if (m.def.undying && !m.undyUsed && m.hp <= 0) { m.hp = 1; m.undyUsed = true; m.inv2 = 4; float(m.x, m.y - m.spr.h - 26, '죽지 않는 분노!', '#FF4A3A', true); Fx.nova(m.x, m.y - 40, 120, ['fire', 'fire']); G.shake = 10; return dmg; }   // v173 피 1에서 4초 무적   // v173 와키자카 피 10% → 속박 + 왜선 대포
+        if (m.def.undying && !m.undyUsed && m.hp <= 0) { m.hp = 1; m.undyUsed = true; m.inv2 = m.def.undyT || 4; float(m.x, m.y - m.spr.h - 26, m.def.jjBoss ? '총대장의 군기! (5초 무적)' : '죽지 않는 분노!', '#FF4A3A', true); Fx.nova(m.x, m.y - 40, 120, ['fire', 'fire']); G.shake = 10; return dmg; }   // v173 피 1에서 4초 무적   // v173 와키자카 피 10% → 속박 + 왜선 대포
         if (m.hp <= 0) killMon(m);
         return dmg;
       }
       function killMon(m) {
         if (m.isClone) { m.dead = true; Fx.death(m.x, m.y - 40, m.def.colors, false); float(m.x, m.y - 80, '가짜였다!', '#9AE6FF'); return; }   // v173 분신 (보상 없음)
-        if (m.def.undying && !m.undyUsed) { m.dead = false; m.hp = 1; m.undyUsed = true; m.inv2 = 4; return; }
+        if (m.def.undying && !m.undyUsed) { m.dead = false; m.hp = 1; m.undyUsed = true; m.inv2 = m.def.undyT || 4; return; }
         if (m.def.egg && !m.eggUsed) { m.dead = false; m.eggUsed = true; m.eggT = 6; m.cast = null; m.slam = null; m.hp = Math.round(m.max * 0.2); float(m.x, m.y - m.spr.h - 30, '알이 되었다! 6초 안에 깨세요', '#FF9A3D', true); return; }   // v173 59 알 부활
         if (m.def.ysBoss && !m.ysPh) { ysNavStart(m); return; }   // v173 불 등으로 한 번에 쓰러져도 먼저 왜선 단계
         m.dead = true; m.respawn = m.boss ? (CFG.bossRespawnSec || 30) : (CFG.respawnSec || 3); S.kills++;
@@ -2152,6 +2430,7 @@
         if (G.map.M.hell) hellKill(m);   // v69 저승 단계 진행
         if (G.map.M.sx) sasinKill(m);   // v150 사신의 땅
         if (G.map.M.ys) ysKill(m);   // v172 이순신 장군님 던전
+        if (G.map.M.jj) jjKill(m);   // v224 진주성 던전
         const low = m.lvl < S.lv - 10 ? 0.2 : 1;
         const gold = Math.round(m.gold * (1 + (ST.goldP || 0) / 100)); gainExp(Math.round(m.exp * low * (1 + (ST.expP || 0) / 100))); S.gold += gold; float(m.x, m.y - m.spr.h - 18, `+${fmtN(gold)}G`, '#FFD23F');
         Fx.death(m.x, m.y - m.spr.h / 2, m.def.colors, m.boss); Fx.coins(m.x, m.y - m.spr.h / 2, m.boss ? 14 : Math.min(6, 2 + Math.floor(m.gold / 40)));
@@ -2230,6 +2509,7 @@
         S.hp -= dmg; G.inv = 0.35; G.lastHit = 0; G.hurt = 0.22; G.shake = Math.max(G.shake, 3);
         G.texts.push({ x: G.px + rand(-8, 8), y: G.py - 64, text: '-' + dmg, color: el ? ELEM[el].color : '#FF6A6E', t: 0, dmg: true });
         Fx.hit(G.px, G.py - 28, [el || 'fire'], false);
+        if (S.hp <= 0 && ST.undy > 0 && Date.now() >= (S.undyAt || 0) + 300000) { S.hp = 1; G.inv = ST.undy; S.undyAt = Date.now(); G.title = { t: 0, text: '진주성의 무한 갑옷!', sub: `${ST.undy}초 동안 무적 · 5분 뒤 다시 쓸 수 있어요` }; Fx.levelUp(G.px, G.py); G.flash = 0.4; markDirty(false); return dmg; }   // v224 불사 (즉사기는 못 막음)
         if (S.hp <= 0) { S.hp = 0; die(); return dmg; }
         if (el) pStatus(el, dmg, src);
         return dmg;
@@ -2280,7 +2560,7 @@
         G.mot = Fx.motionFor ? Fx.motionFor(sk) : null; G.motEl = sk.els[0];   // v153 마법마다 몸 동작 (vfx.js)
         if (G.mot) { G.poseUntil = performance.now() + Math.max(380, G.mot.dur * 800); if (G.mot.k === 'ult') G.flash = Math.max(G.flash || 0, 0.35); if (G.mot.k === 'slam') setTimeout(() => { G.shake = Math.max(G.shake || 0, 9); }, G.mot.dur * 620); }
         if (net && net.joined) { const [adx, ady] = aimDir(sk.len || 420); net.cast({ id, x: Math.round(G.px), y: Math.round(G.py - 22), dx: +adx.toFixed(2), dy: +ady.toFixed(2) }); }
-        const els = sk.els, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light, base = ST.mag * sk.pow;
+        const els = sk.fusion ? Object.assign(sk.els.slice(), { fu: true }) : sk.els, col = ELEM[els[0]].color, col2 = ELEM[els[els.length - 1]].light, base = ST.mag * sk.pow;   // v224 융합 마법 표시 (진주성 왜장·우키타는 융합 마법 피해 0)
         const ox = G.px, oy = G.py - 22;
         Fx.use(sk.fusion ? null : sk.id);   // v102 기본 마법마다 다른 효과
         if (sk.fusion && Fx.useV) Fx.useV('f:' + sk.name);   // v153 융합 마법은 비슷한 기본 마법 그림을 빌려 씀
@@ -2420,7 +2700,7 @@
       }
       function moveMon(m, dx, dy) {
         const map = G.map, ok = (x, y) => !solidAt(map, x - 8, y - 2) && !solidAt(map, x + 8, y - 2) && !solidAt(map, x, y), x0 = m.x, y0 = m.y;
-        if (m.ghost > 0) { m.x = clamp(m.x + dx, TS + 8, map.w * TS - TS - 8); m.y = clamp(m.y + dy, TS + 8, map.h * TS - TS - 2); return true; }   // v202 끼인 보스: 잠깐 나무·바위를 지나감
+        if (m.ghost > 0 || m.def.passAll) { m.x = clamp(m.x + dx, TS + 8, map.w * TS - TS - 8); m.y = clamp(m.y + dy, TS + 8, map.h * TS - TS - 2); return true; }   // v202 끼인 보스: 잠깐 나무·바위를 지나감
         const n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 6)), sx = dx / n, sy = dy / n;   // v207 6점씩 나눠 벽 확인 (돌진이 벽을 뚫지 않게)
         let bx = !sx, by = !sy;
         for (let i = 0; i < n && !(bx && by); i++) {
@@ -2430,8 +2710,28 @@
         return m.x !== x0 || m.y !== y0;
       }
       // v202 선생님 11/24 '보스가 나무·바위에 걸려 못 움직인다': 쫓아갈 때 막히면 옆으로 돌아가고(모든 몬스터), 보스는 1.2초 넘게 막히면 잠깐 통과
+      // v224 길 찾기: 나무·바위에 막혀 0.6초 넘게 못 다가가면 칸 단위로 돌아가는 길(최대 2,500칸 탐색)을 찾아 따라감
+      function monPath(m, gx, gy) {
+        const map = G.map, sx = Math.floor(m.x / TS), sy = Math.floor(m.y / TS), tx = Math.floor(gx / TS), ty = Math.floor(gy / TS);
+        if (!tileFree(map, sx, sy) || !tileFree(map, tx, ty)) return null;
+        const W = map.w, key = (x, y) => y * W + x, prev = new Map([[key(sx, sy), -1]]), q = [[sx, sy]]; let n = 0, found = false;
+        while (q.length && n < 2500) { const [x, y] = q.shift(); n++; if (x === tx && y === ty) { found = true; break; }
+          for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + a, ny = y + b, k = key(nx, ny); if (!prev.has(k) && tileFree(map, nx, ny)) { prev.set(k, key(x, y)); q.push([nx, ny]); } } }
+        if (!found) return null;
+        const pts = []; for (let k = key(tx, ty); k !== -1 && k !== key(sx, sy); k = prev.get(k)) pts.push({ x: (k % W) * TS + 16, y: Math.floor(k / W) * TS + 20 });
+        pts.reverse(); return pts.length ? pts : null;
+      }
       function chaseMon(m, ux, uy, sp, dt) {
         const x0 = m.x, y0 = m.y;
+        if (m.path) {   // v224 찾은 길 따라가기 (4초 · 끝까지 가거나 다시 똑바로 갈 수 있으면 그만)
+          m.pathT -= dt; const w = m.path[0];
+          if (!w || m.pathT <= 0) m.path = null;
+          else { const wx = w.x - m.x, wy = w.y - m.y, wd = Math.hypot(wx, wy);
+            if (wd < 7) m.path.shift(); else if (!moveMon(m, wx / wd * Math.min(sp, wd), wy / wd * Math.min(sp, wd))) { m.path = null; m.pathCd = 0.4; }
+            if (m.path && !m.path.length) m.path = null;
+            m.stuckT = 0; return; }
+        }
+        if (m.pathCd > 0) m.pathCd -= dt;
         if (m.detour > 0) { m.detour -= dt; if (!moveMon(m, m.dvx * sp, m.dvy * sp)) m.detour = 0; moveMon(m, ux * sp * 0.35, uy * sp * 0.35); }
         else moveMon(m, ux * sp, uy * sp);
         const got = (m.x - x0) * ux + (m.y - y0) * uy;   // 플레이어 쪽으로 실제로 간 만큼
@@ -2439,6 +2739,7 @@
           m.stuckT = (m.stuckT || 0) + dt;
           if (!(m.detour > 0)) { const s0 = m.dside || (Math.random() < 0.5 ? 1 : -1);
             for (const side of [s0, -s0]) { const px = -uy * side, py = ux * side, sx = m.x, sy = m.y; if (moveMon(m, px * sp, py * sp)) { m.detour = 0.5; m.dvx = px; m.dvy = py; m.dside = side; break; } m.x = sx; m.y = sy; } }
+          if (m.stuckT > 0.6 && !(m.pathCd > 0) && !m.ghost) { const pt = monPath(m, G.px, G.py); m.pathCd = 1.0; if (pt) { m.path = pt.slice(0, 40); m.pathT = 4; m.detour = 0; m.stuckT = 0; return; } }
           if (m.boss && m.stuckT > 1.2) { m.ghost = 1.0; m.stuckT = 0; m.detour = 0; }
         } else { m.stuckT = Math.max(0, (m.stuckT || 0) - dt * 2); if (got > sp * 0.8) m.dside = 0; }
       }
@@ -2513,6 +2814,7 @@
       // v69 저승차사 강림: Lv.100 이 되면 마지막 마을(도원수 진영) 큰길 오른쪽에 나타남
       const hellNpc = map => (map.M.region === D.REGIONS.length - 1 && S.lv >= D.MAX_LV ? [{ key: 'hell', def: D.HELL.npc, x: window.__GoRPGParts.VXf(30.5) * TS, y: (map.mid + 0.2) * TS, face: -1, ph: 1, smith: true }] : []);   // v158 넓은 마을
       function talk(n) {
+        if (n.key === 'jjsoul') { jjSoulTalk(n); return; }   // v224 사당의 넋 → 웹툰 → 등불
         if (n.guard || !['potion', 'school', 'chief', 'castle', 'forge', 'hell', 'station', 'sxnpc', 'ysnpc', 'ysmural', 'store', 'shop'].includes(n.key)) { n.say = pick(n.def.lines || ['…']); n.sayT = 3; return; }
         n.say = null; openPanel(n.key, { npc: n, hello: n.def.hello && n.def.hello.length ? pick(n.def.hello) : '' });   // v180 인사말이 없는 NPC(송희립·벽화 틀)도 열리게
       }
@@ -2539,7 +2841,7 @@
        *  GoBGM 의 audio 하나에서 src 만 바꿈 (음악 끄기·켜기는 그대로) · 보스가 사라져도 4초 동안은 보스 음악 유지 */
       const TRACK = { bgm: 'bgm/bgm.mp3', hell: 'bgm/hell.mp3', sx: 'bgm/sx.mp3', ys: 'bgm/ys.mp3', boss: 'bgm/boss.mp3' };
       function bgmPick(M) {
-        let k = M.hell ? 'hell' : M.sx ? 'sx' : M.ys ? 'ys' : 'bgm';
+        let k = M.hell ? 'hell' : M.sx ? 'sx' : M.jj ? (M.jj === 'boss' ? 'boss' : 'ys') : M.ys ? 'ys' : 'bgm';
         if (!G.room && G.mons.some(m => !m.dead && m.boss && Math.abs(m.x - G.px) < 700 && Math.abs(m.y - G.py) < 500)) G.bossMusic = 4; else G.bossMusic = Math.max(0, (G.bossMusic || 0) - 0.5);
         if (G.bossMusic > 0) k = 'boss';
         const a = BGM.audio; if (!a) return; const cur = ((a.getAttribute('src') || a.src || '').match(/bgm\/(\w+)\.mp3/) || [])[1]; if (!cur || cur === k) return;
@@ -2596,8 +2898,9 @@
         //  v134 출구마다 판정 (위·아래 출구 · 메이커 지도 연결 · 한쪽에 출구 여러 개) — 원래 왼쪽·오른쪽 출구는 예전 그대로 'R'·'L' 자리로
         if (!G.room) {
           const gt = gateAt(map, G.px, G.py);
-          if (gt) { const bm = sxBlock(gt.to) || ysBlock(gt.to); if (bm) { sxPush(); say(bm, 3.5); return; } }   // v150 사신의 땅 문
-          if (gt) { const T = MAPBY[gt.to]; if (T) { enter(gt.to, T.kind === 'village' && !map.M.ys && !map.M.sx ? 'door' : gt.legacy ? (gt.side === 'l' ? 'R' : 'L') : { from: map.id }); return; } }
+          if (gt) { const bm = sxBlock(gt.to) || ysBlock(gt.to) || jjBlock(gt.to); if (bm) { sxPush(); say(bm, 3.5); return; } }   // v150 사신의 땅 문
+          if (gt && JJ && gt.to === JJ.entry && map.id === JJ.home && jjLit() === 3) { enter(JJ.hub, { from: 'jj_r1' }); say('등불 셋이 켜져 있어요! 바로 촉석루 앞 마당(블랙홀)으로 왔어요', 4); return; }   // v224 선생님 11/28: 보스에게 져도 바로 다시 도전
+          if (gt) { const T = MAPBY[gt.to]; if (T) { enter(gt.to, T.kind === 'village' && !map.M.ys && !map.M.sx && !map.M.jj ? 'door' : gt.legacy ? (gt.side === 'l' ? 'R' : 'L') : { from: map.id }); return; } }
           const dg = dungeonAt(map, G.px, G.py);
           if (dg) { const bm = sxBlock(dg.to); if (bm) { G.py += 30; say(bm, 4); return; } }   // v150 숨은 입구: 환생 1번 이상
           if (dg) { const T = MAPBY[dg.to]; if (T) { enter(dg.to, T.kind === 'village' ? 'door' : { from: map.id }); return; } if (!G.dgSaid) { G.dgSaid = true; say('이 던전 입구는 아직 아무 데도 이어지지 않았어요', 2.4); setTimeout(() => { G.dgSaid = false; }, 3000); } }
@@ -2610,6 +2913,7 @@
           if (!near) G.onNpc = null;
         }
         updateNpcs(dt);
+        if (map.M.jj === 'hub' && jjHole(map)) return;   // v224 블랙홀 → 보스 방
         // v60 대장장이 가까이 → 강화 창 (멀어졌다가 다시 오면 또 열림)
         for (const sm of (!G.room && G.npcs ? G.npcs.filter(n => n.smith) : [])) {   // v69 대장장이 · 저승차사 (가까이 가면 창)
           const nearS = sm.mural ? Math.abs(G.px - sm.x) < 125 && G.py > sm.y - 40 && G.py < sm.y + 46 : Math.hypot(G.px - sm.x, G.py - sm.y) < 40; /* v180 벽화 틀은 틀 앞 어디든 다가가면 열림 */ if (nearS && G.onNpc !== sm) { G.onNpc = sm; talk(sm); return; } if (!nearS && G.onNpc === sm) G.onNpc = null;
@@ -2634,6 +2938,7 @@
           if (m.curse > 0) m.curse -= dt;
           if (m.ghost > 0) { m.ghost -= dt; if (m.ghost <= 0 && (solidAt(G.map, m.x, m.y) || solidAt(G.map, m.x - 8, m.y - 2) || solidAt(G.map, m.x + 8, m.y - 2))) m.ghost = 0.15; }   // v202 통과가 끝날 때 나무·바위 속이면 빠져나올 때까지 조금 더
           if (m.def.noCC) { m.stun = 0; m.slow = 0; m.burn = null; m.curse = 0; }   // v177 와키자카: 어디서 걸려도 바로 풀림
+          if (m.def.jjBoss) { if (!G.dead) m.aggro = true; if (jjDoomTick(m, dt)) return; }   // v224 우키타: 즉사기 (체력 단계)
           if (m.stun > 0) { m.stun -= dt; return; }
           if (monTick2(m, dt) && !(m.hidden && m.cast)) return;   // v173 알·땅굴·투명·포탑·정령·2단계
           const slowF = m.slow > 0 ? 0.5 : 1; if (m.slow > 0) m.slow -= dt;
@@ -2657,7 +2962,7 @@
               }
             }
           } else {
-            m.wt -= dt;
+            m.wt -= dt; m.path = null;
             if (m.wt <= 0) { m.wt = rand(1.5, 3.5); const a = Math.random() * Math.PI * 2, go = Math.random() < 0.6; m.wx = go ? Math.cos(a) : 0; m.wy = go ? Math.sin(a) : 0; if (home > 140) { const b = Math.atan2(m.hy - m.y, m.hx - m.x); m.wx = Math.cos(b); m.wy = Math.sin(b); } }
             moveMon(m, m.wx * sp * 0.5, m.wy * sp * 0.5);
           }
@@ -2701,7 +3006,8 @@
       function draw(now) {
         const map = G.map, c = ctx;
         // v150 큰 보스(사방신)가 가까우면 화면 가운데를 플레이어와 보스 몸 사이로 옮겨 보스가 더 잘 보이게
-        let fx = G.px, fy = G.py - 30; const bb = !G.ysNav && G.mons.find(m => m.hr && !m.dead);   // v173 왜선 단계엔 나를 가운데로 (배 8척이 다 보이게)
+        let fx = G.px, fy = G.py - 30; if (map.M.jj === 'shrine' && G.py < 18 * TS) fy -= 140;   // v224 사당이 다 보이게 화면을 조금 위로
+        const bb = !G.ysNav && G.mons.find(m => m.hr && !m.dead);   // v173 왜선 단계엔 나를 가운데로 (배 8척이 다 보이게)
         if (bb && Math.hypot(bb.x - G.px, bb.y - G.py) < 760) { const k = 0.5, ty = bb.y - (bb.def.float ? 26 : 0) - bb.spr.h * 0.5; fx += (bb.x - fx) * 0.3; fy += (ty - fy) * k; }
         G.camF = G.camF && G.camF.m === map && bb ? { m: map, x: G.camF.x + (fx - G.camF.x) * 0.08, y: G.camF.y + (fy - G.camF.y) * 0.08 } : { m: map, x: fx, y: fy };
         cam.x = map.w * TS <= W ? (map.w * TS - W) / 2 : clamp(G.camF.x - W / 2, 0, map.w * TS - W);   // 작은 지도(건물 안)는 화면 가운데
@@ -2740,6 +3046,7 @@
         Fx.drawFx(c, true, now);
         G.pools.forEach(p => Fx.drawPool(c, p, now));
         G.mons.forEach(m => { if (m.slam) Fx.slamWarn(c, m.slam.x, m.slam.y + 20, slamRo(m), Math.min(1, m.slam.t / 0.9), now); });
+        if (map.M.jj) drawJjGround(c, now);   // v224 즉사기 바닥 (색 링 · 바위 뒤 안전 그림자)
         G.mons.forEach(m => {   // v69 보스 기술 예고: 칼비 자리 · 돌진 방향
           const k = m.cast; if (!k || m.dead) return;
           if (k.k === 'blades') k.pts.forEach(q => Fx.slamWarn(c, q.x, q.y + 20, 46, Math.min(1, k.t / 1.0), now));
@@ -2761,6 +3068,7 @@
         if (G.ysNav) drawYsNav(c, now);   // v173 왜선 · 거북선
         if (G.bfx) drawBossFx(c, now);   // v173 보스 기술 표시
         drawSasinFx(c, map, now);   // v150 사신의 땅 (바위 글씨 · 사방신 불 · 왕을 죽인 검 빛)
+        if (map.M.jj) drawJjTop(c, now);   // v224 보스 머리 위 링 · 붉은 기운
         sayFlush(c);   // v158 말풍선은 비석보다 위에
         if (G.room) {
           const ex = map.exit, dx = (ex.x0 + ex.x1 + 1) / 2 * TS, dy = (ex.y + 0.5) * TS, k = Math.abs(Math.sin(now / 300));
@@ -2800,6 +3108,7 @@
         map.glows.forEach(g => { const x = g.x - cx, y = g.y - cy; if (x > -100 && x < W + 100 && y > -100 && y < H + 100) glowLights.push({ x, y, r: g.r, col: g.col, a: 0.85 }); });
         G.shots.forEach(s => { if (s.mine) glowLights.push({ x: s.x - cx, y: s.y - cy, r: 60, col: Fx.pal((s.els && s.els[0]) || 'light')[2] }); });
         G.pools.forEach(p => glowLights.push({ x: p.x - cx, y: p.y - cy, r: p.r * 1.2 }));
+        if (map.M.jj) jjGlows(map, cx, cy, now);   // v224 등불·블랙홀·사당 빛
         if (G.ysNav) { const N = G.ysNav; if (N.bless) glowLights.push({ x: G.px - cx, y: G.py + 20 - cy, r: 230, col: '#FFE9A0' }); N.ships.forEach(sh => { const p = ysShipPos(N, sh); glowLights.push({ x: p.x - cx, y: p.y - 40 - cy, r: 130, col: '#FFD8B0', a: 0.7 }); }); }   // v173 배가 어둠에 묻히지 않게
         if (G.room) {   // 건물 안: 따뜻한 빛 + 가장자리 어둡게
           c.save(); c.globalCompositeOperation = 'lighter';
@@ -2811,7 +3120,8 @@
         if (G.hurt > 0) { c.fillStyle = 'rgba(255,40,60,' + (G.hurt * 1.2).toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
         if (G.flash > 0) { c.fillStyle = 'rgba(255,255,255,' + (G.flash * 1.5).toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
         drawHud(c, now);
-        if (map.M.ys && S.ysMural && !G.room) drawYsBless(c, now);   // v173 이순신의 축복 (이 던전 안에서만)
+        if (map.M.ys && S.ysMural && !G.room) drawYsBless(c, now);
+        if (map.M.jj && !G.room) drawJjHud(c, now);   // v224 즉사기 초읽기   // v173 이순신의 축복 (이 던전 안에서만)
         if (G.touch) drawTouch(c);
         if (pane === 'ysmural' && G.map.M.ys) { c.save(); c.fillStyle = 'rgba(60,120,240,.16)'; c.fillRect(0, 0, W, H); c.font = '16px "Jua", "Malgun Gothic", sans-serif'; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = '#1D2340'; c.fillStyle = '#9AE6FF'; c.strokeText('⏳ 벽화를 맞추는 동안 시간이 멈췄다', W / 2, H - 92); c.fillText('⏳ 벽화를 맞추는 동안 시간이 멈췄다', W / 2, H - 92); c.restore(); }   // v180
         if (!G.dead) drawMenuTab(c, now);   // v173 지도 아래 메뉴 탭 (휴대폰 큰 화면용 · 터치 버튼보다 위에)
@@ -2907,6 +3217,7 @@
         } else if (M.sx !== 'king') G.kingSwordShown = false;
       }
       function drawObj(c, o, now) {
+        if (o.jj || o.jjGate) { drawJjObj(c, o, now); return; }   // v224 진주성 던전 소품
         if (o.ysSign) {   // v174 통영 아래쪽 '이순신 장군님 던전' 나무 푯말
           const cx = o.x + 76, by = o.sy; c.save();
           c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(cx, by, 26, 6, 0, 0, Math.PI * 2); c.fill();
@@ -3413,6 +3724,7 @@
         if (n.mural) return drawYsFrame(c, n, now);   // v174 빈 벽화 틀
         if (n.chest) return drawChest(c, n, now);   // v222 창고 보물상자
         if (n.stall) return drawStall(c, n, now);   // v223 잡화상 가판대
+        if (n.key === 'jjsoul') return drawJjSoul(c, n, now);   // v224 사당의 넋 (둥실둥실 · 빛)
         if (n.baked) return npcTags(c, n, n.topY, now);   // v129 실내 그림 속 사람 (몸은 바닥 그림에 있음)
         if (n.def.img && (!n.def.av || img79(n.def.img))) return drawArmy(c, n, now);   // v110 NPC 그림 (못 불러오면 예전 아바타)
         const nv = n.moving ? 's' : 'f', fs = nv === 's' ? figSet(AV.normalize(n.def.av), {}, true, 0, 's') : null, img = fs ? fs.img : npcSprite(n.def.av, 0);   // v107 걸어 다니는 마을 사람은 옆모습
@@ -3878,13 +4190,14 @@
         const dungeon = (title, sub, rows, extra, hide) => {
           const all = rows.concat(extra || []), cols = Math.max(...all.map(r => r.pos[0])) + 1, nr = Math.max(...all.map(r => r.pos[1])) + 1;
           // v190 선생님 11/23: 보스·장수를 이긴 방은 큰 지도에 ✖ (이순신 던전의 숨은 칸도 이기면 보임)
-          const kill = r => { const k = r.kind, d = r.data || {}; if (M.sx) return SX.gods.includes(k) ? !!S.sasin[k] : k === 'all' ? !!S.sasinAll : k === 'king' ? !!S.kingAt : false;
+          const kill = r => { const k = r.kind, d = r.data || {}; if (M.jj) return k === 'gen' ? !!(S.jjg && S.jjg[d.ji]) : k === 'shrine' ? !!(S.jjl && S.jjl[d.ji]) : false; if (M.sx) return SX.gods.includes(k) ? !!S.sasin[k] : k === 'all' ? !!S.sasinAll : k === 'king' ? !!S.kingAt : false;
             return k === 'gen' ? !!(S.ysp && S.ysp[d.yi]) : k === 'all' ? !!S.ysAll : k === 'boss' ? !!S.ysAt : false; };
           const show = all.filter(r => !(hide && hide(r)) || r.id === cur || kill(r));   // v172 이순신 던전: 장수·회합·본진 칸은 지도에 아예 안 그림 (지금 그 방에 있을 때만 📍 · v190 이긴 방은 ✖ 로 보임)
           return head(title, sub) + `<div class="rg-wm-grid${nr > 9 ? ' tall' : ''}" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${nr},minmax(${nr > 9 ? 30 : 44}px,auto))">${show.map(r => { const x = kill(r), hid = hide && hide(r) && !x; return `<div class="rg-wm-c ${cls(r.id)}${x ? ' kill' : ''}" style="grid-column:${r.pos[0] + 1};grid-row:${r.pos[1] + 1}"${x ? ` title="${r.kind === 'king' || r.kind === 'boss' ? '이긴 적 있음 (다시 도전할 수 있어요)' : '이긴 곳'}"` : ''}>${r.id === cur ? '📍' + (hid ? '' : '<br>') : ''}${hid ? '' : r.name}</div>`; }).join('')}</div>`
             + '<p class="sub" style="margin-top:8px"><span class="rg-wm-key cur">📍 지금 있는 곳</span> <span class="rg-wm-key vis">가 본 곳</span> <span class="rg-wm-key">아직 안 가 본 곳</span> <span class="rg-wm-key kill">보스·장수를 이긴 곳</span></p>';
         };
         if (M.sx && D.SASIN) return dungeon('🗺 광개토대왕 던전', '이 던전 안의 지도예요', D.SASIN.rows);
+        if (M.jj && D.JJ) return dungeon('🗺 진주성 던전', '가운데 촉석루 앞 마당에서 세 갈래 (북 김시민 · 서 황진 · 동 논개) · 왜장을 이기면 사당이 열려요 · 등불 셋 = 블랙홀', D.JJ.rows.filter(r => r.kind !== 'boss'), [{ id: 'v6', name: '진주', pos: D.JJ.top }]);
         if (M.ys && D.YS) return dungeon('🗺 이순신 장군님 던전', '어귀에서 한 바퀴 돌며 왜장 아홉을 만나요 (한산 → 명량 → 노량) · 가운데 길 = 벽화 → 회합 → 본진', D.YS.rows, [{ id: 'v7', name: '통영', pos: [D.YS.top[0], D.YS.top[1]] }]);   // v190 고리 길: 장수 칸도 처음부터 보임 (선생님 11/23 '지도가 너무 복잡하다')
         const rowsH = D.REGIONS.map((R, ri) => { const v = 'v' + (ri + 1); let s = `<div class="rg-wm-row"><span class="rg-wm-v ${cls(v)}">${ri + 1}. ${R.name}${R.castle ? ' 🏯' : ''}</span>`;
           for (let k2 = 0; k2 < 10; k2++) { const n = ri * 10 + k2 + 1, id = 'f' + n; s += `<span class="rg-wm-f ${cls(id)}" title="${R.fields[k2]}">${id === cur ? '📍' : n}</span>`; }
@@ -4514,7 +4827,7 @@
         else if ('login' in d) { closePanel(); if (window.GoOpenAuth) window.GoOpenAuth('login'); return; }   // v203 로그인 경고 → 로그인 창
         else if ('solo' in d) { if (net.joined) { net.leave(); say('혼자 하기로 바꿨어요', 2); } closePanel(); return; }
         else if ('savenow' in d) { save(true).then(ok => say(ok || !Store.online() ? '저장했어요' : '이 기기에 저장했어요 (서버 저장은 준비 중)')); return; }
-        else if ('revive' in d) { G.dead = false; pane = null; panel.hidden = true; G.paused = false; restat(); S.hp = ST.hp; S.mp = ST.mp; if (G.map && G.map.M.sx) enter(SX.home, { from: SX.entry }); else if (G.map && G.map.M.ys) enter(YS.home, { from: YS.entry }); else enter(S.home, 'door'); return; }   // v150 사신의 땅에서 쓰러지면 18번 사냥터
+        else if ('revive' in d) { G.dead = false; pane = null; panel.hidden = true; G.paused = false; restat(); S.hp = ST.hp; S.mp = ST.mp; if (G.map && G.map.M.sx) enter(SX.home, { from: SX.entry }); else if (G.map && G.map.M.ys) enter(YS.home, { from: YS.entry }); else if (G.map && G.map.M.jj) enter(JJ.home, { from: JJ.entry }); else enter(S.home, 'door'); return; }   // v150 사신의 땅에서 쓰러지면 18번 사냥터
         renderPanel();
       });
       syncBgm();

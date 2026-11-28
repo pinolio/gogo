@@ -319,6 +319,9 @@
     desc: '어디선가 굴러들어온 검.', descKing: '어느 날 광개토대왕을 죽인 검.' };
   ITEMS.rgKing = { id: 'rgKing', slot: 'ring', name: '광개토대왕의 반지', tier: 9, rare: true, legend: true, req: 100, st: { mp: Math.round(ITEMS.rg10.st.mp * 1.2), mag: Math.round(ITEMS.rg10.st.mag * 1.2) }, price: ITEMS.rg10.price /* v182 선생님 11/23: 팔 때 전설과 같은 값 */,
     noTrade: true, icon79: 'ic_rg_king', desc: '사방신을 거느린 대왕의 반지. 잡을 때마다 하나씩.', goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'], fixOpt: { e_all: 15 } };   // v187 fixOpt = 고정 옵션 (보통 최대치 8 을 넘어도 그대로)
+  /* v224 진주성의 무한 갑옷 (선생님 11/27): 우키타 히데이에를 이기면 · 전설 갑옷(ar10)의 1.2배 · 옵션 4개 = ① 불사(체력 1 → 3초 무적 · 쿨 5분) 고정 ② 좋은 옵션 1개 최대치 ③④ 무작위 · 거래 안 됨 */
+  ITEMS.arJJ = { id: 'arJJ', slot: 'armor', name: '진주성의 무한 갑옷', tier: 9, rare: true, legend: true, req: 100, st: { def: Math.round(ITEMS.ar10.st.def * 1.2), hp: Math.round(ITEMS.ar10.st.hp * 1.2) }, price: ITEMS.ar10.price,
+    noTrade: true, icon79: 'ic_ar_jj', desc: '진주성을 지킨 넋들의 갑옷. 우키타 히데이에를 이길 때마다 하나씩.', goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit', 'hpP'], fixOpt: { undy: 3 } };
   /* v173 이순신 장군의 신발 (선생님 11/20): 와키자카 야스하루를 이기면 · 전설 신발(bt10)의 1.2배 · 옵션 4개 = ① 이동 속도 고정(spd, 선생님이 정함) ② 좋은 옵션 1개 최대치 ③④ 무작위 · 거래 안 됨 */
   ITEMS.btYi = { id: 'btYi', slot: 'boots', name: '이순신 장군의 신발', tier: 9, rare: true, legend: true, req: 100, st: { def: Math.round(ITEMS.bt10.st.def * 1.2), spd: Math.round(ITEMS.bt10.st.spd * 1.2) }, price: ITEMS.bt10.price /* v182 선생님 11/23: 팔 때 전설과 같은 값 */,
     noTrade: true, icon79: 'ic_bt_yi', desc: '바다를 지킨 장군의 신발. 와키자카를 이길 때마다 하나씩.', spdOpt: 10, goodOpts: ['dmg', 'atkP', 'magP', 'critD', 'crit'], fixOpt: { spdP: 10 } };
@@ -347,7 +350,8 @@
     critD: { name: '치명타 피해', max: 30 },
     mpReg: { name: '마나 회복', max: 30 },
     goldP: { name: '골드 획득', max: 30 },
-    expP: { name: '경험치 획득', max: 18 }
+    expP: { name: '경험치 획득', max: 18 },
+    undy: { name: '불사', max: 3, special: true, txt: v => `체력이 1이 되면 ${v}초 동안 무적 (쿨타임 5분 · 즉사기는 못 막음)` }   // v224 진주성의 무한 갑옷 고정 옵션 (무작위로는 안 붙음)
   };
   const GRADE = [
     { name: '일반', color: '#FFFFFF' }, { name: '고급', color: '#9AF0B0' }, { name: '희귀', color: '#7FC8FF' },
@@ -801,6 +805,96 @@
     const frame = { name: '빈 벽화 틀', color: '#FFD23F', hello: ['벽화가 걸려 있던 틀이다.'], lines: ['벽화가 떼어진 자리에 못 자국만 남아 있다…'] };   // v180 hello 없으면 말 걸 때 멈췄음
     return { on: true, rows, gens, boss, npc, frame, muralAt: 'ys_v5', only: ['파워복복'], home: 'v7', entry: 'ys_in', top: [2, 0], mural: 'ys_mural', n: GEN.length, genName: GEN.map(g => g[1]), lv: { all: 400, boss: 500 } };
   })();
+  /* v224 진주성 던전 (선생님 11/27 엑셀 지도) — 진주(마을 6) 12시 방향 입구 → 위로 올라가는 십자 던전
+   *  가운데 '촉석루 앞 마당'(보스방 입구) · 북(김시민) · 서(황진) · 동(논개) 세 갈래 = 빈 길 → 왜장 → 사당
+   *  왜장을 이기면 사당이 열림 → 사당의 영혼과 이야기(웹툰)하면 마당의 등불이 켜짐 (논개 3시 빨강 · 김시민 12시 초록 · 황진 9시 파랑)
+   *  등불 셋이 켜지면 마당 한가운데 블랙홀 → 보스 방(우키타 히데이에) · 이기면 '진주성의 무한 갑옷' + 던전 처음으로
+   *  pub:false + only = 관리자 '파워복복'만 (나중에 공개) */
+  const JJ = (() => {
+    const W2 = 40, H2 = 28;
+    // 갈래 3개: [사당 열쇠, 위인, 사당 이름, 등불 색, 등불 방향, 왜장]
+    const ARM = [
+      { k: 'kim', hero: '김시민', shrine: '김시민 장군 사당 · 충민사', col: '#3DDC84', colName: '초록', dir: 'u', clock: '12시' },
+      { k: 'hwang', hero: '황진', shrine: '황진 장군 사당 · 창렬사', col: '#3C9BFF', colName: '파랑', dir: 'l', clock: '9시' },
+      { k: 'non', hero: '논개', shrine: '의암 주논개 사당 · 의기사', col: '#FF4A4A', colName: '빨강', dir: 'r', clock: '3시' }
+    ];
+    // 왜장 3명 (2차 진주성 공격에 실제로 온 장수 · 이순신 던전과 겹치지 않게)
+    const GEN = [
+      ['jj_g0', '구로다 나가마사', 'dark', '#8A5AD8', '검은 투구의 구로다 나가마사가 김시민 장군의 넋을 사당에 가두었다!', ['fan', 'charge', 'volley', 'chain'], ['dark', 'earth']],
+      ['jj_g1', '깃카와 히로이에', 'water', '#3C9BFF', '깃카와 히로이에가 황진 장군의 넋 앞을 가로막는다!', ['ring', 'fan', 'spiral', 'cage'], ['water', 'wind']],
+      ['jj_g2', '고바야카와 다카카게', 'fire', '#FF8A3D', '노장 고바야카와 다카카게가 의암으로 가는 길을 막았다!', ['slam', 'blades', 'meteor', 'cross'], ['fire', 'light']]
+    ];
+    // 엑셀 배치 (열, 행) · 행 6 = 진주(지도에만)
+    const cells = [
+      ['jj_in', 3, 5, '진주성 북쪽 성벽길', 'path'], ['jj_r1', 3, 4, '남강 물가 길', 'path'], ['jj_hub', 3, 3, '촉석루 앞 마당', 'hub'],
+      ['jj_r2', 3, 2, '북장대 오르막', 'path'], ['jj_g0', 3, 1, '구로다 나가마사의 진', 'gen', 0], ['jj_s0', 3, 0, ARM[0].shrine, 'shrine', 0],
+      ['jj_r3', 2, 3, '서장대 성벽길', 'path'], ['jj_g1', 1, 3, '깃카와 히로이에의 진', 'gen', 1], ['jj_s1', 0, 3, ARM[1].shrine, 'shrine', 1],
+      ['jj_r4', 4, 3, '의암 가는 길', 'path'], ['jj_g2', 5, 3, '고바야카와 다카카게의 진', 'gen', 2], ['jj_s2', 6, 3, ARM[2].shrine, 'shrine', 2],
+      ['jj_boss', 5, 0, '촉석루 본진 · 블랙홀 너머', 'boss']];
+    const LINKS = [['jj_in', 'jj_r1'], ['jj_r1', 'jj_hub'], ['jj_hub', 'jj_r2'], ['jj_r2', 'jj_g0'], ['jj_g0', 'jj_s0'], ['jj_hub', 'jj_r3'], ['jj_r3', 'jj_g1'], ['jj_g1', 'jj_s1'], ['jj_hub', 'jj_r4'], ['jj_r4', 'jj_g2'], ['jj_g2', 'jj_s2']];
+    const at = {}; cells.forEach(c => { at[c[1] + ',' + c[2]] = c[0]; }); const linked = (a, b) => LINKS.some(([p, q]) => (p === a && q === b) || (p === b && q === a));
+    const PATH = {   // 길 칸: 레벨 200 이상 · 왜군 몬스터
+      jj_in: { region: 5, lv: 210, mob: ['f74', 'f68', 'f79'], tree: 5, rock: 8, pond: 2 }, jj_r1: { region: 5, lv: 222, mob: ['f79', 'f74', 'f81'], tree: 3, rock: 6, pond: 5 },
+      jj_r2: { region: 5, lv: 236, mob: ['f81', 'f79', 'f84'], tree: 6, rock: 10, pond: 1 }, jj_r3: { region: 5, lv: 236, mob: ['f81', 'f84', 'f79'], tree: 4, rock: 12, pond: 2 },
+      jj_r4: { region: 5, lv: 236, mob: ['f84', 'f81', 'f89'], tree: 3, rock: 6, pond: 6 }
+    };
+    function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+    // 그림 소품 자리 (칸 · 가운데 기준 dx,dy) — 10 = 막힌 칸(소품 그림은 game.js 가 그림)
+    const HUB_LAMP = { u: [2, -7], l: [-9, -2], r: [8, -2] };   // 등불 (12시 · 9시 · 3시) — 길(가운데 두 칸) 바로 옆
+    const BOSS_ROCK = [[-8, -5], [8, -5], [-8, 5], [8, 5]];     // 바위 방패 4개 (안 부서짐)
+    function grid(id, ex, kind) {
+      const r = seeded('jj-' + id), t = new Array(W2 * H2).fill(0), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < W2 && y < H2) t[y * W2 + x] = v; }, get = (x, y) => (x < 0 || y < 0 || x >= W2 || y >= H2 ? 2 : t[y * W2 + x]);
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) if (x < 2 || y < 2 || x >= W2 - 2 || y >= H2 - 2) set(x, y, r() < 0.5 ? 2 : 3);
+      const cx = W2 >> 1, cy = H2 >> 1, room = kind !== 'path';
+      Object.keys(ex).forEach(sd => {
+        if (sd === 'u' || sd === 'd') { for (let x = cx - 3; x <= cx + 2; x++) for (let k = 0; k < 3; k++) set(x, sd === 'u' ? k : H2 - 1 - k, 0); for (let y = (sd === 'u' ? 0 : cy); y <= (sd === 'u' ? cy : H2 - 1); y++) for (let x = cx - 1; x <= cx; x++) set(x, y, 1); }
+        else { for (let y = cy - 3; y <= cy + 2; y++) for (let k = 0; k < 3; k++) set(sd === 'l' ? k : W2 - 1 - k, y, 0); for (let x = (sd === 'l' ? 0 : cx); x <= (sd === 'l' ? cx : W2 - 1); x++) for (let y = cy - 1; y <= cy; y++) set(x, y, 1); }
+      });
+      if (room) {
+        const big = kind === 'boss' || kind === 'hub', rx = big ? 15 : 11, ry = big ? 10 : 8;
+        for (let y = cy - ry; y <= cy + ry - 1; y++) for (let x = cx - rx; x <= cx + rx - 1; x++) if (get(x, y) !== 1) set(x, y, 0);
+        if (kind === 'boss') { for (let y = 2; y < H2 - 2; y++) for (let x = 2; x < W2 - 2; x++) if (get(x, y) === 1) set(x, y, 0); BOSS_ROCK.forEach(([dx, dy]) => { for (let b = 0; b < 2; b++) for (let a = 0; a < 2; a++) set(cx + dx - 1 + a, cy + dy - 1 + b, 10); }); }
+        if (kind === 'hub') Object.keys(HUB_LAMP).forEach(sd => { const [dx, dy] = HUB_LAMP[sd]; set(cx + dx, cy + dy, 10); });
+        if (kind === 'shrine') for (let y = 7; y <= 11; y++) for (let x = cx - 7; x <= cx + 6; x++) set(x, y, 10);   // v224 사당 더 크게   // 사당 건물 자리 (위쪽 가운데)
+        if (kind === 'gen') [[-9, -5], [8, -5], [-9, 4], [8, 4]].forEach(([dx, dy]) => set(cx + dx, cy + dy, 3));
+      }
+      const near = (x, y, d) => { for (let b = -d; b <= d; b++) for (let a = -d; a <= d; a++) if (get(x + a, y + b) === 1) return true; return false; };
+      const P = PATH[id], gi = (cells.find(c => c[0] === id) || [])[5];
+      const big = kind === 'boss' || kind === 'hub', prx = big ? 15 : 11, pry = big ? 10 : 8;
+      // v224 꾸미기: 김시민 사당 = 소나무 숲(빽빽) · 논개 사당 = 벚꽃 숲 · 황진 사당 = 민들레 꽃밭(나무 적게) · 그 밖 방 = 가장자리 숲
+      const nClu = kind === 'shrine' ? (gi === 1 ? 7 : 26) : kind === 'boss' ? 8 : room ? 14 : P.tree + P.rock + 4;
+      for (let k = 0; k < nClu; k++) {
+        const x0 = 3 + Math.floor(r() * (W2 - 6)), y0 = 3 + Math.floor(r() * (H2 - 6)), n = 3 + Math.floor(r() * 6), v = room ? (r() < 0.85 ? 2 : 3) : (k < P.tree + 4 ? 2 : 3);
+        if (room && Math.abs(x0 - cx) < prx - 1 && Math.abs(y0 - cy) < pry - 1) continue;
+        for (let i = 0; i < n; i++) { const x = x0 + Math.floor(r() * 3) - 1, y = y0 + Math.floor(r() * 3) - 1; if (get(x, y) === 0 && !near(x, y, 2)) set(x, y, v); }
+      }
+      const nPond = room ? (kind === 'boss' ? 0 : kind === 'shrine' ? 3 : 2) : P.pond;
+      for (let k = 0; k < nPond; k++) { let x0 = 7 + r() * (W2 - 14), y0 = 6 + r() * (H2 - 12); if (room) for (let q = 0; q < 40 && Math.abs(x0 - cx) < prx + 2 && Math.abs(y0 - cy) < pry + 2; q++) { x0 = 5 + r() * (W2 - 10); y0 = 5 + r() * (H2 - 10); } const rx = 2.2 + r() * 1.6, ry = 1.5 + r() * 1; for (let y = Math.floor(y0 - ry); y <= y0 + ry; y++) for (let x = Math.floor(x0 - rx); x <= x0 + rx; x++) if (get(x, y) === 0 && ((x - x0) / rx) ** 2 + ((y - y0) / ry) ** 2 <= 1 && !near(x, y, 1)) set(x, y, 4); }
+      for (let y = 2; y < H2 - 2; y++) for (let x = 2; x < W2 - 2; x++) if (get(x, y) === 0 && r() < 0.04) set(x, y, 5);
+      return t;
+    }
+    const LOOK = { hub: 5, gen: 5, shrine: 5, boss: 5 };
+    const rows = cells.map(([id, cx, cy, name, kind, gi]) => {
+      const ex = {}; [['u', 0, -1], ['d', 0, 1], ['l', -1, 0], ['r', 1, 0]].forEach(([sd, dx, dy]) => { const to = at[(cx + dx) + ',' + (cy + dy)]; if (to && linked(id, to)) ex[sd] = to; });
+      if (id === 'jj_in') ex.d = 'v6';   // 맨 아래 → 진주 (진주 쪽 위 출구는 world.js 가 뚫음)
+      const P = PATH[id], mons = P ? { list: P.mob.map((f, i) => ({ f, lv: P.lv, n: [8, 6, 5][i] })) } : {};
+      return { id, name, pos: [cx, cy], kind, data: { w: W2, h: H2, region: 0, /* v224 푸른 풀밭 */ t: grid(id, ex, kind), exits: ex, mons, pub: false, noBack: id === 'jj_in', jj: kind, ji: gi == null ? -1 : gi,
+        rec: P ? P.lv : kind === 'boss' ? 600 : kind === 'gen' ? 400 : 230 } };   // v224 선생님 11/28: 왜장 Lv.400 (보스 Lv.600)
+    });
+    const B = (name, img, el, light, colors, say, skills, more) => Object.assign({ name, img, h: 150, el, immune: el, light, shape: 'golem', colors, kind: 'boss', say, skills, noKnock: true, hard: true, bh: 300, aura: true, baseCol: light,
+      frames: { idle: img, atk1: img + '_atk', atk2: img + '_atk', cast: img + '_cast', hit: img + '_hit', walk: [img + '_walk1', img + '_walk2'] } }, more || {});
+    const gens = GEN.map((g, i) => B(g[1], g[0], g[2], g[3], { a: g[3], b: '#1D2340', c: '#FFFFFF', d: '#FF4A3A' }, g[4], g[5], { jjGen: i, immune: g[6], noFusion: true, spdK: 1.5, aspd: 1.5 }));
+    // 보스: 기술 8개 = ① 총대장의 군기(체력 1 → 5초 무적, undying) ②~⑥ 아래 skills ⑦⑧ 즉사(체력 단계 · game.js jjDoom)
+    const boss = B('우키타 히데이에', 'jj_boss', 'dark', '#B07AFF', { a: '#5A2A8A', b: '#1D2340', c: '#FFD23F', d: '#3CE8D8' }, '왜군 총대장 우키타 히데이에의 원령이 촉석루를 차지했다! 진주성을 다시 불태우겠다고 한다…',
+      ['volley', 'meteor', 'phalanx', 'sweep', 'shadow'], { immune: null, frames: { idle: 'jj_boss', atk1: 'jj_boss_atk1', atk2: 'jj_boss_atk2', cast: 'jj_boss_cast', hit: 'jj_boss_hit', walk: ['jj_boss_walk1', 'jj_boss_walk2'] },
+        bh: 380, skCd: [0.9, 1.3], jjBoss: true, noFusion: true, spdK: 2, aspd: 1.5, noCC: true, undying: true, undyT: 5, passAll: true,
+        skName: { volley: '철포대 일제 사격', meteor: '대포 포격', phalanx: '창병 돌격', sweep: '비젠의 명검', shadow: '원군의 그림자' } });
+    // 즉사 ① 진주성 총공격(바위 뒤) 50·30·10% · ② 세 깃발 군령(같은 색 링) 60·40·20% · 시전 4초(보스 무적)
+    const DOOM = [{ at: 0.6, k: 'ring' }, { at: 0.5, k: 'wall' }, { at: 0.4, k: 'ring' }, { at: 0.3, k: 'wall' }, { at: 0.2, k: 'ring' }, { at: 0.1, k: 'wall' }];
+    const RINGS = [{ k: 'r', col: '#FF4A4A', ch: '적', hero: '논개' }, { k: 'g', col: '#3DDC84', ch: '녹', hero: '김시민' }, { k: 'b', col: '#3C9BFF', ch: '청', hero: '황진' }];
+    const npc = { name: '진주성 의병', color: '#9AE6FF' };
+    return { on: true, rows, gens, boss, ARM, GEN, DOOM, RINGS, HUB_LAMP, BOSS_ROCK, castTime: 4, only: ['파워복복'], minReb: 5 /* v224 선생님 11/28 15:56: 환생 5번 이상만 입장 (최대 레벨 100 · 환생 10번) */, home: 'v6', entry: 'jj_in', hub: 'jj_hub', bossMap: 'jj_boss', top: [3, 6], lv: { boss: 600 }, npc };
+  })();
   // v131 환생: 저승 10-5(오도전륜대왕)를 깨면 할 수 있음 · Lv.1 로 돌아가고 환생마다 스탯 포인트 +20 · 장비·가방·골드는 그대로 · 마법은 기본 마법만 · 스탯마다 최대치 +10 · 최대 10번 · 10-5를 깰 때마다 한 번
   const REBIRTH = { max: 10, bonus: 20, statUp: 10 };   // v131 환생마다 스탯 최대치 +10 (50 → 60 → … → 150)
 
@@ -849,5 +943,5 @@
     { id: 'ys', name: '이순신과 함께한 자', color: '#9AE6FF', how: '이순신 장군님 던전에서 와키자카를 이기면' },
     { id: 'ys1', name: '처음으로 이순신과 함께한 자', color: '#FF9AE0', how: '가장 먼저 이순신 장군님 던전을 깬 단 한 사람' }
   ];
-  window.GoRPGData = { METEOR, GURI, YSFOLK, TITLES, SASIN, YS, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
+  window.GoRPGData = { METEOR, GURI, YSFOLK, TITLES, SASIN, YS, JJ, PET_GRADE, PETS, PET, npcDef, REBIRTH, WAE_EL, STATION, stationFee, MAX_LV, REGIONS, recOf, LV_RANGE, MAPS, F, STAT, TIER, SLOT_NAME, ITEMS, POTIONS, ELEM, SKILLS, FUSION, fusionOf, BUILDINGS, CASTLE, NPCS, VILLAGERS, ARMY, GEAR_BASE, OPTS, GRADE, ENH, BAG, SELL, RG_EL, SMITH, reqOf, HELL };
 })();
